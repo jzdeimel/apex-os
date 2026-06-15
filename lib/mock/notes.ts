@@ -1,0 +1,14 @@
+import type { Note } from "@/lib/types";
+
+export const seedNotes: Note[] = [
+  { id: "n-01", clientId: "c-001", author: "Coach", authorId: "st-005", body: "Jake is consistent with training 4x/week. Reports afternoon energy crashes — aligning nutrition timing around lunch (single main meal preference noted).", createdAt: "2026-06-02T10:00:00" },
+  { id: "n-02", clientId: "c-001", author: "AI", body: "AI-generated visit summary draft (provider review required): Client presents with metabolic markers trending toward insulin resistance (A1C 5.9%, fasting insulin 14.2). Goals of fat loss and energy align with a metabolic/weight-management discussion. No dosing included. Requires provider review.", createdAt: "2026-06-01T16:30:00" },
+  { id: "n-03", clientId: "c-002", author: "Coach", authorId: "st-006", body: "Andre reports low libido and energy. Strength plateaued. Labs show low testosterone — flagged for provider hormone optimization discussion.", createdAt: "2026-06-05T14:00:00" },
+  { id: "n-04", clientId: "c-002", author: "Provider", authorId: "st-001", body: "Reviewing labs ahead of 6/13 visit. Will discuss hormone optimization options and required monitoring. No protocol initiated yet.", createdAt: "2026-06-06T09:15:00", pinned: true },
+  { id: "n-05", clientId: "c-006", author: "AI", body: "AI-generated visit summary draft (provider review required): TSH 5.8 with low Free T3 (2.4) and reverse T3 at upper range suggest a thyroid optimization discussion. Symptoms of cold intolerance and brain fog are consistent. Provider review required before any plan.", createdAt: "2026-06-04T11:00:00" },
+  { id: "n-06", clientId: "c-011", author: "Provider", authorId: "st-003", body: "Hematocrit at 50.4 on current optimization — monitoring closely, scheduled recheck. Discussed hydration and donation considerations.", createdAt: "2026-05-19T13:00:00", pinned: true },
+  { id: "n-07", clientId: "c-013", author: "Coach", authorId: "st-005", body: "Nathan overdue for follow-up. Joint pain limiting lower-body work. Inflammation markers elevated — recovery/tissue support flagged for provider.", createdAt: "2026-05-16T15:30:00" },
+  { id: "n-08", clientId: "c-023", author: "Coach", authorId: "st-005", body: "Tony motivated, wants visible results before summer. Labs show low T with high body fat. Coordinating metabolic + hormone discussion with provider.", createdAt: "2026-06-07T10:45:00" },
+  { id: "n-09", clientId: "c-019", author: "Provider", authorId: "st-003", body: "Samuel responding well across energy and libido goals. PSA 3.2 — within range, continue routine monitoring per schedule.", createdAt: "2026-05-21T09:00:00" },
+  { id: "n-10", clientId: "c-024", author: "Coach", authorId: "st-007", body: "Renee focused on hair and skin goals. Ferritin low (18) — nutrient optimization discussion plus aesthetics support pathway.", createdAt: "2026-06-01T12:00:00" },
+];
