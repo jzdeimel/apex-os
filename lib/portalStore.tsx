@@ -75,7 +75,19 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   }, [chosen]);
 
   const fromRoute = portalForPath(pathname);
-  const isEntry = fromRoute === null && pathname === "/";
+
+  /**
+   * Pre-auth surfaces render bare — no sidebar, no topbar, no app chrome.
+   *
+   * The entry screen, the public booking page and a tokenized intake link are
+   * all seen by someone who is not signed in and may not be a member yet. The
+   * intake link in particular gets opened by a stranger from an SMS, so leaking
+   * any operator chrome onto it would be both wrong and alarming.
+   */
+  const isEntry =
+    (fromRoute === null && pathname === "/") ||
+    pathname === "/book" ||
+    pathname.startsWith("/intake/");
 
   const portal = fromRoute ?? (chosen ? PORTALS[chosen] : PORTALS.clinic);
 

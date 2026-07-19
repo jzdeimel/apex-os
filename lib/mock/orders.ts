@@ -465,6 +465,27 @@ const HERO_ORDERS: Order[] = [
 
 export const orders: Order[] = [...HERO_ORDERS, ...built];
 
+/**
+ * Commit a newly placed order into the book.
+ *
+ * Without this, `placeOrder` constructed an Order, appended a ledger row
+ * recording its creation, and then dropped it — so the chain permanently
+ * recorded an order that no board, no portal and no `orderById` lookup could
+ * resolve. A ledger entry for an unreachable record is worse than no entry: it
+ * asserts something happened that the product cannot show you.
+ *
+ * Mirrors `commitSubscription` in lib/mock/subscriptions.ts. Replaces in place
+ * when the id already exists, so a retried placement is idempotent rather than
+ * producing a duplicate row.
+ */
+export function commitOrder(order: Order): Order {
+  const i = orders.findIndex((o) => o.id === order.id);
+  if (i >= 0) orders[i] = order;
+  else orders.push(order);
+  orderMap[order.id] = order;
+  return order;
+}
+
 export const orderMap: Record<string, Order> = Object.fromEntries(
   orders.map((o) => [o.id, o]),
 );

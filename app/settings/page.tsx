@@ -18,6 +18,17 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { RecommendationCategory } from "@/lib/types";
+import { AZURE_SERVICES } from "@/lib/azure/registry";
+
+/**
+ * Status wording. Kept here rather than in the registry because it is UI copy —
+ * "adapter" is accurate but means nothing to someone reading a settings screen.
+ */
+const STATUS_LABEL: Record<string, string> = {
+  wired: "Live",
+  adapter: "Adapter",
+  planned: "Planned",
+};
 
 const SERVICE_CATEGORIES: RecommendationCategory[] = [
   "Recovery / tissue support",
@@ -40,22 +51,15 @@ const SERVICE_CATEGORIES: RecommendationCategory[] = [
  * fulfillment partner — which are contracts, not systems we sync a copy of our
  * data into.
  */
-const PLATFORM = [
-  { name: "Azure Database for PostgreSQL", desc: "System of record. Every client, plan, consult and order.", status: "Core", phase: "Live" },
-  { name: "Microsoft Entra ID", desc: "Coach & provider identity. MFA enforced for clinical sign-off.", status: "Core", phase: "Live" },
-  { name: "Entra External ID (CIAM)", desc: "Client identity for the member portal.", status: "Core", phase: "Live" },
-  { name: "Azure Communication Services", desc: "Email & SMS to members. Consent-gated, quiet-hours aware.", status: "Core", phase: "Live" },
-  { name: "Azure OpenAI", desc: "Consult summarization, draft messages, copilot. BAA-covered.", status: "Core", phase: "Live" },
-  { name: "Azure Blob Storage", desc: "Lab PDFs, scan images, signed documents.", status: "Core", phase: "Live" },
-  { name: "Azure Container Apps Jobs", desc: "Reminders, renewals, ledger verification sweeps.", status: "Core", phase: "Live" },
-  { name: "Azure Monitor", desc: "Telemetry & alerting, PHI-redacted at the exporter.", status: "Core", phase: "Live" },
-];
 
-const PARTNERS = [
-  { name: "MedSource", desc: "Fulfillment & compounding supply. Apex places the order; MedSource ships it.", status: "Contract", phase: "Phase 2" },
-  { name: "Reference lab", desc: "Panel ordering & result delivery.", status: "Contract", phase: "Phase 2" },
-  { name: "Payment processor", desc: "Tokenized card on file. Apex never stores a card number.", status: "Adapter", phase: "Phase 2" },
-];
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="label-eyebrow">{label}</p>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-ink-300">{value}</p>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { ruleEnabled, toggleRule, resetDemo } = useStore();
@@ -174,58 +178,59 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plug className="h-4 w-4 text-gold-400" /> Platform
+            <Plug className="h-4 w-4 text-gold-400" /> Azure estate
           </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="rounded-lg border border-optimal/20 bg-optimal/5 px-3 py-2 text-[11px] leading-relaxed text-ink-300">
-            Apex is the system of record and runs entirely on Azure. There is no
-            CRM, scheduling platform or marketing tool to sync with — which is why
-            no screen in Apex has ever shown you a “last synced” timestamp or a
-            sync conflict to resolve.
+          <p className="mt-1 text-xs text-ink-500">
+            Apex is the system of record and runs entirely on Azure. There is no CRM,
+            scheduling platform or marketing tool to sync with — which is why no screen
+            in Apex has ever shown you a &ldquo;last synced&rdquo; timestamp or a sync
+            conflict to resolve.
           </p>
-
-          <div>
-            <p className="label-eyebrow mb-2">Azure services</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {PLATFORM.map((i) => (
-                <div
-                  key={i.name}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-ink-100">{i.name}</span>
-                    <span className="block text-[11px] text-ink-500">{i.desc}</span>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <Badge tone="optimal">{i.status}</Badge>
-                    <span className="text-[10px] text-ink-600">{i.phase}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="label-eyebrow mb-2">Outside parties</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {PARTNERS.map((i) => (
-                <div
-                  key={i.name}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-ink-100">{i.name}</span>
-                    <span className="block text-[11px] text-ink-500">{i.desc}</span>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <Badge tone="neutral">{i.status}</Badge>
-                    <span className="text-[10px] text-ink-600">{i.phase}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {/* Rendered from lib/azure/registry.ts rather than a hand-kept list, so
+              this panel cannot drift from what the adapters actually claim. The
+              status is deliberately honest: most of these are adapters, not live. */}
+          {AZURE_SERVICES.map((svc) => (
+            <details
+              key={svc.id}
+              className="group rounded-xl border border-ink-800 bg-ink-900/40 p-4 open:border-ink-700"
+            >
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 focus-ring">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink-100">{svc.name}</span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-500">
+                    {svc.purpose}
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge
+                    tone={
+                      svc.status === "wired"
+                        ? "optimal"
+                        : svc.status === "adapter"
+                          ? "watch"
+                          : "neutral"
+                    }
+                  >
+                    {STATUS_LABEL[svc.status]}
+                  </Badge>
+                  {svc.baaCovered ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-optimal">
+                      <ShieldCheck className="h-2.5 w-2.5" /> BAA
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-ink-600">no PHI</span>
+                  )}
+                </span>
+              </summary>
+              <div className="mt-3 space-y-2 border-t border-ink-800 pt-3">
+                <Fact label="What it does" value={svc.whatItDoes} />
+                <Fact label="What we do now" value={svc.whatWeDoNow} />
+                <Fact label="To go live" value={svc.toGoLive} />
+              </div>
+            </details>
+          ))}
         </CardContent>
       </Card>
 
