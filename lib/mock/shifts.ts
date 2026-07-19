@@ -44,11 +44,11 @@ export const shifts: Shift[] = (() => {
       const isSat = d === 5;
       let works = false;
       if (!isWeekend) {
-        works = rand() > (s.role === "Operations" ? 0.15 : 0.2); // ~80% weekdays
+        works = rand() > (s.role === "Admin" ? 0.15 : 0.2); // ~80% weekdays
       } else if (isSat) {
-        works = s.role === "Front Desk" || (s.role === "Coach" && rand() > 0.55);
+        works = s.role === "Admin" || (s.role === "Coach" && rand() > 0.55);
       } else {
-        works = s.role === "Provider" && s.locationIds.includes("telehealth") && rand() > 0.7;
+        works = s.role === "Medical" && s.locationIds.includes("telehealth") && rand() > 0.7;
       }
       if (!works) continue;
       const preset = SHIFT_PRESETS[Math.floor(rand() * SHIFT_PRESETS.length)];

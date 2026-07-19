@@ -12,6 +12,16 @@ export const locations: Location[] = [
     timezone: "America/New_York",
   },
   {
+    id: "raleigh-boutique",
+    name: "Alpha Health — Raleigh Boutique",
+    short: "Raleigh Boutique",
+    city: "Raleigh",
+    state: "NC",
+    address: "8480 Honeycutt Rd, Raleigh, NC",
+    type: "clinic",
+    timezone: "America/New_York",
+  },
+  {
     id: "southern-pines",
     name: "Alpha Health — Southern Pines",
     short: "Southern Pines",

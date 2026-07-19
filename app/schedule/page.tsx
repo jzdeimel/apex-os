@@ -26,10 +26,10 @@ import {
 } from "lucide-react";
 
 const ROLE_TONE = {
-  Provider: "optimal",
+  Medical: "optimal",
   Coach: "gold",
-  "Front Desk": "info",
-  Operations: "neutral",
+  
+  Admin: "neutral",
 } as const;
 
 export default function SchedulePage() {
@@ -53,12 +53,12 @@ export default function SchedulePage() {
     .filter((s) => inLoc(s.locationId))
     .reduce((sum, s) => sum + shiftHours(s), 0);
 
-  const providersOnToday = todays.filter((s) => staffMap[s.staffId]?.role === "Provider").length;
+  const providersOnToday = todays.filter((s) => staffMap[s.staffId]?.role === "Medical").length;
 
   // Coverage gap detection: an appointment whose location has no provider on shift today.
   const gaps = appts.filter((a) => {
     const provs = todays.filter(
-      (s) => s.locationId === a.locationId && staffMap[s.staffId]?.role === "Provider",
+      (s) => s.locationId === a.locationId && staffMap[s.staffId]?.role === "Medical",
     );
     return provs.length === 0;
   });
@@ -195,7 +195,7 @@ export default function SchedulePage() {
           <CardContent className="space-y-3">
             {locations.filter((l) => inLoc(l.id)).map((l) => {
               const onShift = todays.filter((s) => s.locationId === l.id);
-              const provs = onShift.filter((s) => staffMap[s.staffId]?.role === "Provider").length;
+              const provs = onShift.filter((s) => staffMap[s.staffId]?.role === "Medical").length;
               const apptCount = appts.filter((a) => a.locationId === l.id).length;
               const covered = apptCount === 0 || provs > 0;
               return (
@@ -224,7 +224,7 @@ export default function SchedulePage() {
       </div>
 
       <p className="text-[11px] text-ink-600">
-        Demo schedule. In production this would sync with Mindbody staff calendars and payroll. Times shown in clinic-local time.
+        Demo schedule. Apex owns staff calendars natively — there is no external calendar to reconcile against. Times shown in clinic-local time.
       </p>
     </div>
   );

@@ -10,7 +10,7 @@ import { getScanForClient } from "@/lib/mock/bodyscans";
 import { recommendationsForClient } from "@/lib/mock/recommendations";
 import { timelineForClient } from "@/lib/mock/timeline";
 import { appointmentsForClient } from "@/lib/mock/appointments";
-import { mindbodyForClient } from "@/lib/mock/mindbody";
+import { membershipForClient } from "@/lib/mock/memberships";
 import { clientInsights } from "@/lib/aiInsights";
 import { alphaScore, scoreColor } from "@/lib/alphaScore";
 import { AlphaScoreRing } from "@/components/AlphaScoreRing";
@@ -49,13 +49,35 @@ import {
   Database,
 } from "lucide-react";
 import type { TaskType } from "@/lib/types";
+import {
+  PlanTab,
+  ConsultsTab,
+  OrdersTab,
+  ContactTab,
+} from "@/components/client/ClientTabs";
 
+/**
+ * One record, one page — and the SAME page for Coach and Medical.
+ *
+ * The system Apex replaces gates this by role: a coach cannot open the plan of
+ * care, the H&P, or the intake form, because `canViewClinical` is restricted to
+ * MEDICAL and owners. That is the largest opacity failure in the product. The
+ * coach still has to coach off that plan; the gate just forces them to phone
+ * someone to find out what is in it.
+ *
+ * Here every tab renders for both roles. What narrows is authorship — see
+ * lib/authz/capabilities.ts. The dose is the line; reading is not.
+ */
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "plan", label: "Plan of Care" },
+  { id: "consults", label: "Consults" },
   { id: "labs", label: "Labs" },
   { id: "scan", label: "Body Scan" },
   { id: "recs", label: "Recommendations" },
   { id: "schedule", label: "Protocol Schedule" },
+  { id: "orders", label: "Orders" },
+  { id: "contact", label: "Contact Log" },
   { id: "timeline", label: "Timeline" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
@@ -101,6 +123,10 @@ export default function ClientProfilePage() {
           </Card>
         )}
         {tab === "tasks" && <TasksTab id={id} />}
+        {tab === "plan" && <PlanTab id={id} />}
+        {tab === "consults" && <ConsultsTab id={id} />}
+        {tab === "orders" && <OrdersTab id={id} />}
+        {tab === "contact" && <ContactTab id={id} />}
         {tab === "notes" && <NotesTab id={id} />}
       </SwitchView>
     </div>
@@ -176,7 +202,7 @@ function ProfileHero({ id }: { id: string }) {
 // ---------------------------------------------------------------------------
 function OverviewTab({ id }: { id: string }) {
   const client = getClient(id)!;
-  const mb = mindbodyForClient(id);
+  const membership = membershipForClient(id);
   const appts = appointmentsForClient(id).filter((a) => a.start >= "2026-06-12");
   const recs = recommendationsForClient(id);
   const approved = recs.filter((r) => r.status === "provider approved");
@@ -293,15 +319,50 @@ function OverviewTab({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        {mb && (
+        {membership && (
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Database className="h-4 w-4 text-gold-400" /> Mindbody (simulated)</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-gold-400" /> Membership
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Member ID" value={<span className="stat-mono">{mb.mindbodyId}</span>} />
-              <Row label="Membership" value={mb.membershipType} />
-              <Row label="Visits YTD" value={<span className="stat-mono">{mb.visitsYTD}</span>} />
-              <Row label="Lifetime spend" value={<span className="stat-mono">{currency(mb.lifetimeSpend)}</span>} />
-              <Row label="Sync status" value={<Badge tone={mb.status === "Synced" ? "optimal" : mb.status === "Conflict" ? "high" : "watch"}>{mb.status}</Badge>} />
+              <Row label="Record no." value={<span className="stat-mono">{client.mrn}</span>} />
+              <Row label="Plan" value={membership.tier} />
+              <Row
+                label="Status"
+                value={
+                  <Badge
+                    tone={
+                      membership.status === "Active"
+                        ? "optimal"
+                        : membership.status === "Paused"
+                          ? "watch"
+                          : "high"
+                    }
+                  >
+                    {membership.status}
+                  </Badge>
+                }
+              />
+              <Row
+                label="Billing"
+                value={
+                  membership.monthlyRate > 0 ? (
+                    <span className="stat-mono">{currency(membership.monthlyRate)}/mo</span>
+                  ) : (
+                    "Pay per visit"
+                  )
+                }
+              />
+              {membership.renewsOn && <Row label="Renews" value={formatDate(membership.renewsOn)} />}
+              <Row label="Visits YTD" value={<span className="stat-mono">{membership.visitsYTD}</span>} />
+              <Row
+                label="Lifetime spend"
+                value={<span className="stat-mono">{currency(membership.lifetimeSpend)}</span>}
+              />
+              {/* No sync row. Apex owns this record, so there is nothing to
+                  reconcile against and no state in which it can be "Conflict". */}
             </CardContent>
           </Card>
         )}

@@ -5,14 +5,11 @@
 
 import type { Client, LocationId } from "@/lib/types";
 import { clients } from "@/lib/mock/clients";
-import { mindbodyByClient } from "@/lib/mock/mindbody";
+import { membershipByClient } from "@/lib/mock/memberships";
 
-const TIER_MRR: Record<string, number> = {
-  "Single Visit": 0,
-  "Alpha Monthly": 299,
-  "Alpha Elite": 549,
-  "Alpha Concierge": 1200,
-};
+// Pricing is NOT redeclared here. The membership owns its own rate, so revenue
+// is read off the record rather than re-derived from a lookup table that could
+// silently drift from it — one number, one owner.
 
 function scope(locationFilter: LocationId | "all"): Client[] {
   return clients.filter((c) => locationFilter === "all" || c.locationId === locationFilter);
@@ -24,7 +21,11 @@ export function analyticsFor(locationFilter: LocationId | "all") {
   // MRR from membership tiers (active-ish clients only).
   const activeStatuses = ["Active Protocol", "Follow-Up Due", "Plan Review", "Results Ready"];
   const members = cl.filter((c) => activeStatuses.includes(c.status));
-  const mrr = members.reduce((s, c) => s + (TIER_MRR[mindbodyByClient[c.id]?.membershipType ?? "Single Visit"] ?? 0), 0);
+  const mrr = members.reduce((s, c) => {
+    const m = membershipByClient[c.id];
+    // A paused or lapsed plan bills nothing — status is part of the number.
+    return s + (m && m.status === "Active" ? m.monthlyRate : 0);
+  }, 0);
 
   // MRR trend (6 months, easing up to current).
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
@@ -102,7 +103,7 @@ export function analyticsFor(locationFilter: LocationId | "all") {
   // LTV by membership tier.
   const tiers = ["Alpha Monthly", "Alpha Elite", "Alpha Concierge", "Single Visit"];
   const ltvByTier = tiers.map((tier) => {
-    const inTier = cl.filter((c) => mindbodyByClient[c.id]?.membershipType === tier);
+    const inTier = cl.filter((c) => membershipByClient[c.id]?.tier === tier);
     const avg = inTier.length ? Math.round(inTier.reduce((s, c) => s + c.lifetimeValue, 0) / inTier.length) : 0;
     return { name: tier.replace("Alpha ", ""), revenue: avg, count: inTier.length };
   });

@@ -128,7 +128,7 @@ export default function AnalyticsPage() {
       </div>
 
       <p className="text-[11px] text-ink-600">
-        Demo figures derived from simulated Mindbody membership tiers &amp; mock client lifetime value. Not financial reporting.
+        Demo figures derived from Apex membership plans &amp; mock client lifetime value. Not financial reporting.
       </p>
     </div>
   );

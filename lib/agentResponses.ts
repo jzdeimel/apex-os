@@ -46,7 +46,7 @@ export function answerFor(prompt: string): AgentResponse {
           },
           ...attention.slice(0, 6).map((c) => ({
             text: `• ${clientName(c)} (${locationName(c.locationId)}) — ${c.status}${c.riskFlags[0] ? `; ${c.riskFlags[0].label} flag: ${c.riskFlags[0].detail}` : ""}`,
-            citations: [`Client: ${clientName(c)}, ${c.mindbodyId}`],
+            citations: [`Client: ${clientName(c)}, ${c.mrn}`],
           })),
           { text: DISCLAIMER },
         ],

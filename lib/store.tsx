@@ -111,7 +111,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const activeStaffId = useMemo(() => {
     const match = staff.find((s) =>
-      role === "Provider" ? s.canApprove : role === "Coach" ? s.role === "Coach" : s.role === "Operations",
+      role === "Provider" ? s.canApprove : role === "Coach" ? s.role === "Coach" : s.role === "Admin",
     );
     return match?.id ?? staff[0].id;
   }, [role]);

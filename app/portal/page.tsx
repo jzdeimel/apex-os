@@ -1,239 +1,380 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { clients, clientName, getClient } from "@/lib/mock/clients";
-import { getLabsForClient } from "@/lib/mock/labs";
-import { recommendationsForClient } from "@/lib/mock/recommendations";
-import { appointmentsForClient } from "@/lib/mock/appointments";
-import { staffName, staffMap } from "@/lib/mock/staff";
+/**
+ * My Program — the member home.
+ *
+ * The system Apex replaces has no client portal at all. A member learns their
+ * order shipped because a coach reads an internal board and texts them; they
+ * learn what their plan says because someone reads it aloud. This page is the
+ * whole thesis in one screen: the member sees their own score, their own care
+ * team by name, what happens next and where their order actually is, without
+ * asking a human for any of it.
+ */
+
+import Link from "next/link";
 import { alphaScore, scoreColor } from "@/lib/alphaScore";
 import { AlphaScoreRing } from "@/components/AlphaScoreRing";
-import { Card, CardHeader, CardTitle, CardContent, Select, Badge } from "@/components/ui/primitives";
-import { formatDateTime, formatDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { buildPlanOfCare } from "@/lib/planOfCare/engine";
+import { staffMap } from "@/lib/mock/staff";
+import { locationName } from "@/lib/mock/locations";
+import { membershipForClient } from "@/lib/mock/memberships";
+import { appointmentsForClient } from "@/lib/mock/appointments";
+import { Card, CardContent, Badge, Progress } from "@/components/ui/primitives";
+import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
+import { usePortal } from "@/lib/portalStore";
+import { cn, formatDate, formatDateTime, relativeDays } from "@/lib/utils";
+import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import {
-  Smartphone,
+  ArrowRight,
   CalendarClock,
-  Activity,
-  ClipboardList,
-  Bell,
-  Send,
-  ShieldCheck,
-  Eye,
+  CheckCircle2,
+  MapPin,
+  MessageSquare,
+  Package,
+  Truck,
+  Home,
+  Circle,
 } from "lucide-react";
 
-export default function PortalPage() {
-  const withLabs = clients.filter((c) => getLabsForClient(c.id));
-  const [clientId, setClientId] = useState(withLabs[0]?.id ?? clients[0].id);
-  const client = getClient(clientId)!;
+/**
+ * The pinned demo clock. Every "now" in the portal comes from here — never
+ * `new Date()` with no argument — so a screenshot taken today and one taken
+ * next year are identical.
+ */
+const NOW = "2026-06-12T09:00:00";
 
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="label-eyebrow">Patient portal · read-only preview</p>
-          <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
-              <Smartphone className="h-5 w-5" />
-            </span>
-            Client App Preview
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge tone="info"><Eye className="h-3 w-3" /> What the client sees</Badge>
-          <div className="w-52">
-            <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{clientName(c)}</option>
-              ))}
-            </Select>
-          </div>
-        </div>
-      </div>
+/**
+ * Order lifecycle.
+ *
+ * The live system stops at "has a tracking number" and renders "Shipped"
+ * forever, discarding the carrier status it already fetched. Apex models the
+ * lifecycle as ordered stages with real timestamps, so "where is my refill"
+ * has an answer that does not involve a phone call.
+ */
+const ORDER_STAGES: { key: string; label: string; icon: typeof Package; at?: string }[] = [
+  { key: "placed", label: "Ordered", icon: Package, at: "2026-06-06T10:14:00" },
+  { key: "filled", label: "Filled by pharmacy", icon: CheckCircle2, at: "2026-06-08T15:40:00" },
+  { key: "shipped", label: "Shipped", icon: Truck, at: "2026-06-09T09:02:00" },
+  { key: "out", label: "Out for delivery", icon: Truck, at: "2026-06-12T07:31:00" },
+  { key: "delivered", label: "Delivered", icon: Home },
+];
+const CURRENT_STAGE = 3; // index into ORDER_STAGES — out for delivery
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Phone frame */}
-        <div className="flex justify-center">
-          <PhonePreview clientId={clientId} key={clientId} />
-        </div>
+export default function PortalHomePage() {
+  const { portal } = usePortal();
+  const client = me();
+  const score = alphaScore(client);
+  const plan = buildPlanOfCare(client);
+  const membership = membershipForClient(ME);
+  const coach = staffMap[client.coachId];
+  const provider = staffMap[client.providerId];
+  const activeProgram = client.programs.find((p) => p.status === "Active") ?? client.programs[0];
 
-        {/* Messaging inbox */}
-        <PortalInbox client={client} />
-      </div>
+  const nextAppt = appointmentsForClient(ME).find((a) => a.start >= NOW);
 
-      <p className="text-[11px] text-ink-600">
-        Demo preview of the patient-facing experience. Read-only. Client-facing copy is intentionally
-        supportive and non-clinical; all protocol &amp; dosing detail is handled by the provider.
-      </p>
-    </div>
+  // Monitoring checkpoints are keyed to weeks-since-plan-start; we surface the
+  // ones the member has not reached yet. Week 0 drops off on its own once the
+  // plan is running, so it never needs special-casing.
+  const weeksIn = Math.floor(
+    (new Date(NOW).getTime() - new Date(activeProgram?.startedOn ?? client.joinedOn).getTime()) /
+      (1000 * 60 * 60 * 24 * 7),
   );
-}
+  const upcoming = plan.monitoring.filter((m) => m.week > weeksIn).slice(0, 4);
 
-function PhonePreview({ clientId }: { clientId: string }) {
-  const client = getClient(clientId)!;
-  const result = alphaScore(client);
-  const labs = getLabsForClient(clientId);
-  const appt = appointmentsForClient(clientId).find((a) => a.start >= "2026-06-12");
-  const approved = recommendationsForClient(clientId).filter((r) => r.status === "provider approved");
-
-  // Friendly, non-alarming result chips.
-  const highlights =
-    labs?.biomarkers
-      .filter((b) => ["total_t", "vitd", "a1c", "ft3", "hscrp", "igf1", "ferritin"].includes(b.key))
-      .slice(0, 4) ?? [];
-  const friendly = (s: string) => (s === "optimal" ? "In range" : s === "watch" ? "Monitoring" : "Discuss with team");
+  const recent = [...MEMBER_THREAD].slice(-3).reverse();
+  const markerCount = score.domains.reduce((s, d) => s + d.markers, 0);
 
   return (
-    <div className="w-full max-w-[340px] overflow-hidden rounded-[2.2rem] border-[10px] border-ink-800 bg-ink-950 shadow-glow">
-      {/* status bar */}
-      <div className="flex items-center justify-between bg-ink-900 px-5 py-2 text-[10px] text-ink-500">
-        <span>9:41</span>
-        <span className="h-3 w-16 rounded-full bg-ink-800" />
-        <span>Alpha</span>
-      </div>
-      <div className="max-h-[640px] space-y-3 overflow-y-auto p-4">
-        {/* greeting + score */}
-        <div className="rounded-2xl border border-gold-400/20 bg-gradient-to-br from-gold-400/10 to-transparent p-4 text-center">
-          <p className="text-xs text-ink-400">Good morning,</p>
-          <p className="font-display text-lg font-bold text-ink-50">{client.firstName}</p>
-          <div className="mt-3 flex justify-center">
-            <AlphaScoreRing result={result} size={96} showLabel={false} />
-          </div>
-          <p className="mt-2 text-sm font-medium" style={{ color: scoreColor(result.band) }}>
-            Your Alpha Score is {result.label.toLowerCase()}
-          </p>
-        </div>
-
-        {/* next appt */}
-        <PortalTile icon={CalendarClock} title="Next appointment">
-          {appt ? (
-            <>
-              <p className="text-sm text-ink-100">{appt.type}</p>
-              <p className="text-xs text-ink-500">{formatDateTime(appt.start)} · {staffName(appt.staffId)}</p>
-            </>
-          ) : (
-            <p className="text-sm text-ink-500">No upcoming visit — tap to book.</p>
+    <div className="space-y-6">
+      {/* ------------------------------------------------------------------ */}
+      {/* Hero                                                               */}
+      {/* ------------------------------------------------------------------ */}
+      <FadeIn>
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-2xl border border-ink-700/70 bg-ink-850 p-6",
+            "bg-gradient-to-br",
+            portal.accent.gradient,
           )}
-        </PortalTile>
+        >
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <p className="label-eyebrow">My program</p>
+              <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+                Good morning, {client.firstName}
+              </h1>
+              <p className="mt-1 max-w-xl text-sm text-ink-400">
+                Week <span className="stat-mono text-ink-200">{weeksIn}</span> of your{" "}
+                <span className="stat-mono text-ink-200">{plan.durationWeeks}</span>-week block. Everything your
+                care team can see about your plan, you can see here too.
+              </p>
 
-        {/* results */}
-        <PortalTile icon={Activity} title="Your latest results">
-          {highlights.length ? (
-            <div className="space-y-1.5">
-              {highlights.map((b) => (
-                <div key={b.key} className="flex items-center justify-between">
-                  <span className="text-xs text-ink-300">{b.name}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      b.status === "optimal" ? "bg-optimal/15 text-optimal" : b.status === "watch" ? "bg-watch/15 text-watch" : "bg-low/15 text-low",
-                    )}
-                  >
-                    {friendly(b.status)}
-                  </span>
-                </div>
-              ))}
-              <p className="pt-1 text-[10px] text-ink-600">Your care team reviews every result with you.</p>
-            </div>
-          ) : (
-            <p className="text-sm text-ink-500">Results coming soon.</p>
-          )}
-        </PortalTile>
-
-        {/* plan */}
-        <PortalTile icon={ClipboardList} title="Your plan">
-          {approved.length ? (
-            <div className="space-y-1.5">
-              {approved.map((r) => (
-                <div key={r.id} className="flex items-center gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-optimal" />
-                  <span className="text-xs text-ink-200">{r.category}</span>
-                </div>
-              ))}
-              <p className="pt-1 text-[10px] text-ink-600">Your provider sets the details at your visit.</p>
-            </div>
-          ) : (
-            <p className="text-sm text-ink-500">Your personalized plan is being prepared.</p>
-          )}
-        </PortalTile>
-
-        {/* reminders */}
-        <PortalTile icon={Bell} title="Reminders">
-          <ul className="space-y-1 text-xs text-ink-300">
-            <li>• Hydrate before your next lab draw</li>
-            <li>• Log your weekly check-in</li>
-            {appt && <li>• Confirm your {formatDate(appt.start)} appointment</li>}
-          </ul>
-        </PortalTile>
-      </div>
-    </div>
-  );
-}
-
-function PortalTile({ icon: Icon, title, children }: { icon: typeof Bell; title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-ink-800 bg-ink-900/50 p-3.5">
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className="h-3.5 w-3.5 text-gold-400" />
-        <span className="text-xs font-semibold text-ink-200">{title}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function PortalInbox({ client }: { client: ReturnType<typeof getClient> }) {
-  const c = client!;
-  const coach = staffMap[c.coachId];
-  const [msgs, setMsgs] = useState(() => [
-    { from: "coach" as const, text: `Hi ${c.firstName}! Great to have you with Alpha. How are you feeling this week?`, t: "Mon 9:12 AM" },
-    { from: "client" as const, text: "Pretty good — energy is better than last month.", t: "Mon 9:40 AM" },
-    { from: "coach" as const, text: "Love that. Your latest results are in and your provider will review them at your next visit.", t: "Tue 8:05 AM" },
-  ]);
-  const [input, setInput] = useState("");
-
-  const send = () => {
-    if (!input.trim()) return;
-    setMsgs((m) => [...m, { from: "client", text: input.trim(), t: "Now" }]);
-    setInput("");
-  };
-
-  return (
-    <Card className="flex flex-col">
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle>Messages</CardTitle>
-        <Badge tone="neutral">with {coach?.name.split(" ")[0]} (coach)</Badge>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col">
-        <div className="flex-1 space-y-2.5 overflow-y-auto pb-2">
-          {msgs.map((m, i) => (
-            <div key={i} className={cn("flex", m.from === "client" && "justify-end")}>
-              <div
-                className={cn(
-                  "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
-                  m.from === "coach" ? "bg-ink-800 text-ink-200" : "bg-gold-400/15 text-gold-50",
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {activeProgram && (
+                  <Badge tone="optimal">
+                    {activeProgram.name} · since {formatDate(activeProgram.startedOn)}
+                  </Badge>
                 )}
-              >
-                <p>{m.text}</p>
-                <span className="mt-0.5 block text-[10px] text-ink-500">{m.t}</span>
+                {membership && <Badge tone="gold">{membership.tier} membership</Badge>}
+                <Badge tone="neutral">
+                  <MapPin className="h-3 w-3" />
+                  {locationName(client.locationId)}
+                </Badge>
               </div>
             </div>
-          ))}
+
+            {/* Score plus its domain breakdown. The member sees the parts, not
+                just the headline — a single opaque number is exactly the kind
+                of black box this product exists to delete. */}
+            <div className="w-full shrink-0 rounded-xl border border-ink-700/70 bg-ink-900/60 p-4 lg:w-[22rem]">
+              <div className="flex items-center justify-between gap-3">
+                <AlphaScoreRing result={score} size={72} />
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wide text-ink-600">Last updated</p>
+                  <p className="stat-mono text-xs text-ink-300">{formatDate(client.latestLabDate)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {score.domains.slice(0, 5).map((d) => (
+                  <div key={d.name} className="flex items-center gap-3">
+                    <span className="w-24 shrink-0 truncate text-xs text-ink-400">{d.name}</span>
+                    <Progress
+                      value={d.score}
+                      tone={d.score >= 75 ? "optimal" : d.score >= 50 ? "gold" : "high"}
+                      className="flex-1"
+                    />
+                    <span className="stat-mono w-8 shrink-0 text-right text-xs text-ink-200">{d.score}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+                Built from <span className="stat-mono text-ink-400">{markerCount}</span> results on your last
+                panel plus your body scan. It is a way to see movement over time — not a diagnosis.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="mt-2 flex gap-2 border-t border-ink-800 pt-3">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Message your care team…"
-            className="h-10 flex-1 rounded-xl border border-ink-700 bg-ink-900/70 px-3 text-sm text-ink-100 placeholder:text-ink-500 focus-ring"
-          />
-          <button onClick={send} className="grid h-10 w-10 place-items-center rounded-xl bg-gold-400 text-ink-950 hover:bg-gold-300 focus-ring" aria-label="Send">
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-        <p className="mt-2 text-[10px] text-ink-600">Simulated messaging. In production this routes through a HIPAA-compliant channel.</p>
-      </CardContent>
-    </Card>
+      </FadeIn>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Care team + next visit                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <Stagger className="grid gap-4 lg:grid-cols-3">
+        <StaggerItem className="lg:col-span-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-base font-semibold text-ink-50">Your care team</h2>
+                <Link
+                  href="/portal/messages"
+                  className="focus-ring inline-flex items-center gap-1 rounded-md text-xs text-ink-400 hover:text-ink-100"
+                >
+                  Message them <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {[
+                  { s: coach, what: "Your coach", blurb: "Day to day — food, training, check-ins." },
+                  { s: provider, what: "Your provider", blurb: "Sets and signs anything medical." },
+                ].map(({ s, what, blurb }) => (
+                  <div key={what} className="hairline flex items-start gap-3 rounded-xl bg-ink-900/50 p-3">
+                    <span
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-semibold text-ink-950"
+                      style={{ background: portal.accent.hex }}
+                    >
+                      {s?.avatarInitials}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-ink-50">{s?.name}</p>
+                      <p className="text-[11px] uppercase tracking-wide text-ink-500">
+                        {what} · {s?.credentials}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-400">{blurb}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </StaggerItem>
+
+        <StaggerItem>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="font-display text-base font-semibold text-ink-50">Next visit</h2>
+              {nextAppt ? (
+                <div className="mt-3">
+                  <p className="stat-mono text-lg text-ink-50">{formatDateTime(nextAppt.start)}</p>
+                  <p className="mt-0.5 text-xs text-ink-400">
+                    {nextAppt.type} · <span className="stat-mono">{nextAppt.durationMin}</span> min ·{" "}
+                    {locationName(nextAppt.locationId)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge tone="optimal">
+                      <CalendarClock className="h-3 w-3" />
+                      {relativeDays(nextAppt.start)}
+                    </Badge>
+                    <Badge tone="neutral">with {staffMap[nextAppt.staffId]?.name}</Badge>
+                  </div>
+                  <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+                    You asked about sleep on the 10th — it is already attached to this visit, so you will not
+                    have to bring it up cold.
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-ink-400">
+                  Nothing on the calendar. Message your coach to book.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      </Stagger>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Order status strip                                                 */}
+      {/* ------------------------------------------------------------------ */}
+      <FadeIn>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-base font-semibold text-ink-50">Your current order</h2>
+              <Badge tone="optimal">
+                <Truck className="h-3 w-3" />
+                Out for delivery
+              </Badge>
+            </div>
+            <p className="mt-1 text-sm text-ink-400">
+              Refill · <span className="stat-mono">2</span> items · tracking{" "}
+              <span className="stat-mono text-ink-300">1Z999AA10123456784</span>
+            </p>
+
+            <ol className="mt-5 grid gap-4 sm:grid-cols-5">
+              {ORDER_STAGES.map((stage, i) => {
+                const done = i < CURRENT_STAGE;
+                const current = i === CURRENT_STAGE;
+                const Icon = done || current ? stage.icon : Circle;
+                return (
+                  <li key={stage.key} className="relative">
+                    {/* Connector, drawn only on the horizontal (sm+) layout. */}
+                    {i < ORDER_STAGES.length - 1 && (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "absolute left-[calc(50%+1.25rem)] right-[calc(-50%+1.25rem)] top-4 hidden h-px sm:block",
+                          done ? "bg-optimal/50" : "bg-ink-700",
+                        )}
+                      />
+                    )}
+                    <div className="flex flex-col items-center text-center">
+                      <span
+                        className={cn(
+                          "grid h-8 w-8 place-items-center rounded-full border",
+                          done && "border-optimal/40 bg-optimal/15 text-optimal",
+                          current && "border-optimal bg-optimal/25 text-optimal",
+                          !done && !current && "border-ink-700 bg-ink-900 text-ink-600",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <p
+                        className={cn(
+                          "mt-2 text-xs font-medium",
+                          done || current ? "text-ink-100" : "text-ink-500",
+                        )}
+                      >
+                        {stage.label}
+                      </p>
+                      <p className="stat-mono mt-0.5 text-[10px] text-ink-500">
+                        {stage.at ? formatDateTime(stage.at) : "Expected today"}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <p className="mt-5 text-[11px] leading-relaxed text-ink-500">
+              This updates itself from the carrier. Nobody at the clinic has to look it up and text it to you.
+            </p>
+          </CardContent>
+        </Card>
+      </FadeIn>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* What's next + recent messages                                      */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="font-display text-base font-semibold text-ink-50">What&rsquo;s next</h2>
+            <p className="mt-1 text-sm text-ink-400">
+              The checkpoints built into your plan, and who owns each one.
+            </p>
+            <Stagger className="mt-4 space-y-2">
+              {upcoming.map((m) => (
+                <StaggerItem key={m.week}>
+                  <div className="hairline flex items-start gap-3 rounded-xl bg-ink-900/50 p-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-700 bg-ink-850">
+                      <span className="stat-mono text-xs text-ink-200">W{m.week}</span>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink-50">{m.label}</p>
+                      <p className="mt-0.5 text-xs text-ink-400">{m.detail}</p>
+                    </div>
+                    <Badge tone={m.owner === "Member" ? "optimal" : "neutral"}>
+                      {m.owner === "Member" ? "You" : m.owner === "Coach" ? "Your coach" : "Your provider"}
+                    </Badge>
+                  </div>
+                </StaggerItem>
+              ))}
+            </Stagger>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-base font-semibold text-ink-50">Recent messages</h2>
+              <Link
+                href="/portal/messages"
+                className="focus-ring inline-flex items-center gap-1 rounded-md text-xs text-ink-400 hover:text-ink-100"
+              >
+                Open thread <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="mt-4 space-y-2">
+              {recent.map((m) => (
+                <div key={m.id} className="hairline rounded-xl bg-ink-900/50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-medium text-ink-200">
+                      {m.who === "me" ? "You" : m.from}
+                      {m.who === "team" && m.role && <span className="ml-1.5 text-ink-500">{m.role}</span>}
+                    </p>
+                    <span className="stat-mono shrink-0 text-[10px] text-ink-500">{formatDateTime(m.at)}</span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-ink-400">{m.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <Link
+              href="/portal/access"
+              className="focus-ring mt-4 flex items-center gap-2 rounded-xl border border-optimal/25 bg-optimal/10 p-3 text-xs text-ink-200 hover:bg-optimal/15"
+            >
+              <MessageSquare className="h-4 w-4 shrink-0 text-optimal" />
+              <span>Curious who has opened your chart? Every look is listed — name, time and reason.</span>
+              <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-optimal" />
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      <p className="text-center text-[11px] text-ink-600">
+        Score band: <span style={{ color: scoreColor(score.band) }}>{score.label}</span> · Demonstration data.
+      </p>
+    </div>
   );
 }

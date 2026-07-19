@@ -5,6 +5,7 @@
 
 export type LocationId =
   | "raleigh"
+  | "raleigh-boutique"
   | "southern-pines"
   | "myrtle-beach"
   | "telehealth";
@@ -20,7 +21,17 @@ export interface Location {
   timezone: string;
 }
 
-export type StaffRole = "Provider" | "Coach" | "Front Desk" | "Operations";
+/**
+ * Apex has exactly four roles: Admin, Coach, Medical, and Client.
+ *
+ * Client is not a StaffRole — members authenticate through a separate identity
+ * class (see lib/portals.ts) and can never resolve to a staff session. The
+ * specialist roles of the system Apex replaces (Order Specialist, Tracking
+ * Specialist) are folded into Admin, because most of what those roles do by
+ * hand today — re-keying patient data into a second application, harvesting
+ * tracking numbers out of email — is work Apex removes rather than assigns.
+ */
+export type StaffRole = "Admin" | "Coach" | "Medical";
 
 export interface StaffMember {
   id: string;
@@ -103,7 +114,8 @@ export interface Client {
   riskFlags: RiskFlag[];
   email: string;
   phone: string;
-  mindbodyId: string;
+  /** Apex-issued medical record number. Apex mints it; no external system owns it. */
+  mrn: string;
   avatarColor: string; // tailwind-ish hex for the monogram chip
   lifetimeValue: number;
 }
@@ -400,16 +412,33 @@ export interface Appointment {
 }
 
 // ---------------------------------------------------------------------------
-// Mindbody (simulated source-of-record)
+// Membership — owned by Apex
 // ---------------------------------------------------------------------------
+//
+// Apex is the system of record. There is deliberately no `externalId`, no
+// `lastSyncedAt` and no sync state on this type: nothing mirrors an outside
+// system, so nothing can drift from one.
 
-export interface MockMindbodyRecord {
-  mindbodyId: string;
+export type MembershipTier =
+  | "Single Visit"
+  | "Alpha Monthly"
+  | "Alpha Elite"
+  | "Alpha Concierge";
+
+export type MembershipStatus = "Active" | "Paused" | "Lapsed";
+
+export interface Membership {
+  id: string;
   clientId: string;
-  membershipType: "Single Visit" | "Alpha Monthly" | "Alpha Elite" | "Alpha Concierge";
-  lastSyncedAt: string;
-  source: "Mindbody (simulated)";
+  tier: MembershipTier;
+  status: MembershipStatus;
+  /** Whole dollars per month. 0 for pay-as-you-go tiers. */
+  monthlyRate: number;
+  startedOn: string;
+  /** Absent once a membership has lapsed. */
+  renewsOn?: string;
   visitsYTD: number;
   lifetimeSpend: number;
-  status: "Synced" | "Pending Sync" | "Conflict";
+  /** Protocol credit included by the higher tiers, in cents. */
+  protocolCreditCents: number;
 }

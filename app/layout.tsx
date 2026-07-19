@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { StoreProvider } from "@/lib/store";
+import { PortalProvider } from "@/lib/portalStore";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const sans = Inter({
@@ -39,9 +40,11 @@ export default function RootLayout({
     >
       <body>
         <StoreProvider>
-          <ToastProvider>
-            <AppShell>{children}</AppShell>
-          </ToastProvider>
+          <PortalProvider>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
+          </PortalProvider>
         </StoreProvider>
       </body>
     </html>

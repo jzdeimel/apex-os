@@ -31,12 +31,30 @@ const SERVICE_CATEGORIES: RecommendationCategory[] = [
   "Thyroid optimization discussion",
 ];
 
-const INTEGRATIONS = [
-  { name: "Mindbody", desc: "CRM, scheduling & billing source-of-record.", status: "Simulated", phase: "Phase 2" },
-  { name: "Lab integration", desc: "LabCorp / Quest / Health Gorilla results ingestion.", status: "Placeholder", phase: "Phase 2" },
-  { name: "EHR", desc: "Clinical charting & e-prescribing system.", status: "Placeholder", phase: "Phase 3" },
-  { name: "Messaging", desc: "SMS / email delivery (Twilio / SendGrid).", status: "Placeholder", phase: "Phase 3" },
-  { name: "Pharmacy / vendor", desc: "Compounding pharmacy & supply ordering.", status: "Placeholder", phase: "Phase 3" },
+/**
+ * Apex runs on Azure and nothing else.
+ *
+ * There is deliberately no CRM, no scheduling system and no marketing platform
+ * in this list: Apex owns those records itself. The only entries here are Azure
+ * platform services and the two genuine outside parties — the lab and the
+ * fulfillment partner — which are contracts, not systems we sync a copy of our
+ * data into.
+ */
+const PLATFORM = [
+  { name: "Azure Database for PostgreSQL", desc: "System of record. Every client, plan, consult and order.", status: "Core", phase: "Live" },
+  { name: "Microsoft Entra ID", desc: "Coach & provider identity. MFA enforced for clinical sign-off.", status: "Core", phase: "Live" },
+  { name: "Entra External ID (CIAM)", desc: "Client identity for the member portal.", status: "Core", phase: "Live" },
+  { name: "Azure Communication Services", desc: "Email & SMS to members. Consent-gated, quiet-hours aware.", status: "Core", phase: "Live" },
+  { name: "Azure OpenAI", desc: "Consult summarization, draft messages, copilot. BAA-covered.", status: "Core", phase: "Live" },
+  { name: "Azure Blob Storage", desc: "Lab PDFs, scan images, signed documents.", status: "Core", phase: "Live" },
+  { name: "Azure Container Apps Jobs", desc: "Reminders, renewals, ledger verification sweeps.", status: "Core", phase: "Live" },
+  { name: "Azure Monitor", desc: "Telemetry & alerting, PHI-redacted at the exporter.", status: "Core", phase: "Live" },
+];
+
+const PARTNERS = [
+  { name: "MedSource", desc: "Fulfillment & compounding supply. Apex places the order; MedSource ships it.", status: "Contract", phase: "Phase 2" },
+  { name: "Reference lab", desc: "Panel ordering & result delivery.", status: "Contract", phase: "Phase 2" },
+  { name: "Payment processor", desc: "Tokenized card on file. Apex never stores a card number.", status: "Adapter", phase: "Phase 2" },
 ];
 
 export default function SettingsPage() {
@@ -152,23 +170,61 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Integrations */}
+      {/* Platform */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Plug className="h-4 w-4 text-gold-400" /> Integrations</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {INTEGRATIONS.map((i) => (
-              <div key={i.name} className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-3">
-                <div>
-                  <span className="text-sm font-medium text-ink-100">{i.name}</span>
-                  <span className="block text-[11px] text-ink-500">{i.desc}</span>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plug className="h-4 w-4 text-gold-400" /> Platform
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="rounded-lg border border-optimal/20 bg-optimal/5 px-3 py-2 text-[11px] leading-relaxed text-ink-300">
+            Apex is the system of record and runs entirely on Azure. There is no
+            CRM, scheduling platform or marketing tool to sync with — which is why
+            no screen in Apex has ever shown you a “last synced” timestamp or a
+            sync conflict to resolve.
+          </p>
+
+          <div>
+            <p className="label-eyebrow mb-2">Azure services</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PLATFORM.map((i) => (
+                <div
+                  key={i.name}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-ink-100">{i.name}</span>
+                    <span className="block text-[11px] text-ink-500">{i.desc}</span>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge tone="optimal">{i.status}</Badge>
+                    <span className="text-[10px] text-ink-600">{i.phase}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Badge tone={i.status === "Simulated" ? "watch" : "neutral"}>{i.status}</Badge>
-                  <span className="text-[10px] text-ink-600">{i.phase}</span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="label-eyebrow mb-2">Outside parties</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PARTNERS.map((i) => (
+                <div
+                  key={i.name}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-ink-100">{i.name}</span>
+                    <span className="block text-[11px] text-ink-500">{i.desc}</span>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge tone="neutral">{i.status}</Badge>
+                    <span className="text-[10px] text-ink-600">{i.phase}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

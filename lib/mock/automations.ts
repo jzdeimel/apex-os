@@ -144,7 +144,7 @@ export const automations: Automation[] = [
   {
     id: "auto-11",
     name: "Membership Renewal Reminder",
-    description: "Reminds members ahead of their renewal date (billing handled in Mindbody).",
+    description: "Reminds members ahead of their renewal date. Apex bills the plan directly.",
     trigger: "Membership renews in 7 days",
     audience: "Members",
     channel: "Email",

@@ -1,0 +1,290 @@
+"use client";
+
+/**
+ * Messages — a real thread with the care team.
+ *
+ * The bug this page exists to not repeat: in the system we're replacing, every
+ * bubble renders with the outbound style, because the renderer never reads the
+ * direction field. A member scrolling their own history sees their coach's
+ * advice styled as if they had written it themselves. Inbound and outbound are
+ * visually distinct here — different side, different fill, different corner —
+ * and the underlying field is member-relative so it is hard to get wrong.
+ *
+ * The composer is deliberately non-persistent: this is a demo surface, and a
+ * send box that silently drops what you typed is exactly the class of failure
+ * (see: clinical notes with no autosave) we are calling out elsewhere. So the
+ * draft stays in the box, the sent message appends locally, and a toast says
+ * plainly what happened.
+ */
+
+import { useMemo, useRef, useState } from "react";
+import { staffMap } from "@/lib/mock/staff";
+import { Card, CardContent, Badge, Button, Textarea } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/Toast";
+import { usePortal } from "@/lib/portalStore";
+import { formatDate, formatTime, cn } from "@/lib/utils";
+import { me, MEMBER_THREAD, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
+import { Send, Clock, Phone, ShieldAlert, MessageSquare } from "lucide-react";
+
+/**
+ * Threads. Only one is live in the demo, but the two-pane shape is the point —
+ * a member has more than one relationship with the clinic, and collapsing them
+ * into one undifferentiated inbox is how "I told someone about this already"
+ * becomes true and useless at the same time.
+ */
+interface ThreadDef {
+  id: string;
+  staffId?: string;
+  title: string;
+  subtitle: string;
+  messages: PortalMessage[];
+}
+
+/** Group consecutive same-sender messages so the thread reads as conversation. */
+function dayKey(iso: string) {
+  return iso.slice(0, 10);
+}
+
+export default function PortalMessagesPage() {
+  const client = me();
+  const { portal } = usePortal();
+  const { toast } = useToast();
+  const coach = staffMap[client.coachId];
+  const provider = staffMap[client.providerId];
+
+  const [sent, setSent] = useState<PortalMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [activeId, setActiveId] = useState("t-coach");
+  const seq = useRef(0);
+
+  const threads: ThreadDef[] = useMemo(
+    () => [
+      {
+        id: "t-coach",
+        staffId: client.coachId,
+        title: coach?.name ?? "Your coach",
+        subtitle: "Your coach · usually replies same day",
+        messages: [...MEMBER_THREAD, ...sent],
+      },
+      {
+        id: "t-provider",
+        staffId: client.providerId,
+        title: provider?.name ?? "Your provider",
+        subtitle: "Your provider · clinical questions",
+        messages: [],
+      },
+    ],
+    [client.coachId, client.providerId, coach?.name, provider?.name, sent],
+  );
+
+  const active = threads.find((t) => t.id === activeId) ?? threads[0];
+
+  // Day dividers: a thread spanning three weeks with no date breaks is a wall.
+  const days = useMemo(() => {
+    const out: { day: string; items: PortalMessage[] }[] = [];
+    for (const m of active.messages) {
+      const k = dayKey(m.at);
+      const cur = out[out.length - 1];
+      if (cur && cur.day === k) cur.items.push(m);
+      else out.push({ day: k, items: [m] });
+    }
+    return out;
+  }, [active.messages]);
+
+  function send() {
+    const body = draft.trim();
+    if (!body) return;
+    seq.current += 1;
+    setSent((s) => [
+      ...s,
+      {
+        // Deterministic id and timestamp — the pinned demo clock, never Date.now().
+        id: `msg-local-${seq.current}`,
+        at: "2026-06-12T09:00:00",
+        who: "me",
+        from: client.firstName,
+        body,
+        channel: "Portal",
+      },
+    ]);
+    setDraft("");
+    toast("Message sent", {
+      desc: `${coach?.name ?? "Your coach"} sees it in their queue. Demo only — nothing leaves this browser.`,
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <PortalPageHeader
+        eyebrow="Messages"
+        title="Talk to your team"
+        subtitle="One thread per person, kept forever. You never have to re-explain something you already said here."
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
+        {/* Thread list ------------------------------------------------------ */}
+        <Card className="h-fit">
+          <CardContent className="p-3">
+            <div className="space-y-1">
+              {threads.map((t) => {
+                const last = t.messages[t.messages.length - 1];
+                const isActive = t.id === active.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveId(t.id)}
+                    className={cn(
+                      "focus-ring w-full rounded-xl p-3 text-left transition-colors",
+                      isActive ? "bg-ink-800" : "hover:bg-ink-800/50",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-ink-950"
+                        style={{ background: isActive ? portal.accent.hex : "#3a4048" }}
+                      >
+                        {staffMap[t.staffId ?? ""]?.avatarInitials ?? "AH"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink-50">{t.title}</p>
+                        <p className="truncate text-[11px] text-ink-500">{t.subtitle}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs text-ink-400">
+                      {last ? last.body : "No messages yet — say hello."}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-high/25 bg-high/10 p-3">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-high" />
+              <p className="text-[11px] leading-relaxed text-ink-300">
+                Messages are not monitored around the clock. If something feels like an emergency, call{" "}
+                <span className="stat-mono">911</span> — not this box.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Thread ----------------------------------------------------------- */}
+        <Card className="flex min-h-[34rem] flex-col">
+          <div className="hairline flex items-center gap-3 p-4">
+            <span
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-ink-950"
+              style={{ background: portal.accent.hex }}
+            >
+              {staffMap[active.staffId ?? ""]?.avatarInitials ?? "AH"}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-ink-50">{active.title}</p>
+              <p className="text-[11px] text-ink-500">{active.subtitle}</p>
+            </div>
+            <Badge tone="optimal" className="ml-auto">
+              <Clock className="h-3 w-3" />
+              Typically under 4h
+            </Badge>
+          </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-4">
+            {days.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <MessageSquare className="h-6 w-6 text-ink-600" />
+                <p className="mt-2 text-sm text-ink-400">No messages with {active.title} yet.</p>
+                <p className="mt-1 max-w-xs text-xs text-ink-500">
+                  Clinical questions land here. Anything about food, training or scheduling is faster with your
+                  coach.
+                </p>
+              </div>
+            )}
+
+            {days.map(({ day, items }) => (
+              <div key={day} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-ink-800" />
+                  <span className="stat-mono text-[10px] uppercase tracking-wide text-ink-600">
+                    {formatDate(day)}
+                  </span>
+                  <span className="h-px flex-1 bg-ink-800" />
+                </div>
+
+                {items.map((m) => {
+                  const mine = m.who === "me";
+                  return (
+                    <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                      <div className={cn("max-w-[80%]", mine ? "items-end" : "items-start")}>
+                        {/* Attribution only on team messages — the member knows
+                            who they are, and repeating "You" every bubble is noise. */}
+                        {!mine && (
+                          <p className="mb-1 pl-1 text-[11px] text-ink-500">
+                            <span className="text-ink-300">{m.from}</span>
+                            {m.role && <span> · {m.role}</span>}
+                          </p>
+                        )}
+                        <div
+                          className={cn(
+                            "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                            mine
+                              ? "rounded-br-md bg-optimal/15 text-ink-100 ring-1 ring-inset ring-optimal/25"
+                              : "rounded-bl-md bg-ink-800 text-ink-200",
+                          )}
+                        >
+                          {m.body}
+                        </div>
+                        <div
+                          className={cn(
+                            "mt-1 flex items-center gap-2 px-1 text-[10px] text-ink-600",
+                            mine ? "justify-end" : "justify-start",
+                          )}
+                        >
+                          <span className="stat-mono">{formatTime(m.at)}</span>
+                          {m.channel === "SMS" && (
+                            <span className="inline-flex items-center gap-1">
+                              <Phone className="h-2.5 w-2.5" />
+                              text message
+                            </span>
+                          )}
+                          {!mine && m.readAt && <span>read {formatTime(m.readAt)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Composer -------------------------------------------------------- */}
+          <div className="hairline p-4">
+            <div className="flex items-end gap-2">
+              <Textarea
+                rows={2}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={`Message ${active.title.split(" ")[0]}…`}
+                onKeyDown={(e) => {
+                  // Enter sends, Shift+Enter newlines — the convention every
+                  // member already has muscle memory for.
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+              />
+              <Button variant="success" onClick={send} disabled={!draft.trim()} className="h-9 shrink-0">
+                <Send className="h-3.5 w-3.5" />
+                Send
+              </Button>
+            </div>
+            <p className="mt-2 text-[10px] text-ink-600">
+              Your care team can see this thread. Nobody else can — check the{" "}
+              <span className="text-ink-400">Who&rsquo;s seen my chart</span> page any time to confirm that
+              yourself. Demo build: messages stay in this browser.
+            </p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
