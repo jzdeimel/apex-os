@@ -288,7 +288,11 @@ function SwarmGraph({ state }: { state: SwarmState }) {
 
           {/* orchestrator core */}
           <circle cx={cx} cy={cy} r={26} fill="#17191e" stroke="#3d0a0d" strokeWidth={1.5} />
+          {/* `initial` is required, not optional: animating an SVG `r` with only
+              an `animate` keyframe array makes framer-motion render r="undefined"
+              on the first frame, which the browser rejects. */}
           <motion.circle cx={cx} cy={cy} r={26} fill="none" stroke="#e93d3d" strokeWidth={1}
+            initial={{ r: 26, opacity: 0.5 }}
             animate={{ r: [26, 34, 26], opacity: [0.5, 0, 0.5] }} transition={{ duration: 3, repeat: Infinity }} />
           <text x={cx} y={cy - 1} textAnchor="middle" fontSize={11} fontWeight={700} fill="#f6aaaa">APEX</text>
           <text x={cx} y={cy + 10} textAnchor="middle" fontSize={6.5} fill="#7a838f" letterSpacing={1}>ORCHESTRATOR</text>
@@ -302,6 +306,7 @@ function SwarmGraph({ state }: { state: SwarmState }) {
               <g key={a.id}>
                 {(st.status === "working" || st.status === "review") && (
                   <motion.circle cx={p.x} cy={p.y} r={16} fill="none" stroke={ringColor} strokeWidth={1.5}
+                    initial={{ r: 16, opacity: 0.7 }}
                     animate={{ r: [16, 26, 16], opacity: [0.7, 0, 0.7] }} transition={{ duration: 1.8, repeat: Infinity }} />
                 )}
                 <circle cx={p.x} cy={p.y} r={16}
