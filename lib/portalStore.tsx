@@ -83,11 +83,17 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
    * all seen by someone who is not signed in and may not be a member yet. The
    * intake link in particular gets opened by a stranger from an SMS, so leaking
    * any operator chrome onto it would be both wrong and alarming.
+   *
+   * The emergency card is the sharpest case: it is held up to a triage nurse by
+   * someone who may be unable to speak for themselves. It must render instantly,
+   * with no login, no navigation and nothing to tap — anything resembling an app
+   * around it is noise at the worst possible moment.
    */
   const isEntry =
     (fromRoute === null && pathname === "/") ||
     pathname === "/book" ||
-    pathname.startsWith("/intake/");
+    pathname.startsWith("/intake/") ||
+    pathname.startsWith("/card/");
 
   const portal = fromRoute ?? (chosen ? PORTALS[chosen] : PORTALS.clinic);
 

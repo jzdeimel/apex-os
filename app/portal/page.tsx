@@ -34,6 +34,12 @@ import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
+import { StreakCard } from "@/components/portal/StreakCard";
+import { SeasonArc } from "@/components/portal/SeasonArc";
+import { Quests } from "@/components/portal/Quests";
+import { LevelCard } from "@/components/portal/LevelCard";
+import { RefillRunway } from "@/components/portal/RefillRunway";
+import { AskMyRecord } from "@/components/portal/AskMyRecord";
 import {
   ArrowRight,
   Check,
@@ -143,6 +149,32 @@ export default function PortalHomePage() {
       {/* 2 · Today. The centrepiece — everything else orbits it.             */}
       {/* ------------------------------------------------------------------ */}
       <DailyRings clientId={ME} />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 2b · The habit layer.                                              */}
+      {/*                                                                     */}
+      {/* Streak and season sit directly under the rings because they are     */}
+      {/* what makes closing them matter tomorrow as well as today. Refill    */}
+      {/* runway is here rather than buried in orders: running out is the     */}
+      {/* single most common reason a protocol lapses, and a member should    */}
+      {/* never discover it from an empty drawer.                             */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StreakCard clientId={ME} />
+        <RefillRunway client={client} />
+      </div>
+
+      <SeasonArc clientId={ME} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Quests clientId={ME} />
+        <LevelCard clientId={ME} />
+      </div>
+
+      {/* Ask-your-record last on this screen: it answers a question the member
+          already has, so it belongs after the things that might answer it
+          first. */}
+      <AskMyRecord clientId={ME} />
 
       {/* ------------------------------------------------------------------ */}
       {/* 3 · Where I am — the clinic's four steps, not our state machine.    */}

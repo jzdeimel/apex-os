@@ -496,10 +496,14 @@ function QueueStat({
     watch: "border-watch/30 bg-watch/10 text-watch",
     neutral: "border-ink-700 bg-ink-900/50 text-ink-400",
   }[tone];
+
+  // min-w-0: a grid item defaults to min-width:auto and will not shrink below
+  // its content, so a long label pushes the tile past the viewport at 390px
+  // instead of wrapping.
   return (
-    <div className="card flex h-full flex-col p-4">
+    <div className="card flex h-full min-w-0 flex-col p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="label-eyebrow">{label}</span>
+        <span className="label-eyebrow min-w-0 break-words">{label}</span>
         <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg border", ring)}>
           {icon}
         </span>

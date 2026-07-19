@@ -56,6 +56,9 @@ import {
   ContactTab,
 } from "@/components/client/ClientTabs";
 import { ClientEscalations } from "@/components/escalations/CoachEscalationStatus";
+import { TimeMachine } from "@/components/trace/TimeMachine";
+import { SinceYouLastLooked } from "@/components/client/SinceYouLastLooked";
+import { VIEWER } from "@/lib/viewer";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -81,6 +84,7 @@ const TABS = [
   { id: "orders", label: "Orders" },
   { id: "contact", label: "Contact Log" },
   { id: "timeline", label: "Timeline" },
+  { id: "replay", label: "Time machine" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
 ];
@@ -108,6 +112,11 @@ export default function ClientProfilePage() {
         <ArrowLeft className="h-3.5 w-3.5" /> Back to clients
       </Link>
 
+      {/* What changed since THIS staff member last opened this chart. Above the
+          hero deliberately: a coach returning after three weeks should be told
+          what moved before they start reading, not after. */}
+      <SinceYouLastLooked clientId={id} staffId={VIEWER.id} />
+
       {/* Hero */}
       <ProfileHero id={id} />
 
@@ -128,6 +137,7 @@ export default function ClientProfilePage() {
         {tab === "plan" && <PlanTab id={id} />}
         {tab === "consults" && <ConsultsTab id={id} />}
         {tab === "escalations" && <ClientEscalations clientId={id} />}
+        {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}
         {tab === "contact" && <ContactTab id={id} />}
         {tab === "notes" && <NotesTab id={id} />}

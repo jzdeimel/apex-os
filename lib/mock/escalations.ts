@@ -353,6 +353,26 @@ function build(seed: Seed): Escalation {
 
 export const escalations: Escalation[] = SEEDS.map(build);
 
+/**
+ * Commit a newly raised escalation into the shared store.
+ *
+ * Without this, a member-initiated escalation existed only in the component
+ * that raised it — while the UI told them it was "on your provider's desk with
+ * a clock on it". It was on nobody's desk. `queueFor()` could not see it, no
+ * answer could ever arrive, and the single load-bearing promise of the
+ * community guard was a toast message.
+ *
+ * Mirrors commitOrder / commitSubscription. Replaces in place by id so a
+ * retried send is idempotent.
+ */
+export function commitEscalation(e: Escalation): Escalation {
+  const i = escalations.findIndex((x) => x.id === e.id);
+  if (i >= 0) escalations[i] = e;
+  else escalations.push(e);
+  escalationMap[e.id] = e;
+  return e;
+}
+
 export const escalationMap: Record<string, Escalation> = Object.fromEntries(
   escalations.map((e) => [e.id, e]),
 );
