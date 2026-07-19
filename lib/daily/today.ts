@@ -139,22 +139,50 @@ function dosesForToday(client: Client, dayIndex: number, rand: () => number): Do
   const plan = buildPlanOfCare(client);
   const timings = ["AM", "AM", "PM", "Midday"];
 
-  return plan.protocol.slice(0, 4).map((item, i) => {
-    // A simple weekday pattern per item so the day genuinely varies.
-    const everyDay = i === 0;
-    const scheduled = everyDay || (dayIndex + i) % 2 === 0;
-    const held = rand() < 0.08;
+  return plan.protocol
+    .slice(0, 4)
+    .map((item, i) => {
+      // A simple weekday pattern per item so the day genuinely varies.
+      const everyDay = i === 0;
+      const scheduled = everyDay || (dayIndex + i) % 2 === 0;
+      const held = rand() < 0.08;
 
-    return {
-      id: item.id,
-      name: item.modality ?? item.title,
-      timing: timings[i % timings.length],
-      route: item.category?.includes("Hormone") ? "IM / SC injection" : "SC injection",
-      taken: scheduled && !held && rand() < 0.72,
-      heldReason: held ? "Provider hold — your provider paused this item" : undefined,
-      _scheduled: scheduled,
-    } as DoseSlot & { _scheduled: boolean };
-  }).filter((d) => (d as DoseSlot & { _scheduled: boolean })._scheduled);
+      return {
+        id: item.id,
+        name: item.modality ?? item.title,
+        timing: timings[i % timings.length],
+        route: routeFor(item.modality ?? item.title, item.category),
+        taken: scheduled && !held && rand() < 0.72,
+        heldReason: held ? "Provider hold — your provider paused this item" : undefined,
+        _scheduled: scheduled,
+      } as DoseSlot & { _scheduled: boolean };
+    })
+    .filter((d) => (d as DoseSlot & { _scheduled: boolean })._scheduled);
+}
+
+/**
+ * Route for a protocol item.
+ *
+ * Not everything on a plan is injected. Coaching, nutrition and lifestyle items
+ * are services — labelling them "SC injection" and hanging a dose lock off them
+ * is worse than saying nothing, because it is confidently wrong on a screen a
+ * member reads every morning.
+ */
+const SERVICE_RE = /coaching|nutrition|training|counsel|consult|sleep hygiene|therapy session|education/i;
+const ORAL_RE = /oral|capsule|tablet|vitamin|magnesium|creatine/i;
+const NASAL_RE = /nasal|spray/i;
+
+export function routeFor(name: string, category?: string): string {
+  if (SERVICE_RE.test(name)) return "Coaching session";
+  if (NASAL_RE.test(name)) return "Nasal spray";
+  if (ORAL_RE.test(name)) return "Oral";
+  if (category?.includes("Hormone")) return "IM / SC injection";
+  return "SC injection";
+}
+
+/** Only a prescribed, administered item has a dose to lock. */
+export function hasDose(route: string): boolean {
+  return route !== "Coaching session";
 }
 
 export function buildDailyPlan(client: Client, dateIso: string = NOW): DailyPlan {

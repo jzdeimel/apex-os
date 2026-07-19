@@ -257,11 +257,66 @@ function generate(count: number): LedgerPayload[] {
   return out;
 }
 
-/** The canonical demo ledger — newest last, exactly like an append-only table. */
+/**
+ * The canonical ledger — newest last, exactly like an append-only table.
+ *
+ * Mutable by design, but ONLY through `appendLedger`. Nothing else in the
+ * codebase may push to it, splice it, or reorder it: the array's index order is
+ * the chain's link order, and a stray `sort()` would break verification just as
+ * surely as tampering would.
+ */
 export const ledger: LedgerRow[] = buildChain(generate(240));
 
-/** Newest-first, for UI that reads top-down. */
-export const ledgerDesc: LedgerRow[] = [...ledger].reverse();
+/**
+ * Newest-first view, recomputed on read.
+ *
+ * This used to be a frozen `[...ledger].reverse()` captured at module load,
+ * which meant anything appended afterwards was invisible to every surface that
+ * read it. A live chain needs a live view.
+ */
+export function ledgerNewestFirst(): LedgerRow[] {
+  return [...ledger].reverse();
+}
+
+/**
+ * What a domain function returns when something happened.
+ *
+ * `seq` and `at` are deliberately NOT the caller's to set. Sequence is assigned
+ * centrally so it can never collide or skip, and letting a caller backdate an
+ * event is the one thing an append-only log must refuse.
+ */
+export type LedgerDraft = Omit<LedgerPayload, "seq" | "at">;
+
+/**
+ * THE append point. Assigns `seq`, stamps `at`, links against the current tail,
+ * hashes, and pushes.
+ *
+ * Returns the committed row so a caller can store its id — which is what makes
+ * a reference from another record (a contact entry, an order event) resolve to
+ * something real rather than being a fabricated join key.
+ *
+ * In production this is a Postgres insert inside the same transaction as the
+ * mutation it records, so a write that cannot be recorded does not persist.
+ * Here it is an array push, but the contract is identical: the row is committed
+ * before the caller continues.
+ */
+export function appendLedger(draft: LedgerDraft, at: string = NOW_ISO): LedgerRow {
+  const tail = ledger[ledger.length - 1];
+  const prevHash = tail?.hash ?? GENESIS_HASH;
+  const payload: LedgerPayload = { ...draft, seq: (tail?.seq ?? 0) + 1, at };
+  const hash = hashRow(prevHash, payload);
+  const row: LedgerRow = {
+    ...payload,
+    id: `led-${String(payload.seq).padStart(5, "0")}`,
+    prevHash,
+    hash,
+  };
+  ledger.push(row);
+  return row;
+}
+
+/** Pinned clock so appends made during a demo session stay deterministic. */
+const NOW_ISO = "2026-06-12T09:00:00";
 
 /**
  * Produce a copy of the ledger with one row's contents silently altered —
@@ -289,18 +344,18 @@ export function tamperedLedger(rows: LedgerRow[], index: number): LedgerRow[] {
 
 /** Every event touching one patient, newest first. */
 export function ledgerForSubject(subjectId: string): LedgerRow[] {
-  return ledgerDesc.filter((r) => r.subjectId === subjectId);
+  return ledgerNewestFirst().filter((r) => r.subjectId === subjectId);
 }
 
 /** Read-only access events for one patient — powers the client portal. */
 export function accessLogForSubject(subjectId: string): LedgerRow[] {
-  return ledgerDesc.filter(
+  return ledgerNewestFirst().filter(
     (r) => r.subjectId === subjectId && (r.action === "view" || r.action === "export" || r.action === "break-glass"),
   );
 }
 
 export function ledgerForActor(actorId: string): LedgerRow[] {
-  return ledgerDesc.filter((r) => r.actorId === actorId);
+  return ledgerNewestFirst().filter((r) => r.actorId === actorId);
 }
 
 export interface LedgerStats {

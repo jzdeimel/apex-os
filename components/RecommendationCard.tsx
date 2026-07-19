@@ -44,7 +44,7 @@ export function RecommendationCard({
   const [flash, setFlash] = useState<string | null>(null);
 
   const client = getClient(rec.clientId);
-  const canApprove = role === "Provider";
+  const canApprove = role === "Medical";
   const confidencePct = Math.round(rec.confidence * 100);
   const flaggedContra = rec.contraindicationChecks.filter((c) => !c.passed);
 
@@ -240,7 +240,7 @@ export function RecommendationCard({
                 onClick={() => {
                   addNote({
                     clientId: rec.clientId,
-                    author: role === "Provider" ? "Provider" : "Coach",
+                    author: role === "Medical" ? "Provider" : "Coach",
                     body: `[${rec.title}] ${noteText.trim()}`,
                   });
                   setNoteText("");
@@ -263,7 +263,7 @@ export function RecommendationCard({
             size="sm"
             variant="success"
             disabled={!canApprove || status === "provider approved"}
-            title={canApprove ? "" : "Switch to Provider role to approve"}
+            title={canApprove ? "" : "Switch to the Medical role to approve"}
             onClick={() => {
               setRecStatus(rec.id, "provider approved");
               toast("Approved by provider");

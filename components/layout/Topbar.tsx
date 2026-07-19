@@ -4,17 +4,32 @@ import { Menu, Search, ShieldCheck } from "lucide-react";
 import { useStore, type RoleView } from "@/lib/store";
 import { LocationFilter } from "@/components/LocationFilter";
 import { NotificationBell } from "@/components/NotificationBell";
+import { usePortal } from "@/lib/portalStore";
+import { me } from "@/components/portal/PortalHeader";
 
-const ROLES: RoleView[] = ["Provider", "Coach", "Operations"];
+const ROLES: RoleView[] = ["Medical", "Coach", "Admin"];
 
 const ROLE_PERSON: Record<RoleView, { name: string; initials: string }> = {
-  Provider: { name: "Dr. Marcus Vale", initials: "MV" },
+  Medical: { name: "Dr. Marcus Vale", initials: "MV" },
   Coach: { name: "Tyler Brooks", initials: "TB" },
-  Operations: { name: "Owen Castellano", initials: "OC" },
+  Admin: { name: "Owen Castellano", initials: "OC" },
 };
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { role, setRole } = useStore();
+  const { role, setRole, portal } = useStore() as ReturnType<typeof useStore> & { portal?: never };
+  const { portal: activePortal } = usePortal();
+
+  /**
+   * A member is not staff.
+   *
+   * The client portal must never render the location filter, the staff role
+   * switcher, a staff identity chip, or a compliance ribbon written for
+   * clinicians. Leaking operator chrome onto a member surface is both a broken
+   * flow and, in a demo, a bad look — it implies the member can see across the
+   * practice.
+   */
+  const isMember = activePortal.id === "patient";
+  const member = isMember ? me() : null;
 
   const openCommand = () => {
     window.dispatchEvent(
@@ -51,33 +66,46 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         </button>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <LocationFilter />
-          <NotificationBell />
+          {!isMember && <LocationFilter />}
+          {!isMember && <NotificationBell />}
 
-          {/* Role switcher */}
-          <div className="hidden items-center rounded-lg border border-ink-800 bg-ink-900/70 p-0.5 md:flex">
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
-                  (role === r
-                    ? "bg-gold-400/15 text-gold-200"
-                    : "text-ink-400 hover:text-ink-100")
-                }
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+          {/* Staff role switcher — never on a member surface. */}
+          {!isMember && (
+            <div className="hidden items-center rounded-lg border border-ink-800 bg-ink-900/70 p-0.5 md:flex">
+              {ROLES.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
+                    (role === r
+                      ? "bg-gold-400/15 text-gold-200"
+                      : "text-ink-400 hover:text-ink-100")
+                  }
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5">
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-[10px] font-bold text-ink-950">
-              {ROLE_PERSON[role].initials}
+            <span
+              className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold text-ink-950"
+              style={{
+                background: member
+                  ? member.avatarColor
+                  : undefined,
+              }}
+            >
+              <span className={member ? "" : "grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600"}>
+                {member
+                  ? `${member.firstName[0]}${member.lastName[0]}`
+                  : ROLE_PERSON[role].initials}
+              </span>
             </span>
             <span className="hidden text-xs font-medium text-ink-200 sm:block">
-              {ROLE_PERSON[role].name}
+              {member ? `${member.firstName} ${member.lastName}` : ROLE_PERSON[role].name}
             </span>
           </div>
         </div>
@@ -87,8 +115,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       <div className="flex items-center gap-2 border-t border-ink-800/60 bg-ink-900/40 px-4 py-1.5 lg:px-6">
         <ShieldCheck className="h-3.5 w-3.5 text-gold-400/80" />
         <p className="text-[11px] text-ink-400">
-          Demo only. Not medical advice. Recommendations require review and
-          approval by a licensed provider.
+          {isMember
+            ? "Demonstration build. Synthetic data — this is not a real health record and not medical advice."
+            : "Demo only. Not medical advice. Recommendations require review and approval by a licensed provider."}
         </p>
       </div>
     </header>

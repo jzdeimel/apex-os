@@ -192,7 +192,7 @@ export default function DashboardPage() {
             Clinic Command Center
           </h1>
           <p className="mt-1 text-sm text-ink-400">
-            {role === "Provider"
+            {role === "Medical"
               ? "Provider view — clinical priorities, results & approvals."
               : role === "Coach"
                 ? "Coach view — your clients, engagement & follow-ups."
@@ -216,7 +216,7 @@ export default function DashboardPage() {
         <StaggerItem className="h-full">
           {role === "Coach" ? (
             <DashboardCard label="Avg Alpha Score" countTo={data.avgScore} spark={[data.avgScore - 8, data.avgScore - 5, data.avgScore - 6, data.avgScore - 3, data.avgScore - 2, data.avgScore - 1, data.avgScore]} sparkColor="#34d399" icon={<Gauge className="h-4 w-4" />} delta="+4" deltaTone="up" hint="Across your clients" />
-          ) : role === "Operations" ? (
+          ) : role === "Admin" ? (
             <DashboardCard label="On-hand inventory" countTo={Math.round(data.inventoryValue / 1000)} countPrefix="$" countSuffix="k" spark={data.trends.invValue.spark} icon={<Boxes className="h-4 w-4" />} delta={data.trends.invValue.delta} deltaTone={data.trends.invValue.tone} />
           ) : (
             <DashboardCard label="Proj. monthly rev" countTo={Math.round(data.monthlyRevenue / 1000)} countPrefix="$" countSuffix="k" spark={data.trends.rev.spark} icon={<TrendingUp className="h-4 w-4" />} delta={data.trends.rev.delta} deltaTone={data.trends.rev.tone} />

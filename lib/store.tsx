@@ -24,7 +24,8 @@ import { automations as seedAutomations } from "@/lib/mock/automations";
 import { recommendationRules as seedRules } from "@/lib/rules";
 import { staff } from "@/lib/mock/staff";
 
-export type RoleView = "Provider" | "Coach" | "Operations";
+/** Which staff lens the console is being viewed through. Mirrors StaffRole. */
+export type RoleView = "Medical" | "Coach" | "Admin";
 
 export interface NewLead {
   id: string;
@@ -92,7 +93,7 @@ const NOW = "2026-06-12T09:00:00";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [locationFilter, setLocationFilter] = useState<LocationId | "all">("all");
-  const [role, setRole] = useState<RoleView>("Provider");
+  const [role, setRole] = useState<RoleView>("Medical");
   const [recStatus, setRecStatusState] = useState<Record<string, RecommendationStatus>>({});
   const [automationEnabled, setAutomationEnabled] = useState<Record<string, boolean>>(
     Object.fromEntries(seedAutomations.map((a) => [a.id, a.enabled])),
@@ -111,7 +112,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const activeStaffId = useMemo(() => {
     const match = staff.find((s) =>
-      role === "Provider" ? s.canApprove : role === "Coach" ? s.role === "Coach" : s.role === "Admin",
+      role === "Medical" ? s.canApprove : role === "Coach" ? s.role === "Coach" : s.role === "Admin",
     );
     return match?.id ?? staff[0].id;
   }, [role]);

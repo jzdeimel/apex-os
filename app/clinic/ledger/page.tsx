@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import {
   ledger,
-  ledgerDesc,
+  ledgerNewestFirst,
   ledgerStats,
   tamperedLedger,
   type LedgerRow,
@@ -69,7 +69,7 @@ export default function LedgerPage() {
   const stats = useMemo(() => ledgerStats(ledger), []);
 
   const visible = useMemo(() => {
-    const desc = tampered ? [...rows].reverse() : ledgerDesc;
+    const desc = tampered ? [...rows].reverse() : ledgerNewestFirst();
     if (lens === "reads") return desc.filter((r) => r.action === "view" || r.action === "export");
     if (lens === "writes")
       return desc.filter((r) =>

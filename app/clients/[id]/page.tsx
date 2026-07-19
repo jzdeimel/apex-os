@@ -770,7 +770,7 @@ function NotesTab({ id }: { id: string }) {
       <div className="space-y-5">
         <AiDraftPanel client={getClient(id)!} />
         <Card className="h-fit">
-          <CardHeader><CardTitle>Add {role === "Provider" ? "provider" : "coach"} note</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Add {role === "Medical" ? "provider" : "coach"} note</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <textarea
               value={body}
@@ -784,7 +784,7 @@ function NotesTab({ id }: { id: string }) {
               className="w-full"
               disabled={!body.trim()}
               onClick={() => {
-                addNote({ clientId: id, author: role === "Provider" ? "Provider" : "Coach", body: body.trim() });
+                addNote({ clientId: id, author: role === "Medical" ? "Provider" : "Coach", body: body.trim() });
                 setBody("");
               }}
             >

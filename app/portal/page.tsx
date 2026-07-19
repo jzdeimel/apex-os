@@ -24,6 +24,7 @@ import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, relativeDays } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
+import { DailyRings } from "@/components/portal/DailyRings";
 import {
   ArrowRight,
   CalendarClock,
@@ -104,7 +105,7 @@ export default function PortalHomePage() {
                 Good morning, {client.firstName}
               </h1>
               <p className="mt-1 max-w-xl text-sm text-ink-400">
-                Week <span className="stat-mono text-ink-200">{weeksIn}</span> of your{" "}
+                Week <span className="stat-mono text-ink-200">{Math.min(weeksIn, plan.durationWeeks)}</span> of your{" "}
                 <span className="stat-mono text-ink-200">{plan.durationWeeks}</span>-week block. Everything your
                 care team can see about your plan, you can see here too.
               </p>
@@ -160,6 +161,10 @@ export default function PortalHomePage() {
       {/* ------------------------------------------------------------------ */}
       {/* Care team + next visit                                             */}
       {/* ------------------------------------------------------------------ */}
+      {/* The daily loop sits above everything else: this is the reason to
+          open Apex on an ordinary Tuesday. */}
+      <DailyRings clientId={ME} />
+
       <Stagger className="grid gap-4 lg:grid-cols-3">
         <StaggerItem className="lg:col-span-2">
           <Card className="h-full">

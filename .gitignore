@@ -31,3 +31,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# local verification artifacts
+.shots/
+shot.mjs

@@ -50,7 +50,7 @@ export default function RecommendationsPage() {
   }, [recStatus]);
 
   const bulkApprove = () => {
-    if (role !== "Provider") return;
+    if (role !== "Medical") return;
     filtered.forEach((r) => setRecStatus(r.id, "provider approved"));
   };
 
@@ -100,16 +100,16 @@ export default function RecommendationsPage() {
           <Button
             variant="primary"
             size="sm"
-            disabled={role !== "Provider" || filtered.length === 0}
+            disabled={role !== "Medical" || filtered.length === 0}
             onClick={bulkApprove}
-            title={role === "Provider" ? "Approve all filtered recommendations" : "Switch to Provider role to bulk approve"}
+            title={role === "Medical" ? "Approve all filtered recommendations" : "Switch to the Medical role to bulk approve"}
           >
             <ShieldCheck className="h-3.5 w-3.5" /> Bulk approve filtered
           </Button>
         </div>
       </div>
 
-      {role !== "Provider" && (
+      {role !== "Medical" && (
         <p className="text-xs text-ink-500">
           You are viewing as <span className="text-ink-300">{role}</span>. Switch to{" "}
           <span className="text-gold-300">Provider</span> (top bar) to approve recommendations.

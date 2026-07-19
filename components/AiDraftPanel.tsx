@@ -160,7 +160,7 @@ export function AiDraftPanel({ client }: { client: Client }) {
                     onClick={() =>
                       addNote({
                         clientId: client.id,
-                        author: role === "Provider" ? "Provider" : "Coach",
+                        author: role === "Medical" ? "Provider" : "Coach",
                         body: `[Draft ${tone} message] ${message}`,
                       })
                     }
