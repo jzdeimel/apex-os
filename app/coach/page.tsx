@@ -8,6 +8,7 @@ import { unsignedConsultsFor } from "@/lib/mock/consults";
 import { triageScore } from "@/lib/aiInsights";
 import { FadeIn } from "@/components/motion";
 import { TodayQueue, ME_COACH, clientsForCoach } from "@/components/coach/TodayQueue";
+import { CoachWaitingOn } from "@/components/escalations/CoachEscalationStatus";
 import { cn } from "@/lib/utils";
 
 /**
@@ -128,7 +129,13 @@ export default function CoachTodayPage() {
         </div>
       </FadeIn>
 
-      <FadeIn delay={0.1}>
+      {/* What this coach is waiting on a provider for — including anything
+          already answered and safe to relay to the member. */}
+      <FadeIn delay={0.08}>
+        <CoachWaitingOn coachId={ME_COACH} />
+      </FadeIn>
+
+      <FadeIn delay={0.14}>
         <TodayQueue coachId={ME_COACH} />
       </FadeIn>
     </div>

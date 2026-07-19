@@ -1,0 +1,298 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Clock,
+  CornerDownRight,
+  Eye,
+  Quote,
+  Stethoscope,
+} from "lucide-react";
+import type { Escalation, EscalationPriority } from "@/lib/escalations/types";
+import {
+  ME_PROVIDER,
+  NOW,
+  acknowledge,
+  answer as answerEscalation,
+  dueAt,
+  formatSla,
+  isResolved,
+  slaState,
+  startReview,
+} from "@/lib/escalations/queue";
+import { getClient, clientName } from "@/lib/mock/clients";
+import { staffMap, staffName } from "@/lib/mock/staff";
+import { appendLedger } from "@/lib/trace/ledger";
+import { shortHash } from "@/lib/trace/hash";
+import { Badge, Button, Textarea } from "@/components/ui/primitives";
+import { Monogram } from "@/components/Monogram";
+import { useToast } from "@/components/ui/Toast";
+import { formatDateTime, relativeDays } from "@/lib/utils";
+
+/**
+ * One escalation, as a provider reads it.
+ *
+ * The SLA clock is the hero and everything else is arranged around it. A
+ * provider working this queue has one question — "what will hurt someone if I
+ * leave it" — and the clock answers it before they have read a word of the
+ * question text.
+ *
+ * Below the coach's question sits the member's exact quoted words. That pairing
+ * is the whole traceability argument in one card: the provider is never acting
+ * on a summary of a summary, and can see for themselves whether the coach's
+ * framing matches what the member actually said.
+ */
+
+const PRIORITY_TONE: Record<EscalationPriority, "high" | "watch" | "neutral"> = {
+  Urgent: "high",
+  Prompt: "watch",
+  Routine: "neutral",
+};
+
+const SLA_STYLE = {
+  "on-track": { text: "text-optimal", ring: "border-optimal/30 bg-optimal/10", icon: Clock },
+  "due-soon": { text: "text-watch", ring: "border-watch/40 bg-watch/10", icon: Clock },
+  overdue: { text: "text-high", ring: "border-high/45 bg-high/12", icon: AlertTriangle },
+} as const;
+
+export function EscalationCard({
+  escalation,
+  onChange,
+}: {
+  escalation: Escalation;
+  onChange: (next: Escalation) => void;
+}) {
+  const { toast } = useToast();
+  const [drafting, setDrafting] = React.useState(false);
+  const [draft, setDraft] = React.useState("");
+
+  const client = getClient(escalation.clientId);
+  if (!client) return null;
+
+  const resolved = isResolved(escalation);
+  const state = slaState(escalation, NOW);
+  const style = SLA_STYLE[state];
+  const ClockIcon = style.icon;
+  const me = staffMap[ME_PROVIDER];
+
+  /**
+   * Every transition is a real ledger append — not a toast pretending to be one.
+   * The row id surfaced in the toast is the actual committed id, so a reviewer
+   * can go find it in the ledger and see the same before/after.
+   */
+  function commit(
+    next: Escalation,
+    action: "update" | "approve",
+    reason: string,
+  ) {
+    const row = appendLedger({
+      actorId: ME_PROVIDER,
+      actorName: me?.name ?? ME_PROVIDER,
+      actorRole: me?.role ?? "Medical",
+      action,
+      entity: "recommendation",
+      entityId: escalation.id,
+      subjectId: client!.id,
+      subjectName: clientName(client!),
+      locationId: client!.locationId,
+      reason,
+      before: { status: escalation.status },
+      after: { status: next.status },
+    });
+    onChange(next);
+    toast(`Escalation ${next.status.toLowerCase()}`, {
+      desc: `Ledger ${row.id} · ${shortHash(row.hash)}`,
+      tone: action === "approve" ? "success" : "info",
+    });
+  }
+
+  const onAcknowledge = () =>
+    commit(
+      acknowledge(escalation, ME_PROVIDER, NOW),
+      "update",
+      "Provider acknowledged escalation — ownership taken, SLA clock still running",
+    );
+
+  const onStartReview = () =>
+    commit(
+      startReview(escalation, ME_PROVIDER, NOW),
+      "update",
+      "Provider opened the chart to work this escalation",
+    );
+
+  const onAnswer = () => {
+    const text = draft.trim();
+    if (!text) return;
+    commit(
+      answerEscalation(escalation, ME_PROVIDER, text, NOW),
+      "approve",
+      "Provider answered escalation — clinical guidance returned to the coach",
+    );
+    setDrafting(false);
+    setDraft("");
+  };
+
+  return (
+    <div
+      className={[
+        "card p-4",
+        state === "overdue" && !resolved ? "border-high/35" : "",
+      ].join(" ")}
+    >
+      {/* ── Who, and the clock ────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-start gap-3">
+        <Monogram client={client} size="md" />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/clients/${client.id}`}
+              className="truncate rounded text-sm font-medium text-ink-50 hover:text-gold-300 focus-ring"
+            >
+              {clientName(client)}
+            </Link>
+            <Badge tone={PRIORITY_TONE[escalation.priority]}>
+              {escalation.priority === "Urgent" && <AlertTriangle className="h-3 w-3" />}
+              {escalation.priority}
+            </Badge>
+            <Badge tone="neutral">{escalation.kind}</Badge>
+            {resolved && (
+              <Badge tone="optimal">
+                <CheckCircle2 className="h-3 w-3" />
+                Answered
+              </Badge>
+            )}
+            {!resolved && escalation.status !== "Open" && (
+              <Badge tone="info">
+                <Eye className="h-3 w-3" />
+                {escalation.status}
+              </Badge>
+            )}
+          </div>
+
+          <p className="mt-1 text-[11px] text-ink-500">
+            Raised by {staffName(escalation.raisedByStaffId)} ·{" "}
+            <span className="stat-mono">{formatDateTime(escalation.raisedAt)}</span> ·{" "}
+            <span className="stat-mono">{relativeDays(escalation.raisedAt)}</span>
+          </p>
+        </div>
+
+        {/* THE CLOCK. Deliberately the largest, highest-contrast thing on the
+            card — a provider scanning at arm's length should be able to work
+            this queue top-down without reading any prose. */}
+        <div
+          className={[
+            "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2",
+            style.ring,
+          ].join(" ")}
+        >
+          <ClockIcon className={["h-4 w-4", style.text].join(" ")} />
+          <div className="leading-tight">
+            <p className={["stat-mono text-sm font-semibold", style.text].join(" ")}>
+              {formatSla(escalation, NOW)}
+            </p>
+            <p className="text-[10px] text-ink-500">
+              {resolved ? (
+                <>by {staffName(escalation.answeredByStaffId)}</>
+              ) : (
+                <>due <span className="stat-mono">{formatDateTime(dueAt(escalation))}</span></>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── The coach's question ──────────────────────────────────────────── */}
+      <p className="mt-3 text-sm leading-relaxed text-ink-200">{escalation.question}</p>
+
+      {/* ── The source it came from ───────────────────────────────────────── */}
+      <figure className="mt-3 rounded-lg border-l-2 border-gold-400/50 bg-ink-900/50 px-3 py-2">
+        <div className="flex items-start gap-2">
+          <Quote className="mt-0.5 h-3 w-3 shrink-0 text-gold-400/70" />
+          <blockquote className="min-w-0 text-[13px] italic leading-relaxed text-ink-300">
+            &ldquo;{escalation.sourceQuote}&rdquo;
+          </blockquote>
+        </div>
+        <figcaption className="mt-1.5 pl-5 text-[10px] text-ink-500">
+          Member&rsquo;s own words, from consult{" "}
+          <span className="stat-mono">{escalation.sourceConsultId ?? "—"}</span>
+        </figcaption>
+      </figure>
+
+      {/* ── The answer, once there is one ─────────────────────────────────── */}
+      {resolved && escalation.answer && (
+        <div className="mt-3 rounded-lg border border-optimal/25 bg-optimal/[0.06] p-3">
+          <div className="flex items-center gap-2">
+            <Stethoscope className="h-3.5 w-3.5 text-optimal" />
+            <p className="text-[11px] font-medium text-optimal">
+              {staffName(escalation.answeredByStaffId)}
+              {staffMap[escalation.answeredByStaffId ?? ""]?.credentials
+                ? `, ${staffMap[escalation.answeredByStaffId ?? ""].credentials}`
+                : ""}
+            </p>
+            <span className="stat-mono text-[10px] text-ink-500">
+              {formatDateTime(escalation.answeredAt)}
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-200">{escalation.answer}</p>
+        </div>
+      )}
+
+      {/* ── Actions ───────────────────────────────────────────────────────── */}
+      {!resolved && (
+        <div className="mt-3.5">
+          {drafting ? (
+            <div className="space-y-2">
+              <Textarea
+                autoFocus
+                rows={4}
+                value={draft}
+                onChange={(ev) => setDraft(ev.target.value)}
+                placeholder={`Answer ${client.firstName}'s question. This goes back to ${staffName(escalation.raisedByStaffId)} and onto the record.`}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="primary" onClick={onAnswer} disabled={!draft.trim()}>
+                  <Check className="h-3.5 w-3.5" />
+                  Send answer
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDrafting(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              {escalation.status === "Open" && (
+                <Button size="sm" variant="outline" onClick={onAcknowledge}>
+                  <Eye className="h-3.5 w-3.5" />
+                  Acknowledge
+                </Button>
+              )}
+              {escalation.status === "Acknowledged" && (
+                <Button size="sm" variant="outline" onClick={onStartReview}>
+                  <CornerDownRight className="h-3.5 w-3.5" />
+                  Start review
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={escalation.status === "In review" ? "primary" : "secondary"}
+                onClick={() => setDrafting(true)}
+              >
+                <Stethoscope className="h-3.5 w-3.5" />
+                Answer
+              </Button>
+              <span className="text-[10px] text-ink-500">
+                Assigned to {staffName(escalation.assignedToStaffId)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

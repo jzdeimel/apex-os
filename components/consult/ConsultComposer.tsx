@@ -17,7 +17,8 @@ import type { ConsultSummary, ExtractedItem } from "@/lib/consult/types";
 import { summarizeConsult, stampFor, findingCount, ENGINE_VERSION } from "@/lib/consult/summarize";
 import { appendLedger } from "@/lib/trace/ledger";
 import { getClient, clientName } from "@/lib/mock/clients";
-import { staffMap } from "@/lib/mock/staff";
+import { staffMap, staffName } from "@/lib/mock/staff";
+import { raiseEscalation, SLA_HOURS } from "@/lib/escalations/queue";
 import { NOTE_TEMPLATE_SAMPLES } from "@/lib/mock/consults";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Card } from "@/components/ui/primitives";
@@ -395,9 +396,47 @@ export function ConsultComposer({
                               size="sm"
                               variant={escalated[key] ? "success" : "danger"}
                               onClick={() => {
+                                // This used to be a toast claiming it had
+                                // routed the item to a queue that did not
+                                // exist — worse than no button, because the
+                                // coach believed the provider had it. It now
+                                // raises a real escalation with a clock on it.
+                                const client = getClient(clientId);
+                                const esc = raiseEscalation({
+                                  id: `esc-live-${key}`,
+                                  clientId,
+                                  raisedByStaffId: client?.coachId ?? "unknown",
+                                  assignedToStaffId: client?.providerId ?? "unknown",
+                                  kind: "Clinical question",
+                                  question: e.value,
+                                  // The provider reads the coach's original
+                                  // words, never a paraphrase.
+                                  sourceQuote: e.sourceQuote,
+                                  raisedAt: NOW,
+                                });
+
+                                const row = appendLedger({
+                                  actorId: esc.raisedByStaffId,
+                                  actorName: staffName(esc.raisedByStaffId),
+                                  actorRole: "Coach",
+                                  action: "create",
+                                  entity: "recommendation",
+                                  entityId: esc.id,
+                                  subjectId: clientId,
+                                  subjectName: client ? clientName(client) : undefined,
+                                  locationId: client?.locationId,
+                                  reason: `Escalated to ${staffName(esc.assignedToStaffId)}`,
+                                  after: {
+                                    priority: esc.priority,
+                                    dueWithinHours: SLA_HOURS[esc.priority],
+                                    assignedTo: staffName(esc.assignedToStaffId),
+                                  },
+                                });
+
                                 setEscalated((s) => ({ ...s, [key]: true }));
-                                toast("Routed to provider", {
-                                  desc: "Added to the provider review queue with the source quote attached.",
+                                toast(`${esc.priority} — sent to ${staffName(esc.assignedToStaffId)}`, {
+                                  tone: esc.priority === "Urgent" ? "warn" : undefined,
+                                  desc: `Due within ${SLA_HOURS[esc.priority]}h · recorded as ${row.id} · ${shortHash(row.hash)}`,
                                 });
                               }}
                             >

@@ -55,6 +55,7 @@ import {
   OrdersTab,
   ContactTab,
 } from "@/components/client/ClientTabs";
+import { ClientEscalations } from "@/components/escalations/CoachEscalationStatus";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -72,6 +73,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "plan", label: "Plan of Care" },
   { id: "consults", label: "Consults" },
+  { id: "escalations", label: "Escalations" },
   { id: "labs", label: "Labs" },
   { id: "scan", label: "Body Scan" },
   { id: "recs", label: "Recommendations" },
@@ -125,6 +127,7 @@ export default function ClientProfilePage() {
         {tab === "tasks" && <TasksTab id={id} />}
         {tab === "plan" && <PlanTab id={id} />}
         {tab === "consults" && <ConsultsTab id={id} />}
+        {tab === "escalations" && <ClientEscalations clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}
         {tab === "contact" && <ContactTab id={id} />}
         {tab === "notes" && <NotesTab id={id} />}
