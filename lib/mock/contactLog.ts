@@ -228,11 +228,17 @@ function buildLog(clientId: string): ContactEntry[] {
     // A member with no live consent on that scope/channel simply never received
     // that message — the log reflects the guard, it does not narrate around it.
     const machineSent = tpl.channel === "SMS" || tpl.channel === "Email" || tpl.channel === "Portal message";
-    if (machineSent && !hasConsent(clientId, tpl.scope, tpl.channel)) continue;
 
     // Business hours, 8:00–19:00 — quiet hours are enforced, so nothing at 2am.
     const day = new Date(cursor);
     day.setHours(8 + Math.floor(rand() * 11), Math.floor(rand() * 60), 0, 0);
+
+    // Consent is evaluated AS OF the message date, not as of today. The
+    // auditor's question is never "may we text them now" — it is "were we
+    // permitted to text them on the day we did." Checking against the current
+    // grant would retroactively erase a year of lawful history the moment a
+    // member replies STOP.
+    if (machineSent && !hasConsent(clientId, tpl.scope, tpl.channel, day)) continue;
     const at = day.toISOString();
 
     n += 1;

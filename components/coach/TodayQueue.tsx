@@ -17,6 +17,7 @@ import type { Client } from "@/lib/types";
 import type { Consult } from "@/lib/consult/types";
 import { clients, clientName } from "@/lib/mock/clients";
 import { unsignedConsultsFor, latestConsult } from "@/lib/mock/consults";
+import { lastTouchFor } from "@/lib/mock/contactLog";
 import { findingCount } from "@/lib/consult/summarize";
 import { nextBestAction, rankByTriage } from "@/lib/aiInsights";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
@@ -49,14 +50,18 @@ export function clientsForCoach(coachId: string): Client[] {
 /**
  * Last human contact with this member.
  *
- * lib/mock/contactLog.ts is not part of this build, so we derive the touch from
- * the newest consult — which is the only contact Apex actually records today.
- * We fall back to lab date, then join date, so every client resolves to a real
- * timestamp instead of a null that silently sorts to the top.
+ * Reads the real contact log — every SMS, email, call and portal message, in
+ * both directions. A consult is also contact, so whichever is newer wins; we
+ * fall back to lab date then join date so every client resolves to a real
+ * timestamp instead of a null that silently sorts to the top of the queue.
  */
 export function lastTouchIso(client: Client): string {
-  const consult = latestConsult(client.id);
-  return consult?.startedAt ?? client.latestLabDate ?? client.joinedOn;
+  const touch = lastTouchFor(client.id)?.at;
+  const consult = latestConsult(client.id)?.startedAt;
+  const candidates = [touch, consult, client.latestLabDate, client.joinedOn].filter(
+    Boolean,
+  ) as string[];
+  return candidates.sort((a, b) => b.localeCompare(a))[0];
 }
 
 export function daysSinceTouch(client: Client): number {

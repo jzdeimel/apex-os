@@ -1,5 +1,6 @@
 import { sha256 } from "@/lib/trace/hash";
 import { activeGrant, hasConsent } from "@/lib/comms/consent";
+import { outboundThisWeek } from "@/lib/mock/contactLog";
 import type {
   ConsentGrant,
   ConsentScope,
@@ -80,7 +81,14 @@ export interface SendInput extends OutboundMessage {
   idempotencyKey: string;
   /** Bypasses quiet hours only. Never bypasses consent or the weekly cap. */
   urgent?: boolean;
-  /** Prior non-urgent sends to this member in the last 7 days. */
+  /**
+   * Prior non-urgent sends in the last 7 days.
+   *
+   * Optional ONLY as a test seam. When omitted the count is derived from the
+   * contact log rather than defaulting to zero — a cap a caller can defeat by
+   * forgetting a field is exactly the "enforced by convention" failure this
+   * module exists to avoid.
+   */
   recentSendCount?: number;
   /** Injectable for tests/preview. Defaults to the pinned NOW. */
   at?: Date;
@@ -287,7 +295,7 @@ export async function sendMessage(input: SendInput): Promise<SendResult> {
   }
 
   // (c) weekly cap — per member, across every surface.
-  const recent = input.recentSendCount ?? 0;
+  const recent = input.recentSendCount ?? outboundThisWeek(input.clientId);
   if (!input.urgent && recent >= WEEKLY_CAP) {
     return denial(
       input,
@@ -363,7 +371,7 @@ export function previewSend(input: Omit<SendInput, "idempotencyKey">): {
   if (!input.urgent && inQuietHours(at)) {
     return { allowed: false, refusal: "quiet-hours", message: "Quiet hours — will queue until 8:00 AM." };
   }
-  if (!input.urgent && (input.recentSendCount ?? 0) >= WEEKLY_CAP) {
+  if (!input.urgent && (input.recentSendCount ?? outboundThisWeek(input.clientId)) >= WEEKLY_CAP) {
     return { allowed: false, refusal: "weekly-cap", message: `Weekly cap of ${WEEKLY_CAP} reached.` };
   }
   return { allowed: true, message: "Ready to send." };
