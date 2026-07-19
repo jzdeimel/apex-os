@@ -1,4 +1,6 @@
 import { sha256 } from "@/lib/trace/hash";
+import type { LedgerDraft } from "@/lib/trace/ledger";
+import { staffMap } from "@/lib/mock/staff";
 import { activeGrant, hasConsent } from "@/lib/comms/consent";
 import { outboundThisWeek } from "@/lib/mock/contactLog";
 import type {
@@ -117,17 +119,16 @@ export interface SendResult {
   ledgerEvent: PendingLedgerEvent;
 }
 
-/** Shaped to drop straight into a `LedgerPayload` (lib/trace/ledger.ts). */
-export interface PendingLedgerEvent {
-  at: string;
-  actorId: string;
-  action: "create" | "deny";
-  entity: "consent" | "note";
-  entityId: string;
-  subjectId: string;
-  reason: string;
-  after: Record<string, unknown>;
-}
+/**
+ * Exactly a `LedgerDraft` (lib/trace/ledger.ts), so it really does drop
+ * straight into `appendLedger` with no adapter.
+ *
+ * This type previously omitted `actorName` and `actorRole` while claiming
+ * compatibility — which meant the claim was only true until someone tried it.
+ * Aliasing the real type is what makes the compiler enforce the promise
+ * instead of a comment asserting it.
+ */
+export type PendingLedgerEvent = LedgerDraft;
 
 /** Typed refusal. Callers catch this specifically — never a bare Error. */
 export class ConsentError extends Error {
@@ -231,8 +232,11 @@ function denial(
     refusal,
     message,
     ledgerEvent: {
-      at: at.toISOString(),
+      // No `at`: appendLedger stamps the time. A caller that could set it could
+      // backdate an event, which is the one thing an append-only log must refuse.
       actorId: input.staffId,
+      actorName: staffMap[input.staffId]?.name ?? "Unknown",
+      actorRole: staffMap[input.staffId]?.role ?? "Coach",
       action: "deny",
       entity: "consent",
       entityId: `msg-${sha256(input.idempotencyKey || "no-key").slice(0, 10)}`,
@@ -313,8 +317,9 @@ export async function sendMessage(input: SendInput): Promise<SendResult> {
     grant,
     message: `Queued via ${provider.name}.`,
     ledgerEvent: {
-      at: at.toISOString(),
       actorId: input.staffId,
+      actorName: staffMap[input.staffId]?.name ?? "Unknown",
+      actorRole: staffMap[input.staffId]?.role ?? "Coach",
       action: "create",
       entity: "note",
       entityId: `msg-${sha256(input.idempotencyKey).slice(0, 10)}`,

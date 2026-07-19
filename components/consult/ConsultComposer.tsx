@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import type { ConsultSummary, ExtractedItem } from "@/lib/consult/types";
 import { summarizeConsult, stampFor, findingCount, ENGINE_VERSION } from "@/lib/consult/summarize";
+import { appendLedger } from "@/lib/trace/ledger";
+import { getClient, clientName } from "@/lib/mock/clients";
+import { staffMap } from "@/lib/mock/staff";
 import { NOTE_TEMPLATE_SAMPLES } from "@/lib/mock/consults";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Card } from "@/components/ui/primitives";
@@ -204,8 +207,35 @@ export function ConsultComposer({
     } catch {
       /* draft is superseded by the signed record either way */
     }
+
+    // Signing is a state change, so it becomes a link in the chain. The row
+    // carries the before/after and the provenance of the summary that was
+    // signed — which is what makes "who signed this, against which AI output,
+    // on what input" answerable years later rather than inferred.
+    const client = getClient(clientId);
+    const author = client ? staffMap[client.coachId] : undefined;
+    const row = appendLedger({
+      actorId: author?.id ?? "unknown",
+      actorName: author?.name ?? "Unknown",
+      actorRole: author?.role ?? "Coach",
+      action: "sign",
+      entity: "note",
+      entityId: `con-${clientId}-draft`,
+      subjectId: clientId,
+      subjectName: client ? clientName(client) : undefined,
+      locationId: client?.locationId,
+      before: { status: "Draft", signedAt: null },
+      after: {
+        status: "Signed",
+        engine: stamp?.engine ?? "consult-summarizer",
+        engineVersion: stamp?.engineVersion ?? ENGINE_VERSION,
+        inputHash: stamp?.inputHash ?? "",
+        findings: summary ? findingCount(summary) : 0,
+      },
+    });
+
     toast("Consult signed", {
-      desc: "Immutable. Corrections are recorded as addenda.",
+      desc: `Immutable. Recorded as ${row.id} · ${shortHash(row.hash)}`,
     });
     onSigned?.(raw);
   }
@@ -392,20 +422,35 @@ export function ConsultComposer({
               )}
 
               {(summary.goalsDiscussed.length > 0 || summary.symptomsRaised.length > 0) && (
-                <section>
-                  <p className="label-eyebrow">Goals &amp; symptoms detected</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {summary.goalsDiscussed.map((g) => (
-                      <Badge key={`g-${g}`} tone="gold">
-                        {g}
-                      </Badge>
-                    ))}
-                    {summary.symptomsRaised.map((s) => (
-                      <Badge key={`s-${s}`} tone="watch">
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
+                <section className="space-y-2.5">
+                  {/* Split rather than merged: several terms — "Joint pain" is
+                      the obvious one — are legitimately BOTH a goal and a
+                      symptom. Rendered in one row they read as a duplicate; the
+                      labels are what make the repetition meaningful. */}
+                  {summary.goalsDiscussed.length > 0 && (
+                    <div>
+                      <p className="label-eyebrow">Goals discussed</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {summary.goalsDiscussed.map((g) => (
+                          <Badge key={`g-${g}`} tone="gold">
+                            {g}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {summary.symptomsRaised.length > 0 && (
+                    <div>
+                      <p className="label-eyebrow">Symptoms raised</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {summary.symptomsRaised.map((s) => (
+                          <Badge key={`s-${s}`} tone="watch">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
 

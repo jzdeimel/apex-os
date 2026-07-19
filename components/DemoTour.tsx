@@ -49,7 +49,7 @@ export function DemoTour() {
     return (
       <button
         onClick={start}
-        className="fixed bottom-20 left-4 z-[90] lg:left-[17.5rem] inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-ink-850/95 px-3.5 py-2 text-xs font-medium text-gold-200 shadow-glow backdrop-blur transition-colors hover:bg-ink-800 lg:bottom-6"
+        className="fixed bottom-20 left-4 z-[90] lg:bottom-40 lg:left-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-ink-850/95 px-3.5 py-2 text-xs font-medium text-gold-200 shadow-glow backdrop-blur transition-colors hover:bg-ink-800"
       >
         <Wand2 className="h-3.5 w-3.5" /> Take the tour
       </button>

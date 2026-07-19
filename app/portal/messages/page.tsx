@@ -23,7 +23,10 @@ import { Card, CardContent, Badge, Button, Textarea } from "@/components/ui/prim
 import { useToast } from "@/components/ui/Toast";
 import { usePortal } from "@/lib/portalStore";
 import { formatDate, formatTime, cn } from "@/lib/utils";
-import { me, MEMBER_THREAD, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
+import { ME, me, MEMBER_THREAD, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
+import { sendMessage } from "@/lib/comms/send";
+import { appendLedger } from "@/lib/trace/ledger";
+import { shortHash } from "@/lib/trace/hash";
 import { Send, Clock, Phone, ShieldAlert, MessageSquare } from "lucide-react";
 
 /**
@@ -54,6 +57,7 @@ export default function PortalMessagesPage() {
 
   const [sent, setSent] = useState<PortalMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const [activeId, setActiveId] = useState("t-coach");
   const seq = useRef(0);
 
@@ -91,9 +95,40 @@ export default function PortalMessagesPage() {
     return out;
   }, [active.messages]);
 
-  function send() {
+  /**
+   * Sending goes through the guarded comms path rather than straight into
+   * local state.
+   *
+   * `sendMessage` enforces consent for this exact scope and channel, quiet
+   * hours, the weekly cap and an idempotency key, and refuses with a typed
+   * reason rather than silently succeeding. On success its `ledgerEvent` is
+   * appended to the hash chain and the committed row id is shown back to the
+   * member — they watch the record of their own message being written.
+   */
+  async function send() {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || sending) return;
+    setSending(true);
+
+    const result = await sendMessage({
+      clientId: ME,
+      staffId: coach?.id ?? "unknown",
+      channel: "Portal message",
+      // A member writing to their care team is clinical, never marketing.
+      // Stating the scope at the call site means it cannot be inferred wrongly.
+      scope: "clinical",
+      body,
+      to: client.email,
+      idempotencyKey: `portal-${ME}-${body.length}-${body.slice(0, 24)}`,
+    });
+
+    if (!result.ok) {
+      toast("Not sent", { tone: "warn", desc: result.message });
+      setSending(false);
+      return;
+    }
+
+    const row = appendLedger(result.ledgerEvent);
     seq.current += 1;
     setSent((s) => [
       ...s,
@@ -109,8 +144,9 @@ export default function PortalMessagesPage() {
     ]);
     setDraft("");
     toast("Message sent", {
-      desc: `${coach?.name ?? "Your coach"} sees it in their queue. Demo only — nothing leaves this browser.`,
+      desc: `Written to your record as ${row.id} · ${shortHash(row.hash)}`,
     });
+    setSending(false);
   }
 
   return (
@@ -272,7 +308,7 @@ export default function PortalMessagesPage() {
                   }
                 }}
               />
-              <Button variant="success" onClick={send} disabled={!draft.trim()} className="h-9 shrink-0">
+              <Button variant="success" onClick={send} disabled={!draft.trim() || sending} className="h-9 shrink-0">
                 <Send className="h-3.5 w-3.5" />
                 Send
               </Button>

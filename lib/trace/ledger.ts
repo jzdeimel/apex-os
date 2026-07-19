@@ -206,6 +206,16 @@ function diffFor(
   return {};
 }
 
+/**
+ * The member whose portal the demo opens on. Kept in sync with
+ * components/portal/PortalHeader.ts's `ME` — if that changes, change this.
+ */
+const DEMO_SUBJECT_ID = "c-001";
+const DEMO_SUBJECT = clients.find((c) => c.id === DEMO_SUBJECT_ID) ?? clients[0];
+
+/** Share of ledger events that concern the demo member. */
+const DEMO_SUBJECT_SHARE = 0.16;
+
 function generate(count: number): LedgerPayload[] {
   const rand = seededRandom("apex-ledger-v1");
   const out: LedgerPayload[] = [];
@@ -216,7 +226,18 @@ function generate(count: number): LedgerPayload[] {
   for (let i = 0; i < count; i++) {
     const shape = pickShape(rand());
     const actor = staff[Math.floor(rand() * staff.length)];
-    const subject = clients[Math.floor(rand() * clients.length)];
+
+    // Bias a share of events onto the demo member.
+    //
+    // Without this the subject is uniform across ~500 clients, so any single
+    // member's access log is empty or near-empty — which silently guts the
+    // client portal's "who has seen my chart" page, the one surface where an
+    // empty state is indistinguishable from the feature not working. A real
+    // deployment needs no such bias; a 240-event demo does.
+    const subject =
+      rand() < DEMO_SUBJECT_SHARE
+        ? DEMO_SUBJECT
+        : clients[Math.floor(rand() * clients.length)];
 
     // Gaps are irregular — a uniform cadence reads as fake immediately.
     cursor += Math.floor(60_000 + rand() * 9 * 60_000);

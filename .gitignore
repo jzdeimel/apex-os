@@ -35,3 +35,4 @@ next-env.d.ts
 # local verification artifacts
 .shots/
 shot.mjs
+verify.mjs
