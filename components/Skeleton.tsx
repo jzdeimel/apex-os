@@ -16,7 +16,7 @@ export function PageSkeleton() {
           <Skeleton key={i} className="h-24" />
         ))}
       </div>
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Skeleton className="h-72 lg:col-span-2" />
         <Skeleton className="h-72" />
       </div>

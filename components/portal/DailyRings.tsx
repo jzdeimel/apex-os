@@ -200,7 +200,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
       </Card>
 
       {/* ── Fuel + Train ───────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <CardContent className="p-5">
             <p className="label-eyebrow">Fuel · today</p>
@@ -277,7 +277,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
 
       {/* ── Wins ───────────────────────────────────────────────────── */}
       {plan.wins.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {plan.wins.map((w) => (
             <div
               key={w.label}

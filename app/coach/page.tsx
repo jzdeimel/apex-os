@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Users, AlertTriangle, PenLine, ClipboardCheck, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import type { Client } from "@/lib/types";
 import { staffName } from "@/lib/mock/staff";
 import { unsignedConsultsFor } from "@/lib/mock/consults";
-import { triageScore } from "@/lib/aiInsights";
+import { triageScore, churnRisk } from "@/lib/aiInsights";
 import { FadeIn } from "@/components/motion";
 import { TodayQueue, ME_COACH, clientsForCoach } from "@/components/coach/TodayQueue";
 import { CoachWaitingOn } from "@/components/escalations/CoachEscalationStatus";
@@ -18,46 +19,54 @@ import { cn } from "@/lib/utils";
  * progress, a quiz streak, or a practice-wide revenue number wearing the coach's
  * name. Every figure here is scoped to `coachId === ME_COACH` and nothing else.
  * If a coach cannot answer "who needs me today" in one screen, the page failed.
+ *
+ * Layout rule for this screen: THE QUEUE IS THE PAGE. Everything above it is a
+ * strip — a compact stat row, a book-health bar, the escalation ledger — sized
+ * so the first queue row is visible without scrolling on a laptop. Whitespace
+ * here is not elegance, it is queue rows pushed below the fold.
  */
 
-function StatTile({
+// ---------------------------------------------------------------------------
+// Stat strip
+// ---------------------------------------------------------------------------
+
+function Stat({
   label,
   value,
   hint,
-  icon: Icon,
   tone,
   href,
 }: {
   label: string;
   value: number;
   hint: string;
-  icon: React.ElementType;
   tone: "neutral" | "watch" | "high" | "optimal";
   href?: string;
 }) {
-  const toneRing = {
-    neutral: "text-ink-300 bg-ink-700/50 border-ink-600/60",
-    watch: "text-watch bg-watch/12 border-watch/30",
-    high: "text-high bg-high/12 border-high/30",
-    optimal: "text-optimal bg-optimal/12 border-optimal/30",
+  const toneText = {
+    neutral: "text-ink-50",
+    watch: "text-watch",
+    high: "text-high",
+    optimal: "text-optimal",
   }[tone];
 
   const body = (
-    <div className="card card-hover p-4">
-      <div className="flex items-start justify-between">
-        <span className={cn("grid h-8 w-8 place-items-center rounded-lg border", toneRing)}>
-          <Icon className="h-4 w-4" />
-        </span>
-        {href && <ArrowUpRight className="h-3.5 w-3.5 text-ink-600" />}
-      </div>
-      <p className="stat-mono mt-3 text-2xl font-semibold text-ink-50">{value}</p>
-      <p className="mt-0.5 text-sm font-medium text-ink-200">{label}</p>
-      <p className="mt-1 text-xs text-ink-500">{hint}</p>
+    <div className="px-2.5 py-2 sm:px-3.5">
+      <p className="label-eyebrow flex items-center gap-1 truncate">
+        {label}
+        {href && <ArrowUpRight className="h-2.5 w-2.5 shrink-0 text-ink-600" />}
+      </p>
+      <p className={cn("stat-mono mt-0.5 text-xl font-semibold leading-none", toneText)}>{value}</p>
+      {/* The hint carries the definition. A number a coach cannot audit is a
+          number a coach will argue with instead of act on. */}
+      <p className="mt-1 truncate text-[10px] leading-tight text-ink-600" title={hint}>
+        {hint}
+      </p>
     </div>
   );
 
   return href ? (
-    <Link href={href} className="block rounded-2xl focus-ring">
+    <Link href={href} className="block rounded-lg transition-colors hover:bg-ink-800/40 focus-ring">
       {body}
     </Link>
   ) : (
@@ -65,9 +74,83 @@ function StatTile({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Book at a glance
+// ---------------------------------------------------------------------------
+
+type Band = "risk" | "watch" | "track";
+
+/**
+ * One member, one band. Two engines vote and the worse verdict wins:
+ * triageScore answers "is something clinically wrong right now", churnRisk
+ * answers "are they drifting away from us". A member can be clinically fine and
+ * still be leaving, and a book bar that only reads one of the two tells the
+ * coach they are doing great right up until the cancellations land.
+ */
+function bandFor(client: Client): Band {
+  const triage = triageScore(client);
+  const churn = churnRisk(client);
+  if (triage.score >= 45 || churn.level === "high") return "risk";
+  if (triage.score >= 22 || churn.level === "medium") return "watch";
+  return "track";
+}
+
+const BAND_META: Record<Band, { label: string; bar: string; dot: string; text: string }> = {
+  track: { label: "On track", bar: "bg-optimal", dot: "bg-optimal", text: "text-optimal" },
+  watch: { label: "Watch", bar: "bg-watch", dot: "bg-watch", text: "text-watch" },
+  risk: { label: "At risk", bar: "bg-high", dot: "bg-high", text: "text-high" },
+};
+
+function BookAtAGlance({ book }: { book: Client[] }) {
+  const counts = React.useMemo(() => {
+    const acc: Record<Band, number> = { track: 0, watch: 0, risk: 0 };
+    for (const c of book) acc[bandFor(c)] += 1;
+    return acc;
+  }, [book]);
+
+  const total = book.length || 1;
+  // Risk reads left-to-right worst-first: the coach's eye starts at the left
+  // edge, so that is where the number they are judged on belongs.
+  const order: Band[] = ["risk", "watch", "track"];
+
+  return (
+    <div className="card px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <p className="label-eyebrow">My book at a glance</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {order.map((b) => (
+            <span key={b} className="inline-flex items-center gap-1.5 text-[11px]">
+              <span className={cn("h-2 w-2 shrink-0 rounded-full", BAND_META[b].dot)} />
+              <span className="stat-mono font-semibold text-ink-100">{counts[b]}</span>
+              <span className="text-ink-500">{BAND_META[b].label}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-ink-900">
+        {order.map((b) =>
+          counts[b] === 0 ? null : (
+            <div
+              key={b}
+              className={cn("h-full", BAND_META[b].bar)}
+              style={{ width: `${(counts[b] / total) * 100}%` }}
+              title={`${counts[b]} ${BAND_META[b].label.toLowerCase()}`}
+            />
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function CoachTodayPage() {
-  // All four tiles derive from the same filtered book — one source, no drift
-  // between "my clients" here and "my clients" on the roster page.
+  // Every figure on this page derives from the same filtered book — one source,
+  // no drift between "my clients" here and "my clients" on the roster page.
   const mine = React.useMemo(() => clientsForCoach(ME_COACH), []);
 
   const needAttention = React.useMemo(
@@ -79,54 +162,53 @@ export default function CoachTodayPage() {
   // Apex has no order ledger in this build, so the closest honest proxy for
   // "needs your eyes" is a plan sitting in a state only a human can move.
   const plansWaiting = React.useMemo(
-    () => mine.filter((c) => c.planStatus === "Needs review" || c.planStatus === "Awaiting provider").length,
+    () =>
+      mine.filter((c) => c.planStatus === "Needs review" || c.planStatus === "Awaiting provider")
+        .length,
     [mine],
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <FadeIn>
-        <p className="label-eyebrow">COACH CONSOLE</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">Today</h1>
-        <p className="mt-1 text-sm text-ink-400">
-          {staffName(ME_COACH)}&apos;s working queue for Jun 12 — ranked by what actually needs a
-          human, scoped to your book and nobody else&apos;s.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="label-eyebrow">COACH CONSOLE</p>
+            <h1 className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink-50">
+              Today
+            </h1>
+          </div>
+          <p className="text-[11px] text-ink-500">
+            {staffName(ME_COACH)} · Jun 12 · ranked by what needs a human, scoped to your book
+          </p>
+        </div>
       </FadeIn>
 
-      <FadeIn delay={0.05}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile
-            label="My clients"
+      {/* Four numbers, one row, one card. Four separate tiles with icons cost a
+          third of the viewport and told the coach nothing the numbers didn't. */}
+      <FadeIn delay={0.04}>
+        <div className="card grid grid-cols-4 divide-x divide-ink-700/60">
+          <Stat
+            label="Book"
             value={mine.length}
-            hint="Assigned to you by id, not by name"
-            icon={Users}
+            hint="Assigned by id"
             tone="neutral"
             href="/coach/roster"
           />
-          <StatTile
-            label="Need attention"
-            value={needAttention}
-            hint="Triage score 45+ (high or critical)"
-            icon={AlertTriangle}
-            tone="watch"
-          />
-          <StatTile
-            label="Unsigned consults"
+          <Stat label="Attention" value={needAttention} hint="Triage 45+" tone="watch" />
+          <Stat
+            label="Unsigned"
             value={unsigned}
-            hint="Charts you have left open"
-            icon={PenLine}
+            hint="Charts left open"
             tone="high"
             href="/coach/consults"
           />
-          <StatTile
-            label="Plans needing eyes"
-            value={plansWaiting}
-            hint="Needs review or awaiting provider"
-            icon={ClipboardCheck}
-            tone="optimal"
-          />
+          <Stat label="Plans" value={plansWaiting} hint="Need review" tone="optimal" />
         </div>
+      </FadeIn>
+
+      <FadeIn delay={0.06}>
+        <BookAtAGlance book={mine} />
       </FadeIn>
 
       {/* What this coach is waiting on a provider for — including anything
@@ -135,7 +217,7 @@ export default function CoachTodayPage() {
         <CoachWaitingOn coachId={ME_COACH} />
       </FadeIn>
 
-      <FadeIn delay={0.14}>
+      <FadeIn delay={0.12}>
         <TodayQueue coachId={ME_COACH} />
       </FadeIn>
     </div>

@@ -144,7 +144,7 @@ export default function EntryPage() {
           </motion.div>
 
           {/* ── Portal cards ───────────────────────────────────────── */}
-          <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {PORTAL_LIST.map((p, i) => {
               const Icon = PORTAL_ICON[p.id];
               const isLeaving = entering !== null && entering !== p.id;

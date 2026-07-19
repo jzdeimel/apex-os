@@ -259,7 +259,7 @@ export function ChainVerifier({
           })}
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ChainFact label="Genesis" value={shortHash("0".repeat(64))} />
           <ChainFact label="Head" value={shortHash(rows[rows.length - 1]?.hash ?? "")} />
         </div>

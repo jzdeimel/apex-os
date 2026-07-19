@@ -95,7 +95,7 @@ export function PlanTab({ id }: { id: string }) {
           </div>
 
           {plan.macros && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
               <MacroTile label="Daily target" value={plan.macros.calories.toLocaleString()} unit="kcal" />
               <MacroTile label="Protein" value={String(plan.macros.proteinG)} unit="g" />
               <MacroTile label="Carbs" value={String(plan.macros.carbsG)} unit="g" />

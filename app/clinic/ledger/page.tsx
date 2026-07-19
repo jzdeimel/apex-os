@@ -278,7 +278,7 @@ function LedgerRowItem({
           >
             <div className="space-y-3 border-t border-ink-800/60 bg-ink-900/40 p-4">
               {hasDiff ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <DiffPane label="Before" data={row.before} tone="high" />
                   <DiffPane label="After" data={row.after} tone="optimal" />
                 </div>
@@ -289,7 +289,7 @@ function LedgerRowItem({
                 </p>
               )}
 
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Fact label="Record" value={row.id} />
                 <Fact label="Entity id" value={row.entityId} />
                 <Fact label="prevHash" value={shortHash(row.prevHash)} />

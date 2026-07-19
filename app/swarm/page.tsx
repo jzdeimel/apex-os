@@ -148,7 +148,7 @@ export default function SwarmPage() {
       {/* Network graph */}
       <SwarmGraph state={state} />
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Active workflows */}
         <div className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">

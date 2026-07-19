@@ -29,6 +29,15 @@ export function me(): Client {
   return getClient(ME)!;
 }
 
+/**
+ * Page header.
+ *
+ * Signature is deliberately unchanged — four portal pages import it — but the
+ * proportions are consumer-app, not console: the title carries the screen and
+ * the subtitle is allowed to be a real sentence at a readable size. Dense
+ * 12px sub-copy is what makes a member close the tab; the eyebrow shrinks so
+ * the title has room to grow instead.
+ */
 export function PortalPageHeader({
   eyebrow,
   title,
@@ -39,11 +48,15 @@ export function PortalPageHeader({
   subtitle: string;
 }) {
   return (
-    <div>
+    <header className="pt-1">
       <p className="label-eyebrow">{eyebrow}</p>
-      <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">{title}</h1>
-      <p className="mt-1 text-sm text-ink-400">{subtitle}</p>
-    </div>
+      <h1 className="mt-2 font-display text-[1.75rem] font-semibold leading-[1.1] tracking-tight text-ink-50 sm:text-4xl">
+        {title}
+      </h1>
+      {/* max-w-prose rather than full-bleed: long measure is the fastest way to
+          make a phone screen feel like paperwork. */}
+      <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-400">{subtitle}</p>
+    </header>
   );
 }
 

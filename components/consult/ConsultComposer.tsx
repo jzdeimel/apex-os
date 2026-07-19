@@ -242,7 +242,7 @@ export function ConsultComposer({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* ================= LEFT: raw notes ================= */}
       <Card className="flex flex-col overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700/60 p-4">

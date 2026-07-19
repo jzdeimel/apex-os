@@ -87,7 +87,7 @@ export default function SupplyChainPage() {
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-1"><CardTitle className="text-sm">Stock status</CardTitle></CardHeader>
           <CardContent>
@@ -136,7 +136,7 @@ export default function SupplyChainPage() {
       <AiSourcing locationFilter={locationFilter} />
 
       {/* Alert cards */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><PackageX className="h-4 w-4 text-high" /> Low / reorder</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -203,7 +203,7 @@ export default function SupplyChainPage() {
       <InventoryTable items={items} />
 
       {/* Vendors + POs */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-4 w-4 text-gold-400" /> Third-party vendors</CardTitle></CardHeader>
           <CardContent>

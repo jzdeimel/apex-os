@@ -100,7 +100,7 @@ export default function PortalAccessPage() {
       </div>
 
       {/* Counts -------------------------------------------------------------- */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         {[
           { label: "Times opened, all time", value: all.length, tone: "neutral" as const },
           { label: "This month", value: monthCount, tone: "neutral" as const },

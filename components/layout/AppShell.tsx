@@ -14,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const { portal, isEntry } = usePortal();
+  const isMember = portal.id === "patient";
 
   // The entry screen is a pre-auth surface: no nav, no chrome, no tour.
   // It paints itself edge to edge.
@@ -34,8 +35,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       />
 
-      <CommandBar />
-      <DemoTour />
+      {/* A member has nothing to command and no product tour to take — both of
+          these are operator affordances, and putting them on a member surface
+          is how a patient portal ends up feeling like internal software. */}
+      {!isMember && <CommandBar />}
+      {!isMember && <DemoTour />}
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <BottomNav />
       <div className="lg:pl-64">

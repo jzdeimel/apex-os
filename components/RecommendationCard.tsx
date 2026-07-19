@@ -84,7 +84,7 @@ export function RecommendationCard({
         </p>
 
         {/* Confidence + approval requirement */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-ink-400">Confidence</span>
@@ -126,7 +126,7 @@ export function RecommendationCard({
         </button>
 
         {open && (
-          <div className="mt-3 grid gap-3 animate-fade-in lg:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 animate-fade-in lg:grid-cols-2">
             {/* Supporting evidence */}
             <div className="rounded-xl border border-ink-800 bg-ink-900/40 p-3">
               <span className="label-eyebrow">Supporting</span>
@@ -193,7 +193,7 @@ export function RecommendationCard({
             {/* Contraindication checks */}
             <div className="rounded-xl border border-ink-800 bg-ink-900/40 p-3 lg:col-span-2">
               <span className="label-eyebrow">Contraindication checks</span>
-              <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {rec.contraindicationChecks.map((c) => (
                   <div key={c.label} className="flex items-start gap-2 text-xs">
                     {c.passed ? (

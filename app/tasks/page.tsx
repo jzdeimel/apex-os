@@ -111,7 +111,7 @@ export default function TasksPage() {
 
       {/* Kanban — drag cards between columns to re-prioritize */}
       <p className="text-xs text-ink-500">Drag a card between columns, or tap the handle to move it (mobile-friendly).</p>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {byCol.map((col) => (
           <div
             key={col.key}
@@ -209,7 +209,7 @@ export default function TasksPage() {
           {showDone ? "Hide" : "Show"} completed ({done.length})
         </button>
         {showDone && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {done.map((t) => (
               <button
                 key={t.id}

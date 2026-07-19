@@ -146,7 +146,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Insight strip */}
-      <div className="grid gap-3.5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-1"><CardTitle className="text-sm">Risk flags</CardTitle></CardHeader>
           <CardContent className="flex items-center gap-3">
@@ -200,7 +200,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Filters */}
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, goal, symptom…" className="pl-9" />

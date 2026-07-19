@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   PenLine,
   PhoneCall,
@@ -183,11 +184,56 @@ export function buildQueue(coachId: string): QueueItem[] {
 }
 
 // ---------------------------------------------------------------------------
+// Keyboard
+// ---------------------------------------------------------------------------
+
+/**
+ * A coach on a headset with a member on the line should never have to find the
+ * mouse. j/k walk the list, Enter opens the chart, e clears the row.
+ *
+ * The guard matters more than the bindings: a coach typing "jenny" into a
+ * search field must not watch the queue scroll away underneath them.
+ */
+function isTypingTarget(el: Element | null): boolean {
+  if (!el) return false;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLSelectElement) return true;
+  return el instanceof HTMLElement && el.isContentEditable;
+}
+
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border border-ink-700 bg-ink-900 px-1 py-px font-mono text-[10px] leading-[14px] text-ink-400">
+      {children}
+    </kbd>
+  );
+}
+
+/** The legend. Shortcuts nobody is told about are shortcuts nobody uses. */
+function KeyHints() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-ink-600">
+      <span className="inline-flex items-center gap-1">
+        <Key>j</Key>
+        <Key>k</Key> move
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Key>↵</Key> open
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Key>e</Key> done
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // TodayQueue
 // ---------------------------------------------------------------------------
 export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
   const { toast } = useToast();
   const reduce = useReducedMotion();
+  const router = useRouter();
 
   /**
    * THE WHOLE POINT OF THIS COMPONENT.
@@ -209,19 +255,25 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
   const doneCount = items.filter((i) => cleared[i.id]).length;
   const pct = items.length ? (doneCount / items.length) * 100 : 0;
 
+  // "nearest" not "center": keyboard walking should nudge the viewport, not
+  // yank it. Centering every step makes the list feel like it is fighting back.
+  const focusRow = React.useCallback(
+    (i: number, block: ScrollLogicalPosition = "nearest") => {
+      setFocusIdx(i);
+      rowRefs.current[i]?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block });
+    },
+    [reduce],
+  );
+
   const advance = React.useCallback(
     (from: number) => {
       // Next *open* item after `from`; fall back to the first open item anywhere.
       const forward = items.findIndex((it, i) => i > from && !cleared[it.id]);
       const next = forward !== -1 ? forward : items.findIndex((it) => !cleared[it.id]);
       if (next === -1) return;
-      setFocusIdx(next);
-      rowRefs.current[next]?.scrollIntoView({
-        behavior: reduce ? "auto" : "smooth",
-        block: "center",
-      });
+      focusRow(next, "center");
     },
-    [items, cleared, reduce],
+    [items, cleared, focusRow],
   );
 
   const clear = React.useCallback(
@@ -243,18 +295,36 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
     });
   }, []);
 
-  // j / k to move focus without leaving the keyboard. Coaches work this list
-  // with one hand on a phone in the other.
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const el = document.activeElement;
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
-      if (e.key === "j") setFocusIdx((i) => Math.min(items.length - 1, i + 1));
-      if (e.key === "k") setFocusIdx((i) => Math.max(0, i - 1));
+      if (isTypingTarget(document.activeElement)) return;
+      // Leave real chords (browser/OS shortcuts) alone.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const item = items[focusIdx];
+
+      if (e.key === "j") {
+        e.preventDefault();
+        focusRow(Math.min(items.length - 1, focusIdx + 1));
+      } else if (e.key === "k") {
+        e.preventDefault();
+        focusRow(Math.max(0, focusIdx - 1));
+      } else if (e.key === "Enter") {
+        // If the coach has tabbed onto a real control, Enter belongs to it.
+        const el = document.activeElement;
+        if (el instanceof HTMLButtonElement || el instanceof HTMLAnchorElement) return;
+        if (!item) return;
+        e.preventDefault();
+        router.push(`/clients/${item.client.id}`);
+      } else if (e.key === "e") {
+        if (!item || cleared[item.id]) return;
+        e.preventDefault();
+        clear(item, focusIdx);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [items.length]);
+  }, [items, focusIdx, cleared, clear, focusRow, router]);
 
   if (items.length === 0) {
     return (
@@ -269,28 +339,30 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
   const allDone = doneCount === items.length;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Progress — the coach should always know how much morning is left. */}
-      <div className="card p-4">
-        <div className="flex items-baseline justify-between">
-          <div>
+      <div className="card px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
             <p className="label-eyebrow">Today&apos;s queue</p>
-            <p className="mt-1 text-sm text-ink-300">
-              <span className="stat-mono text-lg font-semibold text-ink-50">{doneCount}</span>
-              <span className="text-ink-500"> of </span>
-              <span className="stat-mono text-lg font-semibold text-ink-50">{items.length}</span>
-              <span className="text-ink-400"> cleared</span>
+            <p className="text-xs text-ink-400">
+              <span className="stat-mono text-base font-semibold text-ink-50">{doneCount}</span>
+              <span className="text-ink-500"> / </span>
+              <span className="stat-mono text-base font-semibold text-ink-50">{items.length}</span>
+              <span> cleared</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-[11px] text-ink-600 sm:inline">j / k to move</span>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:block">
+              <KeyHints />
+            </div>
             <Button size="sm" variant="outline" onClick={() => advance(focusIdx)} disabled={allDone}>
               <ArrowDown className="h-3.5 w-3.5" />
               Next open
             </Button>
           </div>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-ink-700/70">
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700/70">
           <motion.div
             className="h-full rounded-full bg-watch"
             initial={false}
@@ -298,9 +370,14 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
             transition={{ duration: reduce ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
+        {/* Below sm the legend gets its own line rather than being dropped —
+            the shortcuts work on a tablet keyboard too. */}
+        <div className="mt-2 sm:hidden">
+          <KeyHints />
+        </div>
       </div>
 
-      <Stagger className="space-y-2">
+      <Stagger className="space-y-1.5">
         {items.map((item, idx) => {
           const isCleared = !!cleared[item.id];
           const isFocused = idx === focusIdx && !allDone;
@@ -316,6 +393,9 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                 layout={reduce ? false : "position"}
                 transition={{ duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
                 animate={{ opacity: isCleared ? 0.6 : 1 }}
+                // Deliberately NOT hover-to-focus: the focused row is what "e"
+                // clears, and a cursor resting somewhere on its way to the
+                // scrollbar must never decide which member gets marked done.
                 className={cn(
                   "card relative overflow-hidden",
                   isFocused && "ring-2 ring-watch/50",
@@ -337,18 +417,23 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                   )}
                 </AnimatePresence>
 
-                <div className="relative flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
+                <div className="relative flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex flex-wrap items-center gap-2 px-3">
+                    {/* Classification strip. One line, no wrap on desktop —
+                        kind, who owns it, and the rank that put it here. */}
+                    <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Badge tone={isCleared ? "optimal" : Meta.tone}>
                         <Icon className="h-3 w-3" />
                         {isCleared ? item.clearedLabel : Meta.label}
                       </Badge>
-                      <span className="text-[11px] uppercase tracking-wide text-ink-600">
-                        Owner · {item.owner}
+                      <span className="text-[10px] uppercase tracking-wide text-ink-600">
+                        {item.owner}
                       </span>
-                      <span className="stat-mono text-[11px] text-ink-600">
-                        rank {item.priority}
+                      <span className="stat-mono text-[10px] text-ink-700">#{item.priority}</span>
+                      <span className="stat-mono text-[10px] text-ink-600">
+                        {item.kind === "signature" && item.consult
+                          ? relativeDays(item.consult.startedAt)
+                          : `${daysSinceTouch(item.client)}d quiet`}
                       </span>
                     </div>
 
@@ -356,26 +441,28 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                       client={item.client}
                       href={`/clients/${item.client.id}`}
                       showScore={false}
-                      className="px-0"
+                      bare
                       subtitle={
-                        <span className={cn(isCleared && "line-through decoration-ink-600")}>
-                          <span className="font-medium text-ink-200">{item.action}</span>
-                          <span className="text-ink-500"> — {item.why}</span>
+                        <span
+                          className={cn(
+                            "font-medium text-ink-200",
+                            isCleared && "line-through decoration-ink-600",
+                          )}
+                        >
+                          {item.action}
                         </span>
                       }
-                      meta={
-                        <span className="stat-mono">
-                          {item.kind === "signature" && item.consult
-                            ? relativeDays(item.consult.startedAt)
-                            : `${daysSinceTouch(item.client)}d since touch`}
-                        </span>
-                      }
+                      // The why-line names the signal verbatim — for triage and
+                      // stale rows this is nextBestAction's own `reason`, not a
+                      // restatement of it. If the coach disagrees with the
+                      // ranking they can see exactly what it read.
+                      note={item.why}
                     />
                   </div>
 
                   {/* Action cluster swaps in place. AnimatePresence with mode="wait"
                       so the done state lands after the buttons leave, not over them. */}
-                  <div className="flex shrink-0 items-center justify-end gap-2 px-3">
+                  <div className="flex shrink-0 items-center justify-end gap-1.5">
                     <AnimatePresence mode="wait" initial={false}>
                       {isCleared ? (
                         <motion.div
@@ -384,9 +471,9 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={reduce ? undefined : { opacity: 0, scale: 0.9 }}
                           transition={{ duration: reduce ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-1.5"
                         >
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-optimal/30 bg-optimal/12 px-2.5 py-1 text-xs font-medium text-optimal">
+                          <span className="inline-flex items-center gap-1 rounded-lg border border-optimal/30 bg-optimal/12 px-2 py-1 text-[11px] font-medium text-optimal">
                             <Check className="h-3.5 w-3.5" />
                             {item.clearedLabel}
                           </span>
@@ -405,7 +492,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                           animate={{ opacity: 1 }}
                           exit={reduce ? undefined : { opacity: 0 }}
                           transition={{ duration: reduce ? 0 : 0.15 }}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-1.5"
                         >
                           <Link href={`/clients/${item.client.id}`}>
                             <Button size="sm" variant="ghost">

@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
         <DashboardCard label="Lead → active" value={`${a.consultToActive}%`} icon={<Filter className="h-4 w-4" />} delta="+4pt" />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex items-center justify-between">
             <CardTitle>MRR trend</CardTitle>
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Service mix (this month)</CardTitle></CardHeader>
           <CardContent>

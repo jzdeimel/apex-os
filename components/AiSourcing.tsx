@@ -34,7 +34,7 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
         </CardTitle>
         <AiLabel />
       </CardHeader>
-      <CardContent className="grid gap-5 lg:grid-cols-2">
+      <CardContent className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Forecast */}
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs text-ink-400">

@@ -1,34 +1,33 @@
 "use client";
 
-import { Menu, Search, ShieldCheck } from "lucide-react";
-import { useStore, type RoleView } from "@/lib/store";
+import { Menu, Search, ShieldCheck, Phone, HeartPulse } from "lucide-react";
+import Link from "next/link";
 import { LocationFilter } from "@/components/LocationFilter";
 import { NotificationBell } from "@/components/NotificationBell";
 import { usePortal } from "@/lib/portalStore";
+import { PersonaSwitcher } from "@/components/layout/PersonaSwitcher";
 import { me } from "@/components/portal/PortalHeader";
+import { BRAND } from "@/lib/brand";
 
-const ROLES: RoleView[] = ["Medical", "Coach", "Admin"];
-
-const ROLE_PERSON: Record<RoleView, { name: string; initials: string }> = {
-  Medical: { name: "Dr. Marcus Vale", initials: "MV" },
-  Coach: { name: "Tyler Brooks", initials: "TB" },
-  Admin: { name: "Owen Castellano", initials: "OC" },
-};
-
+/**
+ * One header, three genuinely different products.
+ *
+ * The chrome is not "the same bar with a few things hidden" — the three
+ * audiences want opposite things from it:
+ *
+ *  MEMBER   — almost nothing. No command palette (a member has nothing to
+ *             command), no location filter (they belong to one clinic), no
+ *             cross-practice counters. What they want at the top of the screen
+ *             is reassurance and a way to reach a human, so that is what is
+ *             there: their clinic, and the phone number.
+ *  COACH    — speed. The palette is the primary navigation for someone working
+ *             a queue all day, so it is wide and labelled with its shortcut.
+ *  MEDICAL  — the same density, framed clinically, with the licensed-review
+ *             disclaimer kept in view because they are the one signing.
+ */
 export function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { role, setRole, portal } = useStore() as ReturnType<typeof useStore> & { portal?: never };
-  const { portal: activePortal } = usePortal();
-
-  /**
-   * A member is not staff.
-   *
-   * The client portal must never render the location filter, the staff role
-   * switcher, a staff identity chip, or a compliance ribbon written for
-   * clinicians. Leaking operator chrome onto a member surface is both a broken
-   * flow and, in a demo, a bad look — it implies the member can see across the
-   * practice.
-   */
-  const isMember = activePortal.id === "patient";
+  const { portal } = usePortal();
+  const isMember = portal.id === "patient";
   const member = isMember ? me() : null;
 
   const openCommand = () => {
@@ -48,76 +47,76 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Command bar trigger (⌘K) */}
-        <button
-          onClick={openCommand}
-          className="relative hidden h-9 max-w-sm flex-1 items-center rounded-lg border border-ink-800 bg-ink-900/70 pl-9 pr-2 text-left text-sm text-ink-500 transition-colors hover:border-ink-700 sm:flex"
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
-          Search or ask AI…
-          <kbd className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-500">⌘K</kbd>
-        </button>
-        <button
-          onClick={openCommand}
-          className="text-ink-300 hover:text-ink-50 sm:hidden"
-          aria-label="Open command bar"
-        >
-          <Search className="h-5 w-5" />
-        </button>
+        {isMember ? (
+          /* ── Member: where you're cared for, and how to reach a person ── */
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex items-center gap-1.5 text-sm text-ink-300">
+              <HeartPulse className="h-4 w-4 text-optimal" />
+              <span className="truncate font-medium text-ink-100">
+                {member ? member.firstName : "Your"} · Alpha Health
+              </span>
+            </span>
+            <a
+              href={`tel:${BRAND.telehealthPhone}`}
+              className="hidden items-center gap-1.5 rounded-full border border-ink-800 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-300 transition-colors hover:border-ink-700 hover:text-ink-100 focus-ring sm:inline-flex"
+            >
+              <Phone className="h-3 w-3" />
+              {BRAND.telehealthPhone}
+            </a>
+          </div>
+        ) : (
+          /* ── Staff: the palette is the primary navigation ── */
+          <>
+            <button
+              onClick={openCommand}
+              className="relative hidden h-9 max-w-sm flex-1 items-center rounded-lg border border-ink-800 bg-ink-900/70 pl-9 pr-2 text-left text-sm text-ink-500 transition-colors hover:border-ink-700 sm:flex"
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
+              {portal.id === "clinic" ? "Find a patient, lab or protocol…" : "Find a member, order or task…"}
+              <kbd className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-500">
+                ⌘K
+              </kbd>
+            </button>
+            <button
+              onClick={openCommand}
+              className="text-ink-300 hover:text-ink-50 sm:hidden"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          </>
+        )}
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {!isMember && <LocationFilter />}
           {!isMember && <NotificationBell />}
-
-          {/* Staff role switcher — never on a member surface. */}
-          {!isMember && (
-            <div className="hidden items-center rounded-lg border border-ink-800 bg-ink-900/70 p-0.5 md:flex">
-              {ROLES.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className={
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
-                    (role === r
-                      ? "bg-gold-400/15 text-gold-200"
-                      : "text-ink-400 hover:text-ink-100")
-                  }
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5">
-            <span
-              className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold text-ink-950"
-              style={{
-                background: member
-                  ? member.avatarColor
-                  : undefined,
-              }}
-            >
-              <span className={member ? "" : "grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600"}>
-                {member
-                  ? `${member.firstName[0]}${member.lastName[0]}`
-                  : ROLE_PERSON[role].initials}
-              </span>
-            </span>
-            <span className="hidden text-xs font-medium text-ink-200 sm:block">
-              {member ? `${member.firstName} ${member.lastName}` : ROLE_PERSON[role].name}
-            </span>
-          </div>
+          <PersonaSwitcher />
         </div>
       </div>
 
-      {/* Compliance ribbon */}
+      {/* Compliance ribbon — worded for whoever is reading it. */}
       <div className="flex items-center gap-2 border-t border-ink-800/60 bg-ink-900/40 px-4 py-1.5 lg:px-6">
-        <ShieldCheck className="h-3.5 w-3.5 text-gold-400/80" />
+        <ShieldCheck
+          className="h-3.5 w-3.5 shrink-0"
+          style={{ color: isMember ? "#34d399" : undefined }}
+        />
         <p className="text-[11px] text-ink-400">
-          {isMember
-            ? "Demonstration build. Synthetic data — this is not a real health record and not medical advice."
-            : "Demo only. Not medical advice. Recommendations require review and approval by a licensed provider."}
+          {isMember ? (
+            <>
+              Demonstration build. Synthetic data — not a real health record, and
+              not medical advice.
+            </>
+          ) : portal.id === "clinic" ? (
+            <>
+              Demo only. Apex proposes; a licensed clinician decides. Dosing and
+              sign-off are yours alone.
+            </>
+          ) : (
+            <>
+              Demo only. Not medical advice. Anything clinical needs provider
+              review before it reaches a member.
+            </>
+          )}
         </p>
       </div>
     </header>

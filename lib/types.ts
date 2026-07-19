@@ -17,6 +17,7 @@ export interface Location {
   city: string;
   state: string;
   address?: string;
+  phone?: string;
   type: "clinic" | "virtual";
   timezone: string;
 }

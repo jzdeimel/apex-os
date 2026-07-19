@@ -71,7 +71,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-4 w-4 text-gold-400" /> Locations</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {locations.map((l) => (
               <div key={l.id} className="rounded-xl border border-ink-800 bg-ink-900/40 p-4">
                 <div className="flex items-center justify-between">
@@ -95,7 +95,7 @@ export default function SettingsPage() {
           <Badge>{staff.length} members</Badge>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {staff.map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink-800 text-xs font-semibold text-ink-200">{s.avatarInitials}</span>
@@ -187,7 +187,7 @@ export default function SettingsPage() {
 
           <div>
             <p className="label-eyebrow mb-2">Azure services</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {PLATFORM.map((i) => (
                 <div
                   key={i.name}
@@ -208,7 +208,7 @@ export default function SettingsPage() {
 
           <div>
             <p className="label-eyebrow mb-2">Outside parties</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {PARTNERS.map((i) => (
                 <div
                   key={i.name}

@@ -213,7 +213,7 @@ function OverviewTab({ id }: { id: string }) {
   const flagged = labs?.biomarkers.filter((b) => b.status !== "optimal").length ?? 0;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <div className="space-y-5 lg:col-span-2">
         {/* AI summary */}
         <Card>
@@ -241,7 +241,7 @@ function OverviewTab({ id }: { id: string }) {
         <AlphaScoreCard id={id} />
 
         {/* Goals + symptoms */}
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Target className="h-4 w-4 text-gold-400" /> Goals</CardTitle></CardHeader>
             <CardContent>
@@ -384,7 +384,7 @@ function AlphaScoreCard({ id }: { id: string }) {
         <AiLabel />
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
             <AlphaScoreRing result={result} size={104} showLabel={false} />
             <span className="text-sm font-medium" style={{ color: scoreColor(result.band) }}>{result.label}</span>
@@ -498,7 +498,7 @@ function LabsTab({ id }: { id: string }) {
   const trendData = selectedBm?.history ?? [];
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
@@ -575,7 +575,7 @@ function ScanTab({ id }: { id: string }) {
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Progress</CardTitle>
@@ -650,7 +650,7 @@ function RecsTab({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <Disclaimer />
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {recs.map((r) => (
           <RecommendationCard key={r.id} rec={r} />
         ))}
@@ -678,7 +678,7 @@ function TasksTab({ id }: { id: string }) {
   const [type, setType] = useState<TaskType>("Call client");
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader><CardTitle>Tasks</CardTitle></CardHeader>
         <CardContent>
@@ -751,7 +751,7 @@ function NotesTab({ id }: { id: string }) {
   const [body, setBody] = useState("");
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <div className="space-y-3 lg:col-span-2">
         {clientNotes.length === 0 ? (
           <EmptyState icon={<StickyNote className="h-6 w-6" />} title="No notes yet" />
