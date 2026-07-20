@@ -33,7 +33,7 @@ const nextConfig = {
    *
    * Migrations now run lazily on first database use instead. See lib/db/client.ts.
    */
-  serverExternalPackages: ["postgres", "@azure/communication-identity"],
+  serverExternalPackages: ["postgres"],
 
   /**
    * Build output directory.
