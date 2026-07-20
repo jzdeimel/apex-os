@@ -18,9 +18,26 @@ import type { PlanItem } from "@/lib/planOfCare/types";
  * raw fields; the member portal reads these.
  */
 
-/** Raw BiomarkerStatus words a member should never see unaccompanied. */
+/**
+ * Raw BiomarkerStatus words a member should never see unaccompanied.
+ *
+ * Note the asymmetry, which is deliberate. `watch`, `low` and `high` point a
+ * member TOWARDS a conversation, so warm phrasing costs nothing — the worst
+ * case is someone asks about a number that turns out to be fine.
+ *
+ * `optimal` used to read "right where we want it", and that one is different in
+ * kind. It is affirmative reassurance in the clinic's voice, and no clinician
+ * gave it: a rule compared a value to a reference interval. "We" implies this
+ * member's case was considered, and if the classification is wrong for them —
+ * an in-range value that is nonetheless wrong for this person — the sentence has
+ * talked them out of raising it. Reassurance is the one direction where being
+ * wrong is silent.
+ *
+ * So it now reports the comparison and attributes it to the range, which is
+ * exactly what happened, and leaves the interpreting to the provider.
+ */
 const STATUS_WORDS: Record<string, string> = {
-  optimal: "right where we want it",
+  optimal: "inside the range your lab treats as typical",
   watch: "worth keeping an eye on",
   low: "below where we'd like it",
   high: "above where we'd like it",

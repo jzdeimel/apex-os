@@ -22,10 +22,13 @@
  * column at 390px throughout; multi-column grids only appear from `sm` up.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
-import { memberReasons, memberSummary } from "@/lib/planOfCare/memberVoice";
+import { memberSummary } from "@/lib/planOfCare/memberVoice";
+import { whyThisAll, whyOpenedEvent } from "@/lib/member/whyThis";
+import { WhyThisPanel } from "@/components/portal/WhyThisPanel";
+import { appendLedger } from "@/lib/trace/ledger";
 import type { PlanItem } from "@/lib/planOfCare/types";
 import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
@@ -86,7 +89,30 @@ export default function PortalProtocolPage() {
   const coach = staffMap[client.coachId];
   const [open, setOpen] = useState<string | null>(plan.protocol[0]?.id ?? null);
 
-  const toggle = (id: string) => setOpen((cur) => (cur === id ? null : id));
+  /**
+   * The traceback for every item, computed once.
+   *
+   * Per-item would recompute the consult and lab joins on every expand; the
+   * whole plan is a dozen items and the joins are pure, so one memo is both
+   * cheaper and keeps the panel a dumb renderer.
+   */
+  const why = useMemo(() => whyThisAll(client, plan), [client, plan]);
+
+  const totalProtocol = plan.protocol.length;
+  const signedOff = plan.protocol.filter((i) => why[i.id]?.signoff.state === "signed-off").length;
+
+  /**
+   * Opening the reasoning is a read of the member's own chart, and reads are
+   * first-class events in this ledger. Appended from the handler rather than
+   * from render — an append during render would mutate the hash chain on every
+   * re-render and desync the server and client copies of it.
+   */
+  const toggle = (id: string, item: PlanItem) =>
+    setOpen((cur) => {
+      if (cur === id) return null;
+      appendLedger(whyOpenedEvent(client, item));
+      return id;
+    });
 
   /**
    * Shared expandable row. The evidence panel is the whole point of it: a
@@ -102,7 +128,7 @@ export default function PortalProtocolPage() {
         )}
       >
         <button
-          onClick={() => toggle(item.id)}
+          onClick={() => toggle(item.id, item)}
           aria-expanded={isOpen}
           className="focus-ring flex w-full items-start gap-3 p-4 text-left sm:p-5"
         >
@@ -130,19 +156,14 @@ export default function PortalProtocolPage() {
               className="overflow-hidden motion-reduce:!h-auto motion-reduce:!opacity-100"
             >
               <div className="border-t border-ink-800 px-4 py-4 sm:px-5">
-                <p className="label-eyebrow">Why this is on your plan</p>
-                <ul className="mt-2.5 space-y-2">
-                  {memberReasons(item).map((b, i) => (
-                    <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed text-ink-300">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-optimal" />
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
-                  Nothing here was picked at random — every line traces back to a result on your panel or
-                  something you told us.
-                </p>
+                {/* The panel does the whole job now — reasons, the panel and
+                    day each number came off, the conversation it was raised
+                    in, the rule that fired and who signed it. The old block
+                    here rendered `because[]` and a claim that "every line
+                    traces back" to something; the claim is now the render
+                    rather than a sentence underneath it, and where it does not
+                    hold the panel says so. */}
+                <WhyThisPanel why={why[item.id]} />
               </div>
             </motion.div>
           )}
@@ -166,8 +187,24 @@ export default function PortalProtocolPage() {
             <h2 className="font-display text-xl font-semibold text-ink-50">
               Your <span className="stat-mono">{plan.durationWeeks}</span>-week block
             </h2>
-            <Badge tone={plan.status === "Active" ? "optimal" : "watch"}>
-              {plan.status === "Active" ? "Signed and running" : "With your provider for sign-off"}
+            {/* Derived from the ITEMS, not from `plan.status`.
+
+                The engine sets `plan.status` to "Awaiting provider" whenever
+                there is any protocol at all, regardless of what has actually
+                been signed. That was survivable while this page said nothing
+                about individual sign-offs — it is not now, because the
+                traceback panel reads each item's real approval state and a
+                member was being shown "with your provider for sign-off" at the
+                top and "Dr Vale has approved this" three inches below it. The
+                per-item state is the true one, so the header defers to it. */}
+            <Badge tone={signedOff === totalProtocol && totalProtocol > 0 ? "optimal" : "watch"}>
+              {totalProtocol === 0
+                ? "Nutrition and training this block"
+                : signedOff === totalProtocol
+                  ? "Signed and running"
+                  : signedOff === 0
+                    ? "With your provider for sign-off"
+                    : `${signedOff} of ${totalProtocol} signed off`}
             </Badge>
           </div>
           <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">{plan.summary}</p>

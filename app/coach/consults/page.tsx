@@ -11,6 +11,7 @@ import {
   Video,
   User,
   Clock,
+  Timer,
 } from "lucide-react";
 import type { Consult, ConsultChannel } from "@/lib/consult/types";
 import { consults, unsignedConsultsFor } from "@/lib/mock/consults";
@@ -21,7 +22,9 @@ import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
 import { ME_COACH } from "@/components/coach/TodayQueue";
-import { cn, formatDateTime, relativeDays, absolute } from "@/lib/utils";
+import { ConsultPrepBrief } from "@/components/coach/ConsultPrepBrief";
+import { appointments } from "@/lib/mock/appointments";
+import { cn, formatDateTime, relativeDays, absolute, formatDate, formatTime } from "@/lib/utils";
 
 /**
  * Coach · Consults
@@ -164,6 +167,19 @@ function ConsultRow({ consult }: { consult: Consult }) {
   );
 }
 
+/**
+ * The calls this coach has coming, soonest first.
+ *
+ * Scoped to `staffId === ME_COACH` and to appointments that have not started.
+ * A brief is worth sixty seconds BEFORE a call and nothing at all after it, so
+ * anything already begun drops off rather than lingering as a to-do.
+ */
+function upcomingCallsFor(coachId: string) {
+  return appointments
+    .filter((a) => a.staffId === coachId && absolute(a.start).getTime() > NOW.getTime())
+    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+}
+
 export default function CoachConsultsPage() {
   /**
    * Oldest first. `unsignedConsultsFor` returns newest-first, which is the
@@ -189,6 +205,20 @@ export default function CoachConsultsPage() {
   );
 
   const oldest = unsigned.length ? daysWaiting(unsigned[0].startedAt) : 0;
+
+  const upcoming = React.useMemo(() => upcomingCallsFor(ME_COACH), []);
+
+  /**
+   * Which call's brief is open.
+   *
+   * Defaults to the NEXT one rather than to nothing. A coach landing here
+   * between calls wants the brief for the call that is about to happen; making
+   * them click for it is a step that exists only because the component was
+   * easier to write that way.
+   */
+  const [prepFor, setPrepFor] = React.useState<string | null>(
+    () => upcomingCallsFor(ME_COACH)[0]?.clientId ?? null,
+  );
 
   return (
     <div className="space-y-3">
@@ -230,6 +260,64 @@ export default function CoachConsultsPage() {
           ))}
         </div>
       </FadeIn>
+
+      {/* --- Prep for your next calls ------------------------------------ */}
+      {upcoming.length > 0 && (
+        <>
+          <FadeIn delay={0.05}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Timer className="h-3.5 w-3.5 text-gold-300" />
+              <h2 className="font-display text-sm font-semibold text-ink-100">
+                Prep for your next call
+              </h2>
+              <span className="stat-mono text-[11px] text-ink-500">
+                {upcoming.length} booked · soonest first
+              </span>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.055}>
+            {/* Horizontal strip of the booked calls. Scrolls inside its own
+                container so a coach with nine appointments never widens the
+                page — the body must not scroll sideways at 390px. */}
+            <div className="-mx-1 overflow-x-auto px-1 pb-1">
+              <div className="flex min-w-0 gap-1.5">
+                {upcoming.map((a) => {
+                  const client = getClient(a.clientId);
+                  const active = prepFor === a.clientId;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setPrepFor(active ? null : a.clientId)}
+                      className={cn(
+                        "focus-ring w-[190px] shrink-0 rounded-xl border px-2.5 py-2 text-left transition-colors",
+                        active
+                          ? "border-gold-400/40 bg-gold-400/[0.07]"
+                          : "border-ink-700 bg-ink-900/40 hover:border-ink-600",
+                      )}
+                    >
+                      <p className="truncate text-[13px] font-medium text-ink-50">
+                        {client ? clientName(client) : a.clientName}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-ink-400">{a.type}</p>
+                      <p className="stat-mono mt-0.5 text-[10px] text-ink-600">
+                        {formatDate(a.start)} · {formatTime(a.start)} · {a.durationMin}m
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </FadeIn>
+
+          {prepFor && (
+            <FadeIn delay={0.06}>
+              <ConsultPrepBrief clientId={prepFor} coachId={ME_COACH} />
+            </FadeIn>
+          )}
+        </>
+      )}
 
       {/* --- Awaiting your signature ------------------------------------- */}
       <FadeIn delay={0.06}>

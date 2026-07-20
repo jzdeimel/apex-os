@@ -49,7 +49,16 @@ export function DemoTour() {
     return (
       <button
         onClick={start}
-        className="fixed bottom-20 left-4 z-[90] lg:bottom-40 lg:left-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-ink-850/95 px-3.5 py-2 text-xs font-medium text-gold-200 shadow-glow backdrop-blur transition-colors hover:bg-ink-800"
+        /*
+          Hidden below `sm`. A fixed launcher always floats over whatever is
+          scrolling beneath it, and on a 390px screen this one sat directly on
+          top of escalation text — the reader lost a line of real clinical
+          content to a demo affordance. There is no safe corner on a phone: the
+          bottom bar owns the bottom, and the sides are only ~16px of gutter.
+          Desktop has the room, so the tour stays there; the tour is a
+          nice-to-have and legible content is not.
+        */
+        className="fixed bottom-20 left-4 z-[90] hidden items-center gap-2 rounded-full border border-gold-400/30 bg-ink-850/95 px-3.5 py-2 text-xs font-medium text-gold-200 shadow-glow backdrop-blur transition-colors hover:bg-ink-800 sm:inline-flex lg:bottom-40 lg:left-4"
       >
         <Wand2 className="h-3.5 w-3.5" /> Take the tour
       </button>

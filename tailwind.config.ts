@@ -63,7 +63,47 @@ const config: Config = {
       letterSpacing: {
         tightest: "-0.04em",
       },
+
+      /**
+       * THE TYPE SCALE.
+       *
+       * An audit found 14 distinct sizes in use, seven of them arbitrary
+       * one-offs (text-[9px] through text-[15px]), and 1,578 uses of small text
+       * against 96 uses of large. Hierarchy was being attempted with one-pixel
+       * increments — 11 against 12 against 13 — which does not read as hierarchy
+       * at all. It reads as mush, and it is the clearest fingerprint of an
+       * interface that was generated rather than designed.
+       *
+       * Six steps, wide gaps. The distance between `body` and `display` is what
+       * creates hierarchy; small increments never will. Body sits at 15px rather
+       * than the Tailwind default 14 because the extra pixel is most of what
+       * separates an interface that feels considered from one that feels cheap.
+       *
+       * Named rather than numbered so a size cannot be picked by feel.
+       */
+      fontSize: {
+        display: ["2.5rem", { lineHeight: "1.05", letterSpacing: "-0.02em", fontWeight: "600" }],
+        title: ["1.5rem", { lineHeight: "1.2", letterSpacing: "-0.015em", fontWeight: "600" }],
+        heading: ["1.0625rem", { lineHeight: "1.35", letterSpacing: "-0.01em", fontWeight: "600" }],
+        body: ["0.9375rem", { lineHeight: "1.6" }],
+        detail: ["0.8125rem", { lineHeight: "1.5" }],
+        micro: ["0.6875rem", { lineHeight: "1.45", letterSpacing: "0.04em" }],
+      },
+
+      /**
+       * THREE RADII, and a rule for each.
+       *
+       * The audit found seven in use with nothing governing which went where.
+       * `control` is anything a finger acts on, `panel` is anything that holds
+       * content, and `full` is reserved for avatars and true status dots.
+       *
+       * Text pills were the worst of it: 199 `rounded-full` elements meant every
+       * noun on screen had become a chip. A capsule around a word is a stadium,
+       * and stadiums everywhere is the house style of generated dashboards.
+       */
       borderRadius: {
+        control: "0.5rem",
+        panel: "1rem",
         "2xl": "1rem",
         "3xl": "1.5rem",
       },

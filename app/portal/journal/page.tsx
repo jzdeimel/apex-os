@@ -14,6 +14,7 @@
  */
 
 import { SymptomJournal } from "@/components/portal/SymptomJournal";
+import { SymptomSignal } from "@/components/portal/SymptomSignal";
 import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
 
 export default function PortalJournalPage() {
@@ -26,6 +27,15 @@ export default function PortalJournalPage() {
         title="How you actually feel"
         subtitle="Six quick ratings a day. Over time it shows you the shape of your weeks and flags anything worth raising with your coach — as a question for them, never as an answer."
       />
+
+      {/* The payoff, directly under the header rather than at the bottom.
+          Logging is work and the reward for it was previously three screens
+          down; a member who scrolls past the check-in should hit the reason to
+          have done it before they hit the charts. Read
+          lib/member/symptomSignal.ts before touching anything inside it — the
+          safety constraints on this card are structural, not editorial. */}
+      <SymptomSignal client={client} />
+
       <SymptomJournal client={client} />
     </div>
   );

@@ -12,7 +12,17 @@ body {
 }
 
 body {
+  /*
+   * Base size is 15px, not the 14px default.
+   *
+   * That single pixel is most of what separates an interface that feels
+   * considered from one that feels cheap, and this app had drifted the other
+   * way: an audit counted 1,578 uses of small text against 96 of large, so
+   * everything on screen was whispering at once and nothing had emphasis.
+   */
   @apply bg-ink-950 text-ink-100 font-sans antialiased;
+  font-size: 15px;
+  line-height: 1.6;
   background-image:
     radial-gradient(60rem 40rem at 12% -8%, rgba(233, 61, 61, 0.08), transparent 60%),
     radial-gradient(50rem 36rem at 100% 0%, rgba(191, 30, 46, 0.05), transparent 55%);
@@ -87,4 +97,31 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+ * Numerals.
+ *
+ * A clinical product is mostly figures — biomarker values, doses, unit counts,
+ * SLA clocks — and proportional digits make a column of them ripple as the
+ * widths change. Tabular figures line them up. This is the kind of detail that
+ * is invisible when present and cheap-looking when absent.
+ */
+.stat-mono,
+table,
+[class*="stat-"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+ * Hairlines.
+ *
+ * Sub-pixel borders read as a drawn line rather than a box edge. Premium
+ * interfaces separate with space and hairlines; boxing everything is what makes
+ * a layout feel like a form. Applied opt-in via .hairline so existing borders
+ * are not disturbed wholesale.
+ */
+.hairline {
+  border-color: rgb(255 255 255 / 0.07);
 }

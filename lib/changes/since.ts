@@ -75,7 +75,7 @@ export interface ChangeItem {
 }
 
 /** Parse once, compare numerically. */
-function ms(iso: string): number {
+export function ms(iso: string): number {
   return absolute(iso).getTime();
 }
 
@@ -84,8 +84,15 @@ function ms(iso: string): number {
  * and some emit naive local wall-clock (lib/mock/orders.ts explains why). String
  * comparison across those two regimes is wrong; epoch comparison is not. Every
  * window test in this file goes through here.
+ *
+ * Exported because lib/coach/sinceLastVisit.ts extends this diff with sources
+ * this file does not carry (body composition, journal, adherence, appointments)
+ * and must apply the SAME window rule. A second local copy of "is this inside
+ * the window" is precisely how two panels on one screen end up disagreeing
+ * about whether Tuesday counts — the identical trap lib/protocol/runway.ts
+ * documents for refill cadence maths.
  */
-function isAfter(iso: string | undefined, sinceIso: string): boolean {
+export function isAfter(iso: string | undefined, sinceIso: string): boolean {
   if (!iso) return false;
   return ms(iso) > ms(sinceIso);
 }

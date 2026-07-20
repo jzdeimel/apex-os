@@ -81,7 +81,12 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none",
+        // `rounded-control`, not `rounded-full`. A capsule around a word is a
+        // stadium, and an audit found 199 of them — every noun on screen had
+        // become a chip, which is the house style of generated dashboards. A
+        // soft-cornered rectangle reads as a label instead of a button, which is
+        // what these actually are.
+        "inline-flex items-center gap-1 rounded-control border px-2 py-0.5 text-micro font-medium leading-none",
         tones[tone],
         className,
       )}

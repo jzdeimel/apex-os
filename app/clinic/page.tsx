@@ -20,6 +20,9 @@ import {
   slaState,
   formatSla,
 } from "@/lib/escalations/queue";
+import { monitoringSummary, monitoringWorklist } from "@/lib/clinical/monitoring";
+import { MonitoringWorklist } from "@/components/clinic/MonitoringWorklist";
+import { TrajectoryBoard } from "@/components/clinic/TrajectoryBoard";
 import { triageScore } from "@/lib/aiInsights";
 import { alphaScore } from "@/lib/alphaScore";
 import { locationName } from "@/lib/mock/locations";
@@ -50,6 +53,7 @@ import {
   Stethoscope,
   ChevronDown,
   Signature,
+  CalendarClock,
 } from "lucide-react";
 
 /**
@@ -196,6 +200,14 @@ export default function DashboardPage() {
 
     const resultsReady = cl.filter((c) => c.status === "Results Ready").length;
 
+    // --- 4. Monitoring the protocol already committed us to --------------
+    // Location-scoped rather than provider-scoped: a lapsed haematocrit is the
+    // clinic's failure regardless of whose name is on the chart, and scoping it
+    // to one panel is how it becomes nobody's job on the days that provider is
+    // not in.
+    const monitoring = monitoringWorklist({ locationId: String(locationFilter) });
+    const monSummary = monitoringSummary(monitoring);
+
     // --- Practice volume (owner's numbers, kept but demoted) --------------
     const active = cl.filter((c) => c.status === "Active Protocol").length;
     const newConsults = cl.filter((c) => ["Lead", "Consult Booked"].includes(c.status)).length;
@@ -279,6 +291,7 @@ export default function DashboardPage() {
       myAppts,
       abnormal,
       resultsReady,
+      monSummary,
       panel: mine.length,
       active,
       newConsults,
@@ -581,6 +594,13 @@ export default function DashboardPage() {
             hint="Outside reference or flagged"
           />
           <DashboardCard
+            label="Monitoring overdue"
+            countTo={data.monSummary.membersOverdue}
+            icon={<CalendarClock className="h-4 w-4" />}
+            hint={`${data.monSummary.publishedStandardOverdue} against a published standard`}
+            accent={data.monSummary.publishedStandardOverdue > 0}
+          />
+          <DashboardCard
             label="On my panel"
             countTo={data.panel}
             icon={<Users className="h-4 w-4" />}
@@ -590,7 +610,27 @@ export default function DashboardPage() {
       </div>
 
       {/* ---------------------------------------------------------------- */}
-      {/* 3. NEEDS EYES                                                     */}
+      {/* 3. WHAT WE ALREADY COMMITTED TO                                   */}
+      {/* ---------------------------------------------------------------- */}
+      {/*
+          Above "needs eyes" on purpose. An abnormal panel is work somebody has
+          at least seen; a lapsed monitoring interval is work nobody has seen,
+          because no human ever created the task. Unqueued and invisible beats
+          unqueued and visible for danger, so it is ranked higher.
+      */}
+      <MonitoringWorklist
+        locationId={String(locationFilter)}
+        actorId={meId}
+        actorRole={role}
+      />
+
+      {/* Cohort capped at the abnormal list: fitting every marker on every
+          panel in the practice is affordable but the board would be forty rows
+          long, and the signal is entirely in the first few. */}
+      <TrajectoryBoard clientIds={data.abnormal.slice(0, 24).map((x) => x.client.id)} />
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 4. NEEDS EYES                                                     */}
       {/* ---------------------------------------------------------------- */}
       <Card>
         <CardHeader className="flex flex-wrap items-center justify-between gap-2">

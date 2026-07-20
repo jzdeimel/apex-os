@@ -66,6 +66,13 @@ export interface NavGroup {
  *
  * `spotlight` marks the surfaces worth showing someone first. It is a demo
  * affordance, not a permanent part of the product.
+ *
+ * NAMING. Labels say what a surface IS, in the words a person would use out
+ * loud. "Command Center", "AI Insights" and "Copilot" were replaced because
+ * they are product-speak: they describe a category of software rather than the
+ * job the screen does, and they are interchangeable between any two dashboards.
+ * The member side already had the right instinct -- "How I feel", "Who viewed my
+ * chart", "What's available" -- and the operator side now matches it.
  */
 export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
   patient: [
@@ -115,11 +122,11 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
     {
       section: "Clinical",
       items: [
-        { href: "/clinic", label: "Command Center", icon: LayoutDashboard },
+        { href: "/clinic", label: "Today", icon: LayoutDashboard },
         { href: "/clinic/escalations", label: "Escalations", icon: Siren, spotlight: true },
         { href: "/clinic/sign", label: "Sign queue", icon: FileSignature, spotlight: true },
         { href: "/clients", label: "Patients", icon: Users },
-        { href: "/recommendations", label: "Review Queue", icon: Sparkles },
+        { href: "/recommendations", label: "Awaiting sign-off", icon: Sparkles },
         { href: "/coach/consults", label: "Consults", icon: ClipboardList },
         { href: "/schedule", label: "Schedule", icon: CalendarDays },
       ],
@@ -127,15 +134,15 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
     {
       section: "Intelligence",
       items: [
-        { href: "/insights", label: "AI Insights", icon: Brain },
-        { href: "/agent", label: "Clinical Copilot", icon: Bot },
+        { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/agent", label: "Ask Apex", icon: Bot },
         { href: "/coach/documents", label: "Documents", icon: FileText },
       ],
     },
     {
       section: "Governance",
       items: [
-        { href: "/clinic/ledger", label: "Audit Ledger", icon: History, spotlight: true },
+        { href: "/clinic/ledger", label: "Audit trail", icon: History, spotlight: true },
         { href: "/admin/roster", label: "Roster health", icon: Rows3 },
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
         { href: "/settings", label: "Settings", icon: Settings },
@@ -148,11 +155,11 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "My Day",
       items: [
         { href: "/coach", label: "Today", icon: Gauge, spotlight: true },
-        { href: "/coach/roster", label: "My Roster", icon: Users },
+        { href: "/coach/roster", label: "My members", icon: Users },
         { href: "/coach/gaps", label: "Care gaps", icon: LifeBuoy, spotlight: true },
         { href: "/coach/consults", label: "Consults", icon: ClipboardList },
         { href: "/tasks", label: "Tasks", icon: ListChecks },
-        { href: "/agent", label: "Coach Copilot", icon: Bot },
+        { href: "/agent", label: "Ask Apex", icon: Bot },
       ],
     },
     {
@@ -161,14 +168,14 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/coach/order", label: "Place an order", icon: PlusCircle, spotlight: true },
         { href: "/coach/orders", label: "Orders", icon: Package },
         { href: "/coach/subscriptions", label: "Refills", icon: Repeat },
-        { href: "/supply-chain", label: "Supply Chain", icon: Boxes },
+        { href: "/supply-chain", label: "Stock & vendors", icon: Boxes },
       ],
     },
     {
       section: "Growth",
       items: [
-        { href: "/insights", label: "AI Insights", icon: Brain },
-        { href: "/coach/winback", label: "Win-back", icon: Repeat },
+        { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/coach/winback", label: "Lapsed members", icon: Repeat },
         { href: "/automations", label: "Automations", icon: Workflow },
         { href: "/analytics", label: "Analytics", icon: BarChart3 },
       ],
@@ -179,8 +186,8 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/coach/documents", label: "Documents", icon: FileText },
         { href: "/coach/training", label: "Training", icon: GraduationCap, spotlight: true },
         { href: "/coach/handoff", label: "Handoff packet", icon: Rows3 },
-        { href: "/schedule", label: "Team Schedule", icon: CalendarDays },
-        { href: "/swarm", label: "Agent Swarm", icon: Network },
+        { href: "/schedule", label: "Team calendar", icon: CalendarDays },
+        { href: "/swarm", label: "Background agents", icon: Network },
         { href: "/settings", label: "Settings", icon: Settings },
       ],
     },

@@ -14,6 +14,9 @@ import { FadeIn } from "@/components/motion";
 import { ClientRow, ClientStatusBadge } from "@/components/coach/ClientRow";
 import { ME_COACH, clientsForCoach, daysSinceTouch } from "@/components/coach/TodayQueue";
 import { AlphaScoreChip } from "@/components/AlphaScoreRing";
+import { SinceLastVisitInline } from "@/components/coach/SinceLastVisitCard";
+import { ConsultPrepBrief } from "@/components/coach/ConsultPrepBrief";
+import { OutcomePanel } from "@/components/coach/OutcomePanel";
 import { cn, relativeDays, currency } from "@/lib/utils";
 
 /**
@@ -141,6 +144,22 @@ export default function CoachRosterPage() {
   const [touch, setTouch] = React.useState<TouchFilter>("any");
   const [sort, setSort] = React.useState<SortKey>("triage");
   const [dir, setDir] = React.useState<SortDir>("desc");
+
+  /**
+   * The member whose prep brief is open, if any.
+   *
+   * Single-select rather than a set: a brief is what you read in the sixty
+   * seconds before one call, and letting three of them stack turns the page
+   * back into the chart-shaped wall the brief exists to replace.
+   */
+  const [prepFor, setPrepFor] = React.useState<string | null>(null);
+
+  // Widening to the practice closes the brief. The panel is anchored to a
+  // member who may no longer be in view, and a brief hanging above a table that
+  // no longer contains its subject is disorienting rather than convenient.
+  React.useEffect(() => {
+    setPrepFor(null);
+  }, [wide]);
 
   // Scores are computed once per client and reused by the filters, the sort and
   // the row, rather than recomputed inside the comparator on every comparison.
@@ -298,7 +317,33 @@ export default function CoachRosterPage() {
         </div>
       </FadeIn>
 
+      {/* Outcomes. Collapsed by default and above the table on purpose: it is a
+          reflective view, not a work queue, and expanding it should be a
+          deliberate act that does not cost the coach their table position. */}
       <FadeIn delay={0.08}>
+        <OutcomePanel coachId={ME_COACH} />
+      </FadeIn>
+
+      {/* The open prep brief, anchored above the table rather than inline in a
+          row. A brief expanded inside a <tr> either forces a colSpan block that
+          shoves every other row off-screen, or scrolls sideways with the table —
+          and this one is read while a call is connecting. */}
+      {prepFor && (
+        <FadeIn>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPrepFor(null)}
+              className="focus-ring absolute right-2 top-2 z-10 rounded-lg border border-ink-700 bg-ink-900/90 px-2 py-1 text-[10px] font-medium text-ink-400 transition-colors hover:text-ink-100"
+            >
+              Close
+            </button>
+            <ConsultPrepBrief clientId={prepFor} coachId={ME_COACH} />
+          </div>
+        </FadeIn>
+      )}
+
+      <FadeIn delay={0.1}>
         <p className="text-[11px] text-ink-600">
           Showing <span className="stat-mono text-ink-300">{rows.length}</span> of{" "}
           <span className="stat-mono text-ink-300">{scored.length}</span>
@@ -317,7 +362,11 @@ export default function CoachRosterPage() {
           {/* The scroll container, not the page, owns the overflow — the body
               must never scroll sideways at 390px. */}
           <div className="card overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-left">
+            {/* Widened with the "Since seen" column. The min-width has to grow
+                with the column count or the table starts compressing cells
+                instead of scrolling, which is what the overflow container above
+                exists to prevent. */}
+            <table className="w-full min-w-[1040px] border-collapse text-left">
               <thead className="border-b border-ink-700/70 text-[11px] uppercase tracking-wide">
                 <tr>
                   <SortHeader label="Member" sortKey="name" active={sort} dir={dir} onSort={onSort} />
@@ -326,6 +375,14 @@ export default function CoachRosterPage() {
                   <SortHeader label="Triage" sortKey="triage" active={sort} dir={dir} onSort={onSort} />
                   <SortHeader label="Churn" sortKey="churn" active={sort} dir={dir} onSort={onSort} />
                   <SortHeader label="Quiet" sortKey="touch" active={sort} dir={dir} onSort={onSort} />
+                  {/* Deliberately not sortable. Sorting this column means
+                      building the full diff for every row before the first
+                      paint; the cell itself is cheap enough per-row but the
+                      comparator would make it a whole-table cost on every
+                      click. The filters above already narrow the list. */}
+                  <th scope="col" className="whitespace-nowrap px-3 py-2 font-medium text-ink-500">
+                    Since seen
+                  </th>
                   <SortHeader label="Next appt" sortKey="next" active={sort} dir={dir} onSort={onSort} />
                   <SortHeader label="LTV" sortKey="ltv" active={sort} dir={dir} onSort={onSort} />
                   <th scope="col" className="px-3 py-2 text-right font-medium text-ink-500">
@@ -380,6 +437,27 @@ export default function CoachRosterPage() {
                         {r.touchDays}d
                       </span>
                     </td>
+                    {/*
+                      Only for the coach's OWN members. "Since I last saw them"
+                      is anchored on this coach's last consult, and for someone
+                      else's member that anchor does not exist — the engine
+                      would fall back to a colleague's consult and quietly
+                      answer a different question than the column header asks.
+                      It is also what keeps the practice-wide view from building
+                      500 diffs on a single render.
+                    */}
+                    <td className="whitespace-nowrap px-3 py-1.5">
+                      {r.client.coachId === ME_COACH ? (
+                        <SinceLastVisitInline clientId={r.client.id} coachId={ME_COACH} />
+                      ) : (
+                        <span
+                          className="stat-mono text-xs text-ink-700"
+                          title="Not your member — there is no last visit of yours to measure from."
+                        >
+                          —
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <span
                         className={cn(
@@ -396,11 +474,24 @@ export default function CoachRosterPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right">
-                      <Link href={`/clients/${r.client.id}`}>
-                        <Button size="sm" variant="outline">
-                          Open
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {r.client.coachId === ME_COACH && (
+                          <Button
+                            size="sm"
+                            variant={prepFor === r.client.id ? "primary" : "ghost"}
+                            onClick={() =>
+                              setPrepFor((id) => (id === r.client.id ? null : r.client.id))
+                            }
+                          >
+                            Prep
+                          </Button>
+                        )}
+                        <Link href={`/clients/${r.client.id}`}>
+                          <Button size="sm" variant="outline">
+                            Open
+                          </Button>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

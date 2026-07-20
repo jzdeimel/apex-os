@@ -10,6 +10,7 @@ import { triageScore, churnRisk } from "@/lib/aiInsights";
 import { FadeIn } from "@/components/motion";
 import { TodayQueue, ME_COACH, clientsForCoach } from "@/components/coach/TodayQueue";
 import { CoachWaitingOn } from "@/components/escalations/CoachEscalationStatus";
+import { AdherenceWorklist } from "@/components/coach/AdherenceWorklist";
 import { cn } from "@/lib/utils";
 
 /**
@@ -219,6 +220,29 @@ export default function CoachTodayPage() {
 
       <FadeIn delay={0.12}>
         <TodayQueue coachId={ME_COACH} />
+      </FadeIn>
+
+      {/*
+        The adherence worklist sits BELOW the queue, not above it.
+
+        Both are ranked lists of members and it is tempting to merge them or to
+        lead with this one — it is the more sophisticated engine. That would be
+        wrong on this page. The queue is work the coach OWES (a signature is a
+        legal obligation, an escalation has an SLA clock); the worklist is work
+        the coach should CHOOSE. Putting discretionary work above obligated work
+        is how the unsigned note ages another day, and this page's stated layout
+        rule is that the first queue row is visible without scrolling.
+
+        They are deliberately not deduplicated against each other either. A
+        member can legitimately appear in both, and for different reasons — the
+        queue says "you owe them a signature", the worklist says "they are about
+        to run out of product". Suppressing the second because the first exists
+        would hide the reason the call actually matters.
+      */}
+      <FadeIn delay={0.16}>
+        <div className="pt-1">
+          <AdherenceWorklist coachId={ME_COACH} />
+        </div>
       </FadeIn>
     </div>
   );

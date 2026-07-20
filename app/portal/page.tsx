@@ -34,6 +34,7 @@ import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
+import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
 import { SeasonArc } from "@/components/portal/SeasonArc";
 import { Quests } from "@/components/portal/Quests";
@@ -149,6 +150,17 @@ export default function PortalHomePage() {
       {/* 2 · Today. The centrepiece — everything else orbits it.             */}
       {/* ------------------------------------------------------------------ */}
       <DailyRings clientId={ME} />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 2a · The week.                                                      */}
+      {/*                                                                     */}
+      {/* Directly under the rings because it is the same question at a       */}
+      {/* different resolution: the rings answer "what do I do today", this   */}
+      {/* answers "was any of it worth it". Above the habit layer on purpose  */}
+      {/* — a member who only ever reads two cards should get the honest week */}
+      {/* before the streak, not after it.                                    */}
+      {/* ------------------------------------------------------------------ */}
+      <WeeklyReview client={client} />
 
       {/* ------------------------------------------------------------------ */}
       {/* 2b · The habit layer.                                              */}

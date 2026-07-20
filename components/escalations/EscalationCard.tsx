@@ -147,7 +147,13 @@ export function EscalationCard({
       <div className="flex flex-wrap items-start gap-3">
         <Monogram client={client} size="md" />
 
-        <div className="min-w-0 flex-1">
+        {/* `basis-[calc(100%-4rem)]` is what forces the SLA clock onto its own
+            row below ~640px. Without it the clock's shrink-0 ~200px plus the
+            monogram left roughly 120px for this column on a 390px phone, so the
+            member's name truncated to "Tony Callow..." and the raised-by line
+            wrapped into a four-word-tall sliver. The clock deserves its width;
+            the name should not pay for it. */}
+        <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0">
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/clients/${client.id}`}
@@ -186,7 +192,10 @@ export function EscalationCard({
             this queue top-down without reading any prose. */}
         <div
           className={[
-            "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2",
+            // Full width on a phone (it has wrapped onto its own row by then, so
+            // stretching reads as deliberate rather than orphaned), natural
+            // width once there is room beside the name.
+            "flex w-full shrink-0 items-center gap-2 rounded-xl border px-3 py-2 sm:w-auto",
             style.ring,
           ].join(" ")}
         >

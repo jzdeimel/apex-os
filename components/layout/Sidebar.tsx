@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { usePortal } from "@/lib/portalStore";
 import { PORTAL_LIST } from "@/lib/portals";
 import { PORTAL_NAV } from "@/lib/nav";
+import { SupportLink } from "@/components/SupportLink";
 
 export function Sidebar({
   mobileOpen,
@@ -199,6 +200,12 @@ export function Sidebar({
             Mock data only. Not medical advice. Recommendations require licensed
             provider review.
           </p>
+        </div>
+
+        {/* Support sits in normal flow at the end of the nav, so it can never
+            cover content the way a floating launcher does. */}
+        <div className="mx-3 mb-3">
+          <SupportLink />
         </div>
       </aside>
     </>

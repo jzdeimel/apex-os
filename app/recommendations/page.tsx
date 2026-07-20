@@ -11,6 +11,11 @@ import { recommendationRules } from "@/lib/rules";
 import { appendLedger } from "@/lib/trace/ledger";
 import { shortHash, sha256, canonicalJson } from "@/lib/trace/hash";
 import type { ProvenanceStamp } from "@/lib/consult/types";
+import { screenRecommendation, type ScreenResult } from "@/lib/clinical/interactions";
+import {
+  InteractionScreen,
+  unacknowledgedBlocking,
+} from "@/components/clinic/InteractionScreen";
 import { WhyButton, ProvenanceDrawer } from "@/components/trace/ProvenanceDrawer";
 import { RecStatusBadge } from "@/components/StatusBadge";
 import { RiskBadge } from "@/components/RiskBadge";
@@ -183,12 +188,31 @@ export default function RecommendationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recStatus]);
 
+  /**
+   * Recommendations carrying a BLOCKING interaction finding.
+   *
+   * These are removed from the batch entirely rather than merely counted in it.
+   * A blocking finding is defined as one that must be acknowledged individually
+   * before signature; letting a batch checkbox discharge it would make the
+   * blocking flag decorative, which is exactly the failure the screen exists to
+   * fix. They stay in the queue and get signed one at a time.
+   */
+  const blockedIds = useMemo(() => {
+    const out = new Set<string>();
+    for (const r of seededRecommendations) {
+      if (screenRecommendation(r).blocking.length > 0) out.add(r.id);
+    }
+    return out;
+  }, []);
+
   /** The set a bulk signature would actually commit — never "everything". */
-  const bulkTargets = useMemo(
+  const bulkEligible = useMemo(
     () => filtered.filter((r) => liveStatus(r.id, r.status) !== "provider approved"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, recStatus],
   );
+  const bulkExcluded = bulkEligible.filter((r) => blockedIds.has(r.id));
+  const bulkTargets = bulkEligible.filter((r) => !blockedIds.has(r.id));
   const bulkFlagged = bulkTargets.filter((r) => r.contraindicationChecks.some((c) => !c.passed));
   const bulkHighRisk = bulkTargets.filter((r) => r.riskLevel === "high" || r.riskLevel === "moderate");
 
@@ -200,6 +224,8 @@ export default function RecommendationsPage() {
     rec: Recommendation,
     next: "provider approved" | "declined",
     reason?: string,
+    /** Interaction findings the signer ticked through, by id. */
+    overrides?: string[],
   ) => {
     const client = getClient(rec.clientId);
     const before = liveStatus(rec.id, rec.status);
@@ -220,14 +246,21 @@ export default function RecommendationsPage() {
         confidence: rec.confidence,
         riskLevel: rec.riskLevel,
         contraindicationFlags: rec.contraindicationChecks.filter((c) => !c.passed).length,
+        // Which blocking interaction findings this signature was taken over.
+        // Recording the ids and not merely the count is what makes the override
+        // reconstructable: a year from now "3 findings acknowledged" is
+        // unanswerable, "int.trt.fertility acknowledged" is a fact.
+        ...(overrides && overrides.length > 0
+          ? { interactionFindingsAcknowledged: overrides }
+          : {}),
       },
     });
     setRecStatus(rec.id, next);
     return row;
   };
 
-  const approveOne = (rec: Recommendation, reason?: string) => {
-    const row = commit(rec, "provider approved", reason);
+  const approveOne = (rec: Recommendation, reason?: string, overrides?: string[]) => {
+    const row = commit(rec, "provider approved", reason, overrides);
     toast("Signed — committed to the ledger", {
       desc: `${row.id} · ${shortHash(row.hash)}`,
     });
@@ -363,6 +396,15 @@ export default function RecommendationsPage() {
               patients.
             </p>
 
+            {bulkExcluded.length > 0 && (
+              <div className="rounded-lg border border-high/30 bg-high/10 px-3 py-2 text-xs leading-relaxed text-high">
+                <span className="stat-mono font-semibold">{bulkExcluded.length}</span> more in this
+                filter carry a blocking interaction or contraindication finding and have been left
+                OUT of this batch. Those must be acknowledged individually — a batch tick cannot
+                discharge them.
+              </div>
+            )}
+
             {/* The two facts that make a batch dangerous, stated before consent. */}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div
@@ -457,7 +499,7 @@ export default function RecommendationsPage() {
               rec={r}
               status={liveStatus(r.id, r.status)}
               canApprove={canApprove}
-              onApprove={(reason) => approveOne(r, reason)}
+              onApprove={(reason, overrides) => approveOne(r, reason, overrides)}
               onDecline={(reason) => declineOne(r, reason)}
               onCoachReviewed={() => setRecStatus(r.id, "coach reviewed")}
             />
@@ -530,7 +572,7 @@ function DecisionCard({
   rec: Recommendation;
   status: RecommendationStatus;
   canApprove: boolean;
-  onApprove: (reason?: string) => void;
+  onApprove: (reason?: string, overrides?: string[]) => void;
   onDecline: (reason?: string) => void;
   onCoachReviewed: () => void;
 }) {
@@ -540,6 +582,23 @@ function DecisionCard({
   const [reason, setReason] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
+
+  /**
+   * The interaction screen for this proposal, plus the acknowledgements taken
+   * against it. State is per-card and resets with the card, which is correct:
+   * an acknowledgement is made about one proposal in front of one patient, and
+   * carrying it across rows would be exactly the batch-tick problem again.
+   */
+  const screen: ScreenResult = useMemo(() => screenRecommendation(rec), [rec]);
+  const [acks, setAcks] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const outstanding = unacknowledgedBlocking(screen, acks);
+  const toggleAck = (id: string, next: boolean) =>
+    setAcks((prev) => {
+      const s = new Set(prev);
+      if (next) s.add(id);
+      else s.delete(id);
+      return s;
+    });
 
   const client = getClient(rec.clientId);
   const rule = ruleFor(rec);
@@ -560,8 +619,10 @@ function DecisionCard({
       className={cn(
         "flex flex-col overflow-hidden",
         // A failed screen is the one state that earns a border change. It is not
-        // decoration — it means do not sign this without reading it.
-        failed.length > 0 && "border-high/40",
+        // decoration — it means do not sign this without reading it. An
+        // unacknowledged blocking interaction finding earns the same treatment,
+        // for the same reason.
+        (failed.length > 0 || outstanding.length > 0) && "border-high/40",
       )}
     >
       {/* Header */}
@@ -725,6 +786,21 @@ function DecisionCard({
           )}
         </section>
 
+        {/* -------- 3b. INTERACTIONS — blocking, and above the decision --- */}
+        {/*
+            The screen above is the rule engine's own generic checklist. This
+            one reasons about the specific molecules in the proposal against
+            what the member is already on and what their panel says, and it can
+            stop a signature. They are kept apart deliberately: merging them
+            would let a soft checklist item and a boxed warning render as peers.
+        */}
+        <InteractionScreen
+          result={screen}
+          acknowledged={acks}
+          onAcknowledge={toggleAck}
+          canAcknowledge={canApprove}
+        />
+
         {/* -------- 4. CONFIDENCE, never bare ---------------------------- */}
         <section className="rounded-xl border border-ink-800 bg-ink-900/40 p-3">
           <div className="flex items-baseline justify-between">
@@ -764,15 +840,25 @@ function DecisionCard({
             <Button
               size="sm"
               variant="primary"
-              disabled={!canApprove || status === "provider approved"}
-              title={canApprove ? "Sign and commit to the ledger" : "Switch to the Medical role to sign"}
+              disabled={!canApprove || status === "provider approved" || outstanding.length > 0}
+              title={
+                outstanding.length > 0
+                  ? `${outstanding.length} blocking finding(s) must be acknowledged above before signing`
+                  : canApprove
+                    ? "Sign and commit to the ledger"
+                    : "Switch to the Medical role to sign"
+              }
               onClick={() => {
-                onApprove(reason.trim() || undefined);
+                onApprove(reason.trim() || undefined, [...acks]);
                 setReason("");
               }}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {failed.length > 0 ? "Approve with override" : "Approve"}
+              {outstanding.length > 0
+                ? `Blocked — ${outstanding.length} to acknowledge`
+                : acks.size > 0 || failed.length > 0
+                  ? "Approve with override"
+                  : "Approve"}
             </Button>
             <Button
               size="sm"
