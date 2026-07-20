@@ -18,6 +18,7 @@ import {
 } from "@/lib/symptoms/journal";
 import { Card, CardContent, Badge, Textarea, Button } from "@/components/ui/primitives";
 import { TrendLine } from "@/components/charts";
+import { CoachReactions } from "@/components/portal/CoachReactions";
 import { useToast } from "@/components/ui/Toast";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -493,6 +494,13 @@ export function SymptomJournal({ client }: { client: Client }) {
       </div>
 
       <CheckIn client={client} />
+      {/* The payoff loop (docs/audit/ENGAGEMENT.md #4 — the cheapest large
+          retention win). Directly under the check-in because the reaction is the
+          reply TO it: you log how you feel, and here is where a real named coach
+          answers. It renders ONLY reactions a coach actually wrote — an empty
+          state is the honest default, and a note appears the moment a coach
+          leaves one in MemberPulse. Nothing is seeded. */}
+      <CoachReactions clientId={client.id} />
       <TrendSection client={client} />
       <RhythmSection client={client} />
       <CorrelationSection client={client} />

@@ -231,6 +231,101 @@ export function concentrationCurve(opts: {
   return points;
 }
 
+/* -------------------------------------------------------------------------- */
+/* PERSONALISED kinetics — from a member's ACTUAL logged doses                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Blood level at time `t`, computed from the exact times a member took their
+ * doses — not an idealised schedule.
+ *
+ * This is the difference between the demo curve and a real one. The schedule
+ * curve above assumes a perfect interval; this sums a decay term for every dose
+ * the member actually logged, at the actual hour they logged it. Miss Saturday
+ * and log Sunday twelve hours late, and this curve dips and recovers exactly
+ * where that happened. It is the member's own adherence made visible.
+ *
+ * All times are hours on a common axis (the component converts ISO → hours).
+ * Level is relative to a single first-dose peak of 1.0, the same scale the
+ * schedule curve uses, so the two overlay honestly.
+ */
+export function levelAt(halfLifeHours: number, doseHours: number[], t: number): number {
+  const k = eliminationConstant(halfLifeHours);
+  let level = 0;
+  for (const d of doseHours) {
+    if (d <= t) level += Math.exp(-k * (t - d));
+  }
+  return level;
+}
+
+export interface PersonalCurve {
+  points: CurvePoint[];
+  /** Where "now" sits on the axis, so the UI can mark it. */
+  nowHour: number;
+  /** The member's blood level right now, on the single-first-dose scale. */
+  levelNow: number;
+  /**
+   * Fraction of the level that consistent dosing at the nominal interval would
+   * hold — the accumulation ratio is exactly that steady-state peak. 1.0 means
+   * "right where steady dosing would keep you". Null when there is no nominal
+   * interval to compare against.
+   */
+  pctOfSteadyState: number | null;
+  /** True once the member has logged enough to draw an honest personal line. */
+  hasEnough: boolean;
+}
+
+/**
+ * Build the personalised curve.
+ *
+ * `doseHours` are the actual administration times, ascending, in hours relative
+ * to the window start. `nowHour` is the present on the same axis. The curve runs
+ * from the first dose to a short projection past now, so the member sees where
+ * their level is heading if nothing changes.
+ *
+ * REFUSES rather than guesses. One dose is not a curve — a single point cannot
+ * show accumulation or a trend — so below two logged doses this returns
+ * `hasEnough: false` and the UI shows the schedule curve with an invitation to
+ * log, not a fabricated personal line over one data point.
+ */
+export function personalCurve(opts: {
+  halfLifeHours: number;
+  doseHours: number[];
+  nowHour: number;
+  /** Hours to project past now. Defaults to one half-life, capped for readability. */
+  projectHours?: number;
+  /** Nominal interval, for the steady-state reference. Null to omit it. */
+  intervalHours?: number | null;
+  resolution?: number;
+}): PersonalCurve {
+  const { halfLifeHours, doseHours, nowHour, intervalHours = null, resolution = 240 } = opts;
+  const sorted = [...doseHours].sort((a, b) => a - b);
+  const hasEnough = sorted.length >= 2;
+
+  const project = opts.projectHours ?? Math.min(halfLifeHours * 2, 96);
+  const startHour = sorted.length ? sorted[0] : nowHour;
+  const endHour = Math.max(nowHour + project, (sorted.at(-1) ?? nowHour) + project);
+  const span = Math.max(endHour - startHour, 1);
+  const step = span / resolution;
+
+  const points: CurvePoint[] = [];
+  for (let h = startHour; h <= endHour + 1e-6; h += step) {
+    const isDose = sorted.some((d) => Math.abs(d - h) < step / 2);
+    points.push({ hour: h, level: levelAt(halfLifeHours, sorted, h), dose: isDose });
+  }
+
+  const levelNow = levelAt(halfLifeHours, sorted, nowHour);
+  const ssPeak = intervalHours ? accumulationRatio(halfLifeHours, intervalHours) : null;
+
+  return {
+    points,
+    nowHour,
+    levelNow,
+    pctOfSteadyState: ssPeak ? levelNow / ssPeak : null,
+    hasEnough,
+  };
+}
+
 /** Human-readable duration from hours. */
 export function humanDuration(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)} min`;

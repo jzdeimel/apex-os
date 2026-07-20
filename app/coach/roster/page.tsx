@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Search, Users, ChevronUp, ChevronDown, ChevronsUpDown, MessageSquare } from "lucide-react";
+import { Search, Users, ChevronUp, ChevronDown, ChevronsUpDown, MessageSquare, Activity } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { clients, clientName } from "@/lib/mock/clients";
 import { visibleClientsFor } from "@/lib/access/clientScope";
@@ -20,6 +20,7 @@ import { ConsultPrepBrief } from "@/components/coach/ConsultPrepBrief";
 import { OutcomePanel } from "@/components/coach/OutcomePanel";
 import { QuickReply } from "@/components/coach/QuickReply";
 import { BulkBar } from "@/components/coach/BulkBar";
+import { MemberPulse } from "@/components/coach/MemberPulse";
 import { SavedViews } from "@/components/coach/SavedViews";
 import {
   BUILT_IN_VIEWS,
@@ -215,6 +216,19 @@ export default function CoachRosterPage() {
    */
   const [msgFor, setMsgFor] = React.useState<string | null>(null);
 
+  /**
+   * The member whose logged pulse the coach is reading, if any.
+   *
+   * AUDIT FINDING (docs/audit/ENGAGEMENT.md #4 — "the cheapest large retention
+   * win"): coach reactions on member logs did not exist because there was no
+   * coach-side surface to read a member's day-to-day self-logs. This is the
+   * mount for that surface. Same single-select rule as the prep brief and the
+   * compose panel, and mutually exclusive with both — all three are one member's
+   * context pinned above the table, and stacking them shoves the table itself
+   * off screen.
+   */
+  const [pulseFor, setPulseFor] = React.useState<string | null>(null);
+
   /** The active saved view. See LANDING_VIEW for why it is not DEFAULT_VIEW. */
   const [view, setView] = React.useState<SavedView>(LANDING_VIEW);
 
@@ -261,6 +275,7 @@ export default function CoachRosterPage() {
   React.useEffect(() => {
     setPrepFor(null);
     setMsgFor(null);
+    setPulseFor(null);
     setSelected(new Set<string>());
   }, [wide]);
 
@@ -399,6 +414,7 @@ export default function CoachRosterPage() {
     setTouch("any");
     setPrepFor(null);
     setMsgFor(null);
+    setPulseFor(null);
     setSelected(new Set<string>());
   }, []);
 
@@ -588,6 +604,24 @@ export default function CoachRosterPage() {
           </div>
       )}
 
+      {/* The member-pulse panel: read what this member logged and react to it.
+          Anchored in the same slot as the brief and compose panel, keyed on the
+          member so switching rows resets the note draft inside it. This closes
+          the loop the audit rated the cheapest large retention win — a coach
+          seeing a member's Tuesday check-in and leaving a named human reply. */}
+      {pulseFor && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPulseFor(null)}
+              className="focus-ring absolute right-2 top-2 z-10 rounded-lg border border-ink-700 bg-ink-900/90 px-2 py-1 text-micro font-medium text-ink-400 transition-colors hover:text-ink-100"
+            >
+              Close
+            </button>
+            <MemberPulse key={pulseFor} clientId={pulseFor} staffId={ME_COACH} />
+          </div>
+      )}
+
         <p className="text-micro text-ink-600">
           Showing <span className="stat-mono text-ink-300">{rows.length}</span> of{" "}
           <span className="stat-mono text-ink-300">{scored.length}</span>
@@ -766,13 +800,41 @@ export default function CoachRosterPage() {
                             onClick={() =>
                               setMsgFor((id) => {
                                 const next = id === r.client.id ? null : r.client.id;
-                                if (next) setPrepFor(null);
+                                if (next) {
+                                  setPrepFor(null);
+                                  setPulseFor(null);
+                                }
                                 return next;
                               })
                             }
                           >
                             <MessageSquare className="h-3.5 w-3.5" />
                             Message
+                          </Button>
+                        )}
+                        {/* Read this member's own logs and react to them.
+                            Coach's-own-members only: a reaction is attributed to
+                            ME_COACH, and a "seen" from a coach the member has
+                            never met is worse than none. The practice-wide view
+                            is read-only context, as the header says. */}
+                        {r.client.coachId === ME_COACH && (
+                          <Button
+                            size="sm"
+                            variant={pulseFor === r.client.id ? "primary" : "ghost"}
+                            aria-label={`Read ${clientName(r.client)}'s logs`}
+                            onClick={() =>
+                              setPulseFor((id) => {
+                                const next = id === r.client.id ? null : r.client.id;
+                                if (next) {
+                                  setMsgFor(null);
+                                  setPrepFor(null);
+                                }
+                                return next;
+                              })
+                            }
+                          >
+                            <Activity className="h-3.5 w-3.5" />
+                            Logs
                           </Button>
                         )}
                         {r.client.coachId === ME_COACH && (
@@ -782,7 +844,10 @@ export default function CoachRosterPage() {
                             onClick={() =>
                               setPrepFor((id) => {
                                 const next = id === r.client.id ? null : r.client.id;
-                                if (next) setMsgFor(null);
+                                if (next) {
+                                  setMsgFor(null);
+                                  setPulseFor(null);
+                                }
                                 return next;
                               })
                             }

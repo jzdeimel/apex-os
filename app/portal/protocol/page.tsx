@@ -35,6 +35,7 @@ import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
 import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { MyLevelNow } from "@/components/portal/MyLevelNow";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -86,6 +87,8 @@ export default function PortalProtocolPage() {
   // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
   // module constant ME, which pinned the portal to one male member.
   const client = useMeClient();
+  // Pinned demo clock, matching the portal layout provider.
+  const PROTOCOL_NOW = "2026-06-12T09:00:00";
   const plan = buildPlanOfCare(client);
   const provider = staffMap[client.providerId];
   const coach = staffMap[client.coachId];
@@ -279,6 +282,13 @@ export default function PortalProtocolPage() {
           )}
         </Stagger>
       </section>
+
+      {/* Where your levels are now -----------------------------------------
+          Personalised pharmacokinetics from the member's own logged doses. Sits
+          directly under the plan summary because "what am I on" and "where is it
+          in me right now" are the same question at two resolutions. Renders
+          nothing when the member is on no characterised compound. */}
+      <MyLevelNow clientId={client.id} iso={PROTOCOL_NOW} />
 
       {/* Nutrition ---------------------------------------------------------- */}
       <section>
