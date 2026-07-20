@@ -1,0 +1,10 @@
+#1 gap=0 Member->Coach parked=/portal/protocol race=/portal/protocol(ok) final=/portal/protocol main=4997 html=29906 err=0
+#2 gap=0 Member->Medical parked=/portal/sites race=/portal/sites(ok) final=/portal/sites main=1976 html=23797 err=0
+#3 gap=0 Coach->Member parked=/tasks race=/tasks(no-link:/tasks) final=/portal main=5969 html=63071 err=0
+#4 gap=0 Coach->Medical parked=/agent race=/agent(ok) final=/agent main=767 html=13206 err=0
+#5 gap=0 Medical->Member parked=/schedule race=/schedule(no-link:/schedule) final=/portal main=5969 html=63059 err=0
+#6 gap=0 Medical->Coach parked=/insights race=/insights(ok) final=/insights main=4839 html=183737 err=0
+--- gap 0 done findings=0 ---
+#7 gap=10 Member->Coach parked=/portal/explore race=/portal/explore(ok) final=/portal/explore main=12027 html=67638 err=0
+#8 gap=10 Member->Medical parked=/portal/learn race=/portal/learn(ok) final=/portal/learn main=7604 html=54165 err=0
+#9 gap=10 Coach->Member parked=/insights race=/insights(no-link:/insights) final=/portal main=5969 html=63071 err=0

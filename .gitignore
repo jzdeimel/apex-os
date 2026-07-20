@@ -40,3 +40,10 @@ ovf.mjs
 ovf.mjs
 hyd.mjs
 audit.json
+shotlib.mjs
+shotcard.mjs
+shotnamed.mjs
+softnav.mjs
+blank.mjs
+live-audit.json
+.shots/

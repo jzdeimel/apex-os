@@ -4,9 +4,22 @@
  * MoleculeCard — the visual centrepiece of the library.
  *
  * The job is to make a compound *memorable* before it is understood: a member
- * who can picture the five-node ring of ipamorelin next to the 15-node ring of
- * BPC-157 has already learned something true (these are different sizes of the
- * same kind of thing) without reading a word.
+ * who can picture ipamorelin's five residues beside BPC-157's kinked
+ * fifteen has already learned something true without reading a word.
+ *
+ * WHERE THE PICTURE COMES FROM
+ * ----------------------------
+ * Where a published primary sequence exists, the card renders it via
+ * BackboneDiagram — real residues, real hydropathy driving the silhouette, real
+ * proline kinks, and bonds drawn only where they actually exist. See
+ * lib/peptides/sequence.ts.
+ *
+ * The ellipse geometry below is the FALLBACK for compounds whose sequence we
+ * cannot state with confidence, and it is labelled "schematic" on screen so it
+ * never poses as structure. It used to be the only renderer, applied to
+ * everything, which made every compound look identical and drew linear peptides
+ * as rings — decorative, and wrong. Keeping it is fine; letting it masquerade
+ * was not.
  *
  * Three constraints shaped the implementation:
  *
@@ -30,6 +43,8 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Lock } from "lucide-react";
+import { BackboneDiagram } from "@/components/peptides/BackboneDiagram";
+import { sequenceFor } from "@/lib/peptides/sequence";
 import { Badge } from "@/components/ui/primitives";
 import {
   evidenceTierBlurb,
@@ -128,6 +143,8 @@ export function MoleculeCard({
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
   const geo = geometry(entry);
+  // Real published sequence where we have one; undefined is a supported state.
+  const seq = sequenceFor(entry.key);
 
   const glowId = `mol-glow-${entry.key}`;
   const chainId = `mol-chain-${entry.key}`;
@@ -155,6 +172,13 @@ export function MoleculeCard({
       {/* The molecule                                                      */}
       {/* ---------------------------------------------------------------- */}
       <div className="relative">
+        {seq ? (
+          /* Real primary sequence. Every coordinate is derived from published
+             chemistry, so no two compounds can look alike unless they are. */
+          <div className="px-3 pb-1 pt-7 text-ink-200">
+            <BackboneDiagram sequence={seq} accent={entry.accent} width={300} compact />
+          </div>
+        ) : (
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="block w-full"
@@ -233,13 +257,28 @@ export function MoleculeCard({
             ))}
           </motion.g>
         </svg>
+        )}
 
         {/* Chain length sits on the art, not in the prose — it is a property of
-            the picture. "Not a peptide" is a real answer, not a gap. */}
+            the picture. "Not a peptide" is a real answer, not a gap.
+            Where we hold the real sequence we say so, and where we do not we say
+            THAT — an abstract mark labelled as an abstract mark is honest; one
+            passed off as structure is the thing we removed. */}
         <span className="stat-mono absolute left-4 top-3 text-[11px] text-ink-400">
-          {entry.chainLength
-            ? `${entry.chainLength} aa${geo.abridged ? ` · ${geo.drawn} shown` : ""}`
-            : "not a peptide"}
+          {seq ? (
+            <>
+              {seq.seq.length} aa
+              <span className="text-ink-500"> · sequence</span>
+              {seq.cyclic && <span className="text-ink-500"> · cyclic</span>}
+            </>
+          ) : entry.chainLength ? (
+            <>
+              {entry.chainLength} aa
+              <span className="text-ink-500"> · schematic</span>
+            </>
+          ) : (
+            "not a peptide"
+          )}
         </span>
 
         {/* Hover/focus reveal. Also duplicated in the expand panel below so a

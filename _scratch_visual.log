@@ -1,0 +1,161 @@
+
+!!! HIT {
+ "label": "2550x1438",
+ "vp": "2550x1438",
+ "seed": 11,
+ "url": "/coach/roster",
+ "probe": {
+  "raw": 4428,
+  "effOpacity": 0,
+  "childCount": 1,
+  "height": 2300.25,
+  "details": [
+   {
+    "tag": "DIV",
+    "cls": "",
+    "opacity": "0",
+    "transform": "matrix(1, 0, 0, 1, 0, -6)",
+    "display": "block",
+    "visibility": "visible",
+    "h": 2236.25
+   }
+  ]
+ },
+ "steps": [
+  "goto /coach",
+  "link /coach/roster"
+ ],
+ "errors": [
+  "PAGEERROR: Minified React error #425; visit https://react.dev/errors/425 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+  "PAGEERROR: Minified React error #422; visit https://react.dev/errors/422 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+ ]
+}
+
+!!! HIT {
+ "label": "2550x1438",
+ "vp": "2550x1438",
+ "seed": 23,
+ "url": "/coach/roster",
+ "probe": {
+  "raw": 4428,
+  "effOpacity": 0,
+  "childCount": 1,
+  "height": 2300.25,
+  "details": [
+   {
+    "tag": "DIV",
+    "cls": "",
+    "opacity": "0",
+    "transform": "matrix(1, 0, 0, 1, 0, -6)",
+    "display": "block",
+    "visibility": "visible",
+    "h": 2236.25
+   }
+  ]
+ },
+ "steps": [
+  "goto /coach",
+  "link /coach/roster"
+ ],
+ "errors": [
+  "PAGEERROR: Minified React error #425; visit https://react.dev/errors/425 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+  "PAGEERROR: Minified React error #422; visit https://react.dev/errors/422 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+ ]
+}
+
+!!! HIT {
+ "label": "2550x1438",
+ "vp": "2550x1438",
+ "seed": 41,
+ "url": "/coach/roster",
+ "probe": {
+  "raw": 4428,
+  "effOpacity": 0,
+  "childCount": 1,
+  "height": 2300.25,
+  "details": [
+   {
+    "tag": "DIV",
+    "cls": "",
+    "opacity": "0",
+    "transform": "matrix(1, 0, 0, 1, 0, -6)",
+    "display": "block",
+    "visibility": "visible",
+    "h": 2236.25
+   }
+  ]
+ },
+ "steps": [
+  "goto /coach",
+  "link /coach/roster"
+ ],
+ "errors": [
+  "PAGEERROR: Minified React error #425; visit https://react.dev/errors/425 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+  "PAGEERROR: Minified React error #422; visit https://react.dev/errors/422 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+ ]
+}
+
+!!! HIT {
+ "label": "2560x1440",
+ "vp": "2560x1440",
+ "seed": 11,
+ "url": "/coach/roster",
+ "probe": {
+  "raw": 4428,
+  "effOpacity": 0,
+  "childCount": 1,
+  "height": 2300.25,
+  "details": [
+   {
+    "tag": "DIV",
+    "cls": "",
+    "opacity": "0",
+    "transform": "matrix(1, 0, 0, 1, 0, -6)",
+    "display": "block",
+    "visibility": "visible",
+    "h": 2236.25
+   }
+  ]
+ },
+ "steps": [
+  "goto /coach",
+  "link /coach/roster"
+ ],
+ "errors": [
+  "PAGEERROR: Minified React error #425; visit https://react.dev/errors/425 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+  "PAGEERROR: Minified React error #422; visit https://react.dev/errors/422 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+ ]
+}
+
+!!! HIT {
+ "label": "2560x1440",
+ "vp": "2560x1440",
+ "seed": 23,
+ "url": "/coach/roster",
+ "probe": {
+  "raw": 4428,
+  "effOpacity": 0,
+  "childCount": 1,
+  "height": 2300.25,
+  "details": [
+   {
+    "tag": "DIV",
+    "cls": "",
+    "opacity": "0",
+    "transform": "matrix(1, 0, 0, 1, 0, -6)",
+    "display": "block",
+    "visibility": "visible",
+    "h": 2236.25
+   }
+  ]
+ },
+ "steps": [
+  "goto /coach",
+  "link /coach/roster"
+ ],
+ "errors": [
+  "PAGEERROR: Minified React error #425; visit https://react.dev/errors/425 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+  "PAGEERROR: Minified React error #422; visit https://react.dev/errors/422 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+ ]
+}
+batch 1/4 done, found=5

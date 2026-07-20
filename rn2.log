@@ -1,0 +1,46 @@
+
+[r0 interrupt gap=40 at /coach]
+.
+[r1 double gap=80 at /agent]
+.
+[r2 backfwd gap=120 at /admin/roster]
+.
+[r3 persona gap=180 at /clinic]
+.
+[r4 personaInterrupt gap=250 at /clinic]
+.
+[r5 triple gap=40 at /agent]
+.
+[r6 palette gap=80 at /recommendations]
+.
+[r7 interrupt gap=120 at /insights]
+.
+[r8 double gap=180 at /coach/documents]
+.
+[r9 backfwd gap=250 at /swarm]
+.
+[r10 persona gap=40 at /clients]
+.
+[r11 personaInterrupt gap=80 at /clinic]
+.
+[r12 triple gap=120 at /coach/consults]
+.
+[r13 palette gap=180 at /tasks]
+.
+[r14 interrupt gap=250 at /insights]
+.
+[r15 double gap=40 at /clinic/sign]
+.
+[r16 backfwd gap=80 at /coach/consults]
+.
+[r17 persona gap=120 at /coach/gaps]
+.
+[r18 personaInterrupt gap=180 at /clinic]
+.
+[r19 triple gap=250 at /schedule]
+.
+[r20 palette gap=40 at /admin/quality]
+.
+[r21 interrupt gap=80 at /insights]
+.
+[r22 double gap=120 at /schedule]
