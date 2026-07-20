@@ -1,4 +1,5 @@
 "use client";
+import { CommunityPulse } from "@/components/portal/CommunityPulse";
 
 /**
  * Community — the member-facing surface.
@@ -33,6 +34,7 @@ import { WinsWall } from "@/components/community/WinsWall";
 import { Challenges } from "@/components/community/Challenges";
 import { CoachGroup } from "@/components/community/CoachGroup";
 import { Meetups } from "@/components/community/Meetups";
+import { Leaderboard } from "@/components/portal/Leaderboard";
 
 const TABS = [
   { id: "wins", label: "Wins" },
@@ -59,6 +61,15 @@ export default function PortalCommunityPage() {
         title="You're not doing this alone"
         subtitle={`Training, food and the unglamorous business of showing up — with the people doing it alongside you. You appear here as ${myHandle}, not by name.`}
       />
+
+      {/* Momentum first, then the ranking, then the feed. The page used to open
+          straight into five cards in a two-column grid with an orphan in the
+          last row, which reads as a place nobody goes. Proof that other people
+          moved this week is what makes the individual posts underneath feel
+          like a room rather than a noticeboard. */}
+      <CommunityPulse />
+
+      <Leaderboard clientId={ME} limit={5} />
 
       <Tabs
         tabs={TABS.map((t) =>

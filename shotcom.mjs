@@ -1,0 +1,10 @@
+import { chromium } from "playwright";
+const b = await chromium.launch();
+const p = await b.newPage({ viewport:{width:900,height:1600}, deviceScaleFactor:1.5 });
+await p.goto("http://127.0.0.1:3995/portal/community",{waitUntil:"networkidle"});
+await p.waitForTimeout(2200);
+await p.evaluate(()=>window.scrollTo(0,700));
+await p.waitForTimeout(600);
+await p.screenshot({path:".shots/community.png"});
+console.log("ok");
+await b.close();

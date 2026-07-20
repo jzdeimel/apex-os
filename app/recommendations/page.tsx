@@ -1,6 +1,7 @@
 "use client";
+import { SignedSeal } from "@/components/celebrate/SignedSeal";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { seededRecommendations } from "@/lib/mock/recommendations";
@@ -140,6 +141,10 @@ function stampFor(rec: Recommendation, signedBy?: string): ProvenanceStamp {
 
 export default function RecommendationsPage() {
   const { locationFilter, recStatus, setRecStatus, role, activeStaffId } = useStore();
+  // The seal fires on each individual signature. Counter-keyed so signing two
+  // in a row stamps twice rather than silently reusing the first render.
+  const sealRef = useRef(0);
+  const [seal, setSeal] = useState<{ n: number; ledgerId: string; hash: string; at: string } | null>(null);
   const [risk, setRisk] = useState<string>("all");
   const [provider, setProvider] = useState<string>("all");
   const [status, setStatus] = useState<string>("pending");
@@ -261,6 +266,11 @@ export default function RecommendationsPage() {
 
   const approveOne = (rec: Recommendation, reason?: string, overrides?: string[]) => {
     const row = commit(rec, "provider approved", reason, overrides);
+    // The seal is the moment; the toast is the receipt. Both fire because they
+    // do different jobs — one confirms the act landed, the other carries the
+    // ledger id somebody may need to copy into an audit response a year later.
+    setSeal({ n: sealRef.current + 1, ledgerId: row.id, hash: shortHash(row.hash), at: row.at });
+    sealRef.current += 1;
     toast("Signed — committed to the ledger", {
       desc: `${row.id} · ${shortHash(row.hash)}`,
     });
@@ -291,6 +301,18 @@ export default function RecommendationsPage() {
 
   return (
     <div className="space-y-5">
+      {/* The signature seal. Staff-facing and deliberately not celebratory:
+          signing is an attestation a clinician's name is attached to, so the
+          motion borrows from a physical stamp rather than a game. */}
+      {seal && (
+        <SignedSeal
+          trigger={seal.n}
+          ledgerId={seal.ledgerId}
+          hash={seal.hash}
+          signedBy="Dr. Marcus Vale"
+          signedAt={seal.at}
+        />
+      )}
       <div>
         <p className="label-eyebrow">Review queue · licensed provider signature required</p>
         <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50 sm:text-display">
