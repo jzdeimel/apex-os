@@ -1,43 +1,25 @@
 "use client";
 
 /**
- * MoleculeCard — the visual centrepiece of the library.
+ * MoleculeCard — a compound in the member-facing library.
  *
- * The job is to make a compound *memorable* before it is understood: a member
- * who can picture ipamorelin's five residues beside BPC-157's kinked
- * fifteen has already learned something true without reading a word.
+ * The card leads with WHAT THIS IS FOR, not what it is made of.
  *
- * WHERE THE PICTURE COMES FROM
- * ----------------------------
- * Where a published primary sequence exists, the card renders it via
- * BackboneDiagram — real residues, real hydropathy driving the silhouette, real
- * proline kinks, and bonds drawn only where they actually exist. See
- * lib/peptides/sequence.ts.
+ * It previously led with a large molecular diagram. That diagram was accurate —
+ * real published residues, real hydropathy, real bonds — and it was still the
+ * wrong thing to show. A member scanning for "what helps me sleep" cannot read a
+ * backbone, and plotting hydropathy raw produced visual noise because the value
+ * flips sign at almost every residue, so thirteen cards read as thirteen
+ * scribbles. Accuracy did not rescue it.
  *
- * The ellipse geometry below is the FALLBACK for compounds whose sequence we
- * cannot state with confidence, and it is labelled "schematic" on screen so it
- * never poses as structure. It used to be the only renderer, applied to
- * everything, which made every compound look identical and drew linear peptides
- * as rings — decorative, and wrong. Keeping it is fine; letting it masquerade
- * was not.
+ * So the hero is now an icon for the outcome the compound is associated with,
+ * plus a spec row a clinician would actually use: half-life, route, onset,
+ * evidence. The structure is still there, one tap down, for anyone who wants it.
  *
- * Three constraints shaped the implementation:
- *
- *  1. DETERMINISTIC. Node jitter, drift tempo and phase all come from
- *     `seededRandom(entry.key)`. The same compound draws identically on the
- *     server, on the client and in a screenshot six months from now.
- *
- *  2. CHEAP. Node count is capped at 18 regardless of chain length, and the
- *     whole chain drifts as ONE animated group rather than per-node
- *     animations — a gallery of thirteen cards is thirteen transforms, not two
- *     hundred. No React state changes during animation; the only state here is
- *     the expand toggle, which a human triggers.
- *
- *  3. HONEST. Two entries in the library are not peptides at all (NAD+ is a
- *     coenzyme, testosterone cypionate a steroid ester) and therefore carry no
- *     `chainLength`. Rather than inventing a chain for them, the card draws a
- *     small cluster and says "not a peptide" where the amino-acid count would
- *     be. The visual is not allowed to make a claim the data does not.
+ * HONESTY. Several fields here are allowed to say "we do not know", and that is
+ * the most valuable thing on the card. BPC-157 has no characterised human
+ * half-life; semaglutide has a well-studied one. Showing both truthfully, side
+ * by side, is the difference between a catalogue and a sales page.
  */
 
 import { useState } from "react";
@@ -45,6 +27,9 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Lock } from "lucide-react";
 import { BackboneDiagram } from "@/components/peptides/BackboneDiagram";
 import { sequenceFor } from "@/lib/peptides/sequence";
+import { pkFor } from "@/lib/peptides/pharmacokinetics";
+import { PKCurve } from "@/components/peptides/PKCurve";
+import { iconForUses, primaryUse } from "@/lib/peptides/useIcons";
 import { Badge } from "@/components/ui/primitives";
 import {
   evidenceTierBlurb,
@@ -145,6 +130,9 @@ export function MoleculeCard({
   const geo = geometry(entry);
   // Real published sequence where we have one; undefined is a supported state.
   const seq = sequenceFor(entry.key);
+  const pk = pkFor(entry.key);
+  const UseIcon = iconForUses(entry.commonlyUsedFor);
+  const lead = primaryUse(entry.commonlyUsedFor);
 
   const glowId = `mol-glow-${entry.key}`;
   const chainId = `mol-chain-${entry.key}`;
@@ -171,125 +159,30 @@ export function MoleculeCard({
       {/* ---------------------------------------------------------------- */}
       {/* The molecule                                                      */}
       {/* ---------------------------------------------------------------- */}
-      <div className="relative">
-        {seq ? (
-          /* Real primary sequence. Every coordinate is derived from published
-             chemistry, so no two compounds can look alike unless they are. */
-          <div className="px-3 pb-1 pt-7 text-ink-200">
-            <BackboneDiagram sequence={seq} accent={entry.accent} width={300} compact />
-          </div>
-        ) : (
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="block w-full"
-          role="img"
-          aria-label={`${entry.name} — ${
-            entry.chainLength ? `${entry.chainLength} amino acids` : "not a peptide"
-          }, ${entry.family}`}
+      {/*
+        Header: what this compound is FOR.
+
+        This replaced a large molecular diagram that occupied roughly 40% of the
+        card. The diagram was accurate — real residues, real hydropathy — but it
+        answered a question neither a member nor a coach was asking, and plotting
+        hydropathy raw produced visual noise because it flips sign almost every
+        residue. Leading with the outcome makes the grid scannable, which is the
+        actual job of a card. The structure is still available, one tap down, for
+        anyone who wants it.
+      */}
+      <div className="flex items-center gap-3 px-5 pb-3 pt-5">
+        <span
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+          style={{ backgroundColor: `${entry.accent}1f`, color: entry.accent }}
         >
-          <defs>
-            <radialGradient id={glowId} cx="50%" cy="48%" r="50%">
-              <stop offset="0%" stopColor={entry.accent} stopOpacity="0.34" />
-              <stop offset="55%" stopColor={entry.accent} stopOpacity="0.09" />
-              <stop offset="100%" stopColor={entry.accent} stopOpacity="0" />
-            </radialGradient>
-          </defs>
-
-          {/* Soft accent glow. One breathing element, not per-node. */}
-          <motion.ellipse
-            cx={CX}
-            cy={CY}
-            rx={96}
-            ry={62}
-            fill={`url(#${glowId})`}
-            initial={false}
-            animate={reduce ? { scale: 1.03, opacity: 0.9 } : { scale: [1, 1.07, 1], opacity: [0.75, 1, 0.75] }}
-            transition={
-              reduce
-                ? { duration: 0 }
-                : { duration: geo.driftSeconds * 0.75, repeat: Infinity, ease: "easeInOut" }
-            }
-            style={{ transformOrigin: `${CX}px ${CY}px` }}
-          />
-
-          {/* The chain. Whole group drifts — a single transform per card. */}
-          <motion.g
-            id={chainId}
-            initial={false}
-            animate={
-              reduce
-                ? { rotate: 0, y: 0 }
-                : { rotate: [-geo.tilt, geo.tilt, -geo.tilt], y: [-2.5, 2.5, -2.5] }
-            }
-            transition={
-              reduce
-                ? { duration: 0 }
-                : { duration: geo.driftSeconds, repeat: Infinity, ease: "easeInOut" }
-            }
-            style={{ transformOrigin: `${CX}px ${CY}px` }}
-            className="transition-opacity duration-300 opacity-80 group-hover:opacity-100 group-focus-within:opacity-100"
-          >
-            <path
-              d={geo.path}
-              fill="none"
-              stroke={entry.accent}
-              strokeOpacity={0.42}
-              strokeWidth={1.4}
-              strokeLinejoin="round"
-            />
-            {geo.nodes.map((n, i) => (
-              <g key={i}>
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r={n.r + 3.4}
-                  fill={entry.accent}
-                  opacity={n.front ? 0.16 : 0.08}
-                />
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r={n.r}
-                  fill={entry.accent}
-                  opacity={n.front ? 0.95 : 0.55}
-                />
-              </g>
-            ))}
-          </motion.g>
-        </svg>
-        )}
-
-        {/* Chain length sits on the art, not in the prose — it is a property of
-            the picture. "Not a peptide" is a real answer, not a gap.
-            Where we hold the real sequence we say so, and where we do not we say
-            THAT — an abstract mark labelled as an abstract mark is honest; one
-            passed off as structure is the thing we removed. */}
-        <span className="stat-mono absolute left-4 top-3 text-[11px] text-ink-400">
-          {seq ? (
-            <>
-              {seq.seq.length} aa
-              <span className="text-ink-500"> · sequence</span>
-              {seq.cyclic && <span className="text-ink-500"> · cyclic</span>}
-            </>
-          ) : entry.chainLength ? (
-            <>
-              {entry.chainLength} aa
-              <span className="text-ink-500"> · schematic</span>
-            </>
-          ) : (
-            "not a peptide"
-          )}
+          <UseIcon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
         </span>
-
-        {/* Hover/focus reveal. Also duplicated in the expand panel below so a
-            touch device is never the reason a member cannot read the route. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-3 gap-y-1 bg-gradient-to-t from-ink-850 to-transparent px-4 pb-2 pt-6 text-[11px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
-          <span className="font-medium" style={{ color: entry.accent }}>
-            {entry.family}
-          </span>
-          <span className="text-ink-400">{entry.route}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-ink-200">{lead ?? entry.family}</p>
+          <p className="truncate text-[11px] text-ink-500">{entry.family}</p>
         </div>
       </div>
+
 
       {/* ---------------------------------------------------------------- */}
       {/* Identity                                                          */}
@@ -303,6 +196,24 @@ export function MoleculeCard({
         </div>
 
         <p className="text-sm leading-relaxed text-ink-300">{entry.memberSafeCopy}</p>
+
+        {/* The spec row. This is the density that makes the card read as a
+            reference tool rather than a tile. Every value is allowed to be
+            "not characterised" — that is a finding, not a hole. */}
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-ink-900/50 px-3 py-2.5">
+          <Spec
+            label="Half-life"
+            value={pk ? pk.display : "—"}
+            muted={!pk?.characterised}
+          />
+          <Spec
+            label="Onset"
+            value={
+              entry.onsetWeeks ? `weeks ${entry.onsetWeeks[0]}–${entry.onsetWeeks[1]}` : "not established"
+            }
+            muted={!entry.onsetWeeks}
+          />
+        </dl>
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone={evidenceTierTone[entry.evidenceTier]}>
@@ -342,6 +253,38 @@ export function MoleculeCard({
                 <Detail label="What it is" body={entry.whatItIs} />
                 <Detail label="How it works" body={entry.howItWorks} />
                 <Detail label="How it goes in" body={entry.route} />
+                {pk?.characterised && pk.typicalIntervalHours !== null && (
+                  <div>
+                    <p className="label-eyebrow">What the level does over time</p>
+                    <div className="mt-1.5 text-ink-200">
+                      <PKCurve pk={pk} accent={entry.accent} />
+                    </div>
+                  </div>
+                )}
+                {pk && (
+                  <Detail
+                    label="How long it stays in you"
+                    body={
+                      pk.characterised
+                        ? `Half-life ${pk.display} — the time for half of what is present to be cleared.`
+                        : pk.display
+                    }
+                    hint={pk.basis}
+                  />
+                )}
+                {seq && (
+                  <div>
+                    <p className="label-eyebrow">Structure</p>
+                    <div className="mt-1.5 text-ink-200">
+                      <BackboneDiagram sequence={seq} accent={entry.accent} width={280} compact />
+                    </div>
+                    <p className="mt-1 text-xs text-ink-500">
+                      {seq.seq.length} amino acids, N-terminus to C-terminus
+                      {seq.cyclic ? ", closed into a ring" : ""}. Height follows each residue&apos;s
+                      water affinity; diamonds mark proline, which bends the chain.
+                    </p>
+                  </div>
+                )}
                 <Detail
                   label="What we actually know"
                   body={entry.evidenceNote}
@@ -364,6 +307,17 @@ export function MoleculeCard({
         </AnimatePresence>
       </div>
     </motion.article>
+  );
+}
+
+function Spec({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] uppercase tracking-[0.14em] text-ink-500">{label}</dt>
+      <dd className={cn("truncate text-xs", muted ? "text-ink-500 italic" : "text-ink-200")}>
+        {value}
+      </dd>
+    </div>
   );
 }
 
