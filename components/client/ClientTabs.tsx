@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Lock, Plus, StickyNote, Boxes, Mail } from "lucide-react";
 import { getClient, clientName } from "@/lib/mock/clients";
+import { CallPatient } from "@/components/comms/CallPatient";
 import { staffName } from "@/lib/mock/staff";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import type { PlanItem } from "@/lib/planOfCare/types";
@@ -321,10 +322,28 @@ export function ContactTab({ id }: { id: string }) {
   const entries = contactLogForClient(id);
   const client = getClient(id);
 
-  if (entries.length === 0) {
-    return <EmptyState icon={<Mail className="h-6 w-6" />} title="No contact yet" />;
-  }
+  return (
+    <div className="space-y-4">
+      {/* Reach the patient — voice/video/text over ACS — above the log that
+          records every attempt. */}
+      <CallPatient clientId={id} />
 
+      {entries.length === 0 ? (
+        <EmptyState icon={<Mail className="h-6 w-6" />} title="No contact yet" />
+      ) : (
+        <ContactLogList entries={entries} client={client} />
+      )}
+    </div>
+  );
+}
+
+function ContactLogList({
+  entries,
+  client,
+}: {
+  entries: ReturnType<typeof contactLogForClient>;
+  client: ReturnType<typeof getClient>;
+}) {
   return (
     <Card>
       <CardContent className="p-0">
