@@ -34,6 +34,7 @@ import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
+import { TodayDoses } from "@/components/portal/TodayDoses";
 import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
 import { SeasonArc } from "@/components/portal/SeasonArc";
@@ -150,6 +151,21 @@ export default function PortalHomePage() {
       {/* 2 · Today. The centrepiece — everything else orbits it.             */}
       {/* ------------------------------------------------------------------ */}
       <DailyRings clientId={ME} />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 2·5 · What to take today.                                           */}
+      {/*                                                                     */}
+      {/* Immediately under the rings, because this is the single most         */}
+      {/* operationally useful thing on the page: a member standing in the     */}
+      {/* kitchen with a vial wants the mark on the syringe, and every second  */}
+      {/* they spend scrolling for it is a second spent doing the arithmetic   */}
+      {/* themselves. Above the week for the same reason — reflection can wait */}
+      {/* behind the thing with a needle in it.                                */}
+      {/* ------------------------------------------------------------------ */}
+      <section>
+        <h2 className="mb-3 text-title text-ink-50">Today&apos;s doses</h2>
+        <TodayDoses clientId={ME} iso={NOW} />
+      </section>
 
       {/* ------------------------------------------------------------------ */}
       {/* 2a · The week.                                                      */}

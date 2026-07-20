@@ -175,3 +175,64 @@ export function formatDose(dose: PrescribedDose): string {
   if (dose.unit === "iu") return `${dose.amount} IU`;
   return `${dose.amount}${dose.unit}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Pre-mixed solutions                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Not everything is a powder.
+ *
+ * Testosterone cypionate arrives as an oil already at a stated strength —
+ * 200mg/mL, typically — and nobody reconstitutes it. Modelling it as a vial plus
+ * diluent would invent a step that does not happen, and would put a
+ * "bacteriostatic water" line in front of a member who has none to add and no
+ * mixing to do.
+ *
+ * The arithmetic is identical once concentration is known; only the way you
+ * arrive at concentration differs. So this differs from `computeDraw` only at
+ * the head, and deliberately produces the same shape of answer.
+ */
+export interface SolutionStrength {
+  /** Amount of drug per millilitre, as printed on the vial. */
+  amountPerMl: number;
+  unit: MassUnit;
+  syringe: SyringeStandard;
+}
+
+export function computeDrawFromSolution(
+  strength: SolutionStrength,
+  dose: PrescribedDose,
+): DrawResult {
+  if (dose.unit === "iu" || strength.unit === "iu") {
+    return {
+      ok: false,
+      reason:
+        "This is measured in international units, which describe biological activity rather than mass. There is no general IU-to-milligram conversion, so this one is read against the product's own labelling.",
+    };
+  }
+
+  const concentrationMcgPerMl = toMcg(strength.amountPerMl, strength.unit);
+  const doseMcg = toMcg(dose.amount, dose.unit);
+  if (!concentrationMcgPerMl || !doseMcg || concentrationMcgPerMl <= 0 || doseMcg <= 0) {
+    return { ok: false, reason: "Vial strength or prescribed dose is missing or not a usable amount." };
+  }
+
+  const volumeMl = doseMcg / concentrationMcgPerMl;
+  const units = volumeMl * UNITS_PER_ML[strength.syringe];
+  const fmt = (mcg: number) =>
+    mcg >= 1000 ? `${(mcg / 1000).toFixed(mcg % 1000 === 0 ? 0 : 2)}mg` : `${mcg}mcg`;
+
+  return {
+    ok: true,
+    concentrationMcgPerMl,
+    volumeMl,
+    units,
+    exceedsBarrel: volumeMl > BARREL_ML[strength.syringe],
+    steps: [
+      `Supplied at ${fmt(concentrationMcgPerMl)} per mL — nothing to mix`,
+      `${fmt(doseMcg)} ÷ ${fmt(concentrationMcgPerMl)}/mL = ${volumeMl.toFixed(3)}mL`,
+      `${volumeMl.toFixed(3)}mL × ${UNITS_PER_ML[strength.syringe]} units/mL = ${formatUnits(units)} on a ${strength.syringe} syringe`,
+    ],
+  };
+}
