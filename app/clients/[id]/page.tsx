@@ -59,6 +59,9 @@ import { ClientEscalations } from "@/components/escalations/CoachEscalationStatu
 import { TimeMachine } from "@/components/trace/TimeMachine";
 import { SinceYouLastLooked } from "@/components/client/SinceYouLastLooked";
 import { VIEWER } from "@/lib/viewer";
+import { usePortal } from "@/lib/portalStore";
+import { canViewClient, staffIdForPortal } from "@/lib/access/clientScope";
+import { ShieldAlert } from "lucide-react";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -93,9 +96,36 @@ export default function ClientProfilePage() {
   const params = useParams();
   const id = String(params.id);
   const client = getClient(id);
+  const { portal } = usePortal();
   const [tab, setTab] = useState("overview");
 
   if (!client) return notFound();
+
+  // AUDIT: the chart rendered for any client id regardless of the viewer's
+  // location. A boundary that filters lists but opens any chart by URL is a
+  // speed bump, not a boundary — so an out-of-location patient refuses here.
+  // The refusal names the location rather than pretending the record does not
+  // exist, because "you cannot see this" is honest and "404" is a lie that
+  // wastes a clinician's time.
+  // Applies to EVERYONE without a location claim to this patient, patient
+  // persona included — /clients/[id] is a staff chart, and a patient reaching it
+  // by URL has no business seeing it. staffIdForPortal("patient") is null, which
+  // canViewClient resolves to no access, so this one predicate covers both the
+  // wrong-location clinician and the patient who should not be here at all.
+  const staffId = staffIdForPortal(portal.id);
+  if (!canViewClient(staffId, id)) {
+    return (
+      <div className="mx-auto max-w-md rounded-panel border border-ink-800 bg-ink-900/40 px-6 py-10 text-center">
+        <ShieldAlert className="mx-auto h-8 w-8 text-watch" aria-hidden />
+        <h1 className="mt-3 text-heading text-ink-50">Outside your locations</h1>
+        <p className="mt-2 text-detail leading-relaxed text-ink-400">
+          {clientName(client)} is a patient at {locationName(client.locationId)}. Staff see the
+          patients at the locations they are assigned to. If you need this record, it goes through
+          the clinician who holds it.
+        </p>
+      </div>
+    );
+  }
 
   const labs = getLabsForClient(id);
   const scan = getScanForClient(id);

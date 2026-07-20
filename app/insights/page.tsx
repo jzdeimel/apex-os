@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { clients, clientName } from "@/lib/mock/clients";
+import { usePortal } from "@/lib/portalStore";
+import { visibleClientsForPortal } from "@/lib/access/clientScope";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { rankByTriage, nextBestAction, triageScore } from "@/lib/aiInsights";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/components/ui/primitives";
@@ -100,10 +102,11 @@ function movementFor(client: Client): Movement | null {
 
 export default function InsightsPage() {
   const { locationFilter } = useStore();
+  const { portal } = usePortal();
   const [whyClient, setWhyClient] = useState<Client | null>(null);
 
   const data = useMemo(() => {
-    const scope = clients.filter((c) => locationFilter === "all" || c.locationId === locationFilter);
+    const scope = visibleClientsForPortal(portal.id).filter((c) => locationFilter === "all" || c.locationId === locationFilter);
 
     // --- Prevalence -------------------------------------------------------
     // Two counters per marker, kept apart all the way to the table.

@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
+import { usePortal } from "@/lib/portalStore";
+import { visibleClientsForPortal } from "@/lib/access/clientScope";
 import { clients, clientName } from "@/lib/mock/clients";
 import { coaches } from "@/lib/mock/staff";
 import { alphaScore } from "@/lib/alphaScore";
@@ -47,6 +49,7 @@ const PROGRAMS = [
 
 export default function ClientsPage() {
   const { locationFilter, favorites } = useStore();
+  const { portal } = usePortal();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [coach, setCoach] = useState<string>("all");
@@ -61,9 +64,16 @@ export default function ClientsPage() {
     setLimit(PAGE);
   }, [locationFilter, status, coach, program, query, starredOnly]);
 
+  // AUDIT: the pool was the ENTIRE client book, filtered only by a topbar
+  // location filter that defaults to "all" — so a coach or clinician at any
+  // location could list every patient at every location. The pool is now the
+  // caller's location scope (owner = all), and the topbar filter narrows within
+  // it. "all" means "all locations I may see", never the whole clinic. See
+  // lib/access/clientScope.ts.
+  const visible = useMemo(() => visibleClientsForPortal(portal.id), [portal.id]);
   const base = useMemo(
-    () => clients.filter((c) => locationFilter === "all" || c.locationId === locationFilter),
-    [locationFilter],
+    () => visible.filter((c) => locationFilter === "all" || c.locationId === locationFilter),
+    [visible, locationFilter],
   );
 
   const filtered = useMemo(() => {

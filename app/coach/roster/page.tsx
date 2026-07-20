@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Search, Users, ChevronUp, ChevronDown, ChevronsUpDown, MessageSquare } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { clients, clientName } from "@/lib/mock/clients";
+import { visibleClientsFor } from "@/lib/access/clientScope";
+import { staffMap } from "@/lib/mock/staff";
 import { staffName } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { alphaScore } from "@/lib/alphaScore";
@@ -176,8 +178,12 @@ export default function CoachRosterPage() {
   // for the "who covers my members while I'm out" conversation — but it is a
   // deliberate act, never the state you land in.
   const [wide, setWide] = React.useState(false);
+  // AUDIT: "wide" was the ENTIRE clinic book — a coach covering for a colleague
+  // could open every patient at every location. "Wide" now means "everyone at
+  // my location(s)", which is the actual cover-for-a-colleague set; the default
+  // stays this coach's own assigned members.
   const scope = React.useMemo(
-    () => (wide ? clients : clientsForCoach(ME_COACH)),
+    () => (wide ? visibleClientsFor(ME_COACH) : clientsForCoach(ME_COACH)),
     [wide],
   );
 

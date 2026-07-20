@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { clients, clientName, getClient } from "@/lib/mock/clients";
+import { usePortal } from "@/lib/portalStore";
+import { visibleClientsForPortal } from "@/lib/access/clientScope";
 import { todaysAppointments } from "@/lib/mock/appointments";
 import { recentActivity } from "@/lib/mock/timeline";
 import { inventory } from "@/lib/mock/inventory";
@@ -132,6 +134,7 @@ function labFlags(clientId: string) {
 
 export default function DashboardPage() {
   const { locationFilter, role, recStatus, activeStaffId } = useStore();
+  const { portal } = usePortal();
   const [showPractice, setShowPractice] = useState(false);
   const [whyClient, setWhyClient] = useState<Client | null>(null);
 
@@ -147,7 +150,10 @@ export default function DashboardPage() {
 
   const data = useMemo(() => {
     const inLoc = (loc: LocationId) => locationFilter === "all" || loc === locationFilter;
-    const cl = clients.filter((c) => inLoc(c.locationId));
+    // Scoped to the viewer's locations first, then narrowed by the topbar
+    // filter — so the command centre's counts, queues and worklists never span
+    // locations the staff member may not see. See lib/access/clientScope.ts.
+    const cl = visibleClientsForPortal(portal.id).filter((c) => inLoc(c.locationId));
     const mine = cl.filter((c) => c.providerId === meId);
 
     // --- 1. Waiting on me -------------------------------------------------
