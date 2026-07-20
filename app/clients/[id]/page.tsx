@@ -62,6 +62,8 @@ import { VIEWER } from "@/lib/viewer";
 import { usePortal } from "@/lib/portalStore";
 import { canViewClient, staffIdForPortal } from "@/lib/access/clientScope";
 import { ShieldAlert } from "lucide-react";
+import { BreakGlassChallenge, BreakGlassBanner } from "@/components/access/BreakGlass";
+import { useBreakGlass } from "@/lib/access/breakGlass";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -113,19 +115,32 @@ export default function ClientProfilePage() {
   // canViewClient resolves to no access, so this one predicate covers both the
   // wrong-location clinician and the patient who should not be here at all.
   const staffId = staffIdForPortal(portal.id);
-  if (!canViewClient(staffId, id)) {
-    return (
+  // Break-glass is the sanctioned exception to the location boundary. The gate
+  // below offers it; an open window lets the chart through with a banner.
+  const CHART_NOW = "2026-06-12T09:00:00";
+  const { open: glassOpen, breakTheGlass } = useBreakGlass(staffId, id, CHART_NOW);
+
+  // A patient reaching a staff chart is refused outright with no override —
+  // break-glass is for STAFF whose care requires an out-of-location record, not
+  // a path for a patient onto the clinical chart.
+  const canGlass = staffId !== null;
+
+  if (!canViewClient(staffId, id) && !glassOpen) {
+    return canGlass ? (
+      <BreakGlassChallenge clientId={id} onBreak={breakTheGlass} />
+    ) : (
       <div className="mx-auto max-w-md rounded-panel border border-ink-800 bg-ink-900/40 px-6 py-10 text-center">
         <ShieldAlert className="mx-auto h-8 w-8 text-watch" aria-hidden />
-        <h1 className="mt-3 text-heading text-ink-50">Outside your locations</h1>
+        <h1 className="mt-3 text-heading text-ink-50">Not available here</h1>
         <p className="mt-2 text-detail leading-relaxed text-ink-400">
-          {clientName(client)} is a patient at {locationName(client.locationId)}. Staff see the
-          patients at the locations they are assigned to. If you need this record, it goes through
-          the clinician who holds it.
+          This is a staff record. Your own health record is in your portal.
         </p>
       </div>
     );
   }
+
+  // Break-glass is active for this staff member on this chart.
+  const inBreakGlass = glassOpen && !canViewClient(staffId, id);
 
   const labs = getLabsForClient(id);
   const scan = getScanForClient(id);
@@ -138,6 +153,10 @@ export default function ClientProfilePage() {
 
   return (
     <div className="space-y-5">
+      {/* Break-glass banner rides ABOVE everything, so a screenshot of any tab
+          carries the evidence that this was emergency access. */}
+      {inBreakGlass && <BreakGlassBanner clientId={id} />}
+
       <Link href="/clients" className="inline-flex items-center gap-1.5 text-detail text-ink-400 hover:text-ink-100">
         <ArrowLeft className="h-3.5 w-3.5" /> Back to clients
       </Link>
