@@ -80,6 +80,11 @@ const config: Config = {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
+        // Ends on the visible frame, always. See the `page-in` animation note.
+        "page-in": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         "pulse-soft": {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.55" },
@@ -89,6 +94,21 @@ const config: Config = {
         "fade-up": "fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both",
         "fade-in": "fade-in 0.5s ease both",
         "pulse-soft": "pulse-soft 2.2s ease-in-out infinite",
+        /**
+         * Route transition. Deliberately CSS rather than framer-motion.
+         *
+         * This replaced an `<AnimatePresence mode="wait">` that wrapped the App
+         * Router's `children` slot. Because that slot is a single mutable node,
+         * the retained exiting element ended up rendering the INCOMING page and
+         * animating it to opacity 0, where it stayed — a blank screen on roughly
+         * half of all client-side navigations, with the content present in the
+         * DOM the whole time.
+         *
+         * A CSS animation cannot wedge that way: it always runs to completion,
+         * and it ends on the visible frame. The transition only ever moves the
+         * element TOWARDS visible, never away from it.
+         */
+        "page-in": "page-in 0.34s cubic-bezier(0.22,1,0.36,1) both",
       },
     },
   },

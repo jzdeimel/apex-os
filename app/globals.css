@@ -68,3 +68,23 @@ body {
 .recharts-tooltip-wrapper {
   outline: none;
 }
+
+/*
+ * Reduced motion.
+ *
+ * Beyond the accessibility obligation, this is a second safety net for the
+ * route transition. The page-in animation ends on the visible frame and the
+ * resting style is already visible, so neutralising every animation here can
+ * only ever reveal content, never hide it. A viewer who asks the OS for less
+ * motion gets a static, fully visible app rather than a degraded one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

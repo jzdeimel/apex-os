@@ -12,6 +12,16 @@ const nextConfig = {
    * and watching a deploy crawl.
    */
   output: "standalone",
+
+  /**
+   * Build output directory.
+   *
+   * Overridable so a dev server can be run for diagnosis WITHOUT clobbering the
+   * production standalone build sitting in .next — running `next dev` against
+   * the default directory silently replaces it, and the next attempt to serve
+   * the real build fails with a missing server.js.
+   */
+  distDir: process.env.NEXT_DIST_DIR || ".next",
 };
 
 module.exports = nextConfig;

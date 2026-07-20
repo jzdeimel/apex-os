@@ -60,3 +60,13 @@ min.mjs
 rapidnav.mjs
 explore.js
 zz-*
+hardload.mjs
+walkcheck.mjs
+ssrdiff.mjs
+catchhyd.mjs
+devhyd.mjs
+icu.mjs
+bad14.txt
+.next-dev/
+next-stale-lock/
+*.png
