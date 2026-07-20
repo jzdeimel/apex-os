@@ -29,7 +29,7 @@ import { useState } from "react";
 import { COACH_GROUP_ID, challenges, groupFor, handleFor, meetups, postsForGroup, wins } from "@/lib/mock/community";
 import { Tabs } from "@/components/ui/Tabs";
 import { SwitchView } from "@/components/portal/still";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { WinsWall } from "@/components/community/WinsWall";
 import { Challenges } from "@/components/community/Challenges";
 import { CoachGroup } from "@/components/community/CoachGroup";
@@ -44,14 +44,17 @@ const TABS = [
 ];
 
 export default function PortalCommunityPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
   const [tab, setTab] = useState("wins");
 
   // The identity substitution happens once, here, at the boundary. Nothing
   // below this line receives a clientId except CoachGroup, which needs it only
   // to address an escalation to the member's own provider — never to render.
-  const myHandle = handleFor(ME);
-  const group = groupFor(ME);
+  const myHandle = handleFor(meId);
+  const group = groupFor(meId);
   const posts = postsForGroup(group?.id ?? COACH_GROUP_ID);
 
   return (
@@ -69,7 +72,7 @@ export default function PortalCommunityPage() {
           like a room rather than a noticeboard. */}
       <CommunityPulse />
 
-      <Leaderboard clientId={ME} limit={5} />
+      <Leaderboard clientId={meId} limit={5} />
 
       <Tabs
         tabs={TABS.map((t) =>

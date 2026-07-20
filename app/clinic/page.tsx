@@ -23,6 +23,7 @@ import {
 import { monitoringSummary, monitoringWorklist } from "@/lib/clinical/monitoring";
 import { MonitoringWorklist } from "@/components/clinic/MonitoringWorklist";
 import { TrajectoryBoard } from "@/components/clinic/TrajectoryBoard";
+import SafetyWatch from "@/components/clinic/SafetyWatch";
 import { triageScore } from "@/lib/aiInsights";
 import { alphaScore } from "@/lib/alphaScore";
 import { locationName } from "@/lib/mock/locations";
@@ -80,8 +81,21 @@ const APPT_TONE: Record<string, "neutral" | "optimal" | "gold" | "info"> = {
   "No Show": "neutral",
 };
 
-// Deterministic delta + 7-point sparkline for a KPI, derived from the value and
-// a seed (which includes the active location) so it tracks the filter.
+/**
+ * Deterministic delta + 7-point sparkline for a KPI, derived from the value and
+ * a seed (which includes the active location) so it tracks the filter.
+ *
+ * SEEDED ILLUSTRATION — NOT A TREND. The audit named this (GAP_ANALYSIS P0,
+ * "seededRandom sparklines"): the KPI values these decorate are real counts,
+ * but the movement is invented. `dir` is passed in per metric, so the sign of
+ * every delta was decided by the author rather than by any prior period — Apex
+ * stores no history for any of these counters, so there is nothing to compare
+ * against. The six preceding sparkline points are interpolation plus jitter.
+ *
+ * Kept because a bare number reads as a dashboard nobody finished, and deleted
+ * movement is its own kind of lie. Labelled instead, at readable size, directly
+ * above the grid that renders it — see the notice at the practice-volume block.
+ */
 function trendFor(value: number, dir: "up" | "down", seed: string) {
   const rand = seededRandom(seed);
   const mag = dir === "up" ? 4 + rand() * 10 : -(3 + rand() * 9);
@@ -618,6 +632,31 @@ export default function DashboardPage() {
           because no human ever created the task. Unqueued and invisible beats
           unqueued and visible for danger, so it is ranked higher.
       */}
+      {/*
+          SAFETY WATCH — mounted here after the audit found it had ZERO import
+          sites anywhere in the repo. `lib/ai/safety.ts` computes urgent
+          haematocrit and estradiol-at-both-extremes severity, the component
+          renders it correctly, and no route reached either of them. In a
+          testosterone product that is the single worst thing to have built and
+          not hung on a wall.
+
+          Placed at the head of section 3 rather than in "Waiting on me" for a
+          specific reason: section 1 is a triage LIST — items with an owner and
+          a clock — and this board shows one member at a time behind a picker.
+          Dropping a single-member drill-down into a queue would make the queue
+          lie about its own length. It leads section 3 instead, above the
+          monitoring worklist, because the ordering there is "what the last
+          panel actually said" before "what interval we owe next": an urgent
+          haematocrit is a finding in hand, a lapsed interval is a finding we
+          have not gone to look for yet.
+
+          Deliberately NOT passed a clientId. The prop exists and suppresses the
+          member selector, which is right on a chart page and wrong here — the
+          component's own flaggedClients() opens it on somebody who actually has
+          an open flag, and the provider keeps the ability to page through.
+      */}
+      <SafetyWatch />
+
       <MonitoringWorklist
         locationId={String(locationFilter)}
         actorId={meId}
@@ -757,6 +796,17 @@ export default function DashboardPage() {
 
         {showPractice && (
           <div className="mt-4 space-y-6 animate-fade-in">
+            {/* The counts below are real; the movement beside them is not. See
+                trendFor(). Placed above the grid at body-adjacent size rather
+                than under it in text-micro, because a percentage in green next
+                to a number is read as a measurement in about half a second. */}
+            <p className="max-w-prose text-detail leading-relaxed text-ink-400">
+              <span className="font-medium text-ink-100">Percentages and sparklines here are
+              illustrative.</span>{" "}
+              The counts are live against the current filter, but Apex keeps no prior-period history
+              for them — every delta and trend line is a seeded shape, not a measured change.
+            </p>
+
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
               <div className="h-full">
                 <DashboardCard label="Active clients" countTo={data.active} spark={data.trends.active.spark} icon={<Users className="h-4 w-4" />} delta={data.trends.active.delta} deltaTone={data.trends.active.tone} hint={`${data.total} total in view`} />

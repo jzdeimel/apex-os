@@ -19,7 +19,7 @@ import { Card, CardContent, Badge, Button } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { ShieldCheck, Stethoscope, Megaphone, Building2, Undo2, Lock } from "lucide-react";
 
 type Scope = "clinical" | "operational" | "marketing";
@@ -45,7 +45,7 @@ interface ConsentGrant {
  * The brief points at `grantsForClient` / `consentSummary` from
  * `lib/comms/consent.ts`; that module is not in the tree, and a portal page
  * should not fail to build because a sibling module is late. Swap the array for
- * `grantsForClient(ME)` when it lands — the shape below is intentionally the
+ * `grantsForClient(meId)` when it lands — the shape below is intentionally the
  * one that module should expose.
  *
  * Static dates, no `new Date()`, so the demo is identical on every render.
@@ -133,7 +133,10 @@ const SCOPE_META: Record<Scope, { label: string; icon: typeof Stethoscope; tone:
 };
 
 export default function PortalConsentsPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
   const { toast } = useToast();
   // Revocations are local-only in the demo. In production this writes a
   // `consent` ledger event with the member as actor — a member revoking their
@@ -273,7 +276,7 @@ export default function PortalConsentsPage() {
       <p className="text-micro leading-relaxed text-ink-500">
         Demo build — changes here stay in this browser and are not sent anywhere. In the live system each
         change is written to your record as a dated event you can see on your privacy page, with you named as
-        the person who made it. Member <span className="stat-mono">{ME}</span>.
+        the person who made it. Member <span className="stat-mono">{meId}</span>.
       </p>
     </div>
   );

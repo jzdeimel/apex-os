@@ -8,35 +8,50 @@ import { pkFor, concentrationCurve } from "@/lib/peptides/pharmacokinetics";
 /**
  * The moment a dose is logged.
  *
- * The first pass at this was a small tick in the corner, and it was boring —
- * correctly criticised. A tick is a receipt, not a reward, and the daily action
- * this product is built around deserves more than an acknowledgement.
+ * WHAT THIS IS NOW, AND WHAT IT WAS
+ * ---------------------------------
+ * AUDIT FINDING P0-2 (docs/audit/ENGAGEMENT.md): this was a blocking
+ * `fixed inset-0` overlay with a backdrop blur, held for 2.1 seconds with no way
+ * to dismiss it, captioned *"your level steps up"*.
  *
- * The fix is not more confetti. It is to show the thing that actually happened,
- * which no other health app is in a position to do: the compound the member
- * just took, drawn as its real backbone, and their concentration stepping up.
+ * That is the richest variable reward in the entire product, and it was firing
+ * on medication administration. The scoring layer goes to real lengths to avoid
+ * exactly this — `XP_WEIGHTS` (lib/play/levels.ts) contains no dose count, and
+ * `lib/play/quests.ts:73` drops dose-shaped quests at RUNTIME with a console
+ * warning. The rules were enforced in the maths and then broken by the interface
+ * that sits on top of it, using the word "level" while it did so.
  *
- * The sequence runs in three beats over about 1.6 seconds:
+ * Three things changed and none of them is cosmetic:
  *
- *   1. The peptide's ACTUAL primary sequence draws itself left to right, residue
- *      by residue, coloured by side-chain class. This is the same published data
- *      the library renders — BPC-157 really is fifteen residues with five
- *      prolines, so the animation differs per compound because the molecule does.
- *   2. A pulse travels the chain, N-terminus to C-terminus, the direction it is
- *      read and synthesised.
- *   3. The concentration curve steps up by one dose, using the real
- *      superposition maths from lib/peptides/pharmacokinetics.
+ *   1. **The caption is gone.** No "level", no score, no progress language.
+ *      Nothing here tells a member they gained anything by injecting.
+ *   2. **It does not block.** `pointer-events-none` on the positioner, exactly
+ *      like `components/portal/DayComplete.tsx`, which got this right. The only
+ *      thing that takes a tap is the card itself, and the tap dismisses it. A
+ *      member who wants to log the next dose can, immediately, without waiting.
+ *   3. **It is short** — ~1.1s of animation, retired at 1.4s. The old duration
+ *      was long enough to be a gate rather than an acknowledgement.
  *
- * Everything on screen is derived. Nothing is decorative, which is exactly why
- * it does not feel like a mobile game — it is the product showing off what it
- * knows, and that is a more adult kind of satisfying.
+ * WHAT SURVIVES, AND WHY IT SHOULD
+ * --------------------------------
+ * The molecular backbone stays. It is not a prize — it is a fact about what the
+ * member just put in their body, drawn from the same published sequence data the
+ * peptide library renders. BPC-157 really is fifteen residues with five prolines;
+ * the animation differs per compound because the molecule does. Showing someone
+ * their own medication is information, and information is allowed to be
+ * beautiful. What is not allowed is telling them they scored.
+ *
+ * The concentration curve stays for the same reason and is now unlabelled: it is
+ * the real superposition maths from lib/peptides/pharmacokinetics, showing blood
+ * concentration one dose further along. Silent, because the moment a caption
+ * called that "your level" it stopped reading as pharmacology.
  *
  * Falls back to a clean pulse for compounds with no published sequence, rather
  * than inventing one. Reduced motion gets the end state and no travel.
  */
 
 const W = 300;
-const H = 96;
+const H = 92;
 
 export function DoseLoggedBurst({
   show,
@@ -52,13 +67,20 @@ export function DoseLoggedBurst({
   const reduce = useReducedMotion();
   const [visible, setVisible] = useState(false);
 
+  const dismiss = () => {
+    setVisible(false);
+    onDone?.();
+  };
+
   useEffect(() => {
     if (!show) return;
     setVisible(true);
+    // Short enough to read as an acknowledgement rather than a gate. The old
+    // 2100ms was two full seconds of a member being unable to do anything else.
     const t = setTimeout(() => {
       setVisible(false);
       onDone?.();
-    }, reduce ? 900 : 2100);
+    }, reduce ? 700 : 1400);
     return () => clearTimeout(t);
   }, [show, reduce, onDone]);
 
@@ -71,7 +93,7 @@ export function DoseLoggedBurst({
   const pts = rs.map((r, i) => ({
     x: 18 + i * step,
     // Hydropathy drives height, same as the library diagram.
-    y: 34 + (0.5 - (r.hydropathy + 4.5) / 9) * 26,
+    y: 32 + (0.5 - (r.hydropathy + 4.5) / 9) * 24,
     color: CLASS_COLOR[r.cls],
     kink: r.code === "P",
   }));
@@ -93,7 +115,7 @@ export function DoseLoggedBurst({
     ? curve
         .map((c, i) => {
           const x = 18 + (i / (curve.length - 1)) * (W - 36);
-          const y = H - 14 - (c.level / cMax) * 26;
+          const y = H - 12 - (c.level / cMax) * 24;
           return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
         })
         .join(" ")
@@ -103,22 +125,32 @@ export function DoseLoggedBurst({
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-ink-950/80 px-6 backdrop-blur-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ type: "spring", stiffness: 320, damping: 26 }}
+          /**
+           * `pointer-events-none` on the positioner and `inset-x-0 bottom-24` in
+           * place of `inset-0`. The whole screen stays live underneath — the
+           * only element that captures a tap is the card, and that tap closes
+           * it. Matches DayComplete's geometry so the two celebrations do not
+           * arrive from different places on the same screen.
+           */
+          className="pointer-events-none fixed inset-x-0 bottom-24 z-[80] flex justify-center px-4 lg:bottom-10"
         >
-          <motion.div
-            initial={reduce ? false : { scale: 0.94, y: 10 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 26 }}
-            className="w-full max-w-sm rounded-panel border border-optimal/25 bg-ink-900/95 p-5 shadow-glow"
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label={`${name} logged. Dismiss.`}
+            className="pointer-events-auto w-full max-w-sm rounded-panel border border-optimal/25 bg-ink-900/95 p-4 text-left shadow-glow backdrop-blur focus-ring"
           >
-            <p className="text-micro uppercase tracking-[0.14em] text-optimal">Logged</p>
-            <p className="mt-1 text-title leading-tight text-ink-50">{name}</p>
+            {/* Spans, not paragraphs. A <button> may only contain phrasing
+                content, and a <p> inside one is invalid HTML that browsers
+                resolve by breaking the button out of its own layout. */}
+            <span className="block text-micro uppercase tracking-[0.14em] text-optimal">Logged</span>
+            <span className="mt-1 block text-body font-medium leading-tight text-ink-50">{name}</span>
 
-            <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full text-ink-400" aria-hidden>
+            <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full text-ink-400" aria-hidden>
               {seq && pts.length > 1 ? (
                 <>
                   {/* Beat 1 — the chain draws itself. */}
@@ -130,7 +162,7 @@ export function DoseLoggedBurst({
                     strokeOpacity="0.5"
                     initial={reduce ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
-                    transition={{ duration: reduce ? 0 : 0.6, ease: "easeOut" }}
+                    transition={{ duration: reduce ? 0 : 0.4, ease: "easeOut" }}
                   />
                   {pts.map((p, i) =>
                     p.kink ? (
@@ -144,7 +176,7 @@ export function DoseLoggedBurst({
                         transform={`rotate(45 ${p.x} ${p.y})`}
                         initial={reduce ? false : { scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: reduce ? 0 : 0.05 + i * 0.025, type: "spring", stiffness: 600, damping: 20 }}
+                        transition={{ delay: reduce ? 0 : 0.04 + i * 0.014, type: "spring", stiffness: 600, damping: 20 }}
                         style={{ transformOrigin: `${p.x}px ${p.y}px` }}
                       />
                     ) : (
@@ -156,39 +188,43 @@ export function DoseLoggedBurst({
                         fill={p.color}
                         initial={reduce ? false : { scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: reduce ? 0 : 0.05 + i * 0.025, type: "spring", stiffness: 600, damping: 20 }}
+                        transition={{ delay: reduce ? 0 : 0.04 + i * 0.014, type: "spring", stiffness: 600, damping: 20 }}
                         style={{ transformOrigin: `${p.x}px ${p.y}px` }}
                       />
                     ),
                   )}
 
-                  {/* Beat 2 — a pulse runs N to C. */}
+                  {/* Beat 2 — a pulse runs N to C, the direction the chain is
+                      read and synthesised. */}
                   {!reduce && (
                     <circle r="4" fill="#34d399">
-                      <animateMotion dur="0.7s" begin="0.55s" fill="freeze" path={path} />
-                      <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.55s" fill="freeze" />
+                      <animateMotion dur="0.5s" begin="0.35s" fill="freeze" path={path} />
+                      <animate attributeName="opacity" values="0;1;1;0" dur="0.5s" begin="0.35s" fill="freeze" />
                     </circle>
                   )}
                 </>
               ) : (
                 <motion.circle
                   cx={W / 2}
-                  cy={34}
+                  cy={32}
                   r="10"
                   fill="none"
                   stroke="#34d399"
                   strokeWidth="2"
                   initial={reduce ? false : { scale: 0.4, opacity: 1 }}
                   animate={{ scale: 2.2, opacity: 0 }}
-                  transition={{ duration: reduce ? 0 : 0.9, ease: "easeOut" }}
-                  style={{ transformOrigin: `${W / 2}px 34px` }}
+                  transition={{ duration: reduce ? 0 : 0.6, ease: "easeOut" }}
+                  style={{ transformOrigin: `${W / 2}px 32px` }}
                 />
               )}
 
-              {/* Beat 3 — the level steps up. */}
+              {/* Beat 3 — blood concentration, one dose further along. Real
+                  superposition maths, drawn and left unlabelled. This line used
+                  to be captioned "your level steps up", which turned a
+                  pharmacokinetic curve into a score. */}
               {cPath && (
                 <>
-                  <line x1="18" y1={H - 14} x2={W - 18} y2={H - 14} stroke="currentColor" strokeOpacity="0.18" />
+                  <line x1="18" y1={H - 12} x2={W - 18} y2={H - 12} stroke="currentColor" strokeOpacity="0.18" />
                   <motion.path
                     d={cPath}
                     fill="none"
@@ -196,18 +232,20 @@ export function DoseLoggedBurst({
                     strokeWidth="1.8"
                     initial={reduce ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
-                    transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : 0.75, ease: "easeOut" }}
+                    transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.5, ease: "easeOut" }}
                   />
                 </>
               )}
             </svg>
 
-            <p className="mt-1 text-detail leading-relaxed text-ink-400">
+            {/* A receipt, not a reward. It names what was recorded and where it
+                went, and says nothing about the member having earned anything. */}
+            <span className="block text-detail leading-relaxed text-ink-400">
               {seq
-                ? `${seq.seq.length} residues${cPath ? " · your level steps up" : ""}`
+                ? `${seq.seq.length} residues · recorded on your chart`
                 : "Recorded on your chart"}
-            </p>
-          </motion.div>
+            </span>
+          </button>
         </motion.div>
       )}
     </AnimatePresence>

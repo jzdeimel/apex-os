@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, Circle, Dot, Flag } from "lucide-react";
 import { seasonFor, type SeasonChapter } from "@/lib/play/season";
+import { useGamification } from "@/lib/portalStore";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { cn, formatDateShort } from "@/lib/utils";
 
@@ -37,9 +38,21 @@ export function SeasonArc({
   className?: string;
 }) {
   const reduced = useReducedMotion();
+  /**
+   * AUDIT FINDING P0-1 — gated on the member's gamification preference.
+   *
+   * This one is the closest call of the four. The chapters on this rail are real
+   * clinical checkpoints — week 6 is on it because week 6 is a blood draw — so
+   * there is a genuine argument that it is information rather than a mechanic.
+   * It goes anyway, because it is framed as a *season* with a *premise* and a
+   * number, and a member who switched the game layer off did not ask to keep the
+   * part of it that is dressed as a game. The same checkpoints are on the plan of
+   * care, which is not gated and never should be.
+   */
+  const { on } = useGamification();
   const season = useMemo(() => seasonFor(clientId, nowIso), [clientId, nowIso]);
 
-  if (!season) return null;
+  if (!on || !season) return null;
 
   const current = season.chapters.find((c) => c.state === "current");
   const next = season.chapters.find((c) => c.state === "ahead");

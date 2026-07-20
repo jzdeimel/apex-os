@@ -34,6 +34,26 @@ import { seededRandom } from "@/lib/utils";
  * RULE 3 — A DISCOUNT WITHOUT A REASON IS NOT A DISCOUNT, IT IS A LEAK.
  *   Margin walked out the door in ten-dollar increments that no report could
  *   attribute. `discountCents > 0` with an empty reason is a hard error.
+ *
+ * RULE 4 — WHO IS PLACING IT IS PART OF WHETHER IT CAN BE PLACED.
+ *   Added after the audit found that `actor` reached this module and was used
+ *   ONLY as a display ternary (the two `actorRole` lines below) — `actor.role`
+ *   was never tested. A coach could put Schedule III testosterone cypionate in
+ *   an order and click Place, and the order went to Submitted in one click.
+ *   The `needs-provider-approval` problem that fired was a WARNING whose fix
+ *   text read "it will hold for provider approval before fulfillment", and no
+ *   such hold exists anywhere in Apex — not a state, not a queue, not a flag.
+ *   The remediation was describing a control that had never been built, which
+ *   is the most dangerous kind of false copy: it tells the coach the system is
+ *   catching what they are not.
+ *
+ *   So a `requiresProviderApproval` item is now a BLOCKING error unless the
+ *   actor is Medical. The rejected alternative was to build the hold — a
+ *   `PendingApproval` order status with a provider queue behind it. That is the
+ *   right end state and it is on the roadmap, but it is a multi-surface feature,
+ *   and shipping the warning text for it before the queue exists is precisely
+ *   the failure being fixed. Refusing the order is honest today; a fake hold is
+ *   not honest at any point.
  */
 
 // ---------------------------------------------------------------------------
@@ -294,8 +314,28 @@ export interface OrderProblem {
  * repeatedly, which is exactly how the audited system trained people to ignore
  * validation entirely.
  */
-export function validateOrder(input: PlaceOrderInput): OrderProblem[] {
+export function validateOrder(
+  input: PlaceOrderInput,
+  /**
+   * Who is placing it. OPTIONAL, and an omitted actor is treated as NOT a
+   * provider — see the prescriber gate below. Optional because the live preview
+   * in OrderForm and the pre-flight check in the refill engine both validate
+   * before they have anything to hand here, and making it required would have
+   * meant editing every call site to keep compiling, which is how a safety gate
+   * gets defaulted to `{ role: "Coach" }` in a hurry and stops gating.
+   *
+   * Fail-closed is the only defensible default for a Schedule III drug: the
+   * cost of wrongly blocking is one provider click, the cost of wrongly
+   * allowing is a coach shipping testosterone.
+   */
+  actor?: PlacingActor,
+): OrderProblem[] {
   const problems: OrderProblem[] = [];
+
+  // Fail closed. `undefined` is not a provider; neither is Admin. Admin is an
+  // operations role in Apex (`draftOrder` maps it to "Operations"), and clinic
+  // managers are the people most likely to be handed an ordering screen.
+  const isProvider = actor?.role === "Medical";
 
   if (!input.clientId) {
     problems.push({
@@ -397,14 +437,46 @@ export function validateOrder(input: PlaceOrderInput): OrderProblem[] {
       });
     }
 
+    /**
+     * RULE 4 — the prescriber gate.
+     *
+     * `isProvider` is the ONLY place `actor.role` is consulted for a decision.
+     * Everywhere else in this module the role is cosmetic (it picks a label on
+     * a status event), which is exactly how the audit found it: the argument
+     * was threaded all the way down and then never asked a question.
+     */
     if (item.requiresProviderApproval) {
-      problems.push({
-        code: "needs-provider-approval",
-        severity: "warning",
-        sku: item.sku,
-        message: `${item.name} needs a provider signature before it leaves the building.`,
-        fix: "The order can be placed now; it will hold for provider approval before fulfillment.",
-      });
+      problems.push(
+        isProvider
+          ? {
+              code: "needs-provider-approval",
+              severity: "warning",
+              sku: item.sku,
+              /**
+               * Still surfaced to a provider, deliberately. It is not an
+               * obstacle for them — they are the signature — but the line item
+               * that carries prescribing responsibility should never place
+               * silently alongside a box of alcohol swabs.
+               */
+              message: `${item.name} requires a prescriber. You are placing it as ${actor?.name ?? "a provider"}.`,
+              fix: "Placing this order records your name against the prescription in the ledger. There is no second approval step after this.",
+            }
+          : {
+              code: "needs-provider-approval",
+              severity: "error",
+              sku: item.sku,
+              message: `${item.name} requires a prescriber and this order is being placed by ${
+                actor ? `${actor.name} (${actor.role})` : "an unidentified actor"
+              }.`,
+              /**
+               * The old fix text promised a hold. Stating plainly that no hold
+               * exists is the point: the coach's next action has to be getting
+               * a provider, not clicking Place and assuming the system will
+               * catch it downstream. Nothing downstream catches it.
+               */
+              fix: "Remove the line, or have a provider place this order. Apex does not hold orders for approval — a placed order goes straight to fulfillment, so the signature has to come first.",
+            },
+      );
     }
   }
 
@@ -451,8 +523,8 @@ export function blockingProblems(problems: OrderProblem[]): OrderProblem[] {
   return problems.filter((p) => p.severity === "error");
 }
 
-export function canPlace(input: PlaceOrderInput): boolean {
-  return blockingProblems(validateOrder(input)).length === 0;
+export function canPlace(input: PlaceOrderInput, actor?: PlacingActor): boolean {
+  return blockingProblems(validateOrder(input, actor)).length === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -562,7 +634,9 @@ export type PlaceOrderResult =
  * monotonic-rank guard that protects partner webhooks also protects us.
  */
 export function placeOrder(input: PlaceOrderInput, actor: PlacingActor): PlaceOrderResult {
-  const problems = validateOrder(input);
+  // Actor passed through — this is the call that actually enforces RULE 4. A
+  // preview elsewhere may have validated without an actor; placement never can.
+  const problems = validateOrder(input, actor);
   const blocking = blockingProblems(problems);
   if (blocking.length > 0) return { ok: false, problems };
 

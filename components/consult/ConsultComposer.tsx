@@ -19,6 +19,7 @@ import { appendLedger } from "@/lib/trace/ledger";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { staffMap, staffName } from "@/lib/mock/staff";
 import { raiseEscalation, SLA_HOURS } from "@/lib/escalations/queue";
+import { commitEscalation } from "@/lib/mock/escalations";
 import { NOTE_TEMPLATE_SAMPLES } from "@/lib/mock/consults";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Card } from "@/components/ui/primitives";
@@ -375,6 +376,18 @@ export function ConsultComposer({
                     <AlertTriangle className="h-3.5 w-3.5 text-high" />
                     <p className="label-eyebrow text-high">Escalate to provider</p>
                   </div>
+                  {/*
+                    Scope stated up front, because the toast below says "in
+                    their queue now" and that has to be exactly as true as it
+                    sounds. It is: the escalation lands in the same store the
+                    provider console reads. What it does NOT survive is a page
+                    reload — the queue is in memory in this prototype. Saying so
+                    here is cheaper than a coach discovering it.
+                  */}
+                  <p className="mb-2 text-micro leading-relaxed text-ink-600">
+                    Routes to the member&apos;s provider with an SLA clock. Prototype: the queue is
+                    held in memory and resets on reload.
+                  </p>
                   <ul className="space-y-2">
                     {summary.escalations.map((e, i) => {
                       const key = `esc-${i}`;
@@ -403,7 +416,15 @@ export function ConsultComposer({
                                 // raises a real escalation with a clock on it.
                                 const client = getClient(clientId);
                                 const esc = raiseEscalation({
-                                  id: `esc-live-${key}`,
+                                  /**
+                                   * Scoped by client as well as by item index.
+                                   * `esc-live-esc-0` alone collides across
+                                   * members — the second coach to escalate the
+                                   * first finding on any chart would overwrite
+                                   * the first member's escalation in the store,
+                                   * because commitEscalation replaces by id.
+                                   */
+                                  id: `esc-live-${clientId}-${key}`,
                                   clientId,
                                   raisedByStaffId: client?.coachId ?? "unknown",
                                   assignedToStaffId: client?.providerId ?? "unknown",
@@ -415,28 +436,60 @@ export function ConsultComposer({
                                   raisedAt: NOW,
                                 });
 
+                                /**
+                                 * THE MISSING WRITE.
+                                 *
+                                 * The audit found `raiseEscalation()`'s return
+                                 * value being discarded here — only a boolean
+                                 * survived, to flip the button to "Routed".
+                                 * `raiseEscalation` is a pure constructor; it
+                                 * builds an Escalation and hands it back, and
+                                 * the caller is what puts it in the queue. So
+                                 * the button rendered "Routed", toasted an SLA,
+                                 * and the provider's queue never changed. A
+                                 * coach escalating chest pain got the same
+                                 * green tick as one escalating a sleep peptide,
+                                 * and both went nowhere.
+                                 *
+                                 * `commitEscalation` puts it in the shared
+                                 * store, which is what `queueFor(providerId)`
+                                 * reads — so it genuinely appears on the clinic
+                                 * console and in /clinic/escalations. Same
+                                 * pattern as commitOrder / CoachGroup's
+                                 * member-initiated escalation.
+                                 */
+                                const committed = commitEscalation(esc);
+
                                 const row = appendLedger({
-                                  actorId: esc.raisedByStaffId,
-                                  actorName: staffName(esc.raisedByStaffId),
+                                  actorId: committed.raisedByStaffId,
+                                  actorName: staffName(committed.raisedByStaffId),
                                   actorRole: "Coach",
                                   action: "create",
                                   entity: "recommendation",
-                                  entityId: esc.id,
+                                  entityId: committed.id,
                                   subjectId: clientId,
                                   subjectName: client ? clientName(client) : undefined,
                                   locationId: client?.locationId,
-                                  reason: `Escalated to ${staffName(esc.assignedToStaffId)}`,
+                                  reason: `Escalated to ${staffName(committed.assignedToStaffId)}`,
                                   after: {
-                                    priority: esc.priority,
-                                    dueWithinHours: SLA_HOURS[esc.priority],
-                                    assignedTo: staffName(esc.assignedToStaffId),
+                                    priority: committed.priority,
+                                    dueWithinHours: SLA_HOURS[committed.priority],
+                                    assignedTo: staffName(committed.assignedToStaffId),
                                   },
                                 });
 
                                 setEscalated((s) => ({ ...s, [key]: true }));
-                                toast(`${esc.priority} — sent to ${staffName(esc.assignedToStaffId)}`, {
-                                  tone: esc.priority === "Urgent" ? "warn" : undefined,
-                                  desc: `Due within ${SLA_HOURS[esc.priority]}h · recorded as ${row.id} · ${shortHash(row.hash)}`,
+                                /**
+                                 * The toast now describes what happened rather
+                                 * than what was intended. "In their queue now"
+                                 * is a claim we can only make because of the
+                                 * commit above — before it, this string was
+                                 * false, and the SLA it quoted was a clock on
+                                 * an object nobody held.
+                                 */
+                                toast(`${committed.priority} — in ${staffName(committed.assignedToStaffId)}'s queue`, {
+                                  tone: committed.priority === "Urgent" ? "warn" : undefined,
+                                  desc: `Due within ${SLA_HOURS[committed.priority]}h · open it under Clinic → Escalations · ledger ${row.id} · ${shortHash(row.hash)}`,
                                 });
                               }}
                             >

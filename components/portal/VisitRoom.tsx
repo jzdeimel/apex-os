@@ -47,7 +47,7 @@ import { staffMap } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { Badge, Button, Card, CardContent, EmptyState } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/portal/still";
-import { me } from "@/components/portal/PortalHeader";
+import { useMeClient } from "@/components/portal/PortalHeader";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 
 const CHECK_ICON = {
@@ -58,7 +58,10 @@ const CHECK_ICON = {
 } as const;
 
 export function VisitRoom({ apptId }: { apptId: string }) {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): was the
+  // non-reactive `me()` accessor, which pinned this to one male member and
+  // would not re-render when the demo subject changed.
+  const client = useMeClient();
   const state = roomFor(apptId);
   const [joined, setJoined] = useState(false);
 

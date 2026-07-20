@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Award, Lock, ShieldCheck } from "lucide-react";
 import { levelFor } from "@/lib/play/levels";
+import { useGamification } from "@/lib/portalStore";
 import { Card, CardContent, Badge, Progress } from "@/components/ui/primitives";
 import { Confetti } from "@/components/celebrate/Confetti";
 import { cn } from "@/lib/utils";
@@ -40,9 +41,14 @@ export function LevelCard({
   className?: string;
 }) {
   const reduced = useReducedMotion();
+  // AUDIT FINDING P0-1: gated on the member's gamification preference. Silent
+  // when off, including the confetti — the switch has to take the celebration
+  // with it or it is not an opt-out, it is a partial one. StreakCard carries the
+  // control and the only visible off-state; see the note in lib/portalStore.tsx.
+  const { on } = useGamification();
   const state = useMemo(() => levelFor(clientId), [clientId]);
 
-  if (!state) return null;
+  if (!on || !state) return null;
 
   const earnedBadges = state.badges.filter((b) => b.earned);
   const nextBadge = state.badges.find((b) => !b.earned);

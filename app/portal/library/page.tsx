@@ -25,15 +25,16 @@
  * the signed plan, and the provider line below is rendered on every screen size
  * rather than tucked into a footer.
  *
- * Client component (like the other six portal pages) because `me()` and the
- * gallery's filter state both live on the client.
+ * Client component (like the other portal pages) because `useMeClient()` and
+ * the gallery's filter state both live on the client.
  */
 
 import { BookOpen, ShieldCheck, Stethoscope } from "lucide-react";
 import { PeptideGallery } from "@/components/peptides/PeptideGallery";
 import { Badge } from "@/components/ui/primitives";
 import { FadeIn } from "@/components/portal/still";
-import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
+import type { Client } from "@/lib/types";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import {
   LIBRARY_DISCLAIMER,
@@ -46,14 +47,20 @@ import {
  * Resolve which library entries this member's plan actually touches.
  *
  * Wording is load-bearing. Every protocol item the engine emits carries
- * `requiresProviderApproval`, and c-001's plan sits at "Awaiting provider" — so
- * calling those compounds "on your plan" would tell a member something has been
- * decided when it has not. The chip only says "On your plan" once the plan
- * itself is Active; before that it says "Proposed for you", which is the true
- * statement and, usefully, the one that prompts the conversation.
+ * `requiresProviderApproval`, and several seeded members' plans sit at
+ * "Awaiting provider" — so calling those compounds "on your plan" would tell a
+ * member something has been decided when it has not. The chip only says "On
+ * your plan" once the plan itself is Active; before that it says "Proposed for
+ * you", which is the true statement and, usefully, the one that prompts the
+ * conversation.
+ *
+ * Takes the subject as an argument rather than reaching for it. This function
+ * runs outside a component, so it cannot call `useMe()` — and it used to call
+ * the non-reactive accessor, which is precisely how the portal ended up pinned
+ * to one member in the first place.
  */
-function planChipsFor(): Record<string, string | null> {
-  const plan = buildPlanOfCare(me());
+function planChipsFor(client: Client): Record<string, string | null> {
+  const plan = buildPlanOfCare(client);
   const label = plan.status === "Active" ? "On your plan" : "Proposed for you";
 
   const chips: Record<string, string | null> = {};
@@ -67,8 +74,10 @@ function planChipsFor(): Record<string, string | null> {
 }
 
 export default function LibraryPage() {
-  const client = me();
-  const chips = planChipsFor();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const client = useMeClient();
+  const chips = planChipsFor(client);
   const chipKeys = Object.keys(chips);
 
   // Personal entries first — the rest of the library keeps its curated order.

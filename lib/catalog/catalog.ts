@@ -499,8 +499,17 @@ export const catalog: CatalogItem[] = [
   // --- Stocked at a clinic but previously missing from the catalog ---------
   // These three were carried in lib/mock/inventory.ts with no catalog row, so
   // a lot on the shelf had no sellable item to bind to and the SKU vocabularies
-  // had quietly diverged. Adding them closes the loop: every stocked SKU now
-  // resolves, which is what makes a recall question answerable.
+  // had quietly diverged. Adding them means every stocked SKU now resolves.
+  //
+  // That is where the claim stops. This comment used to end "...which is what
+  // makes a recall question answerable"; it is not, and the audit flagged it as
+  // one of three comments overstating the same capability. A resolving SKU says
+  // the item is sellable somewhere. It does not say which patient received
+  // which lot: `OrderLine.lotRef` is synthesized in lib/mock/orders.ts from a
+  // private lotPrefix and never matches these lots except by luck, no lot→
+  // patient selector exists, and in-clinic dispense records nothing. See the
+  // note on `OrderLine.lotRef` in lib/orders/types.ts for the four conditions
+  // the recall join actually needs.
   {
     id: "cat-091",
     sku: "PEP-VIP-NS",

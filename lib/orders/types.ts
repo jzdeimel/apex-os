@@ -78,7 +78,10 @@ export type Carrier = "UPS" | "FedEx" | "USPS" | "Courier";
 
 export interface OrderLine {
   id: string;
-  /** Matches the inventory SKU vocabulary so lot↔patient traceability binds. */
+  /**
+   * Matches the inventory SKU vocabulary. That is the one half of lot↔patient
+   * traceability that currently holds; see `lotRef` for the half that does not.
+   */
   sku: string;
   name: string;
   qty: number;
@@ -86,9 +89,29 @@ export interface OrderLine {
   /** Add-ons are member-elected extras, priced separately from the protocol. */
   isAddon: boolean;
   /**
-   * Lot actually dispensed, once MedSource reports it. Undefined until the
-   * line is physically picked — this is the hook that makes a recall answerable
-   * ("which patients received lot BPC-2604A?") without a phone call.
+   * The lot dispensed against this line.
+   *
+   * ── THIS IS NOT A TRACEABILITY HOOK TODAY. ────────────────────────────────
+   * The previous comment described it as "the hook that makes a recall
+   * answerable ('which patients received lot BPC-2604A?') without a phone
+   * call". Someone will read that as spec, so, plainly:
+   *
+   *  - Nothing reports a lot. There is no MedSource integration; the field is
+   *    populated by `lib/mock/orders.ts:308`, which SYNTHESIZES a string from a
+   *    third private catalog's `lotPrefix` plus a seeded suffix. The value has
+   *    never been on a shelf.
+   *  - It therefore does not join. Fabricated order lots collide with the real
+   *    lots in `lib/mock/inventory.ts` only by chance.
+   *  - No query consumes it. Grep for `byLot` or `recall`: zero selectors.
+   *  - It covers shipped lines only. In-clinic administration records nothing
+   *    and never decrements `inventory.quantity`, so the patients most likely
+   *    to be in a recall cohort are the ones with no row at all.
+   *
+   * FOR THE CLAIM TO HOLD, all four must be true: `lotRef` is set from a real
+   * `InventoryLot.id` at pick time (partner-reported or clinic-scanned), the
+   * value is validated against inventory rather than trusted, a dispense event
+   * decrements the lot, and a `patientsForLot(lotId)` selector exists and is
+   * exercised. Treat `lotRef` as a display string until then.
    */
   lotRef?: string;
 }

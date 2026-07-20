@@ -15,10 +15,12 @@
 
 import { SymptomJournal } from "@/components/portal/SymptomJournal";
 import { SymptomSignal } from "@/components/portal/SymptomSignal";
-import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 
 export default function PortalJournalPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const client = useMeClient();
 
   return (
     <div className="space-y-8">

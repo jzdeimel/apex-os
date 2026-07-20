@@ -42,6 +42,22 @@ export function QuickLog() {
   const { today, logWeight, logFeel } = useMemberLog();
   const [weight, setWeight] = useState("");
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  /**
+   * AUDIT FINDING (docs/audit/ENGAGEMENT.md, friction inventory #4): a mistyped
+   * weight was uncorrectable for the day. The edit affordance was a button with
+   * `className="hidden" aria-hidden` that called `logWeight(NaN)` — so it was
+   * unreachable, and had anything reached it (a screen reader ignoring
+   * aria-hidden, a keyboard tab, a stylesheet failing to load) the card would
+   * have rendered "NaN lb logged" and the ledger would carry
+   * "Member logged NaN lb" permanently.
+   *
+   * The choice was make it work or delete it, and deleting it leaves a real
+   * problem: 214.5 typed as 2145 is a chart entry a member cannot take back. So
+   * it is a real control now — it reopens the form pre-filled, and re-logging
+   * appends a correction row rather than editing the original. `logWeight` also
+   * refuses non-finite values at the store, so no future caller can repeat this.
+   */
+  const [editingWeight, setEditingWeight] = useState(false);
 
   const feelDone = today.feel ?? null;
   const current = feelDone ?? answers;
@@ -64,31 +80,43 @@ export function QuickLog() {
           <h3 className="text-micro uppercase text-ink-400">Weight</h3>
         </div>
 
-        {today.weightLb !== undefined ? (
+        {today.weightLb !== undefined && !editingWeight ? (
           <div className="flex items-center gap-3 rounded-panel border border-optimal/25 bg-optimal/5 px-4 py-3">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-optimal/15 text-optimal">
               <Check className="h-4 w-4" />
             </span>
-            <p className="flex-1 text-body text-ink-100">
+            <p className="min-w-0 flex-1 text-body text-ink-100">
               <span className="stat-mono">{today.weightLb}</span> lb logged
             </p>
             <button
               type="button"
-              onClick={() => logWeight(NaN as unknown as number)}
-              className="hidden"
-              aria-hidden
-            />
+              onClick={() => {
+                setWeight(String(today.weightLb));
+                setEditingWeight(true);
+              }}
+              className="focus-ring shrink-0 rounded-control px-2 py-1 text-detail text-ink-500 transition-colors hover:text-ink-200"
+            >
+              Edit
+            </button>
           </div>
         ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
               const n = Number(weight);
-              if (Number.isFinite(n) && n > 0) logWeight(n);
+              // Guarded here as well as in the store. A submit that silently
+              // does nothing is confusing, but a submit that writes a bad number
+              // to a chart is worse, and this branch is unreachable in practice
+              // because the button is disabled on an empty field.
+              if (!Number.isFinite(n) || n <= 0) return;
+              logWeight(n);
+              setEditingWeight(false);
             }}
             className="flex items-center gap-2"
           >
-            <div className="relative flex-1">
+            {/* min-w-0 so the input can shrink instead of pushing the buttons
+                off a 390px screen once the Cancel affordance appears. */}
+            <div className="relative min-w-0 flex-1">
               <input
                 type="number"
                 inputMode="decimal"
@@ -106,11 +134,32 @@ export function QuickLog() {
             <button
               type="submit"
               disabled={!weight}
-              className="focus-ring rounded-control bg-ink-700 px-4 py-2.5 text-body font-medium text-ink-50 transition-colors hover:bg-ink-600 disabled:opacity-40"
+              className="focus-ring shrink-0 rounded-control bg-ink-700 px-4 py-2.5 text-body font-medium text-ink-50 transition-colors hover:bg-ink-600 disabled:opacity-40"
             >
-              Log
+              {editingWeight ? "Save" : "Log"}
             </button>
+            {editingWeight && (
+              <button
+                type="button"
+                onClick={() => {
+                  setWeight("");
+                  setEditingWeight(false);
+                }}
+                className="focus-ring shrink-0 rounded-control px-2 py-2.5 text-detail text-ink-500 transition-colors hover:text-ink-200"
+              >
+                Cancel
+              </button>
+            )}
           </form>
+        )}
+
+        {editingWeight && (
+          /* Said out loud because it is true and because a member correcting a
+             number deserves to know it is not being quietly overwritten. */
+          <p className="mt-2 text-micro leading-relaxed text-ink-500">
+            Correcting this adds a new entry to your chart. The first figure stays on the record —
+            that is what makes it a record.
+          </p>
         )}
       </div>
 

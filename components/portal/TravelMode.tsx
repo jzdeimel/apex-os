@@ -19,7 +19,7 @@
  * component must never imply otherwise.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import { Flame, Package, PlaneTakeoff, Bell, BellOff, Check, ShieldCheck, Undo2 } from "lucide-react";
 import { planTravel, startTravel, endTravel, travelFor } from "@/lib/account/travel";
@@ -27,7 +27,7 @@ import { locationMap } from "@/lib/mock/locations";
 import { Badge, Button, Card, CardContent, Input } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
-import { me, ME } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient } from "@/components/portal/PortalHeader";
 import { cn, formatDate } from "@/lib/utils";
 
 /** Pinned defaults so the demo opens on a sensible window with no clock read. */
@@ -35,14 +35,27 @@ const DEFAULT_FROM = "2026-06-20";
 const DEFAULT_TO = "2026-06-30";
 
 export function TravelMode() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): was the ME
+  // constant, which pinned this card to one hardcoded male member.
+  const meId = useMe();
+  const client = useMeClient();
   const { toast } = useToast();
 
   const [from, setFrom] = useState(DEFAULT_FROM);
   const [to, setTo] = useState(DEFAULT_TO);
   const [where, setWhere] = useState("Austin, TX");
   const [state, setState] = useState("TX");
-  const [active, setActive] = useState(() => travelFor(ME));
+  const [active, setActive] = useState(() => travelFor(meId));
+
+  // Re-seed when the subject changes. The initialiser above runs once, on
+  // mount, and `useMe()` deliberately reports the default on that first
+  // render — the persisted choice lands one commit later. Without this the
+  // card would show the default member's travel window to a different
+  // member. Not merged into the initialiser: reading storage during render
+  // is exactly the hydration mismatch useMe() exists to avoid.
+  useEffect(() => {
+    setActive(travelFor(meId));
+  }, [meId]);
 
   const valid = from <= to && /^[A-Za-z]{2}$/.test(state.trim());
 

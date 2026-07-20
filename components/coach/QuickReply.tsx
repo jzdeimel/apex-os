@@ -173,8 +173,14 @@ export function QuickReply({
       appendLedger(result.ledgerEvent);
 
       if (result.ok) {
-        toast(`Sent to ${client.firstName}`, {
-          desc: `${rendered.channel} · ${SCOPE_LABEL[rendered.scope]}`,
+        // "Sent to Marcus" was a claim this build cannot make. `provider` in
+        // lib/comms/send.ts is the inert DemoProvider — it mints a
+        // deterministic delivery id and opens no socket, by design, so an Apex
+        // demo can never transmit to a real number. The guard result's own
+        // wording is "Queued via …", and the toast now agrees with it rather
+        // than promising a delivery one layer down refuses to make.
+        toast(`Queued for ${client.firstName}`, {
+          desc: `${rendered.channel} · ${SCOPE_LABEL[rendered.scope]} · demo build — nothing transmits`,
         });
         onSent?.({ templateId: rendered.template.id, body, deliveryId: result.deliveryId });
       } else {

@@ -29,7 +29,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Mail, MapPin, MessageSquare, Phone, Stethoscope, Users } from "lucide-react";
 
-import { me } from "@/components/portal/PortalHeader";
+import { useMeClient } from "@/components/portal/PortalHeader";
 import { staff, staffMap } from "@/lib/mock/staff";
 import { locationMap, locationName } from "@/lib/mock/locations";
 import { Card, CardContent, SectionTitle, Badge, EmptyState } from "@/components/ui/primitives";
@@ -209,7 +209,10 @@ function TeamPersonCard({ s }: { s: StaffMember }) {
 // ---------------------------------------------------------------------------
 
 export function CareTeamProfiles() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): was the
+  // non-reactive `me()` accessor, which pinned this to one male member and
+  // would not re-render when the demo subject changed.
+  const client = useMeClient();
   const coach = staffMap[client.coachId] as StaffMember | undefined;
   const provider = staffMap[client.providerId] as StaffMember | undefined;
   const home = locationMap[client.locationId];

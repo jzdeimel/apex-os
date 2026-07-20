@@ -31,10 +31,9 @@ import { JOURNEY, journeyStepFor } from "@/lib/brand";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
-import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, threadFor } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
 import { TodayBlock } from "@/components/portal/TodayBlock";
-import { MemberLogProvider } from "@/lib/member/logStore";
 import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
 import { SeasonArc } from "@/components/portal/SeasonArc";
@@ -71,14 +70,17 @@ const CURRENT_STAGE = 3; // index into ORDER_STAGES — out for delivery
 
 export default function PortalHomePage() {
   const { portal } = usePortal();
-  const client = me();
+  // Audit fix: these were the module constant ME / me(), which pinned every
+  // portal page to one male member and made the whole women's track dead code.
+  const meId = useMe();
+  const client = useMeClient();
   const plan = buildPlanOfCare(client);
-  const membership = membershipForClient(ME);
+  const membership = membershipForClient(meId);
   const coach = staffMap[client.coachId];
   const provider = staffMap[client.providerId];
   const activeProgram = client.programs.find((p) => p.status === "Active") ?? client.programs[0];
 
-  const nextAppt = appointmentsForClient(ME).find((a) => a.start >= NOW);
+  const nextAppt = appointmentsForClient(meId).find((a) => a.start >= NOW);
 
   // Where the member is in ALPHA HEALTH's published four-step process. This is
   // deliberately not `client.status` — "Active Protocol" is our enum, not a
@@ -96,7 +98,7 @@ export default function PortalHomePage() {
 
   // One message, not three. The preview exists to say "someone replied", and
   // the thread is one tap away for anyone who wants more than that.
-  const latestMessage = [...MEMBER_THREAD].reverse()[0];
+  const latestMessage = [...threadFor(client)].reverse()[0];
 
   const orderStage = ORDER_STAGES[CURRENT_STAGE];
 
@@ -110,8 +112,11 @@ export default function PortalHomePage() {
      * 48px apart and the cards inside a group are 16px apart. The contrast is
      * the point — uniform gaps are what make a layout look generated rather
      * than composed.
+     *
+     * MemberLogProvider used to wrap this element. It now lives in
+     * `app/portal/layout.tsx` — mounting it on a page scoped the member's log to
+     * this one route and made `useMemberLog` throw everywhere else.
      */
-    <MemberLogProvider clientId={ME} nowIso={NOW}>
     <div className="space-y-12">
       {/* ------------------------------------------------------------------ */}
       {/* 1 · Greeting — one line, no metrics. The rings below are the data.  */}
@@ -170,9 +175,9 @@ export default function PortalHomePage() {
       {/* record of one. What you have to do now sits above everything that    */}
       {/* reports on what you did.                                             */}
       {/* ================================================================== */}
-      <TodayBlock clientId={ME} iso={NOW} />
+      <TodayBlock clientId={meId} iso={NOW} />
 
-      <DailyRings clientId={ME} />
+      <DailyRings clientId={meId} />
 
       {/* ================================================================== */}
       {/* GROUP · THE WEEK AND THE HABIT LAYER.                               */}
@@ -204,7 +209,7 @@ export default function PortalHomePage() {
           the commonest reason a protocol lapses and a member should never learn
           it from an empty drawer. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StreakCard clientId={ME} />
+        <StreakCard clientId={meId} />
         <RefillRunway client={client} />
       </div>
 
@@ -214,10 +219,10 @@ export default function PortalHomePage() {
           <span className="float-right text-ink-600 transition-transform group-open:rotate-180">⌄</span>
         </summary>
         <div className="space-y-4 px-4 pb-4">
-          <SeasonArc clientId={ME} />
+          <SeasonArc clientId={meId} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Quests clientId={ME} />
-            <LevelCard clientId={ME} />
+            <Quests clientId={meId} />
+            <LevelCard clientId={meId} />
           </div>
         </div>
       </details>
@@ -227,7 +232,7 @@ export default function PortalHomePage() {
           already has, so it belongs after the things that might answer it
           first. Standalone: it is a different kind of thing from either the
           habit cards above or the logistics below. */}
-      <AskMyRecord clientId={ME} />
+      <AskMyRecord clientId={meId} />
 
       {/* ================================================================== */}
       {/* GROUP · WHERE THINGS STAND — journey, visit, order, people.         */}
@@ -482,6 +487,5 @@ export default function PortalHomePage() {
 
       <p className="pb-2 text-center text-micro text-ink-600">Demonstration data.</p>
     </div>
-    </MemberLogProvider>
   );
 }

@@ -5,11 +5,14 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { staffName } from "@/lib/mock/staff";
+import { clientName } from "@/lib/mock/clients";
 import { unsignedConsultsFor } from "@/lib/mock/consults";
 import { triageScore, churnRisk } from "@/lib/aiInsights";
 import { TodayQueue, ME_COACH, clientsForCoach } from "@/components/coach/TodayQueue";
 import { CoachWaitingOn } from "@/components/escalations/CoachEscalationStatus";
 import { AdherenceWorklist } from "@/components/coach/AdherenceWorklist";
+import { QuickReply } from "@/components/coach/QuickReply";
+import { Select } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 
 /**
@@ -169,6 +172,37 @@ export default function CoachTodayPage() {
   );
 
   /**
+   * The book, by name, for the compose picker.
+   *
+   * Alphabetical rather than ranked: this control is used when the coach
+   * already knows who they want, and a list that reorders itself by triage
+   * means the name they reached for last time has moved.
+   */
+  const byName = React.useMemo(
+    () => [...mine].sort((a, b) => clientName(a).localeCompare(clientName(b))),
+    [mine],
+  );
+
+  /**
+   * Who the composer opens on.
+   *
+   * The hottest member in the book, computed from the same `triageScore` the
+   * queue ranks by, with an id tiebreak so it is stable across renders. Not
+   * `byName[0]` — opening on whoever is alphabetically first is a coin flip
+   * wearing a default's clothes. No `Math.random`, no clock: the app is
+   * deterministically seeded and this must render identically on the server.
+   */
+  const composeDefault = React.useMemo(
+    () =>
+      [...mine].sort(
+        (a, b) => triageScore(b).score - triageScore(a).score || a.id.localeCompare(b.id),
+      )[0]?.id ?? "",
+    [mine],
+  );
+
+  const [composeFor, setComposeFor] = React.useState(composeDefault);
+
+  /**
    * Spacing on this page is deliberately UNEVEN.
    *
    * A uniform `space-y-3` between every block said all six regions were equally
@@ -258,6 +292,48 @@ export default function CoachTodayPage() {
       */}
       <section className="mt-10 border-t border-ink-800/60 pt-6">
         <AdherenceWorklist coachId={ME_COACH} />
+      </section>
+
+      {/*
+        Outreach. Audit finding: "a coach cannot message a client anywhere in
+        this app", with `components/coach/QuickReply.tsx` — 386 lines, consent
+        guards, idempotency, ⌘↵ — imported by zero files.
+
+        It is LAST on this page, below both lists, and that placement is the
+        argument rather than an afterthought. This page's stated layout rule is
+        that the first queue row is visible without scrolling; a composer is a
+        tool, not a worklist, and a textarea sitting above the queue would cost
+        four queue rows to serve a coach who has not yet decided who to write
+        to. The order is: read what you owe, read what you should choose, then
+        act. The per-member entry point — one click from the row you are looking
+        at — lives on /coach/roster.
+      */}
+      <section className="mt-10 border-t border-ink-800/60 pt-6">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0">
+            <p className="label-eyebrow">Outreach</p>
+            <h2 className="mt-0.5 font-display text-heading font-semibold text-ink-50">
+              Message a member
+            </h2>
+          </div>
+          <Select
+            value={composeFor}
+            onChange={(e) => setComposeFor(e.target.value)}
+            aria-label="Member to message"
+            className="h-8 w-full text-detail sm:w-64"
+          >
+            {byName.map((c) => (
+              <option key={c.id} value={c.id}>
+                {clientName(c)}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Keyed on the member so changing the picker starts a clean draft
+            rather than carrying one person's half-written message into
+            another's thread. */}
+        {composeFor && <QuickReply key={composeFor} clientId={composeFor} staffId={ME_COACH} />}
       </section>
     </div>
   );

@@ -34,7 +34,7 @@ import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -83,7 +83,9 @@ function Fact({ label, value }: { label: string; value: string }) {
 }
 
 export default function PortalProtocolPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const client = useMeClient();
   const plan = buildPlanOfCare(client);
   const provider = staffMap[client.providerId];
   const coach = staffMap[client.coachId];

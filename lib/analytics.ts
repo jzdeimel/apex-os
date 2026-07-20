@@ -11,6 +11,48 @@ import { membershipByClient } from "@/lib/mock/memberships";
 // is read off the record rather than re-derived from a lookup table that could
 // silently drift from it — one number, one owner.
 
+/**
+ * ══ WHICH NUMBERS IN THIS FILE ARE MEASURED, AND WHICH ARE INVENTED ═══════
+ *
+ * The audit's meta-finding was that this prototype is convincing: fabricated
+ * revenue rendered next to a disclaimer in smaller type than the figure. An
+ * owner cannot tell the two kinds of number apart, so they are separated here
+ * and every invented one is labelled in the UI at readable size.
+ *
+ * COUNTED FROM SEEDED RECORDS (real arithmetic over mock data):
+ *   mrr           summed from each Active membership's own monthlyRate
+ *   funnel        counted from client.status
+ *   ltvByTier     averaged from client.lifetimeValue
+ *   totalLtv, arpu, members
+ *
+ * INVENTED (seeded illustration — no source record exists in this build):
+ *   grossMonthly       mrr + Σ(lifetimeValue)×0.02 + a 12,000 constant. There
+ *                      is no billing engine, no invoice entity and no charge
+ *                      record anywhere in Apex, so non-membership revenue has
+ *                      nothing to be derived from. The constant is a shape.
+ *   serviceLines /     hardcoded percentage weights. No line item carries a
+ *   serviceKeys        service line, so the mix cannot be computed.
+ *   mrrTrend           eased from mrr×0.62 to mrr. Apex stores no dated
+ *                      subscription events, so no prior month exists to plot.
+ *   revByServiceTrend  the two above, multiplied.
+ *   retention          a literal array. Cohorts need join-dated churn events.
+ *
+ * A caveat on a number that looks measured: `funnel` is a snapshot of current
+ * status, not a time cohort — a client who converted and later churned counts
+ * as converted forever.
+ */
+
+/**
+ * The one-line disclosure, exported so every surface says the same thing and
+ * none of them can drift from this file. Rendered at body size above the
+ * figures, never as a footer.
+ */
+export const ILLUSTRATIVE_NOTE =
+  "Gross revenue, the service-line mix, the MRR trend and the retention curve are illustrative — seeded shapes, not measured results. Apex has no billing engine and stores no dated revenue history, so there is nothing behind them to count. MRR, LTV and the funnel counts are summed from the mock records shown elsewhere in the app.";
+
+/** Short form, for a badge or a card hint where the long note will not fit. */
+export const ILLUSTRATIVE_BADGE = "Illustrative";
+
 function scope(locationFilter: LocationId | "all"): Client[] {
   return clients.filter((c) => locationFilter === "all" || c.locationId === locationFilter);
 }
@@ -28,6 +70,9 @@ export function analyticsFor(locationFilter: LocationId | "all") {
   }, 0);
 
   // MRR trend (6 months, easing up to current).
+  // ILLUSTRATION. Not history: the five earlier months are interpolated from
+  // the current figure because no dated subscription event is stored anywhere.
+  // Read as "roughly this shape", never as "MRR grew 38% since January".
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
   const mrrTrend = months.map((m, i) => {
     const t = i / (months.length - 1);
@@ -35,7 +80,10 @@ export function analyticsFor(locationFilter: LocationId | "all") {
     return { name: m, revenue: Math.round(start + (mrr - start) * t) };
   });
 
-  // Revenue by service line (derived weights × volume).
+  // Revenue by service line.
+  // ILLUSTRATION, twice over. The weights are hand-picked constants — no order
+  // line, membership or charge in this build carries a ServiceLine, so the mix
+  // cannot be derived — and `grossMonthly` below is itself invented.
   const serviceLines = [
     { name: "Weight mgmt", weight: 0.3 },
     { name: "Hormone", weight: 0.24 },
@@ -44,6 +92,11 @@ export function analyticsFor(locationFilter: LocationId | "all") {
     { name: "IV / NAD+", weight: 0.1 },
     { name: "Aesthetics", weight: 0.06 },
   ];
+  // ILLUSTRATION — the single most fabricated number Apex renders, and the one
+  // an owner is most likely to quote. `× 0.02` and `+ 12000` are shape, not
+  // measurement: there is no invoice, charge or payment entity in the codebase
+  // for one-off and in-clinic revenue to come from. Surfaced with a visible
+  // label at every call site rather than a footnote (app/analytics/page.tsx).
   const grossMonthly = mrr + cl.reduce((s, c) => s + c.lifetimeValue, 0) * 0.02 + 12000;
   const revByService = serviceLines.map((s) => ({ name: s.name, revenue: Math.round(grossMonthly * s.weight) }));
 
@@ -90,6 +143,9 @@ export function analyticsFor(locationFilter: LocationId | "all") {
   }));
 
   // Retention cohort curve (months since join → % retained).
+  // ILLUSTRATION — a literal array, identical for every location filter. A real
+  // curve needs join-dated cohorts and churn events with dates; `Client` has
+  // `joinedOn` but nothing records a cancellation, so no denominator exists.
   const retention = [
     { month: "M0", pct: 100 },
     { month: "M1", pct: 94 },

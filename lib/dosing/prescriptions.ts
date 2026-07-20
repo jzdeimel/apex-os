@@ -85,6 +85,34 @@ export interface Prescription {
  * the deliberate odd one out: it is an oil supplied at strength, with no mixing
  * step, and modelling it as a powder would invent a step that does not exist.
  */
+/**
+ * ELIGIBILITY IS PART OF THE TEMPLATE, NOT A FILTER APPLIED LATER.
+ *
+ * The generator originally picked from this list with `seededRandom` and no
+ * constraint at all. Replaying the PRNG showed four of eight female demo
+ * patients being assigned testosterone cypionate 100mg twice weekly — roughly
+ * ten to twenty times a female physiologic dose — rendered with a computed
+ * syringe draw under a named physician's signature.
+ *
+ * The header of this file argues that displaying a dose is safe BECAUSE a
+ * licensed provider signed it. No provider signed those. A pseudo-random number
+ * generator did, and the signature was decoration on top of it. That is the
+ * exact failure this codebase is careful about everywhere else, and it reached a
+ * live URL.
+ *
+ * So eligibility lives on the record and the generator cannot bypass it:
+ *   `sex`      — which patients this template may ever be offered to.
+ *   `programs` — the enrolments that make it clinically coherent. A GLP-1 for
+ *                someone on a weight programme; testosterone for someone on
+ *                hormone optimisation. Not "whatever the dice said".
+ *
+ * `sex: "any"` means the compound is dosed the same for men and women in this
+ * catalogue. Where it is not — testosterone above all — the template is
+ * restricted and a female-appropriate entry is listed separately rather than
+ * reusing a male dose with a different label.
+ */
+type TemplateSex = "male" | "female" | "any";
+
 const TEMPLATES: {
   sku: string;
   libraryKey?: string;
@@ -95,6 +123,10 @@ const TEMPLATES: {
   days: number[];
   timeOfDay: "Morning" | "Evening";
   rotateSites: boolean;
+  /** Who this may be offered to. Enforced in the generator, not by convention. */
+  sex: TemplateSex;
+  /** Programme names that make this coherent. Empty = any programme. */
+  programs: string[];
 }[] = [
   {
     sku: "PEP-BPC-5MG",
@@ -106,6 +138,8 @@ const TEMPLATES: {
     days: [1, 2, 3, 4, 5],
     timeOfDay: "Morning",
     rotateSites: true,
+    sex: "any",
+    programs: ["Recovery Track", "Aesthetics & Vitality"],
   },
   {
     sku: "GLP-SEMA-2.5",
@@ -117,6 +151,8 @@ const TEMPLATES: {
     days: [0],
     timeOfDay: "Morning",
     rotateSites: true,
+    sex: "any",
+    programs: ["GLP Weight Management", "Metabolic Reset"],
   },
   {
     sku: "GLP-TIRZ-5",
@@ -128,6 +164,8 @@ const TEMPLATES: {
     days: [3],
     timeOfDay: "Evening",
     rotateSites: true,
+    sex: "any",
+    programs: ["GLP Weight Management", "Metabolic Reset"],
   },
   {
     sku: "PEP-IPACJC-10",
@@ -139,6 +177,8 @@ const TEMPLATES: {
     days: [1, 2, 3, 4, 5],
     timeOfDay: "Evening",
     rotateSites: true,
+    sex: "any",
+    programs: ["Recovery Track", "NAD+ Vitality", "Aesthetics & Vitality"],
   },
   {
     sku: "HRT-TCYP-200",
@@ -152,6 +192,8 @@ const TEMPLATES: {
     days: [1, 4],
     timeOfDay: "Morning",
     rotateSites: true,
+    sex: "male",
+    programs: ["Hormone Optimization"],
   },
   {
     sku: "PEP-SERM-15",
@@ -163,6 +205,25 @@ const TEMPLATES: {
     days: [1, 2, 3, 4, 5, 6],
     timeOfDay: "Evening",
     rotateSites: true,
+    sex: "any",
+    programs: ["Recovery Track", "NAD+ Vitality"],
+  },
+  {
+    // Listed separately rather than reusing the male entry with a smaller
+    // number. Female hormone therapy is a different clinical conversation, and
+    // collapsing the two into one template with a dose multiplier is how the
+    // original bug became possible.
+    sku: "HRT-ESTR-0.1",
+    libraryKey: undefined,
+    name: "Estradiol",
+    supply: { kind: "solution", amountPerMl: 1, unit: "mg" },
+    doseAmount: 0.1,
+    doseUnit: "mg",
+    days: [1, 4],
+    timeOfDay: "Morning",
+    rotateSites: true,
+    sex: "female",
+    programs: ["Hormone Optimization"],
   },
 ];
 
@@ -181,13 +242,29 @@ export const prescriptions: Prescription[] = clients.flatMap((c) => {
   // Only members actually on a protocol carry one.
   if (c.status !== "Active Protocol" && c.status !== "Follow-Up Due") return [];
 
+  // ELIGIBILITY FIRST, then the dice. The generator may only ever choose from
+  // templates this patient could actually be prescribed — see the note on
+  // TEMPLATES. Selecting first and filtering afterwards would leave the same
+  // hole, because a filtered-out choice has to fall back to *something*.
+  const enrolled = new Set(c.programs.map((p) => p.name));
+  const eligible = TEMPLATES.filter(
+    (t) =>
+      (t.sex === "any" || t.sex === c.sex) &&
+      (t.programs.length === 0 || t.programs.some((n) => enrolled.has(n))),
+  );
+
+  // No eligible template is a legitimate outcome: a member on a programme this
+  // catalogue does not cover simply has no seeded prescription. Inventing one to
+  // fill the screen is what this fix exists to prevent.
+  if (eligible.length === 0) return [];
+
   const rand = seededRandom(c.id + "rx");
-  const count = 1 + Math.floor(rand() * 2); // one or two concurrent items
-  const start = Math.floor(rand() * TEMPLATES.length);
+  const count = Math.min(1 + Math.floor(rand() * 2), eligible.length);
+  const start = Math.floor(rand() * eligible.length);
   const signer = providerId();
 
   return Array.from({ length: count }, (_, i) => {
-    const t = TEMPLATES[(start + i) % TEMPLATES.length];
+    const t = eligible[(start + i) % eligible.length];
     // Signed some weeks back, so "time on therapy" is meaningful in the demo.
     const signedDaysAgo = 14 + Math.floor(rand() * 90);
     const signedAt = absolute(

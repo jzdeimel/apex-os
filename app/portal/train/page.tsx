@@ -9,10 +9,12 @@
  */
 
 import { WorkoutLibrary } from "@/components/portal/WorkoutLibrary";
-import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 
 export default function PortalTrainPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const client = useMeClient();
 
   return (
     <div className="space-y-8">

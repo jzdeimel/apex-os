@@ -17,8 +17,10 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Client } from "@/lib/types";
 import type { Consult } from "@/lib/consult/types";
 import { clients, clientName } from "@/lib/mock/clients";
+import { staffMap, staffName } from "@/lib/mock/staff";
 import { unsignedConsultsFor, latestConsult } from "@/lib/mock/consults";
 import { lastTouchFor } from "@/lib/mock/contactLog";
+import { appendLedger, type LedgerAction, type LedgerEntity } from "@/lib/trace/ledger";
 import { findingCount } from "@/lib/consult/summarize";
 import { nextBestAction, rankByTriage } from "@/lib/aiInsights";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
@@ -132,8 +134,15 @@ export function buildQueue(coachId: string): QueueItem[] {
       why: `Unsigned for ${ageDays}d · ${findings} AI finding${findings === 1 ? "" : "s"} awaiting your review`,
       owner: "Coach",
       priority: 900 + Math.min(99, ageDays),
-      clearLabel: "Sign",
-      clearedLabel: "Signed",
+      // "Acknowledge", not "Sign". The audit's phrasing was exact: two buttons
+      // in this product were labelled Sign and one of them was theatre. This
+      // one is the theatre — clearing a one-line queue row does not put a
+      // signature on a note the coach cannot see from here, and MobileSignQueue's
+      // own header explains why one-tap signing with the evidence off-screen is
+      // the failure mode to design against. The row still reads "You owe a
+      // signature" after it is acknowledged, because the coach still does.
+      clearLabel: "Acknowledge",
+      clearedLabel: "Acknowledged",
     });
     claimed.add(client.id);
   }
@@ -182,6 +191,60 @@ export function buildQueue(coachId: string): QueueItem[] {
   // Stable tiebreak on id so the order is byte-identical on every render.
   return items.sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
 }
+
+// ---------------------------------------------------------------------------
+// What clearing a row actually writes
+// ---------------------------------------------------------------------------
+
+/**
+ * AUDIT FIX — GAP_ANALYSIS "Check-in write / P0" and ENGAGEMENT friction #8.
+ *
+ * This component toasted "Written to the ledger" and contained ZERO
+ * `appendLedger` calls. The most-clicked button on the coach home screen
+ * asserted a clinical write that never happened. It now writes a real,
+ * hash-chained row that shows up on the traceability surface and verifies.
+ *
+ * The row describes the WORKLIST act, not a clinical one, because a worklist
+ * act is all that occurs. `lib/mock/contactLog.ts` still has no write API, so
+ * the member's contact timeline does not move; `Consult.status` is not mutated
+ * either. The `after` diff says both of those out loud rather than leaving
+ * someone reading the ledger a year later to infer that a chart changed.
+ *
+ * REJECTED: writing `action: "sign"` for signature rows. That would have made
+ * the toast true at the cost of making the LEDGER lie — a permanent, hashed
+ * assertion that a note was signed by a coach who never had it on screen. A
+ * false toast is embarrassing; a false audit row is the thing this whole
+ * product claims to prevent.
+ */
+const LEDGER_SHAPE: Record<
+  QueueKind,
+  { action: LedgerAction; entity: LedgerEntity; reason: string }
+> = {
+  signature: {
+    action: "view",
+    entity: "note",
+    reason: "Today queue — coach acknowledged an unsigned consult. No signature applied here",
+  },
+  triage: {
+    action: "update",
+    entity: "chart",
+    reason: "Today queue — coach marked an attention flag handled",
+  },
+  stale: {
+    action: "create",
+    entity: "note",
+    reason: "Today queue — coach logged a check-in touch",
+  },
+};
+
+/** Toast body per kind. Each says what landed and, more importantly, what did not. */
+const CLEARED_DESC: Record<QueueKind, (rowId: string) => string> = {
+  signature: (id) =>
+    `Acknowledged in the audit ledger (${id}). The signature is still owed — sign it in the consult, where the note is on screen.`,
+  triage: (id) => `Written to the audit ledger (${id}). No chart or protocol changed.`,
+  stale: (id) =>
+    `Touch written to the audit ledger (${id}). The contact timeline is seeded data and does not move yet.`,
+};
 
 // ---------------------------------------------------------------------------
 // Keyboard
@@ -280,11 +343,41 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
     (item: QueueItem, idx: number) => {
       setCleared((c) => ({ ...c, [item.id]: true }));
       setFocusIdx(idx); // stay put — the coach decides when to move on
+
+      const me = staffMap[coachId];
+      const shape = LEDGER_SHAPE[item.kind];
+      const row = appendLedger({
+        actorId: coachId,
+        actorName: me?.name ?? staffName(coachId),
+        actorRole: me?.role ?? "Coach",
+        action: shape.action,
+        entity: shape.entity,
+        // Signature rows point at the real consult so the acknowledgement is
+        // joinable to the thing still owed. The other two have no clinical
+        // record behind them, so the entity id is honestly the queue row's.
+        entityId:
+          item.kind === "signature" && item.consult ? item.consult.id : `queue-${item.id}`,
+        subjectId: item.client.id,
+        subjectName: clientName(item.client),
+        locationId: item.client.locationId,
+        reason: shape.reason,
+        after: {
+          surface: "today-queue",
+          queueItem: item.id,
+          worked: item.action,
+          // Stated, not implied. A ledger reader must not have to guess which
+          // of these a cleared queue row did or did not do.
+          chartChanged: false,
+          contactLogEntryCreated: false,
+          ...(item.kind === "signature" ? { signatureApplied: false } : {}),
+        },
+      });
+
       toast(`${item.clearedLabel} · ${clientName(item.client)}`, {
-        desc: "Written to the ledger. Press Next when you're ready.",
+        desc: CLEARED_DESC[item.kind](row.id),
       });
     },
-    [toast],
+    [coachId, toast],
   );
 
   const undo = React.useCallback((item: QueueItem) => {
@@ -446,7 +539,14 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                         <span
                           className={cn(
                             "font-medium text-ink-200",
-                            isCleared && "line-through decoration-ink-600",
+                            // Struck through only when the action is genuinely
+                            // finished. A signature row's action reads "Review
+                            // & sign" and acknowledging it does neither — a
+                            // strike there would restate the claim the button
+                            // label was just corrected to stop making.
+                            isCleared &&
+                              item.kind !== "signature" &&
+                              "line-through decoration-ink-600",
                           )}
                         >
                           {item.action}

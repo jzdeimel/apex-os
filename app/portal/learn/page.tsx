@@ -20,7 +20,7 @@
  * without calling.
  */
 
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { EducationCentre } from "@/components/portal/EducationCentre";
 import { FaqAccordion } from "@/components/portal/FaqAccordion";
 import { PROOF, BRAND, journeyStepFor, JOURNEY } from "@/lib/brand";
@@ -28,7 +28,10 @@ import { FadeIn } from "@/components/portal/still";
 import { GraduationCap } from "lucide-react";
 
 export default function PortalLearnPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
   const step = journeyStepFor(client.status);
 
   return (
@@ -67,7 +70,7 @@ export default function PortalLearnPage() {
         </div>
       </FadeIn>
 
-      <EducationCentre clientId={ME} />
+      <EducationCentre clientId={meId} />
 
       {/* ------------------------------------------------------------------ */}
       {/* The clinic's published FAQ, verbatim.                              */}

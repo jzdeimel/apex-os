@@ -54,7 +54,7 @@ import type { LocationId } from "@/lib/types";
 import { Badge, Button, Card, CardContent } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem, SwitchView } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
-import { me, ME } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient } from "@/components/portal/PortalHeader";
 import { shortHash } from "@/lib/trace/hash";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -68,7 +68,10 @@ const STEPS: { id: Step; label: string }[] = [
 ];
 
 export function BookVisit() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): was the ME
+  // constant, which pinned booking to one hardcoded male member.
+  const meId = useMe();
+  const client = useMeClient();
   const { toast } = useToast();
 
   const [step, setStep] = useState<Step>("type");
@@ -80,7 +83,7 @@ export function BookVisit() {
   const [booked, setBooked] = useState<{ slot: Slot; ledgerId: string; hash: string } | null>(null);
   const [waitlisted, setWaitlisted] = useState<WaitlistEntry | null>(null);
 
-  const travel = travelFor(ME);
+  const travel = travelFor(meId);
 
   // Where the member physically is on the day they're booking. For an in-clinic
   // visit this is irrelevant; for telehealth it is the whole ballgame.
@@ -169,7 +172,7 @@ export function BookVisit() {
     if (!visitType || !venue || !days.length) return;
     const entry = joinWaitlist(
       {
-        clientId: ME,
+        clientId: meId,
         visitType,
         locationId: venue,
         staffId: staffId === "any" ? undefined : staffId,

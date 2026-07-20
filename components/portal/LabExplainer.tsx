@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronRight, Info, MessageSquare } from "lucide-react";
 import {
@@ -52,10 +53,36 @@ const HEX: Record<WhereItSits, string> = {
   "let's discuss": "#f87171",
 };
 
-export function LabExplainer({ clientId }: { clientId: string }) {
+export interface LabExplainerProps {
+  clientId: string;
+  /**
+   * Which marker to open on.
+   *
+   * Added when this component was finally mounted (audit: "imported by zero
+   * files"). The call site — app/portal/labs — is a grouped table of every
+   * marker, and the member arrives here by tapping ONE of them. Without this
+   * prop the explainer always opened on `markers[0]`, so tapping "Vitamin D"
+   * landed the member on whatever the ranker put first and they had to find
+   * their own marker again. Optional, so the standalone "open the panel"
+   * entry point still gets the ranked-first behaviour.
+   */
+  initialMarkerKey?: string;
+}
+
+export function LabExplainer({ clientId, initialMarkerKey }: LabExplainerProps) {
   const markers = useMemo(() => explainableMarkers(clientId), [clientId]);
   const overview = useMemo(() => panelOverview(clientId), [clientId]);
-  const [openKey, setOpenKey] = useState<string | null>(markers[0]?.key ?? null);
+  const [openKey, setOpenKey] = useState<string | null>(
+    initialMarkerKey ?? markers[0]?.key ?? null,
+  );
+
+  // The parent may point at a different marker without unmounting us (the labs
+  // page keeps this surface up while the member taps a second result). Syncing
+  // rather than keying off a remount preserves the list's scroll position,
+  // which is the whole reason the two-pane layout exists.
+  useEffect(() => {
+    if (initialMarkerKey) setOpenKey(initialMarkerKey);
+  }, [initialMarkerKey]);
 
   const explanation = useMemo(
     () => (openKey ? explainMarker(clientId, openKey) : null),
@@ -215,11 +242,19 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
           )}
         </section>
 
+        {/* This was a bare <Button> with no handler — invisible while the
+            component was dead code, a lie the moment it was mounted. It now
+            goes to the member's actual message thread rather than asserting an
+            action it cannot perform. It cannot pre-fill the draft: there is no
+            compose API on /portal/messages to hand a marker to, so the label
+            promises navigation only. */}
         <div className="flex flex-wrap items-center gap-3 border-t border-ink-800 pt-4">
-          <Button variant="outline" size="sm">
-            <MessageSquare className="h-3.5 w-3.5" aria-hidden />
-            Ask about this result
-          </Button>
+          <Link href="/portal/messages">
+            <Button variant="outline" size="sm">
+              <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+              Message your coach about this
+            </Button>
+          </Link>
           <p className="text-micro text-ink-500">{x.source}</p>
         </div>
       </CardContent>

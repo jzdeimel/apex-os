@@ -67,6 +67,23 @@ interface BulkActionDef {
   tone: "neutral" | "warn";
 }
 
+/**
+ * ── What these four actions ACTUALLY do in this build ─────────────────────
+ * Each one appends real, hash-chained ledger rows — one per member — and
+ * nothing else. There is no mutation layer behind the seeded roster, no task
+ * store and no file writer, so the coach's record does not change coaches, no
+ * task appears in a list, and no CSV is produced.
+ *
+ * The `consequence` strings below therefore describe the audit write, not the
+ * record write. They previously read "Changes the owning coach on each record"
+ * and "Produces a file containing protected health information" — sentences
+ * that assert an effect this build cannot deliver, in the one place the
+ * component exists to be truthful: the confirm step. A bar whose whole argument
+ * is STATE THE COUNT BEFORE YOU RUN cannot also misstate what running means.
+ *
+ * When a real write path lands, each string gains its record-level effect back.
+ * Until then the copy is the honest half.
+ */
 const ACTIONS: BulkActionDef[] = [
   {
     id: "assign",
@@ -74,7 +91,7 @@ const ACTIONS: BulkActionDef[] = [
     icon: UserCog,
     verb: "Reassign",
     consequence:
-      "Changes the owning coach on each record. Members are not notified; their next check-in simply comes from someone else.",
+      "Records a coach change against each member — before and after — on the audit ledger. Members are not notified. In this build the roster itself is seeded and does not change; the ledger row is the whole effect.",
     ledgerAction: "update",
     needsAssignee: true,
     tone: "warn",
@@ -85,7 +102,7 @@ const ACTIONS: BulkActionDef[] = [
     icon: PhoneCall,
     verb: "Mark",
     consequence:
-      "Logs a touch against each record today. It does not send anything — it records contact you have already made.",
+      "Records a touch against each member on the audit ledger. It sends nothing — it is a note that contact you already made happened.",
     ledgerAction: "update",
     tone: "neutral",
   },
@@ -94,7 +111,8 @@ const ACTIONS: BulkActionDef[] = [
     label: "Add task",
     icon: ListPlus,
     verb: "Add a task for",
-    consequence: "Creates one open task per member on your list. Nothing is sent to the member.",
+    consequence:
+      "Records one follow-up task per member on the audit ledger. Nothing is sent to the member, and this build has no task list for them to appear in.",
     ledgerAction: "create",
     tone: "neutral",
   },
@@ -102,9 +120,9 @@ const ACTIONS: BulkActionDef[] = [
     id: "export",
     label: "Export",
     icon: Download,
-    verb: "Export",
+    verb: "Log an export for",
     consequence:
-      "Produces a file containing protected health information. Every member in it gets an export event on their access log, which they can see in their portal.",
+      "Records an export event against each member — which they can see on their own access log in the portal. No file is produced in this build; the disclosure event is.",
     ledgerAction: "export",
     tone: "warn",
   },
@@ -211,7 +229,7 @@ export function BulkBar({
 
     setApplied({ action: pendingAction, rows, assigneeId, undone: false });
     setPending(null);
-    toast(`${pendingAction.verb} — ${count} member${count === 1 ? "" : "s"}`, {
+    toast(`Logged: ${pendingAction.verb.toLowerCase()} ${count} member${count === 1 ? "" : "s"}`, {
       desc: `${rows.length} ledger row${rows.length === 1 ? "" : "s"} written. Undo is available until you dismiss this bar.`,
     });
     onApplied?.({ action: pendingAction.id, count });
@@ -263,10 +281,14 @@ export function BulkBar({
         {/* ── Applied: the undo state ─────────────────────────────────── */}
         {applied ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* "Reassign 14 members." asserted a record change that did not
+                happen — see the ACTIONS docblock. The success line now names
+                the thing that did: N rows on the audit ledger. */}
             <p className="flex items-center gap-2 text-body text-ink-200">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-optimal" />
               <span>
-                {applied.undone ? "Reverted" : applied.action.verb}{" "}
+                {applied.undone ? "Reversed on the ledger — " : "Logged to the ledger — "}
+                {applied.action.verb.toLowerCase()}{" "}
                 <span className="stat-mono text-ink-50">{applied.rows.length}</span>{" "}
                 member{applied.rows.length === 1 ? "" : "s"}
                 {applied.action.id === "assign" && applied.assigneeId

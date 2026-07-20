@@ -28,7 +28,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import {
   availableFor,
   membershipUpgrade,
@@ -45,11 +45,14 @@ import { BRAND, PROOF } from "@/lib/brand";
 import { Compass, MessageSquare, Sparkles } from "lucide-react";
 
 export default function ExplorePage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
 
   // Pure selectors over frozen data — memo is for render cost, not correctness.
-  const data = useMemo(() => availableFor(ME), []);
-  const upgrade = useMemo(() => membershipUpgrade(ME), []);
+  const data = useMemo(() => availableFor(meId), [meId]);
+  const upgrade = useMemo(() => membershipUpgrade(meId), [meId]);
 
   if (!data) {
     return (

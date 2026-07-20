@@ -23,7 +23,7 @@ import { Card, CardContent, Badge, Button, Textarea } from "@/components/ui/prim
 import { useToast } from "@/components/ui/Toast";
 import { usePortal } from "@/lib/portalStore";
 import { formatDate, formatTime, cn } from "@/lib/utils";
-import { ME, me, MEMBER_THREAD, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, threadFor, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
 import { sendMessage } from "@/lib/comms/send";
 import { appendLedger } from "@/lib/trace/ledger";
 import { shortHash } from "@/lib/trace/hash";
@@ -49,7 +49,10 @@ function dayKey(iso: string) {
 }
 
 export default function PortalMessagesPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
   const { portal } = usePortal();
   const { toast } = useToast();
   const coach = staffMap[client.coachId];
@@ -68,7 +71,7 @@ export default function PortalMessagesPage() {
         staffId: client.coachId,
         title: coach?.name ?? "Your coach",
         subtitle: "Your coach · usually replies same day",
-        messages: [...MEMBER_THREAD, ...sent],
+        messages: [...threadFor(client), ...sent],
       },
       {
         id: "t-provider",
@@ -78,7 +81,7 @@ export default function PortalMessagesPage() {
         messages: [],
       },
     ],
-    [client.coachId, client.providerId, coach?.name, provider?.name, sent],
+    [client, client.coachId, client.providerId, coach?.name, provider?.name, sent],
   );
 
   const active = threads.find((t) => t.id === activeId) ?? threads[0];
@@ -111,7 +114,7 @@ export default function PortalMessagesPage() {
     setSending(true);
 
     const result = await sendMessage({
-      clientId: ME,
+      clientId: meId,
       staffId: coach?.id ?? "unknown",
       channel: "Portal message",
       // A member writing to their care team is clinical, never marketing.
@@ -119,7 +122,7 @@ export default function PortalMessagesPage() {
       scope: "clinical",
       body,
       to: client.email,
-      idempotencyKey: `portal-${ME}-${body.length}-${body.slice(0, 24)}`,
+      idempotencyKey: `portal-${meId}-${body.length}-${body.slice(0, 24)}`,
     });
 
     if (!result.ok) {

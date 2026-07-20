@@ -15,10 +15,12 @@
  */
 
 import { InjectionSites } from "@/components/portal/InjectionSites";
-import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 
 export default function PortalSitesPage() {
-  const client = me();
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const client = useMeClient();
 
   return (
     <div className="space-y-8">

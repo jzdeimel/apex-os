@@ -22,14 +22,17 @@ import { staffMap } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
 import { FadeIn } from "@/components/portal/still";
-import { ME, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { BookVisit } from "@/components/portal/BookVisit";
 import { TravelMode } from "@/components/portal/TravelMode";
 import { formatDate, formatTime, relativeDays } from "@/lib/utils";
 
 export default function BookVisitPage() {
-  const upcoming = appointmentsForMember(ME).filter((a) => a.start >= BOOKING_NOW && a.status === "Scheduled");
-  const waiting = waitlistFor(ME);
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const upcoming = appointmentsForMember(meId).filter((a) => a.start >= BOOKING_NOW && a.status === "Scheduled");
+  const waiting = waitlistFor(meId);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-16 pt-4 sm:px-6">

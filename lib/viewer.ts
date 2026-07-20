@@ -90,3 +90,61 @@ export const PERSONAS: Persona[] = [
 export function personaFor(portal: PortalId): Persona {
   return PERSONAS.find((p) => p.id === portal) ?? PERSONAS[2];
 }
+
+// ---------------------------------------------------------------------------
+// Demo member roster — which chart the Member seat renders
+// ---------------------------------------------------------------------------
+
+/**
+ * DEMO AFFORDANCE. Same class of thing as the guided tour and the persona
+ * switcher above it: a control that exists so a demo can be driven, not a
+ * production feature. In the real product the portal's subject is the session's
+ * own identity and there is nothing to pick.
+ *
+ * Why it exists at all: the audit (docs/audit/GAP_ANALYSIS.md, CLIENT table,
+ * "Portal renderable as a woman", P0) found the member portal hard-wired to
+ * `ME = "c-001"` — Jake Morrison, male, 41 — with ~50 call sites. Meanwhile the
+ * women's track was fully built and completely unreachable: female reference
+ * windows on five markers (lib/mock/labs.ts:19-32), a genuine perimenopause /
+ * female-testosterone / SHBG shelf in the education library gated by
+ * `articlesForSex` (lib/education/library.ts:573), and the male/female care-track
+ * picker in lib/brand.ts:115. Alpha Health treats men AND women and is growing
+ * the women's HRT line, so a demo that can only ever be a man's chart
+ * misrepresents half the business. Every one of those code paths is exercised
+ * the moment the subject id is allowed to change; none of them needed new logic.
+ *
+ * Only ids that are worth showing belong here. Each entry names a seeded client
+ * with a lab panel on file, because a portal whose Labs page is empty teaches
+ * the viewer the wrong thing about the product. Names, ages and programmes are
+ * NOT copied into this list — they are resolved from lib/mock/clients at render
+ * time, so this roster cannot drift away from the seed the way a duplicated
+ * label would.
+ */
+export interface DemoMember {
+  /** Client id in lib/mock/clients. */
+  id: string;
+  /** Why this chart is worth switching to — shown in the picker. */
+  why: string;
+}
+
+export const DEMO_MEMBERS: DemoMember[] = [
+  // The default. Every ~50 call site resolved to this before the fix, and it
+  // stays first so the demo opens exactly where it always did.
+  { id: "c-001", why: "Men's metabolic track — the default chart" },
+  // The point of the whole exercise: a woman's panel renders against the FEMALE
+  // reference windows and the education shelf switches to the women's track.
+  { id: "c-014", why: "Women's track — female lab ranges, active protocol" },
+  // Perimenopausal band. The library's perimenopause and women's-hormone-panel
+  // articles only surface for a female member in this age range.
+  { id: "c-016", why: "Women's track — perimenopause band, plan in review" },
+  // Kept so the hormone programme itself is reachable. HONEST NOTE: no seeded
+  // client is both female and on "Hormone Optimization" — that programme is
+  // assigned to c-011 and c-019, both male, in lib/mock/clients.ts. Inventing a
+  // woman on that programme would mean editing the seed, so the picker shows
+  // what the dataset actually contains rather than implying coverage it lacks.
+  { id: "c-011", why: "Hormone Optimization programme — men's HRT" },
+];
+
+export function isDemoMemberId(id: string | null | undefined): id is string {
+  return !!id && DEMO_MEMBERS.some((m) => m.id === id);
+}

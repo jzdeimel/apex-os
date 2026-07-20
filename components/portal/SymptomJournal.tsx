@@ -142,23 +142,49 @@ function CheckIn({ client }: { client: Client }) {
           />
         </div>
 
+        {/*
+            AUDIT FIX — GAP_ANALYSIS "Symptom check-in persistence / P0" and
+            ENGAGEMENT friction #7.
+
+            This button read "Save today" and toasted "Your coach can see this
+            before your next check-in." The handler was `setSaved(true)` and
+            nothing else: no store, no ledger row, no coach-facing surface.
+            A member on a bad day was being told a clinician would read it.
+
+            There is no journal write path in this build to hook up — the
+            correct fix is therefore the claim, not the action. The button now
+            names exactly what it does (holds the answers in this form for the
+            session) and the notice below is permanent, at body-adjacent size,
+            because a toast that vanishes in four seconds is not a disclosure.
+
+            What would make the old copy true: a `JournalEntry` write API on
+            lib/symptoms/journal.ts backed by real storage, plus a coach-side
+            journal read surface — which does not exist either (ENGAGEMENT
+            "Coach reactions on logs: MISSING").
+        */}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             variant="primary"
             disabled={answered === 0}
             onClick={() => {
               setSaved(true);
-              toast("Saved to your journal", {
-                desc: "Your coach can see this before your next check-in.",
+              toast("Kept on this screen", {
+                desc: "Not stored and not sent — this build has no journal write path yet.",
               });
             }}
           >
-            {saved ? "Saved" : "Save today"}
+            {saved ? "Kept for this session" : "Keep for this session"}
           </Button>
           <span className="stat-mono text-micro text-ink-500">
             {answered}/6 answered
           </span>
         </div>
+
+        <p className="mt-3 max-w-prose rounded-panel border border-ink-600/60 bg-ink-900/40 p-3 text-detail leading-relaxed text-ink-300">
+          <span className="font-medium text-ink-100">Nothing here is stored yet.</span> This is a
+          prototype: your answers stay on this screen, clear on refresh, and your coach cannot see
+          them. The history and trends below are sample data, not your entries.
+        </p>
       </CardContent>
     </Card>
   );
@@ -254,9 +280,15 @@ function TrendSection({ client }: { client: Client }) {
           <TrendLine data={trend.smoothed} height={200} />
         </div>
 
-        <p className="mt-2 max-w-prose text-micro leading-relaxed text-ink-500">
-          Seven-day rolling average of your own {meta.label.toLowerCase()} ratings, so a single rough day
-          does not swing the line. {meta.higherIsBetter ? "Higher is better." : "Lower is better."}
+        {/* "your own ... ratings" was false: lib/symptoms/journal.ts:238-251
+            generates 120 days from seededRandom and no member entry ever joins
+            it. The smoothing and direction maths below are real; the series
+            they run on is not, so the sentence names it. */}
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+          <span className="font-medium text-ink-100">Sample history.</span> Seven-day rolling average
+          of a seeded {meta.label.toLowerCase()} series — not your entries, which this build does not
+          store. The smoothing is real: a single rough day does not swing the line.{" "}
+          {meta.higherIsBetter ? "Higher is better." : "Lower is better."}
         </p>
       </CardContent>
     </Card>
@@ -434,6 +466,14 @@ export function SymptomJournal({ client }: { client: Client }) {
 
   return (
     <div className="space-y-5">
+      {/* The tiles below count seeded entries, not the member's. Labelled here
+          rather than in a footnote — "Days logged: 87" is a claim about the
+          member, and a disclaimer smaller than the number does not retract it. */}
+      <p className="text-detail leading-relaxed text-ink-400">
+        <span className="font-medium text-ink-100">Illustrative journal.</span> Every figure on this
+        page is generated sample data. Check-ins you enter here are not stored.
+      </p>
+
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         <div className="hairline rounded-panel border bg-ink-900/50 p-3.5">
           <p className="text-micro uppercase tracking-wide text-ink-500">Days logged</p>

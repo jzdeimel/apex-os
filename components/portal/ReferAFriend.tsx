@@ -21,7 +21,7 @@ import { Card, CardContent, Badge, Button, Progress, EmptyState } from "@/compon
 import { Stagger, StaggerItem, FadeIn } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { cn, currency, formatDate } from "@/lib/utils";
-import { ME } from "@/components/portal/PortalHeader";
+import { useMe } from "@/components/portal/PortalHeader";
 import {
   REWARD_RULES,
   REFERRER_REWARD_CENTS,
@@ -38,7 +38,15 @@ import {
 
 const dollars = (cents: number) => currency(cents / 100);
 
-export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
+export function ReferAFriend({ clientId: clientIdProp }: { clientId?: string }) {
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): the default
+  // used to be the ME constant, so this card kept rendering the one hardcoded
+  // male member even once the portal around it was rendering someone else.
+  // Resolved in the body rather than as a default parameter — a default
+  // parameter cannot call a hook, and `prop ?? useMe()` would short-circuit
+  // the hook away on any render where the prop is supplied.
+  const meId = useMe();
+  const clientId = clientIdProp ?? meId;
   const { toast } = useToast();
 
   const code = referralCodeFor(clientId);

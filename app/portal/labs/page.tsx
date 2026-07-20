@@ -34,9 +34,10 @@ import { Tabs } from "@/components/ui/Tabs";
 import { SwitchView, FadeIn } from "@/components/portal/still";
 import { PILLARS } from "@/lib/brand";
 import { formatDate, clamp, cn } from "@/lib/utils";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { LabExplainer } from "@/components/portal/LabExplainer";
 import { Term } from "@/components/ui/Term";
-import { FlaskConical, Eye } from "lucide-react";
+import { FlaskConical, Eye, ArrowLeft, Sparkles } from "lucide-react";
 
 /** The three member-facing readings, and the tone each maps to. */
 type MemberReading = "in-range" | "watching" | "discuss";
@@ -178,10 +179,28 @@ function RangeBar({ b }: { b: Biomarker }) {
 }
 
 export default function PortalLabsPage() {
-  const client = me();
-  const labs = getLabsForClient(ME);
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
+  const labs = getLabsForClient(meId);
   const provider = staffMap[client.providerId];
   const [group, setGroup] = useState("all");
+
+  /**
+   * The marker the member has asked to have explained, if any.
+   *
+   * Audit finding (ENGAGEMENT.md): this page was "a static grouped table" and
+   * `components/portal/LabExplainer.tsx` — band scale, trend-before-explanation,
+   * lifestyle levers — was imported by zero files. The table is still the right
+   * landing surface (it answers "how did the whole panel go" in one screen), so
+   * the explainer is not replacing it; it is the second level, entered per
+   * marker. Single-select, and it swaps the table out rather than expanding
+   * inline: the explainer is itself a two-pane surface with its own marker list,
+   * and nesting that inside a grid cell would produce a scroll region inside a
+   * scroll region on a phone.
+   */
+  const [explainKey, setExplainKey] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
     const markers = labs?.biomarkers ?? [];
@@ -313,7 +332,28 @@ export default function PortalLabsPage() {
         ))}
       </div>
 
+      {/* ------------------------------------------------------------------ */}
+      {/* Explain mode — one marker, in depth.                               */}
+      {/* ------------------------------------------------------------------ */}
+      {explainKey && (
+        <section className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setExplainKey(null)}
+            className="focus-ring inline-flex items-center gap-1.5 rounded-control text-detail text-ink-400 transition-colors hover:text-ink-100"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            All {labs.biomarkers.length} results
+          </button>
+          <LabExplainer clientId={meId} initialMarkerKey={explainKey} />
+        </section>
+      )}
+
       {/* Group filter -------------------------------------------------------- */}
+      {/* Hidden in explain mode. The explainer carries its own marker list, and
+          two competing lists of the same markers on one screen is how a member
+          loses track of which one they are reading. */}
+      {!explainKey && (
       <Tabs
         tabs={[
           { id: "all", label: "Everything", count: labs.biomarkers.length },
@@ -322,8 +362,10 @@ export default function PortalLabsPage() {
         active={group}
         onChange={setGroup}
       />
+      )}
 
-      {/**
+      {!explainKey && (
+      /**
        * One level of boxing, not two.
        *
        * Each group used to be a Card whose CardContent held a grid of further
@@ -336,7 +378,7 @@ export default function PortalLabsPage() {
        * The gap between groups (40px) is deliberately much larger than the gap
        * between markers (12px), so the grouping is legible without a border
        * being drawn around it.
-       */}
+       */
       <SwitchView k={group} className="space-y-10">
         {shown.map((g) => (
           <section key={g.id}>
@@ -394,6 +436,19 @@ export default function PortalLabsPage() {
                           : `${b.value > prev.value ? "up" : "down"} since ${formatDate(prev.date)}`}
                       </p>
                     )}
+
+                    {/* The way into the explainer. Every marker has one, because
+                        `explainableMarkers` returns the whole panel — a card
+                        that offered this on some markers and not others would
+                        read as "we have nothing to say about yours". */}
+                    <button
+                      type="button"
+                      onClick={() => setExplainKey(b.key)}
+                      className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-control text-micro font-medium text-gold-300 transition-colors hover:text-gold-200"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      What this means for you
+                    </button>
                   </div>
                 );
               })}
@@ -401,6 +456,7 @@ export default function PortalLabsPage() {
           </section>
         ))}
       </SwitchView>
+      )}
 
       <p className="pb-2 text-detail leading-relaxed text-ink-500">
         These are your results, not advice. Anything on this page is worth raising at your next visit — and if

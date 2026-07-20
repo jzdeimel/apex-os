@@ -70,8 +70,28 @@ export interface CatalogItem {
   id: string;
   /**
    * The join key to inventory and to OrderLine.sku. Deliberately the SAME
-   * vocabulary as lib/mock/inventory.ts so a dispensed line binds to a real lot
-   * and a recall question ("who received lot BPC-2604A?") is answerable.
+   * vocabulary as lib/mock/inventory.ts.
+   *
+   * WHAT THIS DOES AND DOES NOT BUY YOU — read before citing it as a capability.
+   * This comment previously claimed the shared vocabulary made a recall question
+   * ("who received lot BPC-2604A?") answerable. It does not, and the audit was
+   * right to call that out. SKU agreement is one of four things the recall join
+   * needs, and it is the only one that exists:
+   *
+   *   1. SKU vocabulary agreement                         — DONE, this field.
+   *   2. Order lots drawn from real inventory lots        — NOT DONE.
+   *      `lib/mock/orders.ts:308` fabricates `OrderLine.lotRef` from a third,
+   *      private catalog's `lotPrefix`. Order lots (BPC-2604K) match inventory
+   *      lots (BPC-2604A) only by coincidence.
+   *   3. A lot → patient query                            — NOT DONE.
+   *      No `byLot` / `recall` selector exists anywhere in the repo.
+   *   4. A dispense record for in-clinic administration   — NOT DONE.
+   *      In-clinic fulfilment writes nothing, and `inventory.quantity` never
+   *      decrements, so a vial drawn at a location leaves no lot trail at all.
+   *
+   * Until 2–4 land, this is a SKU that resolves, not a recall that closes. For
+   * Schedule III testosterone and compounded GLP-1s, an unanswerable recall is
+   * a regulatory event, so do not treat the sentence above as shipped.
    */
   sku: string;
   name: string;

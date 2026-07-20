@@ -27,7 +27,7 @@ import { TrendLine, TrendArea } from "@/components/charts";
 import { FadeIn } from "@/components/portal/still";
 import { Tabs } from "@/components/ui/Tabs";
 import { formatDate, seededRandom, cn, absolute } from "@/lib/utils";
-import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { Flame, TrendingDown, TrendingUp, Trophy, LineChart as LineChartIcon } from "lucide-react";
 
 const KG_TO_LB = 2.20462;
@@ -41,8 +41,11 @@ const monthOf = (iso: string) =>
   absolute(iso).toLocaleDateString("en-US", { timeZone: "UTC", month: "long" });
 
 export default function PortalProgressPage() {
-  const client = me();
-  const scan = getScanForClient(ME);
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const client = useMeClient();
+  const scan = getScanForClient(meId);
   const score = alphaScore(client);
   const plan = buildPlanOfCare(client);
   const [tab, setTab] = useState("body");
@@ -146,7 +149,7 @@ export default function PortalProgressPage() {
    * stable across reloads and never drift between screenshots.
    */
   const streaks = useMemo(() => {
-    const r = seededRandom(ME + "streaks");
+    const r = seededRandom(meId + "streaks");
     return [
       { label: "Check-ins logged", value: 11 + Math.floor(r() * 6), unit: "weeks running", icon: Flame },
       { label: "Training sessions", value: 38 + Math.floor(r() * 12), unit: "this block", icon: Trophy },

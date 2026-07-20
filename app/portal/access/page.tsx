@@ -25,7 +25,7 @@ import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives
 import { Tabs } from "@/components/ui/Tabs";
 import { Stagger, StaggerItem, SwitchView } from "@/components/portal/still";
 import { formatDateTime, relativeDays, cn } from "@/lib/utils";
-import { ME, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { useMe, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { Eye, Download, ShieldAlert, Fingerprint, ScrollText } from "lucide-react";
 
 /** Pinned clock — "this month" has to mean the same thing forever. */
@@ -56,7 +56,10 @@ export default function PortalAccessPage() {
 
   // The ledger is the source of truth; nothing here is a separate "audit copy"
   // that could drift from what actually happened.
-  const all = useMemo(() => accessLogForSubject(ME), []);
+  // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
+  // module constant ME, which pinned the portal to one male member.
+  const meId = useMe();
+  const all = useMemo(() => accessLogForSubject(meId), [meId]);
 
   const rows = useMemo(() => {
     if (filter === "month") return all.filter((r) => r.at.slice(0, 7) === THIS_MONTH);

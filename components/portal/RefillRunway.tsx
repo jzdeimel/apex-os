@@ -65,6 +65,13 @@ export function RefillRunway({ client }: { client: Client }) {
     // This records a REQUEST, not a shipment. Saying "reordered" for something
     // a human still has to place is the kind of small overclaim that ends with
     // a member waiting on a box nobody picked.
+    //
+    // AUDIT FIX — GAP_ANALYSIS "Refill request / P1": the ledger row was real
+    // but the copy around it was not. It said "your coach can see the request
+    // now"; no coach-facing reorder-request queue exists anywhere in the build,
+    // and `lib/orders/place.ts` is never called from here, so no Order is
+    // created and nothing enters fulfillment. The write below is the entire
+    // effect, and the copy now says only that.
     appendLedger({
       actorId: client.id,
       actorName: `${client.firstName} ${client.lastName}`,
@@ -86,8 +93,8 @@ export function RefillRunway({ client }: { client: Client }) {
     });
 
     setRequested((r) => (r.includes(line.subscriptionId) ? r : [...r, line.subscriptionId]));
-    toast("Reorder requested", {
-      desc: `Your coach can see the request for ${line.itemName} now.`,
+    toast("Request recorded", {
+      desc: `Logged against your record. No order for ${line.itemName} has been placed yet — someone still has to place it.`,
     });
   }
 
@@ -201,9 +208,13 @@ export function RefillRunway({ client }: { client: Client }) {
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   {asked ? (
+                    // "your coach has it" asserted a delivery to a person. The
+                    // request is recorded; nobody has been notified, because no
+                    // staff-side request queue exists to notify. State the
+                    // record, not an outcome we cannot vouch for.
                     <span className="inline-flex items-center gap-1.5 text-detail text-optimal">
                       <Check className="h-4 w-4" />
-                      Requested — your coach has it
+                      Request recorded — not yet ordered
                     </span>
                   ) : (
                     <Button

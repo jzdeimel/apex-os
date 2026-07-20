@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Check, Shield, Plus } from "lucide-react";
 import { questsFor, weekXp, type Quest } from "@/lib/play/quests";
 import { CURRENT_WEEK } from "@/lib/mock/play";
+import { useGamification } from "@/lib/portalStore";
 import { Card, CardContent, Badge, Button, SectionTitle } from "@/components/ui/primitives";
 import { RingCloseBurst } from "@/components/celebrate/RingCloseBurst";
 import { Confetti } from "@/components/celebrate/Confetti";
@@ -38,6 +39,10 @@ export function Quests({
   weekIso?: string;
   className?: string;
 }) {
+  // AUDIT FINDING P0-1 — gated on the member's gamification preference. Read
+  // before the early return so the hook order is stable whichever way it goes.
+  // The quest board and its confetti both go; StreakCard carries the control.
+  const { on } = useGamification();
   const base = useMemo(() => questsFor(clientId, weekIso), [clientId, weekIso]);
 
   // Local, demo-only progress on top of the deterministic seed. The server
@@ -47,7 +52,7 @@ export function Quests({
   const [bursts, setBursts] = useState<Record<string, number>>({});
   const [weekBurst, setWeekBurst] = useState(0);
 
-  if (!base.length) return null;
+  if (!on || !base.length) return null;
 
   const quests: Quest[] = base.map((q) => {
     const done = Math.min(q.target, q.done + (logged[q.id] ?? 0));

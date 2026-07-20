@@ -34,6 +34,35 @@ import {
 
 const STORAGE_KEY = "apex_portal_v1";
 
+/**
+ * The gamification opt-out.
+ *
+ * AUDIT FINDING P0-1 (docs/audit/ENGAGEMENT.md): there was no way to turn any of
+ * this off. A grep for `hideXp|gamif|optOut|showXp` returned zero matches
+ * repo-wide. A member who wanted none of it still got StreakCard, the season and
+ * quest board, LevelCard with confetti, and the streak tiles on Progress.
+ *
+ * The argument for the switch is one the codebase already makes about
+ * notifications — `components/portal/NotificationPrefs.tsx:250`: *"A reminder
+ * system you can't turn down isn't encouragement, it's pestering."* The same
+ * sentence is true of a scoreboard, and it was never applied to display.
+ *
+ * It is safe to honour because the clinical product does not depend on it: labs,
+ * protocol, journal, messages, plan-of-care and consents read nothing from
+ * `lib/play/*`. Turning this off removes motivation furniture and no care.
+ *
+ * REJECTED: defaulting to OFF. That would be a different product decision made
+ * by an audit fix, and it would hide the mechanics from members who like them.
+ * The defect is the absence of a choice, not the default.
+ *
+ * HYDRATION: defaults to `true` and reads storage in an effect, never during
+ * render — same discipline as `chosen` below and as `lib/member/logStore.tsx`.
+ * A member who has opted out sees one frame of the cards before they go. The
+ * alternative is a server/client disagreement on first paint, which is the bug
+ * class this codebase has paid for repeatedly.
+ */
+const PLAY_KEY = "apex_play_v1";
+
 interface PortalStore {
   /** The portal whose chrome should render right now. */
   portal: PortalDef;
@@ -43,6 +72,9 @@ interface PortalStore {
   clearPortal: () => void;
   /** True on routes that own no portal (the entry screen). */
   isEntry: boolean;
+  /** False when the member has switched off streaks, points, quests and seasons. */
+  playOn: boolean;
+  setPlayOn: (next: boolean) => void;
 }
 
 const Ctx = createContext<PortalStore | null>(null);
@@ -50,6 +82,7 @@ const Ctx = createContext<PortalStore | null>(null);
 export function PortalProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [chosen, setChosen] = useState<PortalId | null>(null);
+  const [playOn, setPlayOnState] = useState(true);
   const loaded = useRef(false);
 
   // Hydrate once. Guarded so the persist effect below can't write back an
@@ -58,6 +91,9 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (isPortalId(raw)) setChosen(raw);
+      // Only an explicit "off" turns it off. A missing key, a corrupt value or
+      // unavailable storage all mean "the member never said", which is on.
+      if (window.localStorage.getItem(PLAY_KEY) === "off") setPlayOnState(false);
     } catch {
       /* storage unavailable — the picker still works, it just won't persist */
     }
@@ -100,9 +136,22 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const setPortal = useCallback((id: PortalId) => setChosen(id), []);
   const clearPortal = useCallback(() => setChosen(null), []);
 
+  // Written on the click rather than in a persist effect. The effect pattern
+  // used for `chosen` needs the `loaded` guard to avoid clobbering storage
+  // before the read; a preference that only ever changes from a deliberate tap
+  // has no such race, and writing at the source keeps the two concerns apart.
+  const setPlayOn = useCallback((next: boolean) => {
+    setPlayOnState(next);
+    try {
+      window.localStorage.setItem(PLAY_KEY, next ? "on" : "off");
+    } catch {
+      /* private mode, quota — the choice still holds for this session */
+    }
+  }, []);
+
   const value = useMemo<PortalStore>(
-    () => ({ portal, chosen, setPortal, clearPortal, isEntry }),
-    [portal, chosen, setPortal, clearPortal, isEntry],
+    () => ({ portal, chosen, setPortal, clearPortal, isEntry, playOn, setPlayOn }),
+    [portal, chosen, setPortal, clearPortal, isEntry, playOn, setPlayOn],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -119,7 +168,22 @@ export function usePortal(): PortalStore {
       setPortal: () => {},
       clearPortal: () => {},
       isEntry: false,
+      playOn: true,
+      setPlayOn: () => {},
     };
   }
   return ctx;
+}
+
+/**
+ * Narrow hook for the play surfaces, so a streak card does not have to know
+ * what a portal is. Every component under `lib/play/*` gates on this.
+ *
+ * The `on` default outside a provider is `true` for the same reason the SSR
+ * default is: a card that silently disappears because a context was missing is
+ * a much harder bug to see than one that renders when it should not.
+ */
+export function useGamification(): { on: boolean; setOn: (next: boolean) => void } {
+  const { playOn, setPlayOn } = usePortal();
+  return { on: playOn, setOn: setPlayOn };
 }

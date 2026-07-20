@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Flame, Shield, ShieldCheck, Check, Pause, Target } from "lucide-react";
 import { atRiskToday, shieldExplainer, streakFor, SHIELD_CAP, SHIELD_EVERY } from "@/lib/play/streak";
+import { useGamification } from "@/lib/portalStore";
 import { Card, CardContent, Badge, Progress } from "@/components/ui/primitives";
 import { cn, formatDateShort } from "@/lib/utils";
 
@@ -30,6 +31,19 @@ import { cn, formatDateShort } from "@/lib/utils";
  * The jeopardy on this card is about the streak and nothing else. Nowhere does
  * it suggest a member loses *progress*, *results* or *money* — see rule 1 in
  * `lib/play/streak.ts`.
+ *
+ * ── The off switch (AUDIT FINDING P0-1) ───────────────────────────────────
+ * This card also carries the control that turns the whole play layer off, and
+ * it is the only surface that renders anything when the layer is off. That is
+ * deliberate: `Quests`, `LevelCard` and `SeasonArc` all return null, so if the
+ * way back on lived in one of them there would be no way back on. The switch
+ * lives with the most prominent mechanic, where a member who is tired of being
+ * scored is actually looking.
+ *
+ * It belongs in a member preferences screen, and there is not one — `/settings`
+ * is a staff console and `NotificationPrefs` is mounted nowhere. Putting it here
+ * is the honest version of shipping the choice rather than deferring it behind a
+ * route that does not exist.
  */
 
 export function StreakCard({
@@ -42,9 +56,12 @@ export function StreakCard({
   className?: string;
 }) {
   const reduced = useReducedMotion();
+  const { on, setOn } = useGamification();
   const state = useMemo(() => streakFor(clientId, nowIso), [clientId, nowIso]);
   const risk = useMemo(() => atRiskToday(clientId, nowIso), [clientId, nowIso]);
 
+  // Checked before `state` so the way back on survives a member with no streak.
+  if (!on) return <PlayIsOff onTurnOn={() => setOn(true)} className={className} />;
   if (!state) return null;
 
   const held = state.shieldsHeld.length;
@@ -253,6 +270,54 @@ export function StreakCard({
             </p>
           )}
         </div>
+
+        {/* ── The off switch ───────────────────────────────────────────── */}
+        {/* Plain text, no toggle chrome, sitting quietly at the bottom. A member
+            who wants this does not need it advertised; a member who does not
+            want it should never have to hunt for it. */}
+        <div className="mt-4 border-t border-ink-800 pt-3">
+          <button
+            type="button"
+            onClick={() => setOn(false)}
+            className="focus-ring rounded-control text-micro text-ink-600 underline decoration-ink-700 underline-offset-2 transition-colors hover:text-ink-300"
+          >
+            Turn off streaks, points and quests
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * What renders in place of the whole play layer once it is switched off.
+ *
+ * Deliberately not nothing. A card that vanishes with no trace leaves a member
+ * who taps by accident with no idea what happened or how to undo it, and it
+ * leaves the person next to them on the sofa unable to find a setting they were
+ * just shown. One small card is the cost of the switch being reversible.
+ *
+ * The copy is the argument `components/portal/NotificationPrefs.tsx:290` makes
+ * about notifications, applied to display: this is a perfectly reasonable
+ * setting, and nothing about the member's care depends on it.
+ */
+function PlayIsOff({ onTurnOn, className }: { onTurnOn: () => void; className?: string }) {
+  return (
+    <Card className={className}>
+      <CardContent className="p-5">
+        <p className="label-eyebrow">Streaks and points</p>
+        <p className="mt-2 text-detail leading-relaxed text-ink-300">
+          Off, and that is a perfectly reasonable setting. Your protocol, labs, messages and
+          everything your care team sees work exactly the same without it — none of your care was
+          ever counted in points.
+        </p>
+        <button
+          type="button"
+          onClick={onTurnOn}
+          className="focus-ring mt-3 rounded-control text-micro text-ink-500 underline decoration-ink-700 underline-offset-2 transition-colors hover:text-ink-200"
+        >
+          Turn them back on
+        </button>
       </CardContent>
     </Card>
   );
