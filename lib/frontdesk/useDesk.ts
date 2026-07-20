@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { scopeFor, ALL_LOCATIONS } from "@/lib/frontdesk/scope";
 import type { LocationId } from "@/lib/types";
 import { deskDay, dayCountsByLocation, type DeskDay, type DeskScope } from "@/lib/frontdesk/day";
 import { encounterVersion, subscribeEncounters } from "@/lib/frontdesk/encounters";
@@ -102,11 +103,22 @@ export function useDayCounts(): Record<string, { total: number; here: number }> 
   );
 }
 
-/** The five clinics, in the order the desk switcher shows them. */
-export const DESK_LOCATIONS: LocationId[] = [
-  "raleigh",
-  "raleigh-boutique",
-  "southern-pines",
-  "myrtle-beach",
-  "telehealth",
-];
+/**
+ * The locations THIS DESK may see, in switcher order.
+ *
+ * This was a flat list of all five sites, so reception at Myrtle Beach could
+ * page through the Raleigh day board. Alpha Health runs four clinics with their
+ * own front desks and that is a minimum-necessary access boundary, not a
+ * preference. It now derives from the signed-in staff member's own
+ * `locationIds` — see lib/frontdesk/scope.ts, which also records why ownership
+ * is the deliberate exception and how far a client-side scope actually goes.
+ */
+export function deskLocations(staffId: string | null): LocationId[] {
+  return scopeFor(staffId).allowed;
+}
+
+/**
+ * Kept as the ALL-sites list for surfaces that are legitimately cross-location
+ * (the owner console). Named so nobody reaches for it by accident at a desk.
+ */
+export const ALL_CLINIC_LOCATIONS: LocationId[] = ALL_LOCATIONS;

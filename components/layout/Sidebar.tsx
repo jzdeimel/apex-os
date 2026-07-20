@@ -79,6 +79,14 @@ export function Sidebar({
         </div>
 
         {/* ── Portal switcher ──────────────────────────────────────── */}
+        {/*
+          AUDIT 1.1: this mapped ALL FIVE portals into links with no member gate,
+          so a patient's own sidebar advertised "Medical Console · Providers &
+          clinicians" and "Owner Console · Ownership" and one tap reached them.
+          The switcher is an owner affordance for inspecting other surfaces, and
+          it must not appear inside the surface being inspected.
+        */}
+        {portal.id !== "patient" && (
         <div className="relative mx-3 mb-2">
           <button
             onClick={() => setSwitcherOpen((v) => !v)}
@@ -133,6 +141,8 @@ export function Sidebar({
             </motion.div>
           )}
         </div>
+
+        )}
 
         {/* ── Nav ──────────────────────────────────────────────────── */}
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-2">

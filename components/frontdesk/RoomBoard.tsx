@@ -9,7 +9,8 @@ import { inventory } from "@/lib/mock/inventory";
 import { visitTypeMap } from "@/lib/booking/availability";
 import { roomsAt } from "@/lib/frontdesk/rooms";
 import { duration } from "@/lib/frontdesk/clock";
-import { useDeskDay, DESK_LOCATIONS } from "@/lib/frontdesk/useDesk";
+import { useDeskDay, deskLocations } from "@/lib/frontdesk/useDesk";
+import { currentDeskStaffId } from "@/lib/frontdesk/scope";
 import { Badge } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 
@@ -195,7 +196,8 @@ function SiteFacts({ locationId }: { locationId: LocationId }) {
 
 export function RoomBoard() {
   const { day, scope } = useDeskDay();
-  const sites: LocationId[] = scope === "all" ? DESK_LOCATIONS : [scope as LocationId];
+  const allowedSites = deskLocations(currentDeskStaffId());
+  const sites: LocationId[] = scope === "all" ? allowedSites : [scope as LocationId];
 
   return (
     <div className="space-y-6">
@@ -211,7 +213,7 @@ export function RoomBoard() {
           {/* Always every site, even when the board is scoped to one. The whole
               point of the stock line is that a location missing from a summary
               is indistinguishable from a location that is fine. */}
-          {DESK_LOCATIONS.map((id) => (
+          {allowedSites.map((id: LocationId) => (
             <SiteFacts key={id} locationId={id} />
           ))}
         </div>

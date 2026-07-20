@@ -208,6 +208,19 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
    * routes — see the `prefixes` note in lib/portals.ts — so they render with
    * desk chrome rather than needing a desk-specific copy of each page.
    */
+  /*
+   * AUDIT 1.3: "Look someone up → Members → /clients" was in this tree, and
+   * /clients is a fourteen-tab clinical chart with no gate — panel-wide risk
+   * donut, Alpha Score distribution, full lab panels, AI interpretation, symptom
+   * search, and a textarea that WRITES to the chart. A receptionist needs name,
+   * date of birth, phone and next appointment; they do not need a testosterone
+   * level, and they certainly do not need to author a consult.
+   *
+   * Removed rather than gated, because the desk's own three pages already
+   * answer the reception question correctly at appointment-type granularity.
+   * A desk-safe lookup surface is the proper replacement and is not built yet —
+   * so this is a removal with a known gap, not a fix.
+   */
   desk: [
     {
       section: "The counter",
@@ -221,7 +234,6 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
     {
       section: "Look someone up",
       items: [
-        { href: "/clients", label: "Members", icon: Users },
         { href: "/tasks", label: "Tasks", icon: ClipboardList },
       ],
     },

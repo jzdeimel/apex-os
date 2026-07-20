@@ -2,8 +2,10 @@
 
 import { Building2, Video, Layers } from "lucide-react";
 import { locationMap } from "@/lib/mock/locations";
-import { useDeskScope, useDayCounts, DESK_LOCATIONS } from "@/lib/frontdesk/useDesk";
+import { useDeskScope, useDayCounts, deskLocations } from "@/lib/frontdesk/useDesk";
+import { scopeFor, currentDeskStaffId } from "@/lib/frontdesk/scope";
 import type { DeskScope } from "@/lib/frontdesk/day";
+import type { LocationId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,8 +28,16 @@ export function LocationSwitcher() {
   const [scope, setScope] = useDeskScope();
   const counts = useDayCounts();
 
+  // The signed-in desk's own assignment. Reception at one clinic has no
+  // business reading another clinic's day board — lib/frontdesk/scope.ts.
+  const deskStaffId = currentDeskStaffId();
+  const deskScope = scopeFor(deskStaffId);
+  const allowed = deskScope.allowed;
+
   const options: { id: DeskScope; label: string; sub: string; icon: typeof Building2 }[] = [
-    ...DESK_LOCATIONS.map((id) => {
+    // Scoped to the signed-in desk. A receptionist at one clinic has no
+    // business reading another clinic's day board — see lib/frontdesk/scope.ts.
+    ...allowed.map((id: LocationId) => {
       const loc = locationMap[id];
       return {
         id: id as DeskScope,
@@ -36,7 +46,18 @@ export function LocationSwitcher() {
         icon: loc.type === "virtual" ? Video : Building2,
       };
     }),
-    { id: "all", label: "All sites", sub: "Multi-site ops", icon: Layers },
+    // "All sites" only for a desk that legitimately spans locations. Reception
+    // assigned to one clinic never gets a cross-site view — an aggregate that
+    // reveals other locations' volume is a leak even before a single row loads.
+    // "All sites" only when the desk spans more than one PHYSICAL clinic.
+    // Telehealth rides along with every physical assignment (a video visit is
+    // booked to the patient's state, not a building), so it must not by itself
+    // make a single-clinic desk look multi-site — Hannah is Raleigh + telehealth
+    // and should see her clinic, not an all-sites roll-up of the others.
+    ...(deskScope.unrestricted ||
+    allowed.filter((l: LocationId) => l !== "telehealth").length > 1
+      ? [{ id: "all" as DeskScope, label: "All sites", sub: "Multi-site ops", icon: Layers }]
+      : []),
   ];
 
   const totalAll = Object.values(counts).reduce((s, c) => s + c.total, 0);

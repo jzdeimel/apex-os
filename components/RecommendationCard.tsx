@@ -1,4 +1,6 @@
 "use client";
+import { appendLedger } from "@/lib/trace/ledger";
+import { VIEWER } from "@/lib/viewer";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -271,13 +273,34 @@ export function RecommendationCard({
           >
             <CheckCircle2 className="h-3.5 w-3.5" /> Approve
           </Button>
+          {/*
+            AUDIT 2.2: Decline was ungated while Approve required Medical, and it
+            wrote NO ledger row. Declining a pending TRT recommendation is the
+            negative half of a clinical sign-off — the decision that a patient
+            does not get a therapy — and it was available to anyone and left no
+            trace. Both halves of a signature belong to the same role, and both
+            belong in the audit chain.
+          */}
           <Button
             size="sm"
             variant="danger"
-            disabled={status === "declined"}
+            disabled={!canApprove || status === "declined"}
+            title={!canApprove ? "Declining a clinical recommendation is a provider decision." : undefined}
             onClick={() => {
+              const row = appendLedger({
+                actorId: VIEWER.id,
+                actorName: VIEWER.name,
+                actorRole: role,
+                action: "deny",
+                entity: "recommendation",
+                entityId: rec.id,
+                subjectId: rec.clientId,
+                reason: "Recommendation declined by provider",
+                before: { status },
+                after: { status: "declined" },
+              });
               setRecStatus(rec.id, "declined");
-              toast("Recommendation declined");
+              toast(`Recommendation declined · ledger ${row.id}`);
             }}
           >
             <XCircle className="h-3.5 w-3.5" /> Decline

@@ -218,6 +218,15 @@ export default function EntryPage() {
                         <span className="text-micro text-ink-300">{p.identity.method}</span>
                       </div>
                       <p className="pl-[18px] text-micro text-ink-600">{p.identity.session}</p>
+                      {/* The production identity model, rendered explicitly as a
+                          PLAN. These strings used to sit in `method`/`session`
+                          and read as statements of fact — five cards making five
+                          security claims the code did not honour. Labelled, they
+                          are useful; unlabelled, they were the worst kind of
+                          untruth this product could tell. */}
+                      <p className="pl-[18px] text-micro text-ink-700">
+                        <span className="text-ink-600">Planned:</span> {p.identity.planned}
+                      </p>
                     </div>
 
                     <div className="mt-4 flex items-center gap-1.5">

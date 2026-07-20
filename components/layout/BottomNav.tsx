@@ -68,7 +68,10 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
     { href: "/desk", label: "Today", icon: ListChecks },
     { href: "/desk/book", label: "Book", icon: PhoneCall },
     { href: "/desk/rooms", label: "Rooms", icon: DoorOpen },
-    { href: "/clients", label: "Members", icon: Users },
+    // AUDIT 1.3: was /clients — a fourteen-tab clinical chart a receptionist has
+    // no business reading, and can write notes to. Removed here as well as from
+    // lib/nav.ts; the desk's own pages answer the reception question.
+    { href: "/schedule", label: "Schedule", icon: CalendarDays },
     { href: "/schedule", label: "Staff", icon: CalendarDays },
   ],
   /**

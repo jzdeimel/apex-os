@@ -12,12 +12,31 @@
 
 export type PortalId = "patient" | "clinic" | "coach" | "desk" | "exec";
 
-/** Who signs in, and how. Mirrors the production identity plan. */
+/**
+ * Who signs in, and how.
+ *
+ * SPLIT INTO LIVE AND PLANNED, DELIBERATELY.
+ *
+ * These fields previously held the production identity PLAN — "Passkey or magic
+ * link", "Google Workspace · domain-locked", "Shared workstation · badge tap",
+ * "MFA required", "re-auth to sign" — and the entry screen rendered them as
+ * plain statements of fact. None of it existed. Five cards on the first screen
+ * of the product made five specific security claims the code did not honour,
+ * which is the exact failure this codebase keeps being audited for, on the worst
+ * possible subject.
+ *
+ * The plan is worth keeping; presenting it as the present tense was not. So
+ * `method` and `session` now describe WHAT ACTUALLY HAPPENS WHEN YOU CLICK
+ * ENTER, and `planned` carries the intended production posture, which the UI
+ * must render as a plan and never as a property.
+ */
 export interface PortalIdentity {
-  /** Human label for the login method shown on the picker. */
+  /** What actually authenticates this portal today. */
   method: string;
-  /** Short note on session policy, rendered on the picker card. */
+  /** Session policy actually in force today. */
   session: string;
+  /** The intended production identity model. NOT what happens today. */
+  planned: string;
 }
 
 export interface PortalDef {
@@ -66,8 +85,12 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/portal",
     prefixes: ["/portal"],
     identity: {
-      method: "Passkey or magic link",
-      session: "30-day rolling · device-bound",
+      // Members cannot sign in at all today: EasyAuth is single-tenant and a
+      // patient has no @goalphahealth.com account. This portal is reachable
+      // only by staff previewing it.
+      method: "Staff preview only",
+      session: "No patient sign-in yet",
+      planned: "Passkey or magic link · 30-day rolling · device-bound",
     },
     accent: {
       hex: "#34d399",
@@ -86,8 +109,9 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/clinic",
     prefixes: ["/clinic"],
     identity: {
-      method: "Entra ID · MFA required",
-      session: "8-hour · re-auth to sign",
+      method: "Entra ID · Alpha Health tenant",
+      session: "Platform session · no re-auth on sign yet",
+      planned: "MFA enforced · 8-hour · re-auth to sign",
     },
     accent: {
       hex: "#e93d3d",
@@ -109,8 +133,9 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/coach",
     prefixes: ["/coach"],
     identity: {
-      method: "Google Workspace · domain-locked",
-      session: "8-hour · least-privilege",
+      method: "Entra ID · Alpha Health tenant",
+      session: "Platform session",
+      planned: "Google Workspace · domain-locked · 8-hour · least-privilege",
     },
     accent: {
       hex: "#e0bd6e",
@@ -143,11 +168,12 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/desk",
     prefixes: ["/desk"],
     identity: {
-      method: "Shared workstation · badge tap",
+      method: "Entra ID · Alpha Health tenant",
       // Deliberately NOT "auto-locks at the counter". No idle lock exists
       // anywhere in Apex (GAP_ANALYSIS, COMPLIANCE, "Session timeout" — P0) and
       // a shared reception terminal is the single worst place to imply one.
-      session: "Shift-length · shared terminal",
+      session: "Platform session",
+      planned: "Shared workstation · badge tap · shift-length",
     },
     accent: {
       hex: "#60a5fa",
@@ -187,11 +213,12 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/exec",
     prefixes: ["/exec"],
     identity: {
-      method: "Entra ID · MFA required",
+      method: "Entra ID · Alpha Health tenant",
       // No claim of an idle lock: none exists anywhere in Apex (GAP_ANALYSIS,
       // COMPLIANCE, "Session timeout" — P0), and this console renders
       // clinic-wide financials.
-      session: "8-hour · owner account",
+      session: "Platform session · no idle lock",
+      planned: "MFA enforced · 8-hour · owner account",
     },
     accent: {
       hex: "#c9ced4",

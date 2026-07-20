@@ -343,7 +343,7 @@ export function PhoneBooking() {
         </span>
         <div className="min-w-0 flex-1">
           <Link
-            href={`/clients/${caller.id}`}
+            href="/desk"
             className="block truncate rounded-control text-body font-semibold text-ink-50 transition-colors hover:text-low focus-ring"
           >
             {clientName(caller)}

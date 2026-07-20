@@ -280,13 +280,19 @@ function DeskRowCard({
           </div>
 
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            {/*
+              AUDIT 1.3: the member's name linked to /clients/[id] — a fourteen-tab
+              clinical chart with lab panels, AI interpretation, symptom badges and
+              a textarea that writes to the record. Reception needs to know who is
+              in front of them, not their testosterone level, so the name is now
+              text. Removing the link is the honest interim; a desk-safe lookup
+              (name, DOB, phone, next appointment) is the real answer and is not
+              built.
+            */}
             {client ? (
-              <Link
-                href={`/clients/${client.id}`}
-                className="min-w-0 truncate rounded-control text-body font-semibold text-ink-50 transition-colors hover:text-low focus-ring"
-              >
+              <span className="min-w-0 truncate text-body font-semibold text-ink-50">
                 {client.firstName} {client.lastName}
-              </Link>
+              </span>
             ) : (
               <span className="min-w-0 truncate text-body font-semibold text-ink-50">
                 {appt.clientName}

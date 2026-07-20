@@ -90,7 +90,15 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {!isMember && <LocationFilter />}
           {!isMember && <NotificationBell />}
-          <PersonaSwitcher />
+          {/*
+          AUDIT 1.1: this was the one sibling without a guard. LocationFilter and
+          NotificationBell were both gated on !isMember and PersonaSwitcher was
+          missed, so a patient on /portal/labs saw a working launcher reading
+          "Medical Console · Providers & clinicians" and was one tap from /clinic.
+          The switcher is an owner affordance for checking other surfaces; it has
+          no business inside the surface being checked.
+        */}
+        {!isMember && <PersonaSwitcher />}
         </div>
       </div>
 

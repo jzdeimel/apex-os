@@ -131,7 +131,11 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/intake/") ||
     pathname.startsWith("/card/");
 
-  const portal = fromRoute ?? (chosen ? PORTALS[chosen] : PORTALS.clinic);
+  const portal = fromRoute ?? (chosen ? PORTALS[chosen] : PORTALS.patient /* AUDIT: least privilege. The fallback for an unknown
+      viewer was PORTALS.clinic, so anyone the app could not identify became a
+      clinician by default — the same inversion as the localStorage role that
+      defaulted to "Medical". The safe default is the surface with the least
+      reach. */);
 
   const setPortal = useCallback((id: PortalId) => setChosen(id), []);
   const clearPortal = useCallback(() => setChosen(null), []);
@@ -163,7 +167,11 @@ export function usePortal(): PortalStore {
     // The entry screen renders above the provider during the very first paint
     // in some Next transitions; a safe default beats a crash on a demo.
     return {
-      portal: PORTALS.clinic,
+      portal: PORTALS.patient /* AUDIT: least privilege. The fallback for an unknown
+      viewer was PORTALS.clinic, so anyone the app could not identify became a
+      clinician by default — the same inversion as the localStorage role that
+      defaulted to "Medical". The safe default is the surface with the least
+      reach. */,
       chosen: null,
       setPortal: () => {},
       clearPortal: () => {},
