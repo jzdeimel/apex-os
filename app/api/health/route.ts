@@ -19,7 +19,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const migration = migrationState();
-  const degraded = !isConfigured || migration.status === "failed";
+  /**
+   * `pending` counts as degraded, not ok.
+   *
+   * The first version treated only `failed` as degraded, so a database that was
+   * configured but whose migrations had never run reported `status: "ok"` with
+   * `writePathsEnabled: false` — a green light over a system that could not
+   * write. That is precisely the falsely-reassuring signal this codebase keeps
+   * getting audited for. If the write paths are not enabled, this endpoint says
+   * so in the status field, not only in a detail nobody reads.
+   */
+  const degraded = !isConfigured || migration.status !== "applied";
 
   return NextResponse.json(
     {
