@@ -27,6 +27,8 @@ import { RiskBadge } from "@/components/RiskBadge";
 import { Monogram } from "@/components/Monogram";
 import { Disclaimer, AiLabel } from "@/components/Disclaimer";
 import { LabTable } from "@/components/LabTable";
+import { TitrationAssistant } from "@/components/clinic/TitrationAssistant";
+import { HematocritTracker } from "@/components/clinic/HematocritTracker";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { AiDraftPanel } from "@/components/AiDraftPanel";
 import { ProtocolScheduleBuilder } from "@/components/ProtocolScheduleBuilder";
@@ -145,7 +147,16 @@ export default function ClientProfilePage() {
   const labs = getLabsForClient(id);
   const scan = getScanForClient(id);
   const recs = recommendationsForClient(id);
-  const tabsWithCounts = TABS.map((t) => ({
+
+  // Titration is prescriber decision-support, so it belongs to the medical
+  // surface and the owner — not the coach, and never the patient. Gated by the
+  // portal identity the same way the rest of the chart is, so a coach who
+  // break-glasses in still does not get a dose-direction console.
+  const canTitrate = portal.id === "clinic" || portal.id === "exec";
+  const shownTabs = canTitrate
+    ? [...TABS.slice(0, 5), { id: "titration", label: "Titration" }, ...TABS.slice(5)]
+    : TABS;
+  const tabsWithCounts = shownTabs.map((t) => ({
     ...t,
     count:
       t.id === "recs" ? recs.length : t.id === "labs" ? labs?.biomarkers.length : undefined,
@@ -174,6 +185,12 @@ export default function ClientProfilePage() {
       <SwitchView k={tab}>
         {tab === "overview" && <OverviewTab id={id} />}
         {tab === "labs" && <LabsTab id={id} />}
+        {tab === "titration" && canTitrate && (
+          <div className="space-y-6">
+            <TitrationAssistant clientId={id} />
+            <HematocritTracker clientId={id} />
+          </div>
+        )}
         {tab === "scan" && <ScanTab id={id} />}
         {tab === "recs" && <RecsTab id={id} />}
         {tab === "schedule" && <ProtocolScheduleBuilder client={client} />}

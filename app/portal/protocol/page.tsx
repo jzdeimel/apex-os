@@ -36,6 +36,8 @@ import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
 import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { MyLevelNow } from "@/components/portal/MyLevelNow";
+import { InjectionSiteMap } from "@/components/portal/InjectionSiteMap";
+import { ReconstitutionCalculator } from "@/components/portal/ReconstitutionCalculator";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -289,6 +291,20 @@ export default function PortalProtocolPage() {
           in me right now" are the same question at two resolutions. Renders
           nothing when the member is on no characterised compound. */}
       <MyLevelNow clientId={client.id} iso={PROTOCOL_NOW} />
+
+      {/* Injection-site rotation -------------------------------------------
+          The other half of "where is it in me": absorption depends on WHERE the
+          dose landed, not just when. Sits with the level curve because a flat
+          curve and an overused site are the same story. Renders nothing for a
+          member with nothing that rotates sites. */}
+      <InjectionSiteMap clientId={client.id} iso={PROTOCOL_NOW} />
+
+      {/* Mixing & draw ------------------------------------------------------
+          The arithmetic between "5mg powder" and "10 units on the pin" is where
+          a self-administered peptide goes ten-fold wrong. Sits with the dosing
+          tools because it is a dosing tool. Renders nothing unless the member
+          has something that gets reconstituted. */}
+      <ReconstitutionCalculator clientId={client.id} />
 
       {/* Nutrition ---------------------------------------------------------- */}
       <section>
