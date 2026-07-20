@@ -35,6 +35,7 @@ import { Stagger, StaggerItem, SwitchView, FadeIn } from "@/components/motion";
 import { PILLARS } from "@/lib/brand";
 import { formatDate, clamp, cn } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
+import { Term } from "@/components/ui/Term";
 import { FlaskConical, Eye } from "lucide-react";
 
 /** The three member-facing readings, and the tone each maps to. */
@@ -273,7 +274,7 @@ export default function PortalLabsPage() {
                     key={b.key}
                     className="inline-flex items-center gap-1.5 rounded-full border border-ink-600/60 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-200"
                   >
-                    {b.name}
+                    <Term k={b.key}>{b.name}</Term>
                     <span className="stat-mono text-ink-400">
                       {b.value} {b.unit}
                     </span>
@@ -339,7 +340,9 @@ export default function PortalLabsPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium leading-snug text-ink-50">{b.name}</p>
+                            <p className="text-sm font-medium leading-snug text-ink-50">
+                              <Term k={b.key}>{b.name}</Term>
+                            </p>
                             <p className="stat-mono mt-1.5 text-2xl font-semibold text-ink-50">
                               {b.value}
                               <span className="ml-1.5 text-xs font-normal text-ink-500">{b.unit}</span>

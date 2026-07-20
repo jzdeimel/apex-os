@@ -50,6 +50,8 @@ interface Pos {
   top: number;
   width: number;
   placement: "top" | "bottom";
+  /** Room actually available on the chosen side, so the panel can scroll. */
+  maxHeight: number;
 }
 
 export function Tip({
@@ -110,10 +112,19 @@ export function Tip({
     const placement: Pos["placement"] =
       roomBelow >= panelH || roomBelow >= roomAbove ? "bottom" : "top";
 
-    const top =
-      placement === "bottom" ? r.bottom + OFFSET : Math.max(GUTTER, r.top - OFFSET - panelH);
+    /**
+     * Cap the panel to the room on the chosen side rather than letting it run
+     * off. Clamping `top` alone silently pushed the bottom off a phone screen,
+     * and because the panel is fixed the page scrolled underneath it — the rest
+     * of the definition was simply unreachable.
+     */
+    const maxHeight = Math.max(120, placement === "bottom" ? roomBelow : roomAbove);
+    const cappedH = Math.min(panelH, maxHeight);
 
-    setPos({ left, top, width, placement });
+    const top =
+      placement === "bottom" ? r.bottom + OFFSET : Math.max(GUTTER, r.top - OFFSET - cappedH);
+
+    setPos({ left, top, width, placement, maxHeight });
   }, []);
 
   // Position before paint so the panel never flashes at 0,0.
@@ -191,11 +202,31 @@ export function Tip({
           setOpen((v) => !v);
         }}
       >
-        {/* aria-describedby is applied via a wrapper attribute rather than
-            cloned onto the child, so any trigger shape works. */}
-        <span aria-describedby={open ? panelId : undefined} aria-label={label}>
-          {children}
-        </span>
+        {/*
+          ARIA goes on the FOCUSABLE element, not on a wrapper around it.
+          
+          The previous version put aria-describedby and aria-label on a generic
+          <span> wrapping the trigger. Neither is honoured there: a generic role
+          does not take an accessible name, and a description on an ANCESTOR of
+          the focused node is not conveyed — assistive tech computes name and
+          description from the focused element itself. The result was that every
+          glossary word in the app announced as a bare button with no definition
+          attached, which is the entire feature failing silently for the people
+          who need it most.
+          
+          Cloning requires a single element child, so we fall back to the old
+          wrapper when given anything else rather than throwing.
+        */}
+        {React.isValidElement(children)
+          ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+              "aria-describedby": open ? panelId : undefined,
+              "aria-label": label,
+            })
+          : (
+            <span aria-describedby={open ? panelId : undefined} aria-label={label}>
+              {children}
+            </span>
+          )}
       </span>
 
       {mounted && open
@@ -209,6 +240,12 @@ export function Tip({
                 left: pos?.left ?? -9999,
                 top: pos?.top ?? -9999,
                 width: pos?.width ?? MAX_W,
+                // A long definition on a 390px screen otherwise runs past the
+                // viewport with no way to reach it: the panel is fixed, so the
+                // page scrolls underneath it rather than revealing the rest.
+                maxHeight: pos?.maxHeight ?? undefined,
+                overflowY: "auto",
+                overscrollBehavior: "contain",
                 // Hidden until measured — one frame, but a visible one.
                 opacity: pos ? 1 : 0,
               }}

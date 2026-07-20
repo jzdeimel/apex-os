@@ -156,8 +156,20 @@ function meaningFor(week: number, detail: string): string {
 // Season
 // ---------------------------------------------------------------------------
 
+/**
+ * Format a timestamp as YYYY-MM-DD using LOCAL parts.
+ *
+ * `toISOString()` converts to UTC first. Because the timestamps here come from
+ * locally-parsed midnight (`joinedOn + "T00:00:00"`), any non-UTC environment
+ * shifted the rendered day by one — so the server and the browser produced
+ * different markup for startedOn, endsOn and every chapter date, which React
+ * reports as a hydration mismatch.
+ */
 function isoDay(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
+  const d = new Date(ms);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
 /**
@@ -217,7 +229,11 @@ export function seasonFor(clientId: string, nowIso: string = NOW): Season | null
     week,
     totalWeeks: SEASON_WEEKS,
     progress,
-    daysToRecap: Math.max(0, SEASON_DAYS - dayInSeason),
+    // `dayInSeason` is 0..SEASON_DAYS-1, so `SEASON_DAYS - dayInSeason` was
+    // always at least 1 and never reached zero. That made `complete` — and the
+    // entire "Season N is done" recap branch, plus SeasonArc's "Recap ready"
+    // state — unreachable dead code, and progress never hit 1.
+    daysToRecap: Math.max(0, SEASON_DAYS - 1 - dayInSeason),
     chapters,
     premise,
   };

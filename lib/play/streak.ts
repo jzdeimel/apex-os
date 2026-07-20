@@ -178,9 +178,27 @@ export function streakFor(clientId: string, nowIso: string = NOW): StreakState |
   // personal best usually predates it, so the daily engine's figure wins when
   // it is larger — the member should never see their record shrink because we
   // narrowed a lookback.
-  const bestOverall = Math.max(best, plan.streak.best, run);
+  /**
+   * The record comes from the replayed ledger, and only from there.
+   *
+   * This used to fold in `plan.streak.best`, which buildDailyPlan fabricates as
+   * `current + rand()*20` off a seeded draw unrelated to any real history. The
+   * card then presented that number as "your personal best" and told the member
+   * that beating it "becomes the longest run you've ever put together". It was
+   * not their record; it was noise. A streak product's one job is to be honest
+   * about the member's own history.
+   *
+   * The 28-day window genuinely cannot see further back than 28 days, and that
+   * is a real limitation — but under-reporting a record is a smaller lie than
+   * inventing one, and a stored lifetime best can be added later without
+   * changing this contract.
+   */
+  const bestOverall = Math.max(best, run);
   const current = run;
-  const atPersonalBest = current >= bestOverall;
+  // Matching the record is not beating it, so the flip needs a strict >.
+  // Previously this was >= while the countdown added +1, so the card promised
+  // three more days and flipped after two.
+  const atPersonalBest = current > bestOverall;
 
   return {
     clientId,
@@ -269,7 +287,11 @@ export function atRiskToday(clientId: string, nowIso: string = NOW): RiskState |
       hex: r.hex,
     }));
 
-  const hoursLeft = Math.max(0, 24 - new Date(nowIso).getHours());
+  // Parse the hour straight out of the pinned ISO string. Going through
+  // `new Date(nowIso).getHours()` reads LOCAL hours from a zoneless string, so
+  // a UTC server and a non-UTC browser rendered different "Nh left" copy — a
+  // hydration mismatch on text the member reads.
+  const hoursLeft = Math.max(0, 24 - Number(nowIso.slice(11, 13)));
   const shieldsHeld = state.shieldsHeld.length;
   const atRisk = !protectedReason && openRings.length > 0;
 
