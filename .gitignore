@@ -47,3 +47,15 @@ softnav.mjs
 blank.mjs
 live-audit.json
 .shots/
+_scratch_*
+repro*.mjs
+repro*.js
+repro*.log
+rn*.log
+zz-*.mjs
+walk*.mjs
+seq.mjs
+trace.mjs
+min.mjs
+rapidnav.mjs
+explore.js
