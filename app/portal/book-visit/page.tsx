@@ -21,7 +21,7 @@ import { waitlistFor } from "@/lib/booking/waitlist";
 import { staffMap } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 import { ME, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { BookVisit } from "@/components/portal/BookVisit";
 import { TravelMode } from "@/components/portal/TravelMode";
@@ -51,14 +51,14 @@ export default function BookVisitPage() {
                     <CardContent className="pt-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="font-display text-[15px] font-semibold text-ink-50">
+                          <p className="font-display text-body font-semibold text-ink-50">
                             {visitTypeMap[a.type]?.label ?? a.type}
                           </p>
-                          <p className="mt-1 text-[13px] text-ink-400">
+                          <p className="mt-1 text-detail text-ink-400">
                             {formatDate(a.start)} at <span className="stat-mono">{formatTime(a.start)}</span> ·{" "}
                             {staffMap[a.staffId]?.name ?? "Your care team"}
                           </p>
-                          <p className="mt-0.5 text-xs text-ink-500">
+                          <p className="mt-0.5 text-micro text-ink-500">
                             {locationName(a.locationId)} · {relativeDays(a.start)}
                           </p>
                         </div>
@@ -71,7 +71,7 @@ export default function BookVisitPage() {
                       {virtual && (
                         <Link
                           href={`/portal/visit/${a.id}`}
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-medium text-gold-300 transition-colors hover:text-gold-200 focus-ring"
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-control text-detail font-medium text-gold-300 transition-colors hover:text-gold-200 focus-ring"
                         >
                           Open your visit room <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
@@ -94,10 +94,10 @@ export default function BookVisitPage() {
                 <Card key={w.id}>
                   <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5">
                     <div className="min-w-0">
-                      <p className="text-[13px] font-medium text-ink-50">
+                      <p className="text-detail font-medium text-ink-50">
                         {visitTypeMap[w.visitType]?.label ?? w.visitType} · {locationName(w.locationId)}
                       </p>
-                      <p className="mt-0.5 text-xs text-ink-500">
+                      <p className="mt-0.5 text-micro text-ink-500">
                         {formatDate(w.windowStart)} → {formatDate(w.windowEnd)}
                       </p>
                     </div>
@@ -115,7 +115,7 @@ export default function BookVisitPage() {
       <section>
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-gold-300" />
-          <h2 className="font-display text-lg font-semibold text-ink-50">Find a time</h2>
+          <h2 className="font-display text-heading font-semibold text-ink-50">Find a time</h2>
         </div>
         <div className="mt-4">
           <BookVisit />

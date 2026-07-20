@@ -17,7 +17,7 @@ import {
 } from "@/lib/cohort/trajectory";
 import { TrendArea } from "@/components/charts";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 
 /**
  * "Members like you, six months in."
@@ -115,7 +115,7 @@ export function PeopleLikeYou({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="label-eyebrow">Context</p>
-            <h3 className="mt-1 font-display text-lg font-semibold text-ink-50">
+            <h3 className="mt-1 font-display text-heading font-semibold text-ink-50">
               Members like you, six months in
             </h3>
           </div>
@@ -132,19 +132,19 @@ export function PeopleLikeYou({
           />
         ) : (
           <>
-            <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-ink-300">
+            <p className="mt-3 max-w-prose text-detail leading-relaxed text-ink-300">
               {leadCopy(cohort.matched)} The shaded band is where most of them
               were at each point. It is not a prediction.
             </p>
 
             {/* ── Who you are being compared to ───────────────────────── */}
-            <div className="mt-4 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
+            <div className="mt-4 rounded-panel border border-ink-800 bg-ink-900/40 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Users className="h-3.5 w-3.5 shrink-0 text-ink-500" />
-                <span className="text-[11px] uppercase tracking-wide text-ink-500">
+                <span className="text-micro uppercase tracking-wide text-ink-500">
                   Matched on
                 </span>
-                <span className="ml-auto text-[11px] text-ink-500">
+                <span className="ml-auto text-micro text-ink-500">
                   <span className="stat-mono text-ink-200">{cohort.size}</span> members
                 </span>
               </div>
@@ -155,7 +155,7 @@ export function PeopleLikeYou({
                   </Badge>
                 ))}
               </div>
-              <p className="mt-2.5 text-[11px] leading-relaxed text-ink-600">
+              <p className="mt-2.5 text-micro leading-relaxed text-ink-600">
                 Matched on where people started, never on how they finished — so
                 members who plateaued or stopped are still in the band.
               </p>
@@ -168,7 +168,7 @@ export function PeopleLikeYou({
                   key={m}
                   onClick={() => setMetric(m)}
                   aria-pressed={m === activeMetric}
-                  className={`rounded-lg border px-2.5 py-1 text-xs transition-colors focus-ring ${
+                  className={`rounded-control border px-2.5 py-1 text-micro transition-colors focus-ring ${
                     m === activeMetric
                       ? "border-gold-400/40 bg-gold-400/12 text-gold-200"
                       : "border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-200"
@@ -196,7 +196,7 @@ export function PeopleLikeYou({
                     ]}
                   />
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-ink-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-micro text-ink-500">
                     <Legend color={BAND_EDGE} label={`Middle half of members (25th–75th)`} />
                     <Legend color={BAND_MID} label="Median member" />
                     {mine?.ok && <Legend color={YOU} label="You" />}
@@ -208,7 +208,7 @@ export function PeopleLikeYou({
                   </div>
 
                   {/* The disclaimer sits under the chart, not in a footer. */}
-                  <p className="mt-3 flex items-start gap-2 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5 text-[11px] leading-relaxed text-ink-400">
+                  <p className="mt-3 flex items-start gap-2 rounded-control border border-ink-800 bg-ink-900/40 px-3 py-2.5 text-micro leading-relaxed text-ink-400">
                     <Info className="mt-0.5 h-3 w-3 shrink-0 text-ink-500" />
                     <span>
                       This is what already happened to other members — a range,
@@ -221,9 +221,9 @@ export function PeopleLikeYou({
 
                   {/* ── Where you currently sit ──────────────────────── */}
                   {spot?.ok && (
-                    <div className="mt-3 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
+                    <div className="mt-3 rounded-panel border border-ink-800 bg-ink-900/40 p-4">
                       <p className="label-eyebrow">Where you are</p>
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-200">
+                      <p className="mt-1.5 text-detail leading-relaxed text-ink-200">
                         You are{" "}
                         <span className="stat-mono text-ink-50">{weeksIn(client)}</span>{" "}
                         weeks in. At week{" "}
@@ -237,7 +237,7 @@ export function PeopleLikeYou({
                           ? " — inside the band, alongside most of the group."
                           : " — outside the band, which is where roughly half of the group also sits at some point."}
                       </p>
-                      <p className="mt-2 text-[11px] leading-relaxed text-ink-600">
+                      <p className="mt-2 text-micro leading-relaxed text-ink-600">
                         Position in the group, not a score. Being above or below
                         the band is information for your next conversation with
                         your coach, not a verdict.
@@ -245,7 +245,7 @@ export function PeopleLikeYou({
                     </div>
                   )}
 
-                  <p className="mt-3 text-[11px] text-ink-600">
+                  <p className="mt-3 text-micro text-ink-600">
                     Based on{" "}
                     <span className="stat-mono text-ink-400">{traj.n}</span> members at
                     week 0. Groups smaller than{" "}
@@ -323,7 +323,7 @@ function CohortWithheld({ reason, attempted }: { reason: string; attempted: stri
       />
       {attempted.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] uppercase tracking-wide text-ink-600">
+          <span className="text-micro uppercase tracking-wide text-ink-600">
             We looked for
           </span>
           {attempted.map((c) => (

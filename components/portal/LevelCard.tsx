@@ -72,8 +72,8 @@ export function LevelCard({
               />
             </svg>
             <span className="absolute flex flex-col items-center">
-              <span className="label-eyebrow text-[9px]">Level</span>
-              <span className="stat-mono text-2xl font-semibold leading-none text-ink-50">
+              <span className="label-eyebrow text-micro">Level</span>
+              <span className="stat-mono text-title font-semibold leading-none text-ink-50">
                 {state.level}
               </span>
             </span>
@@ -82,28 +82,28 @@ export function LevelCard({
           {/* ── Name, blurb, progress ───────────────────────────────── */}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-display text-xl font-semibold text-ink-50">{state.name}</h3>
+              <h3 className="font-display text-title font-semibold text-ink-50">{state.name}</h3>
               <Badge tone="gold">
                 <span className="stat-mono">{state.xp.toLocaleString()}</span> pts
               </Badge>
             </div>
-            <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-400">{state.blurb}</p>
+            <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">{state.blurb}</p>
 
             {state.nextMilestone ? (
               <div className="mt-4">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-xs text-ink-400">
+                  <p className="text-micro text-ink-400">
                     Next: <span className="text-ink-200">{state.nextMilestone.name}</span>
                   </p>
-                  <p className="stat-mono text-xs text-ink-500">
+                  <p className="stat-mono text-micro text-ink-500">
                     {state.xpIntoLevel.toLocaleString()} / {state.xpForNext.toLocaleString()}
                   </p>
                 </div>
                 <Progress value={state.progress * 100} className="mt-2" />
-                <p className="mt-2 text-xs text-ink-500">{state.nextMilestone.hint}</p>
+                <p className="mt-2 text-micro text-ink-500">{state.nextMilestone.hint}</p>
               </div>
             ) : (
-              <p className="mt-4 text-xs text-ink-400">
+              <p className="mt-4 text-micro text-ink-400">
                 Top of the ladder. From here the record simply gets longer.
               </p>
             )}
@@ -117,22 +117,22 @@ export function LevelCard({
             {state.earnedFrom.map((e) => (
               <li
                 key={e.source}
-                className="flex items-start justify-between gap-3 rounded-lg bg-ink-900/60 px-3 py-2"
+                className="flex items-start justify-between gap-3 rounded-control bg-ink-900/60 px-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="text-sm text-ink-200">
+                  <p className="text-detail text-ink-200">
                     <span className="stat-mono text-ink-50">{e.count}</span> {e.label.toLowerCase()}
                   </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-ink-500">{e.detail}</p>
+                  <p className="mt-0.5 text-micro leading-snug text-ink-500">{e.detail}</p>
                 </div>
-                <span className="stat-mono shrink-0 text-xs text-gold-300">
+                <span className="stat-mono shrink-0 text-micro text-gold-300">
                   +{e.xp.toLocaleString()}
                 </span>
               </li>
             ))}
           </ul>
           {/* Stated plainly so nobody has to infer it. */}
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-snug text-ink-600">
+          <p className="mt-3 flex items-start gap-1.5 text-micro leading-snug text-ink-600">
             <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" />
             Points come from what you do, never from a dose or a lab result. Days your provider
             paused you count in full.
@@ -147,7 +147,7 @@ export function LevelCard({
               <span
                 key={b.id}
                 title={b.detail}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-gold-400/10 px-2.5 py-1 text-[11px] font-medium text-gold-300"
+                className="inline-flex items-center gap-1.5 rounded-control border border-gold-400/30 bg-gold-400/10 px-2.5 py-1 text-micro font-medium text-gold-300"
               >
                 <Award className="h-3.5 w-3.5" />
                 {b.name}
@@ -156,7 +156,7 @@ export function LevelCard({
             {nextBadge && (
               <span
                 title={nextBadge.detail}
-                className="inline-flex items-center gap-1.5 rounded-full border border-ink-700 px-2.5 py-1 text-[11px] text-ink-500"
+                className="inline-flex items-center gap-1.5 rounded-control border border-ink-700 px-2.5 py-1 text-micro text-ink-500"
               >
                 <Lock className="h-3.5 w-3.5" />
                 {nextBadge.name}
@@ -166,7 +166,7 @@ export function LevelCard({
               </span>
             )}
           </div>
-          {nextBadge && <p className="mt-2 text-[11px] text-ink-600">{nextBadge.detail}</p>}
+          {nextBadge && <p className="mt-2 text-micro text-ink-600">{nextBadge.detail}</p>}
         </div>
       </CardContent>
     </Card>

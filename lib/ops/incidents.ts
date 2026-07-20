@@ -326,9 +326,9 @@ const LOCATION_IDS: LocationId[] = [
 
 function isoAt(daysAgo: number, hour: number, minute: number): string {
   const d = absolute(NOW.getTime() - daysAgo * DAY_MS);
-  d.setHours(hour, minute, 0, 0);
+  d.setUTCHours(hour, minute, 0, 0);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:00`;
 }
 
 function generate(): Incident[] {

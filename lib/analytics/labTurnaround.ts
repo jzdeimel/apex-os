@@ -124,7 +124,7 @@ function hoursBetween(a: string, b: string): number {
 function isoPlusHours(dateIso: string, hours: number): string {
   const d = absolute(absolute(dateIso).getTime() + hours * 3_600_000);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:00`;
 }
 
 function buildTimelines(): LabTimeline[] {

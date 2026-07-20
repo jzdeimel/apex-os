@@ -63,9 +63,9 @@ export function RecommendationCard({
               <Badge tone="gold">{rec.category}</Badge>
               <AiLabel />
             </div>
-            <h3 className="font-display text-base font-semibold text-ink-50">{rec.title}</h3>
+            <h3 className="font-display text-body font-semibold text-ink-50">{rec.title}</h3>
             {showClient && client && (
-              <Link href={`/clients/${client.id}`} className="mt-0.5 inline-block text-xs text-ink-400 hover:text-gold-300">
+              <Link href={`/clients/${client.id}`} className="mt-0.5 inline-block text-detail text-ink-400 hover:text-gold-300">
                 {clientName(client)} · {client.age}
                 {client.sex === "male" ? "M" : "F"}
               </Link>
@@ -78,7 +78,7 @@ export function RecommendationCard({
         </div>
 
         {/* Rationale */}
-        <p className="mt-3 text-sm leading-relaxed text-ink-300">
+        <p className="mt-3 text-body leading-relaxed text-ink-300">
           <span className="font-medium text-ink-200">Why: </span>
           {rec.rationale}
         </p>
@@ -86,7 +86,7 @@ export function RecommendationCard({
         {/* Confidence + approval requirement */}
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between text-detail">
               <span className="text-ink-400">Confidence</span>
               <span className="stat-mono font-semibold text-ink-100">{confidencePct}%</span>
             </div>
@@ -100,7 +100,7 @@ export function RecommendationCard({
               />
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-gold-400/25 bg-gold-400/[0.06] px-3 py-2 text-xs text-gold-200">
+          <div className="flex items-center gap-2 rounded-lg border border-gold-400/25 bg-gold-400/[0.06] px-3 py-2 text-detail text-gold-200">
             <Lock className="h-3.5 w-3.5 shrink-0" />
             Requires provider approval
           </div>
@@ -119,7 +119,7 @@ export function RecommendationCard({
         {/* Expand toggle */}
         <button
           onClick={() => setOpen((o) => !o)}
-          className="mt-3 flex w-full items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 text-xs font-medium text-ink-300 hover:text-ink-100"
+          className="mt-3 flex w-full items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 text-detail font-medium text-ink-300 hover:text-ink-100"
         >
           <span>{open ? "Hide" : "Show"} supporting evidence, candidates & contraindication checks</span>
           <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
@@ -130,7 +130,7 @@ export function RecommendationCard({
             {/* Supporting evidence */}
             <div className="rounded-xl border border-ink-800 bg-ink-900/40 p-3">
               <span className="label-eyebrow">Supporting</span>
-              <div className="mt-2 space-y-2 text-xs">
+              <div className="mt-2 space-y-2 text-detail">
                 {rec.supporting.goals.length > 0 && (
                   <div className="flex items-start gap-2">
                     <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-400" />
@@ -169,7 +169,7 @@ export function RecommendationCard({
               <span className="label-eyebrow">Candidate options (no dosing)</span>
               <div className="mt-2 space-y-1.5">
                 {rec.candidates.map((c) => (
-                  <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+                  <div key={c.name} className="flex items-center justify-between gap-2 text-detail">
                     <span className="flex items-center gap-2 text-ink-200">
                       <PeptideIcon name={c.name} size="xs" />
                       {c.name}
@@ -195,7 +195,7 @@ export function RecommendationCard({
               <span className="label-eyebrow">Contraindication checks</span>
               <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {rec.contraindicationChecks.map((c) => (
-                  <div key={c.label} className="flex items-start gap-2 text-xs">
+                  <div key={c.label} className="flex items-start gap-2 text-detail">
                     {c.passed ? (
                       <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-optimal" />
                     ) : (
@@ -208,7 +208,7 @@ export function RecommendationCard({
                 ))}
               </div>
               {flaggedContra.length > 0 && (
-                <p className="mt-2 text-[11px] text-high">
+                <p className="mt-2 text-micro text-high">
                   {flaggedContra.length} flag(s) require provider attention before any plan.
                 </p>
               )}
@@ -217,7 +217,7 @@ export function RecommendationCard({
         )}
 
         {/* Suggested next step */}
-        <div className="mt-3 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 text-xs">
+        <div className="mt-3 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 text-detail">
           <span className="font-medium text-ink-200">Suggested next step: </span>
           <span className="text-ink-400">{rec.suggestedNextStep}</span>
         </div>
@@ -230,7 +230,7 @@ export function RecommendationCard({
               onChange={(e) => setNoteText(e.target.value)}
               placeholder="Add a coach/provider note for this recommendation…"
               rows={2}
-              className="w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 focus-ring"
+              className="w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-body text-ink-100 placeholder:text-ink-500 focus-ring"
             />
             <div className="mt-2 flex gap-2">
               <Button
@@ -315,7 +315,7 @@ export function RecommendationCard({
           >
             <ListPlus className="h-3.5 w-3.5" /> Create Task
           </Button>
-          {flash && <span className="ml-auto text-xs text-optimal animate-fade-in">{flash}</span>}
+          {flash && <span className="ml-auto text-detail text-optimal animate-fade-in">{flash}</span>}
         </div>
       </div>
     </div>

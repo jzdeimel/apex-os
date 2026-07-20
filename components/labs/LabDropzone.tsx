@@ -274,10 +274,10 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
             </div>
-            <p className="font-display text-base font-semibold text-ink-50">
+            <p className="font-display text-body font-semibold text-ink-50">
               Drop a lab report{client ? ` for ${clientName(client)}` : ""}
             </p>
-            <p className="mt-1 max-w-md text-xs text-ink-400">
+            <p className="mt-1 max-w-md text-detail text-ink-400">
               PDF, PNG, JPEG or TIFF. The file stays on this device — this build reads the file
               name only and returns a deterministic fixture extraction.
             </p>
@@ -324,13 +324,13 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
                     <span className="min-w-0">
                       <span
                         className={cn(
-                          "block text-sm",
+                          "block text-body",
                           done || active ? "text-ink-100" : "text-ink-500",
                         )}
                       >
                         {s.label}
                       </span>
-                      <span className="block text-[11px] leading-snug text-ink-500">{s.detail}</span>
+                      <span className="block text-micro leading-snug text-ink-500">{s.detail}</span>
                     </span>
                   </li>
                 );
@@ -348,14 +348,14 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
             <AlertTriangle className="h-5 w-5 shrink-0 text-high" />
             <div className="min-w-0 flex-1">
-              <p className="font-display text-sm font-semibold text-ink-50">Nothing was charted</p>
-              <p className="mt-1 text-sm text-ink-300">{result.error}</p>
+              <p className="font-display text-body font-semibold text-ink-50">Nothing was charted</p>
+              <p className="mt-1 text-body text-ink-300">{result.error}</p>
               {result.unmatched.length > 0 && (
                 <>
                   <p className="mt-3 label-eyebrow">Extracted but unmapped ({result.unmatched.length})</p>
                   <ul className="mt-1 space-y-0.5">
                     {result.unmatched.map((u) => (
-                      <li key={u} className="stat-mono text-[11px] text-ink-400">
+                      <li key={u} className="stat-mono text-micro text-ink-400">
                         {u}
                       </li>
                     ))}
@@ -382,13 +382,13 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-ink-400" />
-                  <span className="truncate font-display text-sm font-semibold text-ink-50">
+                  <span className="truncate font-display text-body font-semibold text-ink-50">
                     {result.fileName}
                   </span>
                   <Badge tone="neutral">{result.panelName}</Badge>
                   <Badge tone="neutral">Collected {formatDate(result.collectedOn)}</Badge>
                 </p>
-                <p className="mt-1 text-xs text-ink-400">
+                <p className="mt-1 text-detail text-ink-400">
                   <span className="stat-mono text-ink-200">{result.markers.length}</span> mapped ·{" "}
                   <span className="stat-mono text-ink-200">{result.unmatched.length}</span> unmapped ·{" "}
                   <span className={cn("stat-mono", needsReviewCount ? "text-high" : "text-ink-200")}>
@@ -414,7 +414,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
           {/* Review table */}
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[46rem] border-collapse text-sm">
+              <table className="w-full min-w-[46rem] border-collapse text-body">
                 <thead>
                   <tr className="border-b border-ink-800 text-left">
                     <Th>Marker</Th>
@@ -451,7 +451,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
                             )}
                           </span>
                           {m.unitMismatch && (
-                            <span className="mt-0.5 block text-[11px] text-watch">{m.unitMismatch}</span>
+                            <span className="mt-0.5 block text-micro text-watch">{m.unitMismatch}</span>
                           )}
                         </Td>
                         <Td className="stat-mono text-right text-ink-50">{m.value}</Td>
@@ -473,7 +473,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
                           <button
                             type="button"
                             onClick={() => setSelectedKey(m.key)}
-                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-ink-400 transition-colors hover:bg-ink-800 hover:text-gold-300 focus-ring"
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-detail text-ink-400 transition-colors hover:bg-ink-800 hover:text-gold-300 focus-ring"
                             aria-label={`Show where ${m.name} came from`}
                           >
                             <Crosshair className="h-3 w-3" />
@@ -531,12 +531,12 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
             <CardContent className="p-4">
               <p className="label-eyebrow">Extracted but not mapped ({result.unmatched.length})</p>
               {result.unmatched.length === 0 ? (
-                <p className="mt-1 text-xs text-ink-400">
+                <p className="mt-1 text-detail text-ink-400">
                   Every extracted field mapped onto the {result.panelName}. Nothing was dropped.
                 </p>
               ) : (
                 <>
-                  <p className="mt-1 text-xs text-ink-400">
+                  <p className="mt-1 text-detail text-ink-400">
                     These were read off the report but do not match a marker on this member&rsquo;s
                     panel. They are shown rather than discarded — a value that goes silently
                     missing reads as a test the member never had.
@@ -545,7 +545,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
                     {result.unmatched.map((u) => (
                       <li
                         key={u}
-                        className="stat-mono rounded border border-ink-800 bg-ink-900/50 px-2 py-1 text-[11px] text-ink-300"
+                        className="stat-mono rounded border border-ink-800 bg-ink-900/50 px-2 py-1 text-micro text-ink-300"
                       >
                         {u}
                       </li>
@@ -560,7 +560,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
           <Card className={cn(phase === "committed" && "border-optimal/30")}>
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               {phase === "committed" ? (
-                <p className="flex items-start gap-2 text-sm text-ink-200">
+                <p className="flex items-start gap-2 text-body text-ink-200">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
                   <span>
                     <span className="stat-mono text-ink-50">{confirmed.size}</span> of{" "}
@@ -570,7 +570,7 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
                   </span>
                 </p>
               ) : (
-                <p className="flex items-start gap-2 text-sm text-ink-300">
+                <p className="flex items-start gap-2 text-body text-ink-300">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
                   <span>
                     <span className="stat-mono text-ink-50">{confirmed.size}</span> confirmed.

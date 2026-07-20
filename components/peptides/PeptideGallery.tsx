@@ -103,7 +103,7 @@ export function PeptideGallery({
           ))}
         </FilterRow>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
+        <div className="flex flex-wrap items-center gap-2 text-detail text-ink-500">
           <span className="stat-mono">
             {visible.length} of {entries.length}
           </span>
@@ -135,8 +135,8 @@ export function PeptideGallery({
       {/* -------------------------------------------------------------- */}
       {visible.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink-700 px-6 py-12 text-center">
-          <p className="text-sm font-medium text-ink-300">Nothing matches that</p>
-          <p className="mt-1 text-xs text-ink-500">
+          <p className="text-body font-medium text-ink-300">Nothing matches that</p>
+          <p className="mt-1 text-detail text-ink-500">
             Try a broader filter — or ask your care team directly, which is faster than guessing.
           </p>
         </div>
@@ -161,8 +161,8 @@ export function PeptideGallery({
       {showMechanism && visible.length > 0 && (
         <div className="space-y-4 pt-2">
           <div>
-            <h3 className="font-display text-base font-semibold text-ink-50">How they work</h3>
-            <p className="mt-1 max-w-prose text-sm text-ink-400">
+            <h3 className="font-display text-body font-semibold text-ink-50">How they work</h3>
+            <p className="mt-1 max-w-prose text-body text-ink-400">
               The same four questions for every compound: what it is, what it binds to, what that
               changes, and what the intended result is.
             </p>
@@ -176,8 +176,8 @@ export function PeptideGallery({
                     style={{ background: e.accent }}
                     aria-hidden
                   />
-                  <span className="font-display text-sm font-semibold text-ink-50">{e.name}</span>
-                  <span className="text-xs text-ink-500">{e.family}</span>
+                  <span className="font-display text-body font-semibold text-ink-50">{e.name}</span>
+                  <span className="text-detail text-ink-500">{e.family}</span>
                 </div>
                 <MechanismDiagram entry={e} />
               </div>
@@ -217,7 +217,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "focus-ring shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors",
+        "focus-ring shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-detail transition-colors",
         active
           ? "border-gold-400/40 bg-gold-400/12 text-gold-300"
           : "border-ink-700 text-ink-300 hover:border-ink-600 hover:text-ink-100",

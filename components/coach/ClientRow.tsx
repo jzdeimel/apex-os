@@ -108,18 +108,18 @@ export function ClientRow({
       <Monogram client={client} size="sm" />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[13px] font-medium leading-tight text-ink-50">
+          <span className="truncate text-detail font-medium leading-tight text-ink-50">
             {clientName(client)}
           </span>
           {showStatus && <ClientStatusBadge status={client.status} />}
         </div>
         {subtitle && (
-          <div className="mt-0.5 truncate text-[11px] leading-tight text-ink-300">{subtitle}</div>
+          <div className="mt-0.5 truncate text-micro leading-tight text-ink-300">{subtitle}</div>
         )}
         {/* The why-line. Dimmer than the action on purpose: the coach reads the
             verb first and only drops to the evidence when they doubt it. */}
         {note && (
-          <div className="mt-0.5 truncate text-[11px] leading-tight text-ink-500">{note}</div>
+          <div className="mt-0.5 truncate text-micro leading-tight text-ink-500">{note}</div>
         )}
       </div>
     </div>
@@ -153,14 +153,14 @@ export function ClientRow({
           row exists, so it never gets hidden behind a media query. */}
       {lastTouchDays !== undefined && (
         <div className="shrink-0 text-right">
-          <span className={cn("stat-mono text-xs", touchTone(lastTouchDays))}>
+          <span className={cn("stat-mono text-detail", touchTone(lastTouchDays))}>
             {lastTouchDays}d
           </span>
-          <span className="block text-[10px] leading-tight text-ink-600">quiet</span>
+          <span className="block text-micro leading-tight text-ink-600">quiet</span>
         </div>
       )}
 
-      {meta && <div className="hidden shrink-0 text-right text-xs text-ink-400 md:block">{meta}</div>}
+      {meta && <div className="hidden shrink-0 text-right text-detail text-ink-400 md:block">{meta}</div>}
       {resolvedScore && (
         <div className="hidden shrink-0 sm:block">
           <AlphaScoreChip result={resolvedScore} />

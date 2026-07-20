@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </main>
         <footer className="mx-auto w-full max-w-[1400px] px-4 pb-24 lg:px-8 lg:pb-10">
-          <p className="border-t border-ink-800/60 pt-4 text-center text-[11px] text-ink-600">
+          <p className="border-t border-ink-800/60 pt-4 text-center text-micro text-ink-600">
             Apex — demonstration build. Synthetic data, Apex-owned. No PHI, no
             real prescribing, no real fulfillment. © Alpha Health (demo).
           </p>

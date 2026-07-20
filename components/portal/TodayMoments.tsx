@@ -16,7 +16,7 @@ import type { LucideIcon } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
 import { momentsFor, isQuietDay, type Moment, type MomentIcon } from "@/lib/engage/moments";
 import { Card, CardContent } from "@/components/ui/primitives";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Stagger, StaggerItem } from "@/components/portal/still";
 import { cn, relativeDays } from "@/lib/utils";
 
 /**
@@ -77,35 +77,35 @@ const ACCENT: Record<Moment["kind"], string> = {
 function HumanMoment({ moment }: { moment: Moment }) {
   const Icon = ICONS[moment.icon];
   return (
-    <Link href={moment.href} className="block focus-ring rounded-2xl">
+    <Link href={moment.href} className="block focus-ring rounded-panel">
       <Card className="border-gold-400/25 bg-gold-400/[0.04] transition-colors hover:border-gold-400/40">
         <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
           <div className="flex items-start gap-3 sm:gap-4">
             <span
               aria-hidden
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold-400/30 bg-gold-400/10 font-display text-sm font-semibold text-gold-300"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold-400/30 bg-gold-400/10 font-display text-detail font-semibold text-gold-300"
             >
               {moment.from?.initials ?? <Icon className="h-5 w-5" />}
             </span>
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <p className="font-display text-[17px] font-semibold leading-snug text-ink-50">
+                <p className="font-display text-heading font-semibold leading-snug text-ink-50">
                   {moment.headline}
                 </p>
-                <span className="stat-mono text-[11px] text-ink-500">
+                <span className="stat-mono text-micro text-ink-500">
                   {relativeDays(moment.at)}
                 </span>
               </div>
 
               {moment.from && (
-                <p className="mt-0.5 text-[13px] text-ink-400">
+                <p className="mt-0.5 text-detail text-ink-400">
                   {moment.from.name} · {moment.from.role}
                 </p>
               )}
 
               {/* Their words, set as a quote. Not a preview string. */}
-              <p className="mt-3 max-w-prose border-l-2 border-gold-400/30 pl-3 text-[15px] leading-relaxed text-ink-200">
+              <p className="mt-3 max-w-prose border-l-2 border-gold-400/30 pl-3 text-body leading-relaxed text-ink-200">
                 {moment.detail}
               </p>
             </div>
@@ -120,7 +120,7 @@ function HumanMoment({ moment }: { moment: Moment }) {
 function SystemMoment({ moment }: { moment: Moment }) {
   const Icon = ICONS[moment.icon];
   return (
-    <Link href={moment.href} className="block focus-ring rounded-2xl">
+    <Link href={moment.href} className="block focus-ring rounded-panel">
       <Card className="transition-colors hover:border-ink-600">
         <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
           <div className="flex items-start gap-3 sm:gap-4">
@@ -133,14 +133,14 @@ function SystemMoment({ moment }: { moment: Moment }) {
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <p className="font-display text-[15px] font-semibold leading-snug text-ink-50">
+                <p className="font-display text-body font-semibold leading-snug text-ink-50">
                   {moment.headline}
                 </p>
-                <span className="stat-mono text-[11px] text-ink-500">
+                <span className="stat-mono text-micro text-ink-500">
                   {relativeDays(moment.at)}
                 </span>
               </div>
-              <p className="mt-1.5 max-w-prose text-[14px] leading-relaxed text-ink-400">
+              <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
                 {moment.detail}
               </p>
             </div>
@@ -160,15 +160,15 @@ function SystemMoment({ moment }: { moment: Moment }) {
  */
 function QuietMoment({ moment }: { moment: Moment }) {
   return (
-    <Link href={moment.href} className="block focus-ring rounded-2xl">
+    <Link href={moment.href} className="block focus-ring rounded-panel">
       <Card className="transition-colors hover:border-ink-600">
         <CardContent className="flex items-start gap-3 p-5 sm:gap-4 sm:p-6">
           <Sunrise aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-ink-400" />
           <div className="min-w-0">
-            <p className="font-display text-[15px] font-semibold text-ink-100">
+            <p className="font-display text-body font-semibold text-ink-100">
               {moment.headline}
             </p>
-            <p className="mt-1.5 max-w-prose text-[14px] leading-relaxed text-ink-400">
+            <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
               {moment.detail}
             </p>
           </div>
@@ -213,7 +213,7 @@ export function TodayMoments({
       <div className="flex items-baseline justify-between gap-3">
         <p className="label-eyebrow">{quiet ? "Today" : "New since you last looked"}</p>
         {!quiet && all.length > moments.length && (
-          <span className="stat-mono text-[11px] text-ink-500">
+          <span className="stat-mono text-micro text-ink-500">
             +{all.length - moments.length} more
           </span>
         )}

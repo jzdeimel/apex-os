@@ -119,13 +119,13 @@ export function CommandBar() {
               if (e.key === "Enter" && items[active]) { e.preventDefault(); go(items[active].href); }
             }}
             placeholder="Search pages, clients, or ask the copilot…"
-            className="h-12 flex-1 bg-transparent text-sm text-ink-100 placeholder:text-ink-500 focus:outline-none"
+            className="h-12 flex-1 bg-transparent text-body text-ink-100 placeholder:text-ink-500 focus:outline-none"
           />
-          <kbd className="hidden rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-500 sm:block">ESC</kbd>
+          <kbd className="hidden rounded border border-ink-700 px-1.5 py-0.5 text-micro text-ink-500 sm:block">ESC</kbd>
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto p-2">
-          {items.length === 0 && <p className="px-3 py-6 text-center text-sm text-ink-500">No matches.</p>}
+          {items.length === 0 && <p className="px-3 py-6 text-center text-body text-ink-500">No matches.</p>}
           {items.map((it, i) => (
             <button
               key={`${it.kind}-${it.href}-${i}`}
@@ -142,8 +142,8 @@ export function CommandBar() {
                 {it.kind === "prompt" && <Sparkles className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-ink-100">{it.label}</span>
-                <span className="block truncate text-[11px] text-ink-500">
+                <span className="block truncate text-body text-ink-100">{it.label}</span>
+                <span className="block truncate text-micro text-ink-500">
                   {it.kind === "page" ? "Go to page" : it.kind === "client" ? it.sub : "Ask Coach Copilot"}
                 </span>
               </span>
@@ -152,7 +152,7 @@ export function CommandBar() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t border-ink-800 px-3 py-2 text-[10px] text-ink-600">
+        <div className="flex items-center justify-between border-t border-ink-800 px-3 py-2 text-micro text-ink-600">
           <span className="inline-flex items-center gap-1"><Command className="h-3 w-3" />K to toggle</span>
           <span>↑↓ navigate · ↵ open</span>
         </div>

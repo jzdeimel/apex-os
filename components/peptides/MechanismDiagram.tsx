@@ -79,10 +79,10 @@ function Stage({ stage, accent }: { stage: PathwayStage; accent: string }) {
       </span>
       <div className="min-w-0">
         <p className="label-eyebrow">{KIND_LABEL[stage.kind]}</p>
-        <p className="mt-1 font-display text-sm font-semibold leading-tight text-ink-50">
+        <p className="mt-1 font-display text-body font-semibold leading-tight text-ink-50">
           {stage.label}
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-400">{stage.detail}</p>
+        <p className="mt-1 text-detail leading-relaxed text-ink-400">{stage.detail}</p>
       </div>
     </div>
   );

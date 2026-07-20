@@ -74,17 +74,17 @@ function LoopRow({ loop }: { loop: OpenLoop }) {
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           {/* The commitment verbatim, in quotes. The coach wrote this; seeing
               their own words is what makes the follow-up land. */}
-          <p className="text-[13px] leading-snug text-ink-100">
+          <p className="text-detail leading-snug text-ink-100">
             &ldquo;{loop.commitment}&rdquo;
           </p>
           <Badge tone={meta.tone}>{meta.label}</Badge>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-ink-400">{loop.verdictNote}</p>
+        <p className="mt-1 text-detail leading-relaxed text-ink-400">{loop.verdictNote}</p>
         <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1">
           <SourceChip source={loop.source} />
           {loop.evidence.length > 0 && (
             <>
-              <span className="text-[10px] text-ink-700">evidence</span>
+              <span className="text-micro text-ink-700">evidence</span>
               <SourceChips sources={loop.evidence} />
             </>
           )}
@@ -174,11 +174,11 @@ export function ConsultPrepBrief({
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="label-eyebrow">60-second prep</p>
-            <h3 className="mt-0.5 font-display text-base font-semibold text-ink-50">
+            <h3 className="mt-0.5 font-display text-heading font-semibold text-ink-50">
               {prep.clientName}
             </h3>
             {prep.lastConsult ? (
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">
+              <p className="mt-1 text-detail leading-relaxed text-ink-400">
                 Last spoke {prep.lastConsult.elapsed} · {prep.lastConsult.kind.toLowerCase()} with{" "}
                 {prep.lastConsult.author}
                 {!prep.lastConsult.signed && (
@@ -186,7 +186,7 @@ export function ConsultPrepBrief({
                 )}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-watch">
+              <p className="mt-1 text-detail text-watch">
                 No consult on record with this member — there is no previous call to build from.
               </p>
             )}
@@ -202,7 +202,7 @@ export function ConsultPrepBrief({
 
         {prep.lastConsult && (
           <div className="mt-2 rounded-xl border border-ink-700/70 bg-ink-900/40 p-2.5">
-            <p className="text-[13px] leading-snug text-ink-200">{prep.lastConsult.headline}</p>
+            <p className="text-detail leading-snug text-ink-200">{prep.lastConsult.headline}</p>
             <div className="mt-1.5">
               <SourceChip
                 source={{
@@ -230,16 +230,16 @@ export function ConsultPrepBrief({
         </p>
         {prep.mostImportant ? (
           <>
-            <p className="mt-1 text-sm font-medium leading-snug text-ink-50">
+            <p className="mt-1 text-body font-medium leading-snug text-ink-50">
               {prep.mostImportant.claim}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-400">{prep.mostImportant.why}</p>
+            <p className="mt-1 text-detail leading-relaxed text-ink-400">{prep.mostImportant.why}</p>
             <div className="mt-1.5">
               <SourceChip source={prep.mostImportant.source} />
             </div>
           </>
         ) : (
-          <p className="mt-1 text-xs leading-relaxed text-ink-400">
+          <p className="mt-1 text-detail leading-relaxed text-ink-400">
             Nothing on the record rises to a must-raise: no open escalation, no supply problem, no
             flag in what changed. Treat this as an open check-in rather than a call with an agenda.
           </p>
@@ -254,14 +254,14 @@ export function ConsultPrepBrief({
         </p>
         {prep.opener ? (
           <>
-            <p className="mt-1 text-sm italic leading-snug text-ink-100">{prep.opener.claim}</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-400">{prep.opener.why}</p>
+            <p className="mt-1 text-body italic leading-snug text-ink-100">{prep.opener.claim}</p>
+            <p className="mt-1 text-detail leading-relaxed text-ink-400">{prep.opener.why}</p>
             <div className="mt-1.5">
               <SourceChip source={prep.opener.source} />
             </div>
           </>
         ) : (
-          <p className="mt-1 text-xs leading-relaxed text-ink-400">
+          <p className="mt-1 text-detail leading-relaxed text-ink-400">
             No recorded fact makes a natural opener. Rather than suggest a pleasantry, this is blank
             — start wherever you like.
           </p>
@@ -272,13 +272,13 @@ export function ConsultPrepBrief({
       <div className="card p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="label-eyebrow">What they said they&apos;d do</p>
-          <p className="text-[10px] text-ink-600">
+          <p className="text-micro text-ink-600">
             Cross-referenced against orders, appointments, labs, scans and journal
           </p>
         </div>
 
         {prep.openLoops.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-dashed border-ink-700 px-3 py-4 text-center text-xs text-ink-500">
+          <p className="mt-2 rounded-xl border border-dashed border-ink-700 px-3 py-4 text-center text-detail text-ink-500">
             No commitments were recorded at the last consult. Nothing is being withheld — the note
             simply contains none.
           </p>
@@ -307,7 +307,7 @@ export function ConsultPrepBrief({
               "we did not look". */}
           <ul className="mt-1.5 space-y-1">
             {prep.gaps.map((gap, i) => (
-              <li key={i} className="flex gap-2 text-xs leading-relaxed text-ink-400">
+              <li key={i} className="flex gap-2 text-detail leading-relaxed text-ink-400">
                 <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-600" />
                 <span className="min-w-0">{gap}</span>
               </li>

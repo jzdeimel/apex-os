@@ -333,10 +333,10 @@ export default function DashboardPage() {
           <p className="label-eyebrow">
             {locationFilter === "all" ? "All locations" : locationName(locationFilter)} · Friday, June 12, 2026
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-50 sm:text-3xl">
+          <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50 sm:text-display">
             Clinical console
           </h1>
-          <p className="mt-1 text-sm text-ink-400">
+          <p className="mt-1 text-body text-ink-400">
             {isMine ? (
               <>
                 Signing as <span className="text-ink-200">{meName}</span> · {data.panel} patients on panel
@@ -350,7 +350,7 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-ink-400">
+        <div className="flex items-center gap-2 text-detail text-ink-400">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-optimal" /> System of record · Apex
           </span>
@@ -363,26 +363,26 @@ export default function DashboardPage() {
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Signature className="h-4 w-4 text-gold-400" />
-          <h2 className="font-display text-lg font-semibold text-ink-50">Waiting on me</h2>
+          <h2 className="font-display text-heading font-semibold text-ink-50">Waiting on me</h2>
           <Badge tone={data.waitingOnMe > 0 ? "gold" : "optimal"}>{data.waitingOnMe} open</Badge>
           {data.myOverdue.length > 0 && (
             <Badge tone="high">{data.myOverdue.length} past SLA</Badge>
           )}
         </div>
 
-        <Stagger className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Escalations — the only queue with a clock on it */}
-          <StaggerItem className="h-full">
+          <div className="h-full">
             <Card className="flex h-full flex-col">
               <CardHeader className="flex items-start justify-between gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-gold-400" /> Escalations
                 </CardTitle>
-                <span className="stat-mono text-sm text-ink-200">{data.myEscalations.length}</span>
+                <span className="stat-mono text-body text-ink-200">{data.myEscalations.length}</span>
               </CardHeader>
               <CardContent className="flex-1">
                 {data.myEscalations.length === 0 ? (
-                  <p className="text-sm text-ink-500">Nothing open in your queue.</p>
+                  <p className="text-body text-ink-500">Nothing open in your queue.</p>
                 ) : (
                   <div className="space-y-2">
                     {data.myEscalations.slice(0, 4).map((e) => {
@@ -395,7 +395,7 @@ export default function DashboardPage() {
                           className="block rounded-xl border border-ink-800 bg-ink-900/40 p-2.5 transition-colors hover:border-ink-700"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium text-ink-100">
+                            <span className="truncate text-body font-medium text-ink-100">
                               {c ? clientName(c) : e.clientId}
                             </span>
                             <Badge
@@ -404,8 +404,8 @@ export default function DashboardPage() {
                               {formatSla(e, NOW)}
                             </Badge>
                           </div>
-                          <p className="mt-1 line-clamp-2 text-xs text-ink-400">{e.question}</p>
-                          <p className="mt-1 text-[11px] text-ink-600">
+                          <p className="mt-1 line-clamp-2 text-detail text-ink-400">{e.question}</p>
+                          <p className="mt-1 text-micro text-ink-600">
                             {e.kind} · {e.priority}
                           </p>
                         </Link>
@@ -417,26 +417,26 @@ export default function DashboardPage() {
               <div className="px-5 pb-4">
                 <Link
                   href="/clinic/escalations"
-                  className="focus-ring inline-flex items-center gap-1 text-xs text-gold-300 hover:text-gold-200"
+                  className="focus-ring inline-flex items-center gap-1 text-detail text-gold-300 hover:text-gold-200"
                 >
                   Open escalation queue <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </Card>
-          </StaggerItem>
+          </div>
 
           {/* Recommendations awaiting a signature */}
-          <StaggerItem className="h-full">
+          <div className="h-full">
             <Card className="flex h-full flex-col">
               <CardHeader className="flex items-start justify-between gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <Stethoscope className="h-4 w-4 text-gold-400" /> Unsigned recommendations
                 </CardTitle>
-                <span className="stat-mono text-sm text-ink-200">{data.pendingRecs.length}</span>
+                <span className="stat-mono text-body text-ink-200">{data.pendingRecs.length}</span>
               </CardHeader>
               <CardContent className="flex-1">
                 {data.pendingRecs.length === 0 ? (
-                  <p className="text-sm text-ink-500">No recommendations awaiting your approval.</p>
+                  <p className="text-body text-ink-500">No recommendations awaiting your approval.</p>
                 ) : (
                   <div className="space-y-2">
                     {data.pendingRecs.slice(0, 4).map((r) => {
@@ -449,7 +449,7 @@ export default function DashboardPage() {
                           className="block rounded-xl border border-ink-800 bg-ink-900/40 p-2.5 transition-colors hover:border-ink-700"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium text-ink-100">
+                            <span className="truncate text-body font-medium text-ink-100">
                               {c ? clientName(c) : r.clientId}
                             </span>
                             {flagged > 0 ? (
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                               <RiskBadge level={r.riskLevel} showLabel={false} />
                             )}
                           </div>
-                          <p className="mt-1 truncate text-xs text-ink-400">{r.title}</p>
+                          <p className="mt-1 truncate text-detail text-ink-400">{r.title}</p>
                         </Link>
                       );
                     })}
@@ -468,26 +468,26 @@ export default function DashboardPage() {
               <div className="px-5 pb-4">
                 <Link
                   href="/recommendations"
-                  className="focus-ring inline-flex items-center gap-1 text-xs text-gold-300 hover:text-gold-200"
+                  className="focus-ring inline-flex items-center gap-1 text-detail text-gold-300 hover:text-gold-200"
                 >
                   Open review queue <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </Card>
-          </StaggerItem>
+          </div>
 
           {/* Consult notes nobody has signed */}
-          <StaggerItem className="h-full">
+          <div className="h-full">
             <Card className="flex h-full flex-col">
               <CardHeader className="flex items-start justify-between gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <PenLine className="h-4 w-4 text-gold-400" /> Unsigned notes
                 </CardTitle>
-                <span className="stat-mono text-sm text-ink-200">{data.unreviewedConsults.length}</span>
+                <span className="stat-mono text-body text-ink-200">{data.unreviewedConsults.length}</span>
               </CardHeader>
               <CardContent className="flex-1">
                 {data.unreviewedConsults.length === 0 ? (
-                  <p className="text-sm text-ink-500">Every note on your panel is signed.</p>
+                  <p className="text-body text-ink-500">Every note on your panel is signed.</p>
                 ) : (
                   <div className="space-y-2">
                     {data.unreviewedConsults.slice(0, 4).map((k) => {
@@ -499,14 +499,14 @@ export default function DashboardPage() {
                           className="block rounded-xl border border-ink-800 bg-ink-900/40 p-2.5 transition-colors hover:border-ink-700"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium text-ink-100">
+                            <span className="truncate text-body font-medium text-ink-100">
                               {c ? clientName(c) : k.clientId}
                             </span>
-                            <span className="stat-mono shrink-0 text-[11px] text-ink-500">
+                            <span className="stat-mono shrink-0 text-micro text-ink-500">
                               {relativeDays(k.startedAt)}
                             </span>
                           </div>
-                          <p className="mt-1 truncate text-xs text-ink-400">
+                          <p className="mt-1 truncate text-detail text-ink-400">
                             {k.kind} · {staffName(k.authorId)}
                           </p>
                         </Link>
@@ -516,13 +516,13 @@ export default function DashboardPage() {
                 )}
               </CardContent>
               <div className="px-5 pb-4">
-                <span className="text-[11px] text-ink-600">
+                <span className="text-micro text-ink-600">
                   Authored by a coach. Unsigned means unattested.
                 </span>
               </div>
             </Card>
-          </StaggerItem>
-        </Stagger>
+          </div>
+        </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
@@ -555,11 +555,11 @@ export default function DashboardPage() {
                         mineAppt && "border-l-2 border-gold-500 bg-ink-900/30",
                       )}
                     >
-                      <span className="w-16 shrink-0 stat-mono text-xs text-ink-400">{formatTime(a.start)}</span>
+                      <span className="w-16 shrink-0 stat-mono text-detail text-ink-400">{formatTime(a.start)}</span>
                       <span className="h-8 w-px bg-ink-800" />
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-ink-100">{a.clientName}</span>
-                        <span className="block truncate text-xs text-ink-500">
+                        <span className="block truncate text-body font-medium text-ink-100">{a.clientName}</span>
+                        <span className="block truncate text-detail text-ink-500">
                           {a.type} · {staffName(a.staffId).split(" ").slice(-1)} · {locationName(a.locationId)}
                         </span>
                       </div>
@@ -654,11 +654,11 @@ export default function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/clients/${x.client.id}`}
-                        className="block truncate text-sm font-medium text-ink-50 hover:text-gold-300"
+                        className="block truncate text-body font-medium text-ink-50 hover:text-gold-300"
                       >
                         {clientName(x.client)}
                       </Link>
-                      <span className="text-[11px] text-ink-500">
+                      <span className="text-micro text-ink-500">
                         {locationName(x.client.locationId)} · {staffName(x.client.providerId)}
                       </span>
                     </div>
@@ -672,7 +672,7 @@ export default function DashboardPage() {
                       <span
                         key={m.key}
                         className={cn(
-                          "stat-mono rounded-md border px-1.5 py-0.5 text-[11px]",
+                          "stat-mono rounded-md border px-1.5 py-0.5 text-micro",
                           m.status === "high"
                             ? "border-high/30 bg-high/10 text-high"
                             : "border-low/30 bg-low/10 text-low",
@@ -683,10 +683,10 @@ export default function DashboardPage() {
                       </span>
                     ))}
                     {x.outOfRef > x.markers.length && (
-                      <span className="text-[11px] text-ink-500">+{x.outOfRef - x.markers.length} more</span>
+                      <span className="text-micro text-ink-500">+{x.outOfRef - x.markers.length} more</span>
                     )}
                     {x.outOfRef === 0 && x.highFlag && (
-                      <span className="text-[11px] text-ink-500">
+                      <span className="text-micro text-ink-500">
                         Risk flag only — panel is within reference.
                       </span>
                     )}
@@ -696,7 +696,7 @@ export default function DashboardPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <ClientStatusBadge status={x.client.status} />
                       {x.outOfOptimal > 0 && (
-                        <span className="text-[11px] text-watch">
+                        <span className="text-micro text-watch">
                           {x.outOfOptimal} sub-optimal within reference
                         </span>
                       )}
@@ -726,11 +726,11 @@ export default function DashboardPage() {
                   className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-ink-850/60"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-600" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink-200">
+                  <span className="min-w-0 flex-1 truncate text-body text-ink-200">
                     <span className="font-medium">{c ? clientName(c) : "Client"}</span>{" "}
                     <span className="text-ink-400">— {e.type}</span>
                   </span>
-                  <span className="stat-mono shrink-0 text-[11px] text-ink-500">{relativeDays(e.at)}</span>
+                  <span className="stat-mono shrink-0 text-micro text-ink-500">{relativeDays(e.at)}</span>
                 </Link>
               );
             })}
@@ -751,29 +751,29 @@ export default function DashboardPage() {
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showPractice && "rotate-180")} />
           {showPractice ? "Hide" : "Show"} practice volume &amp; business metrics
         </Button>
-        <p className="mt-1.5 text-[11px] text-ink-600">
+        <p className="mt-1.5 text-micro text-ink-600">
           Revenue, service mix and lifecycle are an owner&apos;s view. They are here, not on top.
         </p>
 
         {showPractice && (
           <div className="mt-4 space-y-6 animate-fade-in">
-            <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-              <StaggerItem className="h-full">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="h-full">
                 <DashboardCard label="Active clients" countTo={data.active} spark={data.trends.active.spark} icon={<Users className="h-4 w-4" />} delta={data.trends.active.delta} deltaTone={data.trends.active.tone} hint={`${data.total} total in view`} />
-              </StaggerItem>
-              <StaggerItem className="h-full">
+              </div>
+              <div className="h-full">
                 <DashboardCard label="New consults" countTo={data.newConsults} spark={data.trends.consults.spark} icon={<CalendarPlus className="h-4 w-4" />} delta={data.trends.consults.delta} deltaTone={data.trends.consults.tone} />
-              </StaggerItem>
-              <StaggerItem className="h-full">
+              </div>
+              <div className="h-full">
                 <DashboardCard label="Results ready" countTo={data.resultsReady} spark={data.trends.results.spark} icon={<FlaskConical className="h-4 w-4" />} hint="Awaiting review" />
-              </StaggerItem>
-              <StaggerItem className="h-full">
+              </div>
+              <div className="h-full">
                 <DashboardCard label="Inventory alerts" countTo={data.invAlerts} spark={data.trends.inv.spark} sparkColor="#f87171" icon={<PackageX className="h-4 w-4" />} delta={data.trends.inv.delta} deltaTone={data.trends.inv.tone} />
-              </StaggerItem>
-              <StaggerItem className="h-full">
+              </div>
+              <div className="h-full">
                 <DashboardCard label="Overdue follow-ups" countTo={data.overdueFollowUp} spark={data.trends.overdue.spark} sparkColor="#f87171" icon={<Clock className="h-4 w-4" />} delta={data.trends.overdue.delta} deltaTone={data.trends.overdue.tone} />
-              </StaggerItem>
-              <StaggerItem className="h-full">
+              </div>
+              <div className="h-full">
                 {role === "Coach" ? (
                   <DashboardCard label="Avg Alpha Score" countTo={data.avgScore} spark={[data.avgScore - 8, data.avgScore - 5, data.avgScore - 6, data.avgScore - 3, data.avgScore - 2, data.avgScore - 1, data.avgScore]} sparkColor="#34d399" icon={<Gauge className="h-4 w-4" />} delta="+4" deltaTone="up" hint="Across your clients" />
                 ) : role === "Admin" ? (
@@ -781,8 +781,8 @@ export default function DashboardPage() {
                 ) : (
                   <DashboardCard label="Proj. monthly rev" countTo={Math.round(data.monthlyRevenue / 1000)} countPrefix="$" countSuffix="k" spark={data.trends.rev.spark} icon={<TrendingUp className="h-4 w-4" />} delta={data.trends.rev.delta} deltaTone={data.trends.rev.tone} />
                 )}
-              </StaggerItem>
-            </Stagger>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <Card className="lg:col-span-2">
@@ -806,7 +806,7 @@ export default function DashboardPage() {
                   <ServiceDonut data={data.serviceMix} />
                   <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
                     {data.serviceMix.map((s, i) => (
-                      <div key={s.name} className="flex items-center gap-2 text-xs">
+                      <div key={s.name} className="flex items-center gap-2 text-detail">
                         <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                         <span className="truncate text-ink-300">{s.name}</span>
                         <span className="ml-auto stat-mono text-ink-500">{s.value}%</span>
@@ -834,7 +834,7 @@ export default function DashboardPage() {
                   <DonutCount data={data.statusMix} height={180} centerValue={data.total} centerLabel="clients" />
                   <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
                     {data.statusMix.slice(0, 6).map((s) => (
-                      <div key={s.name} className="flex items-center gap-2 text-[11px]">
+                      <div key={s.name} className="flex items-center gap-2 text-micro">
                         <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
                         <span className="truncate text-ink-300">{s.name}</span>
                         <span className="ml-auto stat-mono text-ink-500">{s.value}</span>

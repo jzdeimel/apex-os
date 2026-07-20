@@ -41,7 +41,7 @@ import Link from "next/link";
 import type { Offering, OfferingGroup, OfferingStatus } from "@/lib/discover/available";
 import { dollars } from "@/lib/discover/available";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Stagger, StaggerItem } from "@/components/portal/still";
 import { cn } from "@/lib/utils";
 import { MessageSquare, MapPin, Check } from "lucide-react";
 
@@ -102,35 +102,35 @@ export function OfferingCard({ offering }: { offering: Offering }) {
   return (
     <div
       className={cn(
-        "hairline flex h-full flex-col rounded-2xl bg-ink-900/50 p-4 sm:p-5",
+        "hairline flex h-full flex-col rounded-panel bg-ink-900/50 p-4 sm:p-5",
         o.status === "on your plan" && "border-gold-400/30 bg-gold-400/5",
         o.status === "included in your membership" && "border-optimal/25 bg-optimal/5",
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium leading-snug text-ink-50">{o.name}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{o.kindLabel}</p>
+          <p className="text-detail font-medium leading-snug text-ink-50">{o.name}</p>
+          <p className="mt-1 text-micro uppercase tracking-wide text-ink-500">{o.kindLabel}</p>
         </div>
         <StatusChip status={o.status} />
       </div>
 
       {/* What it IS. Structural description only — see the tone rule up top. */}
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-300">{o.whatItIs}</p>
+      <p className="mt-3 text-detail leading-relaxed text-ink-300">{o.whatItIs}</p>
 
       {o.planBecause && (
-        <p className="mt-2 text-[12px] leading-relaxed text-gold-300">{o.planBecause}</p>
+        <p className="mt-2 text-micro leading-relaxed text-gold-300">{o.planBecause}</p>
       )}
 
       {o.includedBecause && (
-        <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-relaxed text-optimal">
+        <p className="mt-2 flex items-start gap-1.5 text-micro leading-relaxed text-optimal">
           <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>Your membership includes: {o.includedBecause}.</span>
         </p>
       )}
 
       {o.inClinicOnly && (
-        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-ink-500">
+        <p className="mt-2 flex items-center gap-1.5 text-micro text-ink-500">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
           At the clinic — not available by telehealth.
         </p>
@@ -139,10 +139,10 @@ export function OfferingCard({ offering }: { offering: Offering }) {
       {/* mt-auto keeps the price row on the baseline across a ragged grid. */}
       <div className="mt-auto pt-4">
         {o.priceCents !== null ? (
-          <p className="stat-mono text-sm text-ink-100">{dollars(o.priceCents)}</p>
+          <p className="stat-mono text-detail text-ink-100">{dollars(o.priceCents)}</p>
         ) : null}
         {o.priceNote && (
-          <p className="mt-1 text-[12px] leading-relaxed text-ink-500">{o.priceNote}</p>
+          <p className="mt-1 text-micro leading-relaxed text-ink-500">{o.priceNote}</p>
         )}
 
         {/*
@@ -153,7 +153,7 @@ export function OfferingCard({ offering }: { offering: Offering }) {
         {needsProvider && (
           <Link
             href="/portal/messages"
-            className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-medium text-gold-300 hover:text-gold-200"
+            className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-control text-detail font-medium text-gold-300 hover:text-gold-200"
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Bring it up with your care team
@@ -173,9 +173,9 @@ export function OfferingGroupBlock({ group }: { group: OfferingGroup }) {
     <Card>
       <CardContent className="p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h3 className="font-display text-base font-semibold text-ink-50">{group.line}</h3>
+          <h3 className="font-display text-body font-semibold text-ink-50">{group.line}</h3>
           {group.trackLabels.length > 0 && (
-            <p className="text-[12px] text-ink-500">
+            <p className="text-micro text-ink-500">
               {group.isYourTrack ? "Part of your track — " : ""}
               {group.trackLabels.join(" · ")}
             </p>
@@ -189,7 +189,7 @@ export function OfferingGroupBlock({ group }: { group: OfferingGroup }) {
          * note there before weakening this string.
          */}
         {group.planContext && (
-          <p className="mt-2 text-[12px] leading-relaxed text-gold-300">{group.planContext}</p>
+          <p className="mt-2 text-micro leading-relaxed text-gold-300">{group.planContext}</p>
         )}
 
         {/*
@@ -240,11 +240,11 @@ export function StatusLegend() {
   return (
     <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {order.map((s) => (
-        <div key={s} className="hairline rounded-xl bg-ink-900/40 px-4 py-3">
+        <div key={s} className="hairline rounded-panel bg-ink-900/40 px-4 py-3">
           <dt>
             <StatusChip status={s} />
           </dt>
-          <dd className="mt-2 text-[12px] leading-relaxed text-ink-400">{statusMeaning(s)}</dd>
+          <dd className="mt-2 text-micro leading-relaxed text-ink-400">{statusMeaning(s)}</dd>
         </div>
       ))}
     </dl>

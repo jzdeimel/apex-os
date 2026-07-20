@@ -187,7 +187,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
           ].map((s) => (
             <div key={s.label} className="p-4">
               <p className="label-eyebrow">{s.label}</p>
-              <p className={cn("stat-mono mt-1 text-xl font-semibold", s.tone)}>{s.value}</p>
+              <p className={cn("stat-mono mt-1 text-heading font-semibold", s.tone)}>{s.value}</p>
             </div>
           ))}
         </div>
@@ -206,7 +206,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
                   key={f.key}
                   onClick={() => setFilter(f.key)}
                   className={cn(
-                    "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-ring",
+                    "relative rounded-full px-3 py-1.5 text-detail font-medium transition-colors focus-ring",
                     active ? "text-ink-50" : "text-ink-400 hover:text-ink-200",
                   )}
                 >
@@ -240,7 +240,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
                 key={opt.label}
                 onClick={() => setMineOnly(opt.on)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors focus-ring",
+                  "rounded-full px-3 py-1 text-detail font-medium transition-colors focus-ring",
                   mineOnly === opt.on
                     ? "bg-gold-500 text-white"
                     : "text-ink-400 hover:text-ink-200",
@@ -258,13 +258,13 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
        * ---------------------------------------------------------------- */}
       <section>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-ink-50">
+          <h2 className="flex items-center gap-2 font-display text-heading font-semibold text-ink-50">
             <AlertTriangle
               className={cn("h-4 w-4", problems.length ? "text-high" : "text-optimal")}
             />
             Needs attention
           </h2>
-          <p className="text-xs text-ink-600">
+          <p className="text-detail text-ink-600">
             Past SLA or blocked — pinned here whatever filter is active.
           </p>
         </div>
@@ -272,7 +272,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
         {problems.length === 0 ? (
           <div className="mt-3 flex items-center gap-3 rounded-2xl border border-optimal/25 bg-optimal/[0.06] p-4">
             <PackageCheck className="h-5 w-5 shrink-0 text-optimal" />
-            <p className="text-sm text-ink-200">
+            <p className="text-body text-ink-200">
               Nothing is stuck.{" "}
               <span className="text-ink-400">
                 Every {mineOnly ? "one of your" : "open"} order is inside its SLA and moving.
@@ -295,8 +295,8 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
        * ---------------------------------------------------------------- */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold text-ink-50">Everything else</h2>
-          <p className="text-xs text-ink-600">
+          <h2 className="font-display text-heading font-semibold text-ink-50">Everything else</h2>
+          <p className="text-detail text-ink-600">
             <span className="stat-mono">{restCount}</span> order{restCount === 1 ? "" : "s"}
             {filter !== "all" && " matching this filter"}
           </p>
@@ -305,7 +305,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
         {groups.length === 0 ? (
           <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ink-700 p-4">
             <Users className="h-5 w-5 shrink-0 text-ink-500" />
-            <p className="text-sm text-ink-400">
+            <p className="text-body text-ink-400">
               No other orders match this filter
               {mineOnly ? " in your book" : ""}. Try All, or widen to every coach.
             </p>
@@ -324,7 +324,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
                 >
                   <span className="flex min-w-0 items-center gap-2.5">
                     <Badge tone={statusTone(group.status)}>{group.status}</Badge>
-                    <span className="stat-mono text-sm text-ink-300">{group.items.length}</span>
+                    <span className="stat-mono text-body text-ink-300">{group.items.length}</span>
                   </span>
                   <ChevronDown
                     className={cn(
@@ -348,7 +348,7 @@ export function OrderBoard({ coachId = ME_COACH }: { coachId?: string }) {
       </section>
 
       {!mineOnly && (
-        <p className="text-xs text-ink-600">
+        <p className="text-detail text-ink-600">
           Showing every coach&apos;s orders. You are signed in as{" "}
           <span className="text-ink-400">{staffName(coachId)}</span> — every card you act on
           records you as the actor.

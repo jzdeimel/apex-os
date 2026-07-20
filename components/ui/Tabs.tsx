@@ -26,7 +26,7 @@ export function Tabs({
           key={t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "relative whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-ring",
+            "relative whitespace-nowrap rounded-lg px-3.5 py-1.5 text-body font-medium transition-colors focus-ring",
             active === t.id
               ? "bg-gold-400/15 text-gold-200"
               : "text-ink-400 hover:text-ink-100",
@@ -36,7 +36,7 @@ export function Tabs({
           {t.count !== undefined && (
             <span
               className={cn(
-                "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-mono",
+                "ml-1.5 rounded-full px-1.5 py-0.5 text-micro font-mono",
                 active === t.id ? "bg-gold-400/20 text-gold-200" : "bg-ink-700 text-ink-300",
               )}
             >

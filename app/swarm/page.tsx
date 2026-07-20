@@ -92,7 +92,7 @@ export default function SwarmPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="label-eyebrow">Autonomous operations · agent swarm</p>
-          <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
+          <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white">
               <Network className="h-5 w-5" />
             </span>
@@ -100,7 +100,7 @@ export default function SwarmPage() {
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5 text-xs text-ink-300">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5 text-detail text-ink-300">
             <span className={cn("h-2 w-2 rounded-full", state.paused ? "bg-ink-500" : "bg-optimal animate-pulse-soft")} />
             <span className="stat-mono">{formatClock(state.clock)}</span>
           </span>
@@ -131,7 +131,7 @@ export default function SwarmPage() {
           <select
             value={launchWf}
             onChange={(e) => setLaunchWf(e.target.value)}
-            className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-3 text-sm text-ink-100 focus-ring"
+            className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-3 text-body text-ink-100 focus-ring"
           >
             {WORKFLOWS.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
@@ -139,7 +139,7 @@ export default function SwarmPage() {
             <Plus className="h-3.5 w-3.5" /> Launch workflow
           </Button>
         </div>
-        <p className="inline-flex items-center gap-1.5 text-xs text-ink-500">
+        <p className="inline-flex items-center gap-1.5 text-detail text-ink-500">
           <ShieldCheck className="h-3.5 w-3.5 text-gold-400" />
           Clinical (provider) gates always require a licensed human — even at full autonomy.
         </p>
@@ -152,7 +152,7 @@ export default function SwarmPage() {
         {/* Active workflows */}
         <div className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold text-ink-50">Active workflows</h2>
+            <h2 className="font-display text-heading font-semibold text-ink-50">Active workflows</h2>
             <Badge tone="gold">{activeRuns.length} live</Badge>
           </div>
           <div className="space-y-3">
@@ -195,8 +195,8 @@ export default function SwarmPage() {
                       {e.agent === "human" ? <ShieldCheck className="h-3.5 w-3.5 text-low" /> : e.agent === "system" ? <GitBranch className="h-3.5 w-3.5 text-ink-400" /> : <AgentGlyph id={e.agent} size={14} />}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-xs leading-snug", EVENT_TONE[e.kind])}>{e.text}</p>
-                      <span className="stat-mono text-[10px] text-ink-600">{formatClock(e.clock)}</span>
+                      <p className={cn("text-detail leading-snug", EVENT_TONE[e.kind])}>{e.text}</p>
+                      <span className="stat-mono text-micro text-ink-600">{formatClock(e.clock)}</span>
                     </div>
                   </motion.div>
                 ))}
@@ -208,7 +208,7 @@ export default function SwarmPage() {
 
       {/* Agent fleet */}
       <div>
-        <h2 className="mb-3 font-display text-lg font-semibold text-ink-50">Agent fleet</h2>
+        <h2 className="mb-3 font-display text-heading font-semibold text-ink-50">Agent fleet</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {AGENTS.map((a) => (
             <AgentCard key={a.id} id={a.id} state={state} />
@@ -247,7 +247,7 @@ function SwarmGraph({ state }: { state: SwarmState }) {
     <Card className="overflow-hidden p-0">
       <div className="flex items-center justify-between px-5 pt-4">
         <CardTitle className="flex items-center gap-2"><Network className="h-4 w-4 text-gold-400" /> Swarm network</CardTitle>
-        <span className="text-[11px] text-ink-500">live hand-offs between agents</span>
+        <span className="text-micro text-ink-500">live hand-offs between agents</span>
       </div>
       <div className="relative w-full">
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" style={{ maxHeight: 380 }}>
@@ -361,28 +361,28 @@ function AgentCard({ id, state }: { id: AgentId; state: SwarmState }) {
         </span>
         {/* status chip */}
         {active ? (
-          <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: `${a.color}1f`, color: a.color }}>
+          <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-micro font-medium" style={{ background: `${a.color}1f`, color: a.color }}>
             <Equalizer color={a.color} /> working
           </span>
         ) : review ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-watch/15 px-1.5 py-0.5 text-[9px] font-medium text-watch">
+          <span className="inline-flex items-center gap-1 rounded-full bg-watch/15 px-1.5 py-0.5 text-micro font-medium text-watch">
             <Lock className="h-2.5 w-2.5" /> review
           </span>
         ) : (
-          <span className="rounded-full bg-ink-800 px-1.5 py-0.5 text-[9px] text-ink-500">idle</span>
+          <span className="rounded-full bg-ink-800 px-1.5 py-0.5 text-micro text-ink-500">idle</span>
         )}
       </div>
 
-      <p className="relative mt-2.5 text-sm font-semibold text-ink-50">{a.name}</p>
-      <p className="relative text-[11px] text-ink-500">{a.role}</p>
+      <p className="relative mt-2.5 text-body font-semibold text-ink-50">{a.name}</p>
+      <p className="relative text-micro text-ink-500">{a.role}</p>
       <div className="relative mt-1.5 h-8">
         {st.status === "idle" ? (
-          <span className="text-[11px] text-ink-600">Standing by…</span>
+          <span className="text-micro text-ink-600">Standing by…</span>
         ) : (
-          <p className="line-clamp-2 text-[11px] text-ink-300">{st.task} <span className="text-ink-500">· {st.subject}</span></p>
+          <p className="line-clamp-2 text-micro text-ink-300">{st.task} <span className="text-ink-500">· {st.subject}</span></p>
         )}
       </div>
-      <div className="relative mt-1 flex items-center justify-between border-t border-ink-800/70 pt-2 text-[10px] text-ink-500">
+      <div className="relative mt-1 flex items-center justify-between border-t border-ink-800/70 pt-2 text-micro text-ink-500">
         <span>tasks today</span>
         <span className="stat-mono text-ink-300">{state.agentTasks[id]}</span>
       </div>
@@ -418,8 +418,8 @@ function RunPipeline({ run, onApprove, onDecline }: { run: Run; onApprove: () =>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: wf.color }} />
-          <span className="font-display text-sm font-semibold text-ink-50">{wf.name}</span>
-          <span className="text-xs text-ink-400">· {run.subject}</span>
+          <span className="font-display text-body font-semibold text-ink-50">{wf.name}</span>
+          <span className="text-detail text-ink-400">· {run.subject}</span>
         </div>
         {run.status === "awaiting" ? (
           <Badge tone={awaitingGate?.gate === "provider" ? "high" : "watch"}>
@@ -462,7 +462,7 @@ function RunPipeline({ run, onApprove, onDecline }: { run: Run; onApprove: () =>
                   {isActive && <Loader2 className="h-3.5 w-3.5 animate-spin text-ink-200" />}
                   {isGate && <Lock className="h-3.5 w-3.5 text-watch" />}
                 </div>
-                <p className="mt-1.5 line-clamp-2 text-[10px] leading-tight text-ink-300">{s.label}</p>
+                <p className="mt-1.5 line-clamp-2 text-micro leading-tight text-ink-300">{s.label}</p>
                 {isActive && (
                   <div className="relative mt-1 h-1 w-full overflow-hidden rounded-full bg-ink-700">
                     <motion.div className="h-full rounded-full bg-gold-400" animate={{ width: `${s.progress}%` }} transition={{ duration: 0.95, ease: "linear" }} />
@@ -488,7 +488,7 @@ function RunPipeline({ run, onApprove, onDecline }: { run: Run; onApprove: () =>
       {/* gate actions */}
       {run.status === "awaiting" && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-ink-300">
+          <span className="flex items-center gap-1.5 text-detail text-ink-300">
             <Lock className="h-3.5 w-3.5 text-watch" />
             {awaitingGate?.gate === "provider"
               ? "Licensed provider approval required to proceed."

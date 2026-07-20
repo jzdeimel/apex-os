@@ -97,7 +97,7 @@ export function SignedSeal({
             >
               <span className="absolute inset-1.5 rounded-full border border-dashed border-gold-500/30" />
               <ShieldCheck className="h-7 w-7 text-gold-400" strokeWidth={1.75} />
-              <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-gold-300">
+              <span className="mt-0.5 text-micro font-semibold uppercase tracking-[0.18em] text-gold-300">
                 {label}
               </span>
             </motion.div>
@@ -105,13 +105,13 @@ export function SignedSeal({
 
           {/* The evidence. Static, selectable, never animated. */}
           <div className="text-center">
-            <p className="text-xs font-medium text-ink-200">{signedBy}</p>
-            <p className="mt-0.5 text-[11px] text-ink-500">{formatDateTime(signedAt)}</p>
-            <p className="stat-mono mt-2 select-all text-[11px] text-ink-400">
+            <p className="text-detail font-medium text-ink-200">{signedBy}</p>
+            <p className="mt-0.5 text-micro text-ink-500">{formatDateTime(signedAt)}</p>
+            <p className="stat-mono mt-2 select-all text-micro text-ink-400">
               {ledgerId}
               {hash && <span className="text-ink-600"> · {hash}</span>}
             </p>
-            <p className="mt-1 text-[10px] text-ink-600">
+            <p className="mt-1 text-micro text-ink-600">
               Written to the audit ledger. Corrections are filed as addenda.
             </p>
           </div>

@@ -223,7 +223,7 @@ export function VoiceConsult({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700/60 p-4">
           <div className="min-w-0">
             <p className="label-eyebrow">Transcript</p>
-            <p className="mt-0.5 text-xs text-ink-500">
+            <p className="mt-0.5 text-detail text-ink-500">
               Retained verbatim, exactly like typed notes. Never discarded.
             </p>
           </div>
@@ -253,7 +253,7 @@ export function VoiceConsult({
         */}
         <div className="flex items-start gap-2 border-b border-ink-700/60 bg-ink-900/40 px-4 py-2.5">
           <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
-          <p className="text-[11px] leading-relaxed text-ink-500">
+          <p className="text-micro leading-relaxed text-ink-500">
             <span className="text-ink-300">Demo — no microphone is used.</span> A scripted consult
             is replayed segment by segment so you can see the transcript and the summary build
             together. In production this is an Azure AI Speech stream under Alpha Health&apos;s BAA,
@@ -265,8 +265,8 @@ export function VoiceConsult({
           {delivered.length === 0 ? (
             <div className="flex h-full min-h-[16rem] flex-col items-center justify-center rounded-xl border border-dashed border-ink-700 px-6 text-center">
               <Mic className="mb-3 h-5 w-5 text-ink-600" />
-              <p className="text-sm text-ink-400">Press record and talk it through.</p>
-              <p className="mt-1 text-xs text-ink-600">
+              <p className="text-body text-ink-400">Press record and talk it through.</p>
+              <p className="mt-1 text-detail text-ink-600">
                 Every line is attributed. Who said it is part of the record.
               </p>
             </div>
@@ -286,7 +286,7 @@ export function VoiceConsult({
           {recording && <ListeningIndicator />}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-700/60 px-4 py-2.5 text-[11px] text-ink-500">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-700/60 px-4 py-2.5 text-micro text-ink-500">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
               <span className="stat-mono">{delivered.length}</span> segments
@@ -321,7 +321,7 @@ export function VoiceConsult({
             <Sparkles className="h-4 w-4 shrink-0 text-gold-400" />
             <div className="min-w-0">
               <p className="label-eyebrow">Structured summary</p>
-              <p className="mt-0.5 text-xs text-ink-500">
+              <p className="mt-0.5 text-detail text-ink-500">
                 Hover any item to find the words it came from.
               </p>
             </div>
@@ -332,7 +332,7 @@ export function VoiceConsult({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-gold-300"
+                className="inline-flex shrink-0 items-center gap-1.5 text-micro text-gold-300"
               >
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold-400 motion-reduce:animate-none" />
                 listening…
@@ -345,8 +345,8 @@ export function VoiceConsult({
           {!summary ? (
             <div className="flex h-full min-h-[16rem] flex-col items-center justify-center rounded-xl border border-dashed border-ink-700 px-6 text-center">
               <Sparkles className="mb-3 h-5 w-5 text-ink-600" />
-              <p className="text-sm text-ink-400">This builds itself as you speak.</p>
-              <p className="mt-1 text-xs text-ink-600">
+              <p className="text-body text-ink-400">This builds itself as you speak.</p>
+              <p className="mt-1 text-detail text-ink-600">
                 Same engine as the typed composer. Nothing appears here that is not traceable to
                 something someone actually said.
               </p>
@@ -355,10 +355,10 @@ export function VoiceConsult({
             <>
               <div>
                 <p className="label-eyebrow">Headline</p>
-                <p className="mt-1.5 font-display text-sm leading-relaxed text-ink-100">
+                <p className="mt-1.5 font-display text-body leading-relaxed text-ink-100">
                   {summary.headline}
                 </p>
-                <p className="stat-mono mt-2 text-[11px] text-ink-500">
+                <p className="stat-mono mt-2 text-micro text-ink-500">
                   {findingCount(summary)} findings
                 </p>
               </div>
@@ -436,14 +436,14 @@ export function VoiceConsult({
               {summary.unclassified.length > 0 && (
                 <section>
                   <p className="label-eyebrow">Not classified</p>
-                  <p className="mt-1 text-[11px] text-ink-600">
+                  <p className="mt-1 text-micro text-ink-600">
                     Heard but not confidently categorized. Surfaced, never dropped.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {summary.unclassified.map((u, i) => (
                       <span
                         key={i}
-                        className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-xs text-ink-400"
+                        className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-detail text-ink-400"
                       >
                         {u}
                       </span>
@@ -459,7 +459,7 @@ export function VoiceConsult({
               {stamp && (
                 <div className="rounded-xl border border-ink-700/70 bg-ink-900/40 p-3">
                   <p className="label-eyebrow">Provenance</p>
-                  <dl className="mt-2 space-y-1.5 text-[11px]">
+                  <dl className="mt-2 space-y-1.5 text-micro">
                     <StampRow label="Source">Dictated · speaker-attributed</StampRow>
                     <StampRow label="Engine">
                       {stamp.engine} v{ENGINE_VERSION}
@@ -490,7 +490,7 @@ export function VoiceConsult({
                 className="flex items-start gap-2 rounded-lg border border-optimal/30 bg-optimal/5 p-3"
               >
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
-                <p className="text-xs leading-relaxed text-ink-200">
+                <p className="text-detail leading-relaxed text-ink-200">
                   Signed and locked. The transcript is stored with the summary, not replaced by
                   it — any correction from here attaches as an addendum.
                 </p>
@@ -504,17 +504,17 @@ export function VoiceConsult({
                 transition={{ duration: 0.22, ease: EASE }}
                 className="rounded-xl border border-gold-400/30 bg-gold-400/5 p-3"
               >
-                <p className="flex items-center gap-1.5 text-sm font-medium text-ink-50">
+                <p className="flex items-center gap-1.5 text-body font-medium text-ink-50">
                   <Lock className="h-3.5 w-3.5 text-gold-300" />
                   Signing makes this immutable
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-300">
+                <p className="mt-1.5 text-detail leading-relaxed text-ink-300">
                   The transcript and this summary are locked together and hashed. You are signing
                   the words that were said, not only the structured read of them — which is what
                   lets anyone reading this in a year tell what the member actually reported.
                 </p>
                 {finalized && (
-                  <p className="stat-mono mt-2 text-[11px] text-ink-500">
+                  <p className="stat-mono mt-2 text-micro text-ink-500">
                     {delivered.length} segments · {shortHash(finalized.textHash)} ·{" "}
                     {formatDateTime(NOW)}
                   </p>
@@ -547,7 +547,7 @@ export function VoiceConsult({
                   <PenLine className="h-4 w-4" />
                   Sign consult
                 </Button>
-                <span className="text-[11px] text-ink-600">
+                <span className="text-micro text-ink-600">
                   {recording
                     ? "Stop recording to review and sign."
                     : phase === "idle"
@@ -600,22 +600,22 @@ function TranscriptLine({
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={cn(
-            "stat-mono text-[10px] font-semibold uppercase tracking-wider",
+            "stat-mono text-micro font-semibold uppercase tracking-wider",
             isMember ? "text-gold-300" : "text-ink-400",
           )}
         >
           {SPEAKER_PREFIX[segment.speaker].replace(":", "")}
         </span>
-        <span className="stat-mono text-[10px] text-ink-600">{timecode(segment.startMs)}</span>
+        <span className="stat-mono text-micro text-ink-600">{timecode(segment.startMs)}</span>
         {lowConfidence && (
-          <span className="stat-mono text-[10px] text-watch">
+          <span className="stat-mono text-micro text-watch">
             {(segment.confidence * 100).toFixed(0)}% — verify
           </span>
         )}
       </div>
       <p
         className={cn(
-          "mt-1 text-sm leading-relaxed",
+          "mt-1 text-body leading-relaxed",
           isMember ? "text-ink-100" : "text-ink-300",
         )}
       >
@@ -648,7 +648,7 @@ function ListeningIndicator() {
           />
         ))}
       </div>
-      <span className="text-[11px] text-ink-500" role="status">
+      <span className="text-micro text-ink-500" role="status">
         recording…
       </span>
     </div>
@@ -685,8 +685,8 @@ function SourcedItem({
       onBlur={() => onHover(null)}
       className={cn("focus-ring rounded-lg border p-3 transition-colors", className)}
     >
-      <p className="text-sm text-ink-100">{item.value}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-500">
+      <p className="text-body text-ink-100">{item.value}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-micro text-ink-500">
         <span className="stat-mono">conf {(item.confidence * 100).toFixed(0)}%</span>
         {source && (
           <>
@@ -722,9 +722,9 @@ function TextSection({ title, items, mono }: { title: string; items: string[]; m
       <p className="label-eyebrow">{title}</p>
       <ul className="mt-2 space-y-1.5">
         {items.map((t, i) => (
-          <li key={i} className="flex gap-2.5 text-sm text-ink-200">
+          <li key={i} className="flex gap-2.5 text-body text-ink-200">
             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-600" />
-            <span className={cn(mono && "stat-mono text-[13px]")}>{t}</span>
+            <span className={cn(mono && "stat-mono text-detail")}>{t}</span>
           </li>
         ))}
       </ul>

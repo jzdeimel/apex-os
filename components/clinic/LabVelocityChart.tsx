@@ -185,7 +185,7 @@ export function LabVelocityChart({ v, height = 240 }: { v: VelocityResult; heigh
         </ComposedChart>
       </ResponsiveContainer>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-ink-500">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-micro text-ink-500">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0.5 w-4 rounded-full" style={{ background: OBSERVED }} /> Measured
         </span>

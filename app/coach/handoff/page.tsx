@@ -1,7 +1,6 @@
 "use client";
 
 import { HandoffPacket } from "@/components/coach/HandoffPacket";
-import { FadeIn } from "@/components/motion";
 
 /**
  * Coach · Handoff — cover packets.
@@ -14,22 +13,20 @@ import { FadeIn } from "@/components/motion";
  */
 export default function CoachHandoffPage() {
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">COACH</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Handoff packet
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-2 text-body text-ink-400">
           Everything a covering coach needs for the next two weeks: where each member is, what was
           last discussed, what is open, what is due, and the one thing that matters most — ranked
           by who will need the most attention while you are out.
         </p>
-      </FadeIn>
+      </header>
 
-      <FadeIn delay={0.05}>
         <HandoffPacket />
-      </FadeIn>
     </div>
   );
 }

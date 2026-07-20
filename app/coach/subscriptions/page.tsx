@@ -202,17 +202,17 @@ export default function CoachSubscriptionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">COACH CONSOLE</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Auto-Refills
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-2 text-body text-ink-400">
           Every standing protocol, what is due, and what is stuck — with the schedule rolling from
           the date it was owed, so a hold never pushes a member permanently later.
         </p>
-      </FadeIn>
+      </header>
 
       {/* Explicit base grid-cols-1 — an implicit column sizes to content and
           overflows at 390px. */}
@@ -294,7 +294,7 @@ function Stat({
     <Card>
       <CardContent className="p-5">
         <p className="label-eyebrow">{label}</p>
-        <p className={cn("stat-mono mt-2 text-2xl font-semibold", color)}>{value}</p>
+        <p className={cn("stat-mono mt-2 text-title font-semibold", color)}>{value}</p>
       </CardContent>
     </Card>
   );
@@ -316,10 +316,10 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink-50">{title}</h2>
-        <span className="stat-mono text-xs text-ink-500">{count}</span>
+        <h2 className="font-display text-heading font-semibold text-ink-50">{title}</h2>
+        <span className="stat-mono text-detail text-ink-500">{count}</span>
       </div>
-      <p className="-mt-1 text-xs text-ink-500">{hint}</p>
+      <p className="-mt-1 text-detail text-ink-500">{hint}</p>
       {count === 0 ? <EmptyState title={empty} /> : <div className="space-y-2">{children}</div>}
     </section>
   );
@@ -351,7 +351,7 @@ function Row({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-medium text-ink-50">
+              <p className="truncate text-body font-medium text-ink-50">
                 {client ? clientName(client) : sub.clientId}
               </p>
               <Badge tone={isActive ? "optimal" : sub.status === "Paused" ? "neutral" : "watch"}>
@@ -365,9 +365,9 @@ function Row({
               )}
             </div>
 
-            <p className="mt-1 truncate text-sm text-ink-300">{item?.name ?? sub.sku}</p>
+            <p className="mt-1 truncate text-body text-ink-300">{item?.name ?? sub.sku}</p>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-500">
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-micro text-ink-500">
               <span className="stat-mono inline-flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" />
                 every {sub.cadenceDays}d
@@ -384,7 +384,7 @@ function Row({
             </div>
 
             {sub.heldReason && (
-              <p className="mt-2 rounded-lg border border-watch/25 bg-watch/[0.06] p-2 text-[11px] leading-relaxed text-ink-300">
+              <p className="mt-2 rounded-lg border border-watch/25 bg-watch/[0.06] p-2 text-micro leading-relaxed text-ink-300">
                 {sub.heldReason}
                 {sub.holdAmountCents ? ` · ${centsToDollars(sub.holdAmountCents)} outstanding` : ""}
               </p>

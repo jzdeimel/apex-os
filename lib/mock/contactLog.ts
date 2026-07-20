@@ -231,7 +231,7 @@ function buildLog(clientId: string): ContactEntry[] {
 
     // Business hours, 8:00–19:00 — quiet hours are enforced, so nothing at 2am.
     const day = absolute(cursor);
-    day.setHours(8 + Math.floor(rand() * 11), Math.floor(rand() * 60), 0, 0);
+    day.setUTCHours(8 + Math.floor(rand() * 11), Math.floor(rand() * 60), 0, 0);
 
     // Consent is evaluated AS OF the message date, not as of today. The
     // auditor's question is never "may we text them now" — it is "were we

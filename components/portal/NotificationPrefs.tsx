@@ -243,10 +243,10 @@ export function NotificationPrefs({ client }: { client: Client }) {
       <Card>
         <CardContent className="p-5 sm:p-6">
           <p className="label-eyebrow">Notifications</p>
-          <h2 className="mt-2 font-display text-xl font-semibold leading-snug text-ink-50">
+          <h2 className="mt-2 font-display text-title font-semibold leading-snug text-ink-50">
             You decide how much you hear from us.
           </h2>
-          <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">
+          <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">
             A reminder system you can&rsquo;t turn down isn&rsquo;t encouragement, it&rsquo;s
             pestering — and we&rsquo;d rather you stayed a member than opened one more
             notification. Everything below is off-switchable, the limits underneath are
@@ -259,19 +259,19 @@ export function NotificationPrefs({ client }: { client: Client }) {
       {/* Channels ------------------------------------------------------------ */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h3 className="font-display text-base font-semibold text-ink-50">Where we reach you</h3>
+          <h3 className="font-display text-body font-semibold text-ink-50">Where we reach you</h3>
           <div className="mt-4 grid grid-cols-1 gap-3">
             {CHANNELS.map((c) => {
               const Icon = c.icon;
               return (
                 <div
                   key={c.id}
-                  className="flex items-start gap-3 rounded-2xl border border-ink-700/70 bg-ink-900/40 p-4"
+                  className="flex items-start gap-3 rounded-panel border border-ink-700/70 bg-ink-900/40 p-4"
                 >
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink-100">{c.label}</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-ink-500">{c.detail}</p>
+                    <p className="text-detail font-medium text-ink-100">{c.label}</p>
+                    <p className="mt-1 text-detail leading-relaxed text-ink-500">{c.detail}</p>
                   </div>
                   <Toggle
                     checked={channels[c.id]}
@@ -284,7 +284,7 @@ export function NotificationPrefs({ client }: { client: Client }) {
           </div>
 
           {allOff && (
-            <p className="mt-4 flex items-start gap-2 rounded-2xl border border-ink-700 bg-ink-900/50 p-3 text-[13px] leading-relaxed text-ink-300">
+            <p className="mt-4 flex items-start gap-2 rounded-panel border border-ink-700 bg-ink-900/50 p-3 text-detail leading-relaxed text-ink-300">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
               <span>
                 Everything is off, and that is a perfectly reasonable setting. Your coach and
@@ -302,8 +302,8 @@ export function NotificationPrefs({ client }: { client: Client }) {
           <div className="flex items-start gap-3">
             <MoonStar className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
             <div className="min-w-0">
-              <h3 className="font-display text-base font-semibold text-ink-50">Quiet hours</h3>
-              <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">
+              <h3 className="font-display text-body font-semibold text-ink-50">Quiet hours</h3>
+              <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-500">
                 Nothing automated goes out inside this window. You can widen it; you
                 can&rsquo;t narrow it past {NUDGE_QUIET_HOURS.startHour}:00 – 0
                 {NUDGE_QUIET_HOURS.endHour}:00, because a 2am text is how a member ends up
@@ -315,7 +315,7 @@ export function NotificationPrefs({ client }: { client: Client }) {
           {/* 2-up at 390px — neither select wraps. */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] uppercase tracking-wide text-ink-500">Starts</span>
+              <span className="text-micro uppercase tracking-wide text-ink-500">Starts</span>
               <Select
                 className="mt-1"
                 value={quietStart}
@@ -329,7 +329,7 @@ export function NotificationPrefs({ client }: { client: Client }) {
               </Select>
             </label>
             <label className="block">
-              <span className="text-[10px] uppercase tracking-wide text-ink-500">Ends</span>
+              <span className="text-micro uppercase tracking-wide text-ink-500">Ends</span>
               <Select
                 className="mt-1"
                 value={quietEnd}
@@ -349,8 +349,8 @@ export function NotificationPrefs({ client }: { client: Client }) {
       {/* Topics --------------------------------------------------------------- */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h3 className="font-display text-base font-semibold text-ink-50">What you want to hear about</h3>
-          <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">
+          <h3 className="font-display text-body font-semibold text-ink-50">What you want to hear about</h3>
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-500">
             Each of these fires from something real on your record. None of them fire on a
             schedule, and none of them fire twice.
           </p>
@@ -359,16 +359,16 @@ export function NotificationPrefs({ client }: { client: Client }) {
             {TOPICS.map((t) => (
               <div
                 key={t.kind}
-                className="flex items-start gap-3 rounded-2xl border border-ink-700/70 bg-ink-900/40 p-4"
+                className="flex items-start gap-3 rounded-panel border border-ink-700/70 bg-ink-900/40 p-4"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-ink-100">{t.label}</p>
+                    <p className="text-detail font-medium text-ink-100">{t.label}</p>
                     {t.clinical && <Badge tone="gold">Clinical</Badge>}
                   </div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">{t.detail}</p>
+                  <p className="mt-1 text-detail leading-relaxed text-ink-500">{t.detail}</p>
                   {t.clinical && !topics[t.kind] && (
-                    <p className="mt-2 text-[13px] leading-relaxed text-ink-400">
+                    <p className="mt-2 text-detail leading-relaxed text-ink-400">
                       Turned off. Your care team can still reach you directly about this —
                       a preference changes the reminder, not your clinician.
                     </p>
@@ -388,22 +388,22 @@ export function NotificationPrefs({ client }: { client: Client }) {
       {/* The limits, as numbers ------------------------------------------------ */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h3 className="font-display text-base font-semibold text-ink-50">
+          <h3 className="font-display text-body font-semibold text-ink-50">
             The limits we hold ourselves to
           </h3>
-          <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-500">
             These are enforced in code, not policy. Each one exists because of a specific way
             this goes wrong.
           </p>
 
           <dl className="mt-4 grid grid-cols-1 gap-3">
             {NUDGE_LIMITS.map((l) => (
-              <div key={l.label} className="rounded-2xl border border-ink-700/70 bg-ink-900/40 p-4">
+              <div key={l.label} className="rounded-panel border border-ink-700/70 bg-ink-900/40 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <dt className="text-sm font-medium text-ink-100">{l.label}</dt>
-                  <dd className="stat-mono text-sm text-gold-300">{l.value}</dd>
+                  <dt className="text-detail font-medium text-ink-100">{l.label}</dt>
+                  <dd className="stat-mono text-detail text-gold-300">{l.value}</dd>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-500">{l.prevents}</p>
+                <p className="mt-1.5 text-detail leading-relaxed text-ink-500">{l.prevents}</p>
               </div>
             ))}
           </dl>
@@ -416,17 +416,17 @@ export function NotificationPrefs({ client }: { client: Client }) {
           <div className="flex items-start gap-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
             <div className="min-w-0">
-              <h3 className="font-display text-base font-semibold text-ink-50">Today&rsquo;s decision</h3>
+              <h3 className="font-display text-body font-semibold text-ink-50">Today&rsquo;s decision</h3>
               {decision.nudge ? (
                 <>
-                  <p className="mt-1.5 max-w-prose text-[15px] leading-relaxed text-ink-200">
+                  <p className="mt-1.5 max-w-prose text-body leading-relaxed text-ink-200">
                     {decision.nudge.title}
                   </p>
-                  <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-ink-500">
+                  <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-500">
                     Sent because: {decision.nudge.reason}
                   </p>
                   {decision.alsoTrue.length > 0 && (
-                    <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-ink-500">
+                    <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-500">
                       {decision.alsoTrue.length} other thing
                       {decision.alsoTrue.length === 1 ? " was" : "s were"} also true today and
                       {decision.alsoTrue.length === 1 ? " was" : " were"} dropped rather than
@@ -435,7 +435,7 @@ export function NotificationPrefs({ client }: { client: Client }) {
                   )}
                 </>
               ) : (
-                <p className="mt-1.5 max-w-prose text-[15px] leading-relaxed text-ink-200">
+                <p className="mt-1.5 max-w-prose text-body leading-relaxed text-ink-200">
                   We didn&rsquo;t contact you today. {decision.suppressed?.detail}
                 </p>
               )}
@@ -447,8 +447,8 @@ export function NotificationPrefs({ client }: { client: Client }) {
       {/* Consent is a different thing, and says so ----------------------------- */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h3 className="font-display text-base font-semibold text-ink-50">Consent, separately</h3>
-          <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">
+          <h3 className="font-display text-body font-semibold text-ink-50">Consent, separately</h3>
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-500">
             Preferences above are yours to change any time. Consent is a signed record of what
             we&rsquo;re permitted to send at all, and it lives on your Consents page — a toggle
             here can narrow what reaches you, never widen it.
@@ -458,9 +458,9 @@ export function NotificationPrefs({ client }: { client: Client }) {
             {consent.scopes.map((s) => (
               <div
                 key={s.scope}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-ink-700/70 bg-ink-900/40 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-panel border border-ink-700/70 bg-ink-900/40 px-4 py-3"
               >
-                <span className="text-sm text-ink-200">{SCOPE_LABEL[s.scope]}</span>
+                <span className="text-detail text-ink-200">{SCOPE_LABEL[s.scope]}</span>
                 <Badge tone={s.active ? "optimal" : "neutral"}>
                   {s.active ? "Permitted" : "Blocked"}
                 </Badge>
@@ -470,7 +470,7 @@ export function NotificationPrefs({ client }: { client: Client }) {
 
           <Link
             href="/portal/consents"
-            className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-ink-600 px-4 text-sm text-ink-200 transition-colors hover:border-ink-500 hover:bg-ink-800 focus-ring"
+            className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-control border border-ink-600 px-4 text-detail text-ink-200 transition-colors hover:border-ink-500 hover:bg-ink-800 focus-ring"
           >
             Review my consents
           </Link>

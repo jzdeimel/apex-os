@@ -42,7 +42,7 @@ const DETAIL: Record<TimelineEventType, string> = {
 
 function addDays(iso: string, days: number): string {
   const d = absolute(iso);
-  d.setDate(d.getDate() + days);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 19);
 }
 

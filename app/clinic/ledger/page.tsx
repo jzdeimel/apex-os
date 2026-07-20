@@ -85,10 +85,10 @@ export default function LedgerPage() {
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div>
         <p className="label-eyebrow">Governance</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Audit Ledger
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-400">
+        <p className="mt-2 max-w-2xl text-body leading-relaxed text-ink-400">
           Append-only and hash-chained. Every read, write, denial and
           break-glass event is a link in one chain — so the record can prove it
           hasn&apos;t been edited, not merely assert it.
@@ -96,23 +96,23 @@ export default function LedgerPage() {
       </div>
 
       {/* ── Stat row ───────────────────────────────────────────────── */}
-      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StaggerItem>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div>
           <StatTile label="Events" value={stats.total} hint="this window" />
-        </StaggerItem>
-        <StaggerItem>
+        </div>
+        <div>
           <StatTile label="Reads logged" value={stats.reads} hint="most systems log none" tone="low" />
-        </StaggerItem>
-        <StaggerItem>
+        </div>
+        <div>
           <StatTile label="Writes" value={stats.writes} hint="with before/after" />
-        </StaggerItem>
-        <StaggerItem>
+        </div>
+        <div>
           <StatTile label="Denials" value={stats.denials} hint="blocked attempts" tone="high" />
-        </StaggerItem>
-        <StaggerItem>
+        </div>
+        <div>
           <StatTile label="Break-glass" value={stats.breakGlass} hint="emergency access" tone="high" />
-        </StaggerItem>
-      </Stagger>
+        </div>
+      </div>
 
       {/* ── Verifier ───────────────────────────────────────────────── */}
       <ChainVerifier
@@ -130,7 +130,7 @@ export default function LedgerPage() {
             key={l.id}
             onClick={() => setLens(l.id)}
             title={l.hint}
-            className={`relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-ring ${
+            className={`relative rounded-full px-3 py-1.5 text-detail font-medium transition-colors focus-ring ${
               lens === l.id ? "text-ink-50" : "text-ink-400 hover:text-ink-200"
             }`}
           >
@@ -144,7 +144,7 @@ export default function LedgerPage() {
             <span className="relative">{l.label}</span>
           </button>
         ))}
-        <span className="ml-auto stat-mono text-[11px] text-ink-500">
+        <span className="ml-auto stat-mono text-micro text-ink-500">
           {visible.length.toLocaleString()} records
         </span>
       </div>
@@ -169,7 +169,7 @@ export default function LedgerPage() {
         </Card>
       )}
 
-      <p className="text-[11px] text-ink-600">
+      <p className="text-micro text-ink-600">
         Showing the 60 most recent records in this lens. Demo ledger — synthetic
         events over synthetic patients.
       </p>
@@ -193,10 +193,10 @@ function StatTile({
   return (
     <div className="card p-4">
       <p className="label-eyebrow">{label}</p>
-      <p className={`stat-mono mt-1 text-2xl font-semibold ${toneClass}`}>
+      <p className={`stat-mono mt-1 text-title font-semibold ${toneClass}`}>
         {value.toLocaleString()}
       </p>
-      <p className="mt-0.5 text-[11px] text-ink-600">{hint}</p>
+      <p className="mt-0.5 text-micro text-ink-600">{hint}</p>
     </div>
   );
 }
@@ -239,24 +239,24 @@ function LedgerRowItem({
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-            <span className="text-sm font-medium text-ink-100">{row.actorName}</span>
-            <span className="text-xs text-ink-500">{meta.label.toLowerCase()}</span>
-            <span className="text-sm text-ink-300">{row.entity}</span>
+            <span className="text-body font-medium text-ink-100">{row.actorName}</span>
+            <span className="text-detail text-ink-500">{meta.label.toLowerCase()}</span>
+            <span className="text-body text-ink-300">{row.entity}</span>
             {row.subjectName && (
               <>
-                <span className="text-xs text-ink-600">for</span>
-                <span className="text-sm text-ink-200">{row.subjectName}</span>
+                <span className="text-detail text-ink-600">for</span>
+                <span className="text-body text-ink-200">{row.subjectName}</span>
               </>
             )}
           </span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-600">
+          <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-600">
             <span className="stat-mono">{formatDateTime(row.at)}</span>
             <span>{row.actorRole}</span>
             {row.locationId && <span>{locationName(row.locationId)}</span>}
             <span className="stat-mono text-ink-700">{shortHash(row.hash)}</span>
           </span>
           {row.reason && (
-            <span className="mt-1.5 block text-[11px] italic text-ink-500">
+            <span className="mt-1.5 block text-micro italic text-ink-500">
               “{row.reason}”
             </span>
           )}
@@ -283,7 +283,7 @@ function LedgerRowItem({
                   <DiffPane label="After" data={row.after} tone="optimal" />
                 </div>
               ) : (
-                <p className="text-xs text-ink-500">
+                <p className="text-detail text-ink-500">
                   Read event — no state changed. Logged because knowing who
                   looked is the point.
                 </p>
@@ -299,7 +299,7 @@ function LedgerRowItem({
               {row.subjectId && (
                 <Link
                   href={`/clients/${row.subjectId}`}
-                  className="inline-flex items-center gap-1 text-xs text-gold-300 underline-offset-4 hover:underline focus-ring"
+                  className="inline-flex items-center gap-1 text-detail text-gold-300 underline-offset-4 hover:underline focus-ring"
                 >
                   Open {row.subjectName}&apos;s chart
                   <ChevronRight className="h-3 w-3" />
@@ -333,15 +333,15 @@ function DiffPane({
         <dl className="mt-1.5 space-y-1">
           {Object.entries(data).map(([k, v]) => (
             <div key={k} className="flex items-baseline justify-between gap-3">
-              <dt className="text-[11px] text-ink-500">{k}</dt>
-              <dd className="stat-mono truncate text-[11px] text-ink-200">
+              <dt className="text-micro text-ink-500">{k}</dt>
+              <dd className="stat-mono truncate text-micro text-ink-200">
                 {v === null ? "—" : String(v)}
               </dd>
             </div>
           ))}
         </dl>
       ) : (
-        <p className="mt-1.5 text-[11px] text-ink-600">— (record did not exist)</p>
+        <p className="mt-1.5 text-micro text-ink-600">— (record did not exist)</p>
       )}
     </div>
   );
@@ -350,8 +350,8 @@ function DiffPane({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-1.5">
-      <p className="text-[10px] uppercase tracking-wide text-ink-600">{label}</p>
-      <p className="stat-mono truncate text-[11px] text-ink-300">{value}</p>
+      <p className="text-micro uppercase tracking-wide text-ink-600">{label}</p>
+      <p className="stat-mono truncate text-micro text-ink-300">{value}</p>
     </div>
   );
 }

@@ -248,7 +248,7 @@ export function ConsultComposer({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700/60 p-4">
           <div>
             <p className="label-eyebrow">Your notes</p>
-            <p className="mt-0.5 text-xs text-ink-500">
+            <p className="mt-0.5 text-detail text-ink-500">
               Verbatim and immutable once signed.
             </p>
           </div>
@@ -276,7 +276,7 @@ export function ConsultComposer({
             <div
               ref={highlightRef}
               aria-hidden
-              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-lg border border-ink-700 bg-ink-950/40 px-3 py-2 font-mono text-[13px] leading-relaxed text-transparent"
+              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-lg border border-ink-700 bg-ink-950/40 px-3 py-2 font-mono text-detail leading-relaxed text-transparent"
             >
               <HighlightedText raw={raw} item={hovered} />
             </div>
@@ -291,14 +291,14 @@ export function ConsultComposer({
               className={cn(
                 // Transparent background so the highlight underlay shows through;
                 // the underlay owns the border and fill.
-                "focus-ring relative h-full w-full resize-none overflow-auto rounded-lg border border-transparent bg-transparent px-3 py-2 font-mono text-[13px] leading-relaxed text-ink-100 placeholder:text-ink-600",
+                "focus-ring relative h-full w-full resize-none overflow-auto rounded-lg border border-transparent bg-transparent px-3 py-2 font-mono text-detail leading-relaxed text-ink-100 placeholder:text-ink-600",
                 signed && "opacity-70",
               )}
             />
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-ink-500">
+            <div className="flex items-center gap-2 text-micro text-ink-500">
               <span className="stat-mono">{raw.length}</span> chars
               {draftMeta && (
                 <>
@@ -327,7 +327,7 @@ export function ConsultComposer({
             <Sparkles className="h-4 w-4 text-gold-400" />
             <div>
               <p className="label-eyebrow">Structured summary</p>
-              <p className="mt-0.5 text-xs text-ink-500">
+              <p className="mt-0.5 text-detail text-ink-500">
                 Hover any item to see the words it came from.
               </p>
             </div>
@@ -338,7 +338,7 @@ export function ConsultComposer({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="inline-flex items-center gap-1.5 text-[11px] text-gold-300"
+                className="inline-flex items-center gap-1.5 text-micro text-gold-300"
               >
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold-400 motion-reduce:animate-none" />
                 summarizing…
@@ -351,8 +351,8 @@ export function ConsultComposer({
           {!summary ? (
             <div className="flex h-full min-h-[16rem] flex-col items-center justify-center rounded-xl border border-dashed border-ink-700 px-6 text-center">
               <Sparkles className="mb-3 h-5 w-5 text-ink-600" />
-              <p className="text-sm text-ink-400">Start typing and this builds itself.</p>
-              <p className="mt-1 text-xs text-ink-600">
+              <p className="text-body text-ink-400">Start typing and this builds itself.</p>
+              <p className="mt-1 text-detail text-ink-600">
                 Nothing appears here that is not traceable to your words.
               </p>
             </div>
@@ -360,10 +360,10 @@ export function ConsultComposer({
             <>
               <div>
                 <p className="label-eyebrow">Headline</p>
-                <p className="mt-1.5 font-display text-sm leading-relaxed text-ink-100">
+                <p className="mt-1.5 font-display text-body leading-relaxed text-ink-100">
                   {summary.headline}
                 </p>
-                <p className="mt-2 stat-mono text-[11px] text-ink-500">
+                <p className="mt-2 stat-mono text-micro text-ink-500">
                   {findingCount(summary)} findings
                 </p>
               </div>
@@ -387,9 +387,9 @@ export function ConsultComposer({
                           onBlur={() => setHovered(null)}
                           className="rounded-lg border border-high/30 bg-high/5 p-3 transition-colors hover:border-high/60"
                         >
-                          <p className="text-sm text-ink-100">{e.value}</p>
+                          <p className="text-body text-ink-100">{e.value}</p>
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="stat-mono text-[11px] text-ink-500">
+                            <span className="stat-mono text-micro text-ink-500">
                               conf {(e.confidence * 100).toFixed(0)}%
                             </span>
                             <Button
@@ -517,7 +517,7 @@ export function ConsultComposer({
                           />
                           <span
                             className={cn(
-                              "text-sm text-ink-200",
+                              "text-body text-ink-200",
                               done[key] && "text-ink-500 line-through",
                             )}
                           >
@@ -536,14 +536,14 @@ export function ConsultComposer({
               {summary.unclassified.length > 0 && (
                 <section>
                   <p className="label-eyebrow">Not classified</p>
-                  <p className="mt-1 text-[11px] text-ink-600">
+                  <p className="mt-1 text-micro text-ink-600">
                     Seen but not confidently categorized. Surfaced, never dropped.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {summary.unclassified.map((u, i) => (
                       <span
                         key={i}
-                        className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-xs text-ink-400"
+                        className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-detail text-ink-400"
                       >
                         {u}
                       </span>
@@ -556,7 +556,7 @@ export function ConsultComposer({
               {stamp && (
                 <div className="rounded-xl border border-ink-700/70 bg-ink-900/40 p-3">
                   <p className="label-eyebrow">Provenance</p>
-                  <dl className="mt-2 space-y-1.5 text-[11px]">
+                  <dl className="mt-2 space-y-1.5 text-micro">
                     <StampRow label="Engine">
                       {stamp.engine} v{ENGINE_VERSION}
                     </StampRow>
@@ -583,7 +583,7 @@ export function ConsultComposer({
                 className="flex items-center gap-2 rounded-lg border border-optimal/30 bg-optimal/5 p-3"
               >
                 <Lock className="h-4 w-4 shrink-0 text-optimal" />
-                <p className="text-xs text-ink-200">
+                <p className="text-detail text-ink-200">
                   Signed and locked. Any correction from here is recorded as an addendum —
                   the signed body is never rewritten.
                 </p>
@@ -597,17 +597,17 @@ export function ConsultComposer({
                 transition={{ duration: 0.22, ease: EASE }}
                 className="rounded-xl border border-gold-400/30 bg-gold-400/5 p-3"
               >
-                <p className="flex items-center gap-1.5 text-sm font-medium text-ink-50">
+                <p className="flex items-center gap-1.5 text-body font-medium text-ink-50">
                   <Lock className="h-3.5 w-3.5 text-gold-300" />
                   Signing makes this immutable
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-300">
+                <p className="mt-1.5 text-detail leading-relaxed text-ink-300">
                   Your raw notes and this summary are locked together and hashed. Later
                   corrections attach as addenda rather than editing the record — which is
                   what lets anyone reading this in a year tell what you actually wrote.
                 </p>
                 {stamp && (
-                  <p className="stat-mono mt-2 text-[11px] text-ink-500">
+                  <p className="stat-mono mt-2 text-micro text-ink-500">
                     {stamp.engine} v{ENGINE_VERSION} · {shortHash(stamp.inputHash)} ·{" "}
                     {formatDateTime(stamp.computedAt)}
                   </p>
@@ -642,7 +642,7 @@ export function ConsultComposer({
                   <Save className="h-4 w-4" />
                   Save draft
                 </Button>
-                <span className="text-[11px] text-ink-600">
+                <span className="text-micro text-ink-600">
                   Drafts autosave — nothing is lost if you navigate away.
                 </span>
               </motion.div>
@@ -680,9 +680,9 @@ function TextSection({
       <p className="label-eyebrow">{title}</p>
       <ul className="mt-2 space-y-1.5">
         {items.map((t, i) => (
-          <li key={i} className="flex gap-2.5 text-sm text-ink-200">
+          <li key={i} className="flex gap-2.5 text-body text-ink-200">
             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-600" />
-            <span className={cn(mono && "stat-mono text-[13px]")}>{t}</span>
+            <span className={cn(mono && "stat-mono text-detail")}>{t}</span>
           </li>
         ))}
       </ul>

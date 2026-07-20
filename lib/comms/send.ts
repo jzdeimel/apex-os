@@ -209,7 +209,7 @@ export const provider: CommsProvider = new DemoProvider();
 
 /** 21:00–08:00 spans midnight, so this is an OR, not a range check. */
 export function inQuietHours(at: Date = NOW): boolean {
-  const h = at.getHours();
+  const h = at.getUTCHours();
   return h >= QUIET_HOURS.startHour || h < QUIET_HOURS.endHour;
 }
 
@@ -217,8 +217,8 @@ export function inQuietHours(at: Date = NOW): boolean {
 export function nextSendWindow(at: Date = NOW): Date {
   if (!inQuietHours(at)) return at;
   const next = absolute(at);
-  if (at.getHours() >= QUIET_HOURS.startHour) next.setDate(next.getDate() + 1);
-  next.setHours(QUIET_HOURS.endHour, 0, 0, 0);
+  if (at.getUTCHours() >= QUIET_HOURS.startHour) next.setUTCDate(next.getUTCDate() + 1);
+  next.setUTCHours(QUIET_HOURS.endHour, 0, 0, 0);
   return next;
 }
 

@@ -14,7 +14,7 @@ export function LocationFilter() {
       <select
         value={locationFilter}
         onChange={(e) => setLocationFilter(e.target.value as LocationId | "all")}
-        className="h-9 appearance-none rounded-lg border border-ink-800 bg-ink-900/70 pl-8 pr-7 text-xs font-medium text-ink-100 focus-ring"
+        className="h-9 appearance-none rounded-lg border border-ink-800 bg-ink-900/70 pl-8 pr-7 text-detail font-medium text-ink-100 focus-ring"
         aria-label="Filter by location"
       >
         <option value="all">All locations</option>

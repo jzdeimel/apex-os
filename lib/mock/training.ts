@@ -31,7 +31,7 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 function addDays(iso: string, days: number): string {
   const d = absolute(absolute(iso).getTime() + days * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 
 function daysBetween(fromIso: string, toIso: string): number {

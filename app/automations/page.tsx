@@ -30,7 +30,7 @@ export default function AutomationsPage() {
     <div className="space-y-5">
       <div>
         <p className="label-eyebrow">Automation center · lifecycle messaging &amp; ops</p>
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-50">Automations</h1>
+        <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50">Automations</h1>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -48,7 +48,7 @@ export default function AutomationsPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-3.5 py-1 text-xs font-medium capitalize transition-colors",
+              "rounded-full border px-3.5 py-1 text-detail font-medium capitalize transition-colors",
               filter === f
                 ? "border-gold-400/40 bg-gold-400/10 text-gold-200"
                 : "border-ink-700 text-ink-400 hover:text-ink-100",

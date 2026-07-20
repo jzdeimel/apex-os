@@ -75,7 +75,7 @@ function toMinutes(t: string): number {
 /** True when a booking falls inside a rostered shift for the same clinician. */
 function coveredByShift(visit: Visit, shiftsForStaffDate: Shift[]): boolean {
   const d = absolute(visit.start);
-  const startMin = d.getHours() * 60 + d.getMinutes();
+  const startMin = d.getUTCHours() * 60 + d.getUTCMinutes();
   const endMin = startMin + visit.durationMin;
   return shiftsForStaffDate.some(
     (s) => startMin >= toMinutes(s.start) && endMin <= toMinutes(s.end),
@@ -258,7 +258,7 @@ export function utilisationByHour(locationId: LocationId | "all" = "all"): HourC
       (s) => toMinutes(s.start) <= hour * 60 && toMinutes(s.end) > hour * 60,
     ).length;
     const bookedMin = scopedVisits
-      .filter((v) => absolute(v.start).getHours() === hour)
+      .filter((v) => absolute(v.start).getUTCHours() === hour)
       .reduce((sum, v) => sum + v.durationMin, 0);
     const bookedHours = bookedMin / 60;
     return {

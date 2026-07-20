@@ -77,26 +77,26 @@ export function Challenges({
                       <Flag className="h-3 w-3" />
                       {c.metric}
                     </Badge>
-                    <span className="text-[11px] text-ink-500">
+                    <span className="text-micro text-ink-500">
                       {formatDate(c.startsOn)} – {formatDate(c.endsOn)}
                     </span>
                   </div>
-                  <h3 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink-50">
+                  <h3 className="mt-2 font-display text-heading font-semibold tracking-tight text-ink-50">
                     {c.name}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-ink-400">{c.premise}</p>
+                  <p className="mt-1.5 text-body leading-relaxed text-ink-400">{c.premise}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-ink-900/70 p-3">
                     <p className="label-eyebrow">Everyone, together</p>
-                    <p className="stat-mono mt-1 text-xl text-ink-50">{compact(combined)}</p>
-                    <p className="text-[11px] text-ink-500">{c.unit}</p>
+                    <p className="stat-mono mt-1 text-heading text-ink-50">{compact(combined)}</p>
+                    <p className="text-micro text-ink-500">{c.unit}</p>
                   </div>
                   <div className="rounded-xl bg-ink-900/70 p-3">
                     <p className="label-eyebrow">In it</p>
-                    <p className="stat-mono mt-1 text-xl text-ink-50">{participants}</p>
-                    <p className="text-[11px] text-ink-500">members across 4 teams</p>
+                    <p className="stat-mono mt-1 text-heading text-ink-50">{participants}</p>
+                    <p className="text-micro text-ink-500">members across 4 teams</p>
                   </div>
                 </div>
 
@@ -116,22 +116,22 @@ export function Challenges({
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-2">
-                            <span className="stat-mono w-4 shrink-0 text-xs text-ink-500">
+                            <span className="stat-mono w-4 shrink-0 text-detail text-ink-500">
                               {i + 1}
                             </span>
-                            <span className="truncate text-sm font-medium text-ink-100">
+                            <span className="truncate text-body font-medium text-ink-100">
                               {t.name}
                             </span>
                             {mine && <Badge tone="gold">Your team</Badge>}
                           </div>
-                          <span className="stat-mono shrink-0 text-sm text-ink-200">{p}%</span>
+                          <span className="stat-mono shrink-0 text-body text-ink-200">{p}%</span>
                         </div>
                         <Progress
                           value={p}
                           tone={mine ? "gold" : "optimal"}
                           className="mt-2.5"
                         />
-                        <div className="mt-1.5 flex items-center justify-between text-[11px] text-ink-500">
+                        <div className="mt-1.5 flex items-center justify-between text-micro text-ink-500">
                           <span className="stat-mono">
                             {compact(t.total)} / {compact(t.goal)} {c.unit}
                           </span>
@@ -147,7 +147,7 @@ export function Challenges({
 
                 {/* Said out loud, to the member, so the absence of an individual
                     leaderboard reads as a choice rather than a missing feature. */}
-                <p className="border-t border-ink-700/60 pt-3 text-[11px] leading-relaxed text-ink-500">
+                <p className="border-t border-ink-700/60 pt-3 text-micro leading-relaxed text-ink-500">
                   Team totals only. We don&apos;t rank members against each other here — your
                   numbers are between you, your coach and your provider.
                 </p>

@@ -50,8 +50,8 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold text-ink-50">Protocol schedule builder</h3>
-          <p className="mt-0.5 text-sm text-ink-400">
+          <h3 className="font-display text-heading font-semibold text-ink-50">Protocol schedule builder</h3>
+          <p className="mt-0.5 text-body text-ink-400">
             Build the cadence &amp; timing scaffold. <span className="text-gold-300">Dose, exact frequency and route are confirmed by the provider</span> — no dosing is generated here.
           </p>
         </div>
@@ -71,16 +71,16 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
                   <PeptideIcon name={it.name} size="md" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-display text-sm font-semibold text-ink-50">{it.name}</span>
+                      <span className="font-display text-body font-semibold text-ink-50">{it.name}</span>
                       <Badge tone={it.source === "approved" ? "optimal" : it.source === "program" ? "gold" : "neutral"}>
                         {it.source === "approved" ? "Provider approved" : it.source === "program" ? "Active program" : "Candidate"}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-ink-500">{it.category} · route: {it.route}</p>
+                    <p className="mt-0.5 text-micro text-ink-500">{it.category} · route: {it.route}</p>
                   </div>
                 </div>
                 {/* Dose locked field */}
-                <div className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400/25 bg-gold-400/[0.06] px-2.5 py-1.5 text-[11px] text-gold-200">
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400/25 bg-gold-400/[0.06] px-2.5 py-1.5 text-micro text-gold-200">
                   <Lock className="h-3 w-3" /> Dose: added by provider
                 </div>
               </div>
@@ -108,7 +108,7 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
                           key={slot}
                           onClick={() => toggleTiming(it.name, slot)}
                           className={cn(
-                            "flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors",
+                            "flex-1 rounded-lg border px-2 py-1.5 text-detail font-medium transition-colors",
                             on ? "border-gold-400/50 bg-gold-400/15 text-gold-100" : "border-ink-700 text-ink-400 hover:text-ink-100",
                           )}
                         >
@@ -132,7 +132,7 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
                         days[i] ? "border-gold-400/40 bg-gold-400/10" : "border-ink-800 bg-ink-900/40",
                       )}
                     >
-                      <span className="block text-[10px] text-ink-500">{d}</span>
+                      <span className="block text-micro text-ink-500">{d}</span>
                       {days[i] ? (
                         <Check className="mx-auto mt-0.5 h-3.5 w-3.5 text-gold-300" />
                       ) : (
@@ -155,10 +155,10 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
             <span className="absolute left-[15px] top-2 bottom-2 w-px bg-ink-800" aria-hidden />
             {DEFAULT_CHECKPOINTS.map((c) => (
               <li key={c.week} className="relative flex gap-3">
-                <span className="z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-800 stat-mono text-[10px] font-bold text-gold-300 ring-4 ring-ink-850">
+                <span className="z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-800 stat-mono text-micro font-bold text-gold-300 ring-4 ring-ink-850">
                   W{c.week}
                 </span>
-                <p className="pt-1.5 text-sm text-ink-300">{c.label}</p>
+                <p className="pt-1.5 text-body text-ink-300">{c.label}</p>
               </li>
             ))}
           </ol>
@@ -186,7 +186,7 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
           {pushed ? <Check className="h-3.5 w-3.5" /> : <ListPlus className="h-3.5 w-3.5" />}
           {pushed ? "Sent to provider" : "Send to provider to finalize dosing"}
         </Button>
-        <span className="text-[11px] text-ink-500">
+        <span className="text-micro text-ink-500">
           Schedule scaffold only. No dose is set until the provider completes and approves it.
         </span>
       </div>

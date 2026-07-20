@@ -178,8 +178,8 @@ export function MoleculeCard({
           <UseIcon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-ink-200">{lead ?? entry.family}</p>
-          <p className="truncate text-[11px] text-ink-500">{entry.family}</p>
+          <p className="truncate text-detail font-medium text-ink-200">{lead ?? entry.family}</p>
+          <p className="truncate text-micro text-ink-500">{entry.family}</p>
         </div>
       </div>
 
@@ -189,13 +189,13 @@ export function MoleculeCard({
       {/* ---------------------------------------------------------------- */}
       <div className="flex flex-1 flex-col gap-3 px-5 pb-5 pt-1">
         <div>
-          <h3 className="font-display text-base font-semibold text-ink-50">{entry.name}</h3>
+          <h3 className="font-display text-body font-semibold text-ink-50">{entry.name}</h3>
           {entry.aka.length > 0 && (
-            <p className="mt-0.5 truncate text-xs text-ink-500">{entry.aka.join(" · ")}</p>
+            <p className="mt-0.5 truncate text-detail text-ink-500">{entry.aka.join(" · ")}</p>
           )}
         </div>
 
-        <p className="text-sm leading-relaxed text-ink-300">{entry.memberSafeCopy}</p>
+        <p className="text-body leading-relaxed text-ink-300">{entry.memberSafeCopy}</p>
 
         {/* The spec row. This is the density that makes the card read as a
             reference tool rather than a tile. Every value is allowed to be
@@ -230,7 +230,7 @@ export function MoleculeCard({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={panelId}
-          className="focus-ring -mx-1 mt-auto flex items-center justify-between rounded-lg px-1 py-1.5 text-left text-xs font-medium text-ink-300 transition-colors hover:text-ink-50"
+          className="focus-ring -mx-1 mt-auto flex items-center justify-between rounded-lg px-1 py-1.5 text-left text-detail font-medium text-ink-300 transition-colors hover:text-ink-50"
         >
           <span>{open ? "Hide the detail" : "What it is, and how it works"}</span>
           <ChevronDown
@@ -249,7 +249,7 @@ export function MoleculeCard({
               transition={{ duration: reduce ? 0 : 0.28, ease: EASE }}
               className="overflow-hidden"
             >
-              <div className="space-y-3 border-t border-ink-700/70 pt-3 text-sm leading-relaxed">
+              <div className="space-y-3 border-t border-ink-700/70 pt-3 text-body leading-relaxed">
                 <Detail label="What it is" body={entry.whatItIs} />
                 <Detail label="How it works" body={entry.howItWorks} />
                 <Detail label="How it goes in" body={entry.route} />
@@ -278,7 +278,7 @@ export function MoleculeCard({
                     <div className="mt-1.5 text-ink-200">
                       <BackboneDiagram sequence={seq} accent={entry.accent} width={280} compact />
                     </div>
-                    <p className="mt-1 text-xs text-ink-500">
+                    <p className="mt-1 text-detail text-ink-500">
                       {seq.seq.length} amino acids, N-terminus to C-terminus
                       {seq.cyclic ? ", closed into a ring" : ""}. Height follows each residue&apos;s
                       water affinity; diamonds mark proline, which bends the chain.
@@ -313,8 +313,8 @@ export function MoleculeCard({
 function Spec({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] uppercase tracking-[0.14em] text-ink-500">{label}</dt>
-      <dd className={cn("truncate text-xs", muted ? "text-ink-500 italic" : "text-ink-200")}>
+      <dt className="text-micro uppercase tracking-[0.14em] text-ink-500">{label}</dt>
+      <dd className={cn("truncate text-detail", muted ? "text-ink-500 italic" : "text-ink-200")}>
         {value}
       </dd>
     </div>
@@ -326,7 +326,7 @@ function Detail({ label, body, hint }: { label: string; body: string; hint?: str
     <div>
       <p className="label-eyebrow">{label}</p>
       <p className="mt-1 text-ink-300">{body}</p>
-      {hint && <p className="mt-1 text-xs text-ink-500">{hint}</p>}
+      {hint && <p className="mt-1 text-detail text-ink-500">{hint}</p>}
     </div>
   );
 }

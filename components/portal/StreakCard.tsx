@@ -63,11 +63,11 @@ export function StreakCard({
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={reduced ? { duration: 0 } : { duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="stat-mono text-4xl font-semibold leading-none text-ink-50"
+                className="stat-mono text-display font-semibold leading-none text-ink-50"
               >
                 {state.current}
               </motion.span>
-              <span className="text-sm text-ink-400">day{state.current === 1 ? "" : "s"}</span>
+              <span className="text-detail text-ink-400">day{state.current === 1 ? "" : "s"}</span>
               <Flame className={cn("h-5 w-5", state.current > 0 ? "text-gold-400" : "text-ink-600")} />
             </div>
           </div>
@@ -82,20 +82,23 @@ export function StreakCard({
         </div>
 
         {/* ── Personal best ────────────────────────────────────────────── */}
-        <div className="mt-4 rounded-xl border border-ink-800 bg-ink-900/60 p-3.5">
+        {/* A hairline and a gap, not a second bordered panel inside the card.
+            Three of these stacked was the whole reason this card read as
+            generated. */}
+        <div className="mt-6 border-t border-ink-800/60 pt-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-xs text-ink-400">
+            <p className="flex items-center gap-1.5 text-micro text-ink-400">
               <Target className="h-3.5 w-3.5 text-ink-500" />
               Personal best
             </p>
-            <p className="stat-mono text-sm text-ink-200">{state.best} days</p>
+            <p className="stat-mono text-detail text-ink-200">{state.best} days</p>
           </div>
           <Progress
             value={state.best ? (state.current / state.best) * 100 : 0}
             tone={state.atPersonalBest ? "optimal" : "gold"}
             className="mt-2.5"
           />
-          <p className="mt-2 text-sm leading-snug text-ink-300">
+          <p className="mt-2 text-detail leading-snug text-ink-300">
             {state.atPersonalBest ? (
               <>You are standing on your own record. Every day from here is a new one.</>
             ) : (
@@ -109,7 +112,7 @@ export function StreakCard({
         </div>
 
         {/* ── Shields ──────────────────────────────────────────────────── */}
-        <div className="mt-4">
+        <div className="mt-6 border-t border-ink-800/60 pt-4">
           <div className="flex items-center justify-between gap-3">
             <p className="label-eyebrow">Streak shields</p>
             <div className="flex items-center gap-1.5">
@@ -124,7 +127,7 @@ export function StreakCard({
                         : "Not yet earned"
                     }
                     className={cn(
-                      "grid h-7 w-7 place-items-center rounded-lg border",
+                      "grid h-7 w-7 place-items-center rounded-control border",
                       filled
                         ? "border-gold-400/40 bg-gold-400/12 text-gold-300"
                         : "border-dashed border-ink-700 text-ink-600",
@@ -140,10 +143,10 @@ export function StreakCard({
           {state.daysToNextShield !== null && (
             <Progress value={shieldProgress * 100} className="mt-2.5" />
           )}
-          <p className="mt-2 text-xs leading-snug text-ink-500">{shieldExplainer(state)}</p>
+          <p className="mt-2 text-micro leading-snug text-ink-500">{shieldExplainer(state)}</p>
 
           {state.shieldsSpent.length > 0 && (
-            <p className="mt-1.5 text-xs text-ink-500">
+            <p className="mt-1.5 text-micro text-ink-500">
               A shield covered{" "}
               <span className="text-ink-300">{formatDateShort(state.shieldsSpent[0].spentOn)}</span>{" "}
               for you. That day is closed as far as your streak is concerned.
@@ -155,44 +158,48 @@ export function StreakCard({
         {risk?.protectedReason ? (
           /* A protected day is never styled as a warning. It is the member doing
              exactly what they were told, and it costs them nothing. */
-          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-ink-800 bg-ink-900/60 p-3.5">
+          <div className="mt-6 flex items-start gap-2.5 border-t border-ink-800/60 pt-4">
             <Pause className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink-200">Today is held — {risk.protectedReason.toLowerCase()}</p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">{risk.invitation}</p>
+              <p className="text-detail font-medium text-ink-200">Today is held — {risk.protectedReason.toLowerCase()}</p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-400">{risk.invitation}</p>
             </div>
           </div>
         ) : risk?.atRisk ? (
-          <div className="mt-4 rounded-xl border border-gold-400/25 bg-gold-400/[0.06] p-3.5">
+          /* The one accented region in this card — "you can still close today"
+             is genuinely time-sensitive, so it keeps the brand tint. Its inner
+             filled rows are gone: a tinted box holding filled boxes was three
+             surfaces deep. */
+          <div className="mt-6 rounded-panel bg-gold-400/[0.06] p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-gold-300">Still open today</p>
-              <p className="stat-mono text-[11px] text-ink-500">{risk.hoursLeft}h left</p>
+              <p className="text-detail font-medium text-gold-300">Still open today</p>
+              <p className="stat-mono text-micro text-ink-500">{risk.hoursLeft}h left</p>
             </div>
 
-            <ul className="mt-2.5 grid grid-cols-1 gap-1.5">
+            <ul className="mt-2 divide-y divide-ink-50/5">
               {risk.openRings.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-start justify-between gap-3 rounded-lg bg-ink-900/70 px-3 py-2"
+                  className="flex items-start justify-between gap-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm text-ink-200">
+                    <p className="text-detail text-ink-200">
                       <span
                         className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
                         style={{ backgroundColor: r.hex }}
                       />
                       {r.label}
                     </p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-ink-500">{r.detail}</p>
+                    <p className="mt-0.5 text-micro leading-snug text-ink-500">{r.detail}</p>
                   </div>
-                  <span className="stat-mono shrink-0 text-xs text-ink-300">
+                  <span className="stat-mono shrink-0 text-micro text-ink-300">
                     {r.remaining} {r.unit}
                   </span>
                 </li>
               ))}
             </ul>
 
-            <p className="mt-2.5 text-xs leading-relaxed text-ink-400">{risk.invitation}</p>
+            <p className="mt-2.5 text-micro leading-relaxed text-ink-400">{risk.invitation}</p>
           </div>
         ) : null}
 
@@ -215,7 +222,7 @@ export function StreakCard({
                         : "missed"
                 }`}
                 className={cn(
-                  "h-6 w-6 rounded-md border",
+                  "h-6 w-6 rounded-control border",
                   d.protectedDay
                     ? "border-ink-600 bg-ink-700/60"
                     : d.shielded
@@ -227,19 +234,19 @@ export function StreakCard({
               />
             ))}
           </div>
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-600">
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-600">
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-optimal/40 bg-optimal/25" /> Closed
+              <span className="h-2.5 w-2.5 rounded-control border border-optimal/40 bg-optimal/25" /> Closed
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-gold-400/40 bg-gold-400/15" /> Shield used
+              <span className="h-2.5 w-2.5 rounded-control border border-gold-400/40 bg-gold-400/15" /> Shield used
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-ink-600 bg-ink-700/60" /> Held
+              <span className="h-2.5 w-2.5 rounded-control border border-ink-600 bg-ink-700/60" /> Held
             </span>
           </p>
           {state.protectedDays > 0 && (
-            <p className="mt-2 text-[11px] leading-snug text-ink-500">
+            <p className="mt-2 text-micro leading-snug text-ink-500">
               <span className="stat-mono text-ink-300">{state.protectedDays}</span> day
               {state.protectedDays === 1 ? "" : "s"} were held on your care team&apos;s instruction.
               Held days extend your streak and never spend a shield.

@@ -24,7 +24,7 @@ import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { EducationCentre } from "@/components/portal/EducationCentre";
 import { FaqAccordion } from "@/components/portal/FaqAccordion";
 import { PROOF, BRAND, journeyStepFor, JOURNEY } from "@/lib/brand";
-import { FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 import { GraduationCap } from "lucide-react";
 
 export default function PortalLearnPage() {
@@ -44,23 +44,23 @@ export default function PortalLearnPage() {
           many markers the panel covers, and who writes this. */}
       <FadeIn>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="hairline rounded-2xl bg-ink-850/60 p-4">
+          <div className="hairline rounded-panel bg-ink-850/60 p-4">
             <p className="label-eyebrow">Where you are</p>
-            <p className="mt-2 text-[14px] font-medium leading-snug text-ink-100">
+            <p className="mt-2 text-detail font-medium leading-snug text-ink-100">
               Step <span className="stat-mono">{step.step}</span> of{" "}
               <span className="stat-mono">{JOURNEY.length}</span> — {step.title}
             </p>
           </div>
-          <div className="hairline rounded-2xl bg-ink-850/60 p-4">
+          <div className="hairline rounded-panel bg-ink-850/60 p-4">
             <p className="label-eyebrow">Your panel</p>
-            <p className="mt-2 text-[14px] font-medium leading-snug text-ink-100">
+            <p className="mt-2 text-detail font-medium leading-snug text-ink-100">
               <span className="stat-mono">{PROOF.markers}</span> markers, read against an optimal
               range
             </p>
           </div>
-          <div className="hairline rounded-2xl bg-ink-850/60 p-4">
+          <div className="hairline rounded-panel bg-ink-850/60 p-4">
             <p className="label-eyebrow">Who writes this</p>
-            <p className="mt-2 text-[14px] font-medium leading-snug text-ink-100">
+            <p className="mt-2 text-detail font-medium leading-snug text-ink-100">
               {PROOF.credential} at {BRAND.name}
             </p>
           </div>
@@ -75,11 +75,11 @@ export default function PortalLearnPage() {
       <section className="space-y-4 border-t border-ink-800 pt-10">
         <div>
           <p className="label-eyebrow">Frequently asked questions</p>
-          <h2 className="mt-2 flex items-center gap-2.5 font-display text-xl font-semibold text-ink-50 sm:text-2xl">
+          <h2 className="mt-2 flex items-center gap-2.5 font-display text-title font-semibold text-ink-50 sm:text-title">
             <GraduationCap aria-hidden className="h-5 w-5 text-gold-300" />
             What people usually want to know before they book
           </h2>
-          <p className="mt-2 max-w-prose text-[14px] leading-relaxed text-ink-400">
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
             The six questions {BRAND.name} publishes, answered in full. They are worth a read even
             once you are a member — a few of them get asked more often after joining than before.
           </p>

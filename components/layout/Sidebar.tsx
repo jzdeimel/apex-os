@@ -61,10 +61,10 @@ export function Sidebar({
               <Activity className="h-5 w-5" strokeWidth={2.4} />
             </span>
             <span className="flex flex-col leading-none">
-              <span className="font-display text-base font-bold tracking-tight text-ink-50">
+              <span className="font-display text-body font-bold tracking-tight text-ink-50">
                 Apex
               </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-gold-400/80">
+              <span className="text-micro uppercase tracking-[0.2em] text-gold-400/80">
                 Alpha Health
               </span>
             </span>
@@ -91,10 +91,10 @@ export function Sidebar({
               style={{ background: portal.accent.hex }}
             />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-ink-100">
+              <span className="block truncate text-detail font-medium text-ink-100">
                 {portal.label}
               </span>
-              <span className="block truncate text-[10px] text-ink-500">
+              <span className="block truncate text-micro text-ink-500">
                 {portal.persona}
               </span>
             </span>
@@ -126,7 +126,7 @@ export function Sidebar({
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ background: p.accent.hex }}
                   />
-                  <span className="flex-1 text-[13px] text-ink-200">{p.label}</span>
+                  <span className="flex-1 text-detail text-ink-200">{p.label}</span>
                   {p.id === portal.id && <Check className="h-3.5 w-3.5 text-ink-400" />}
                 </Link>
               ))}
@@ -139,7 +139,7 @@ export function Sidebar({
           {groups.map((group, gi) => (
             <div key={group.section ?? `g-${gi}`} className="space-y-1">
               {group.section ? (
-                <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-600">
+                <p className="px-3 pb-1 pt-1 text-micro font-semibold uppercase tracking-[0.16em] text-ink-600">
                   {group.section}
                 </p>
               ) : (
@@ -155,7 +155,7 @@ export function Sidebar({
                     onClick={onClose}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-body font-medium transition-colors",
                       active ? "text-ink-50" : "text-ink-300 hover:bg-ink-850 hover:text-ink-50",
                     )}
                   >
@@ -191,12 +191,12 @@ export function Sidebar({
 
         <div className="m-3 rounded-xl border border-ink-800 bg-ink-900/60 p-3">
           <p
-            className="text-[10px] font-medium uppercase tracking-wide"
+            className="text-micro font-medium uppercase tracking-wide"
             style={{ color: portal.accent.hex }}
           >
             Demo environment
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+          <p className="mt-1 text-micro leading-relaxed text-ink-500">
             Mock data only. Not medical advice. Recommendations require licensed
             provider review.
           </p>

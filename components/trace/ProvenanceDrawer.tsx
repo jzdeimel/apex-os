@@ -102,7 +102,7 @@ export function ProvenanceDrawer({
             <div className="flex items-start justify-between gap-3 border-b border-ink-700/70 p-5">
               <div className="min-w-0">
                 <p className="label-eyebrow">Provenance</p>
-                <h2 className="mt-1 truncate font-display text-lg font-semibold text-ink-50">
+                <h2 className="mt-1 truncate font-display text-heading font-semibold text-ink-50">
                   {title}
                 </h2>
               </div>
@@ -139,8 +139,8 @@ export function ProvenanceDrawer({
                   <p className="label-eyebrow">Because</p>
                   <ul className="mt-2 space-y-2">
                     {because.map((b, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm text-ink-200">
-                        <span className="stat-mono mt-0.5 shrink-0 text-xs text-gold-400">
+                      <li key={i} className="flex gap-2.5 text-body text-ink-200">
+                        <span className="stat-mono mt-0.5 shrink-0 text-detail text-gold-400">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <span>{b}</span>
@@ -154,7 +154,7 @@ export function ProvenanceDrawer({
                 <section className="mt-5">
                   <div className="flex items-baseline justify-between">
                     <p className="label-eyebrow">Confidence</p>
-                    <span className="stat-mono text-sm text-ink-100">
+                    <span className="stat-mono text-body text-ink-100">
                       {Math.round(confidence * 100)}%
                     </span>
                   </div>
@@ -173,7 +173,7 @@ export function ProvenanceDrawer({
                       )}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-ink-500">
+                  <p className="mt-2 text-detail text-ink-500">
                     How strongly the source text supported this conclusion. Anything the
                     engine could not source is left out rather than guessed.
                   </p>
@@ -192,8 +192,8 @@ export function ProvenanceDrawer({
                           i > 0 && "border-t border-ink-700/50",
                         )}
                       >
-                        <dt className="text-xs text-ink-400">{io.label}</dt>
-                        <dd className="stat-mono text-right text-xs text-ink-100">{io.value}</dd>
+                        <dt className="text-detail text-ink-400">{io.label}</dt>
+                        <dd className="stat-mono text-right text-detail text-ink-100">{io.value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -226,7 +226,7 @@ export function ProvenanceDrawer({
                   </TechRow>
                 </dl>
               ) : (
-                <p className="mt-2 text-xs text-ink-500">
+                <p className="mt-2 text-detail text-ink-500">
                   No provenance stamp is attached to this value. That is itself a finding —
                   every derived value in Apex is expected to carry one.
                 </p>
@@ -239,7 +239,7 @@ export function ProvenanceDrawer({
                     {ruleIds.map((r) => (
                       <span
                         key={r}
-                        className="stat-mono rounded-md border border-ink-700 bg-ink-850 px-2 py-1 text-[11px] text-ink-300"
+                        className="stat-mono rounded-md border border-ink-700 bg-ink-850 px-2 py-1 text-micro text-ink-300"
                       >
                         {r}
                       </span>
@@ -248,7 +248,7 @@ export function ProvenanceDrawer({
                 </section>
               )}
 
-              <p className="mt-6 text-xs leading-relaxed text-ink-500">
+              <p className="mt-6 text-detail leading-relaxed text-ink-500">
                 Re-running {provenance?.engine ?? "this engine"} at the version above against
                 the input hash above reproduces this value exactly. That is what makes it
                 defensible a year from now.
@@ -272,11 +272,11 @@ function TechRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="flex items-center gap-2 text-xs text-ink-400">
+      <dt className="flex items-center gap-2 text-detail text-ink-400">
         <span className="text-ink-600">{icon}</span>
         {label}
       </dt>
-      <dd className="stat-mono max-w-[60%] break-all text-right text-xs text-ink-100">
+      <dd className="stat-mono max-w-[60%] break-all text-right text-detail text-ink-100">
         {children}
       </dd>
     </div>
@@ -302,7 +302,7 @@ export function WhyButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "focus-ring inline-flex items-center gap-1 rounded-full border border-ink-700/70 px-2 py-0.5 text-[11px] font-medium leading-none text-ink-400 transition-colors hover:border-gold-400/40 hover:text-gold-300",
+        "focus-ring inline-flex items-center gap-1 rounded-full border border-ink-700/70 px-2 py-0.5 text-micro font-medium leading-none text-ink-400 transition-colors hover:border-gold-400/40 hover:text-gold-300",
         className,
       )}
     >

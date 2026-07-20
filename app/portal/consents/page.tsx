@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { Card, CardContent, Badge, Button } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { ShieldCheck, Stethoscope, Megaphone, Building2, Undo2, Lock } from "lucide-react";
@@ -163,14 +163,14 @@ export default function PortalConsentsPage() {
         subtitle="Every permission you've given us, what it actually allows, and a switch to take it back."
       />
 
-      <div className="rounded-2xl border border-optimal/20 bg-optimal/[0.06] p-5">
+      <div className="rounded-panel border border-optimal/20 bg-optimal/[0.06] p-5">
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-optimal" />
           <div>
-            <p className="text-sm font-medium text-ink-50">
+            <p className="text-detail font-medium text-ink-50">
               Turning off marketing does not affect your care. Ever.
             </p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-300">
+            <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
               These are separate permissions on purpose, so that saying no to one thing never quietly costs you
               another. {client.firstName}, you currently have{" "}
               <span className="stat-mono text-ink-100">{activeCount}</span> of{" "}
@@ -195,7 +195,7 @@ export default function PortalConsentsPage() {
                     <div className="flex min-w-0 items-start gap-3">
                       <span
                         className={cn(
-                          "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+                          "grid h-10 w-10 shrink-0 place-items-center rounded-panel",
                           isRevoked ? "bg-ink-800 text-ink-500" : "bg-optimal/12 text-optimal",
                         )}
                       >
@@ -203,7 +203,7 @@ export default function PortalConsentsPage() {
                       </span>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="font-display text-base font-semibold text-ink-50">{g.title}</h2>
+                          <h2 className="font-display text-body font-semibold text-ink-50">{g.title}</h2>
                           <Badge tone={meta.tone}>{meta.label}</Badge>
                           {g.required && (
                             <Badge tone="neutral">
@@ -217,7 +217,7 @@ export default function PortalConsentsPage() {
                             <Badge tone="optimal">On</Badge>
                           )}
                         </div>
-                        <p className="mt-1 text-xs text-ink-500">
+                        <p className="mt-1 text-micro text-ink-500">
                           {meta.blurb} · Agreed{" "}
                           <span className="stat-mono text-ink-400">{formatDate(g.grantedOn)}</span>
                         </p>
@@ -247,7 +247,7 @@ export default function PortalConsentsPage() {
                       <p className="label-eyebrow">What this allows</p>
                       <ul className="mt-2 space-y-1.5">
                         {g.permits.map((p, i) => (
-                          <li key={i} className="flex gap-2 text-xs leading-relaxed text-ink-300">
+                          <li key={i} className="flex gap-2 text-micro leading-relaxed text-ink-300">
                             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-optimal" />
                             <span>{p}</span>
                           </li>
@@ -256,8 +256,8 @@ export default function PortalConsentsPage() {
                     </div>
                     <div>
                       <p className="label-eyebrow">What it never allows</p>
-                      <p className="mt-2 text-xs leading-relaxed text-ink-300">{g.neverPermits}</p>
-                      <p className="mt-3 rounded-lg border border-ink-700/70 bg-ink-900/60 p-2.5 text-[11px] leading-relaxed text-ink-400">
+                      <p className="mt-2 text-micro leading-relaxed text-ink-300">{g.neverPermits}</p>
+                      <p className="mt-3 rounded-control border border-ink-700/70 bg-ink-900/60 p-2.5 text-micro leading-relaxed text-ink-400">
                         <span className="text-ink-200">If you turn this off: </span>
                         {g.ifRevoked}
                       </p>
@@ -270,7 +270,7 @@ export default function PortalConsentsPage() {
         })}
       </Stagger>
 
-      <p className="text-[11px] leading-relaxed text-ink-500">
+      <p className="text-micro leading-relaxed text-ink-500">
         Demo build — changes here stay in this browser and are not sent anywhere. In the live system each
         change is written to your record as a dated event you can see on your privacy page, with you named as
         the person who made it. Member <span className="stat-mono">{ME}</span>.

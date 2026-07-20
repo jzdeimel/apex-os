@@ -739,13 +739,13 @@ function pickN<T>(arr: T[], n: number, rand: () => number): T[] {
 }
 function addDays(base: string, days: number): string {
   const d = absolute(base + "T00:00:00");
-  d.setDate(d.getDate() + days);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 function addDateTime(base: string, days: number, hour: number): string {
   const d = absolute(base + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  d.setHours(hour, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  d.setUTCHours(hour, 0, 0, 0);
   return d.toISOString().slice(0, 19);
 }
 function pickStatus(r: number): ClientStatus {

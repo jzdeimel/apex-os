@@ -263,7 +263,7 @@ export function BulkBar({
         {/* ── Applied: the undo state ─────────────────────────────────── */}
         {applied ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-sm text-ink-200">
+            <p className="flex items-center gap-2 text-body text-ink-200">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-optimal" />
               <span>
                 {applied.undone ? "Reverted" : applied.action.verb}{" "}
@@ -305,13 +305,13 @@ export function BulkBar({
                 )}
               />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-ink-50">
+                <p className="text-body font-medium text-ink-50">
                   {pendingAction.verb}{" "}
                   <span className="stat-mono text-gold-300">{count}</span> member
                   {count === 1 ? "" : "s"}
                   {pendingAction.needsAssignee ? ` → ${staffName(assigneeId)}` : ""}?
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-ink-400">
+                <p className="mt-0.5 text-detail leading-relaxed text-ink-400">
                   {pendingAction.consequence} One audit entry is written per member, and this can
                   be undone.
                 </p>
@@ -324,7 +324,7 @@ export function BulkBar({
                   value={assigneeId}
                   onChange={(e) => setAssigneeId(e.target.value)}
                   aria-label="Assign to coach"
-                  className="h-8 w-full text-xs sm:w-56"
+                  className="h-8 w-full text-detail sm:w-56"
                 >
                   {coaches.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -349,7 +349,7 @@ export function BulkBar({
         ) : (
           /* ── Idle: selection + the four actions ─────────────────────── */
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-ink-200">
+            <p className="text-body text-ink-200">
               <span className="stat-mono text-gold-300">{count}</span> selected
             </p>
             <div className="flex flex-wrap items-center gap-1.5">

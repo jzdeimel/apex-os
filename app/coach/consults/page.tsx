@@ -93,7 +93,7 @@ function ConsultRow({ consult }: { consult: Consult }) {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               href={`/clients/${client.id}`}
-              className="truncate text-[13px] font-medium text-ink-50 hover:text-gold-300 focus-ring rounded"
+              className="truncate text-detail font-medium text-ink-50 hover:text-gold-300 focus-ring rounded"
             >
               {clientName(client)}
             </Link>
@@ -119,12 +119,12 @@ function ConsultRow({ consult }: { consult: Consult }) {
           {/* The AI's own headline, verbatim. Never paraphrased in the queue —
               the coach must review what the engine actually wrote. */}
           {summary && (
-            <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-200">
+            <p className="mt-1 line-clamp-2 text-detail leading-snug text-ink-200">
               {summary.headline}
             </p>
           )}
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-ink-500">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-ink-500">
             <span className="stat-mono">{formatDateTime(consult.startedAt)}</span>
             <span className="text-ink-700">·</span>
             <span className="stat-mono">{relativeDays(consult.startedAt)}</span>
@@ -222,21 +222,18 @@ export default function CoachConsultsPage() {
 
   return (
     <div className="space-y-3">
-      <FadeIn>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="label-eyebrow">COACH CONSOLE</p>
-            <h1 className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink-50">
+            <h1 className="mt-0.5 font-display text-title font-semibold tracking-tight text-ink-50">
               Consults
             </h1>
           </div>
-          <p className="text-[11px] text-ink-500">
+          <p className="text-micro text-ink-500">
             Signed consults are immutable — corrections are addenda, never a silent rewrite.
           </p>
         </div>
-      </FadeIn>
 
-      <FadeIn delay={0.04}>
         <div className="card grid grid-cols-3 divide-x divide-ink-700/60">
           {[
             {
@@ -253,30 +250,26 @@ export default function CoachConsultsPage() {
           ].map((s) => (
             <div key={s.label} className="px-3 py-2">
               <p className="label-eyebrow truncate">{s.label}</p>
-              <p className={cn("stat-mono mt-0.5 text-xl font-semibold leading-none", s.tone)}>
+              <p className={cn("stat-mono mt-0.5 text-title font-semibold leading-none", s.tone)}>
                 {s.value}
               </p>
             </div>
           ))}
         </div>
-      </FadeIn>
 
       {/* --- Prep for your next calls ------------------------------------ */}
       {upcoming.length > 0 && (
         <>
-          <FadeIn delay={0.05}>
             <div className="flex flex-wrap items-center gap-2">
               <Timer className="h-3.5 w-3.5 text-gold-300" />
-              <h2 className="font-display text-sm font-semibold text-ink-100">
+              <h2 className="font-display text-body font-semibold text-ink-100">
                 Prep for your next call
               </h2>
-              <span className="stat-mono text-[11px] text-ink-500">
+              <span className="stat-mono text-micro text-ink-500">
                 {upcoming.length} booked · soonest first
               </span>
             </div>
-          </FadeIn>
 
-          <FadeIn delay={0.055}>
             {/* Horizontal strip of the booked calls. Scrolls inside its own
                 container so a coach with nine appointments never widens the
                 page — the body must not scroll sideways at 390px. */}
@@ -297,11 +290,11 @@ export default function CoachConsultsPage() {
                           : "border-ink-700 bg-ink-900/40 hover:border-ink-600",
                       )}
                     >
-                      <p className="truncate text-[13px] font-medium text-ink-50">
+                      <p className="truncate text-detail font-medium text-ink-50">
                         {client ? clientName(client) : a.clientName}
                       </p>
-                      <p className="mt-0.5 truncate text-[11px] text-ink-400">{a.type}</p>
-                      <p className="stat-mono mt-0.5 text-[10px] text-ink-600">
+                      <p className="mt-0.5 truncate text-micro text-ink-400">{a.type}</p>
+                      <p className="stat-mono mt-0.5 text-micro text-ink-600">
                         {formatDate(a.start)} · {formatTime(a.start)} · {a.durationMin}m
                       </p>
                     </button>
@@ -309,28 +302,23 @@ export default function CoachConsultsPage() {
                 })}
               </div>
             </div>
-          </FadeIn>
 
           {prepFor && (
-            <FadeIn delay={0.06}>
               <ConsultPrepBrief clientId={prepFor} coachId={ME_COACH} />
-            </FadeIn>
           )}
         </>
       )}
 
       {/* --- Awaiting your signature ------------------------------------- */}
-      <FadeIn delay={0.06}>
         <div className="flex items-center gap-2">
           <PenLine className="h-3.5 w-3.5 text-high" />
-          <h2 className="font-display text-sm font-semibold text-ink-100">
+          <h2 className="font-display text-body font-semibold text-ink-100">
             Awaiting your signature
           </h2>
-          <span className="stat-mono text-[11px] text-ink-500">
+          <span className="stat-mono text-micro text-ink-500">
             {unsigned.length} · longest first
           </span>
         </div>
-      </FadeIn>
 
       {unsigned.length === 0 ? (
         <EmptyState
@@ -339,23 +327,21 @@ export default function CoachConsultsPage() {
           hint="Every chart you opened is closed."
         />
       ) : (
-        <Stagger className="space-y-1.5">
+        <div className="space-y-1.5">
           {unsigned.map((c) => (
-            <StaggerItem key={c.id}>
+            <div key={c.id}>
               <ConsultRow consult={c} />
-            </StaggerItem>
+            </div>
           ))}
-        </Stagger>
+        </div>
       )}
 
       {/* --- Recently signed --------------------------------------------- */}
-      <FadeIn delay={0.08}>
         <div className="flex items-center gap-2 pt-2">
           <CheckCircle2 className="h-3.5 w-3.5 text-optimal" />
-          <h2 className="font-display text-sm font-semibold text-ink-100">Recently signed</h2>
-          <span className="stat-mono text-[11px] text-ink-500">{recentlySigned.length}</span>
+          <h2 className="font-display text-body font-semibold text-ink-100">Recently signed</h2>
+          <span className="stat-mono text-micro text-ink-500">{recentlySigned.length}</span>
         </div>
-      </FadeIn>
 
       {recentlySigned.length === 0 ? (
         <EmptyState
@@ -364,13 +350,13 @@ export default function CoachConsultsPage() {
           hint="Signed consults will appear here with their provenance stamp."
         />
       ) : (
-        <Stagger className="space-y-1.5">
+        <div className="space-y-1.5">
           {recentlySigned.map((c) => (
-            <StaggerItem key={c.id}>
+            <div key={c.id}>
               <ConsultRow consult={c} />
-            </StaggerItem>
+            </div>
           ))}
-        </Stagger>
+        </div>
       )}
     </div>
   );

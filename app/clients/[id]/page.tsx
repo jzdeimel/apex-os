@@ -108,7 +108,7 @@ export default function ClientProfilePage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/clients" className="inline-flex items-center gap-1.5 text-xs text-ink-400 hover:text-ink-100">
+      <Link href="/clients" className="inline-flex items-center gap-1.5 text-detail text-ink-400 hover:text-ink-100">
         <ArrowLeft className="h-3.5 w-3.5" /> Back to clients
       </Link>
 
@@ -180,10 +180,10 @@ function ProfileHero({ id }: { id: string }) {
             <Monogram client={client} size="lg" />
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-ink-50">{clientName(client)}</h1>
+                <h1 className="font-display text-title font-bold tracking-tight text-ink-50">{clientName(client)}</h1>
                 <FavoriteStar clientId={client.id} size={18} />
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-400">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-detail text-ink-400">
                 <span>{client.age} yrs · {client.sex === "male" ? "Male" : "Female"}</span>
                 <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {locationName(client.locationId)}</span>
                 <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {client.email}</span>
@@ -200,8 +200,8 @@ function ProfileHero({ id }: { id: string }) {
         <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
           {tiles.map((t) => (
             <div key={t.label} className="rounded-xl border border-ink-800 bg-ink-900/40 px-3 py-2.5">
-              <span className="block text-[10px] uppercase tracking-wide text-ink-500">{t.label}</span>
-              <span className="mt-1 block truncate text-sm font-medium text-ink-100">{t.value}</span>
+              <span className="block text-micro uppercase tracking-wide text-ink-500">{t.label}</span>
+              <span className="mt-1 block truncate text-body font-medium text-ink-100">{t.value}</span>
             </div>
           ))}
         </div>
@@ -232,7 +232,7 @@ function OverviewTab({ id }: { id: string }) {
             <AiLabel />
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-ink-300">
+            <p className="text-body leading-relaxed text-ink-300">
               {clientName(client)} is a {client.age}-year-old {client.sex} at {locationName(client.locationId)} focused on{" "}
               <span className="text-ink-100">{client.goals.join(", ").toLowerCase()}</span>.
               {labs
@@ -280,8 +280,8 @@ function OverviewTab({ id }: { id: string }) {
             {client.programs.map((p) => (
               <div key={p.name} className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                 <div>
-                  <span className="text-sm font-medium text-ink-100">{p.name}</span>
-                  <span className="block text-xs text-ink-500">{p.category} · started {formatDate(p.startedOn)}</span>
+                  <span className="text-body font-medium text-ink-100">{p.name}</span>
+                  <span className="block text-detail text-ink-500">{p.category} · started {formatDate(p.startedOn)}</span>
                 </div>
                 <Badge tone={p.status === "Active" ? "optimal" : "neutral"}>{p.status}</Badge>
               </div>
@@ -289,8 +289,8 @@ function OverviewTab({ id }: { id: string }) {
             {approved.map((r) => (
               <div key={r.id} className="flex items-center justify-between rounded-lg border border-optimal/20 bg-optimal/[0.05] px-3 py-2">
                 <div>
-                  <span className="text-sm font-medium text-ink-100">{r.title}</span>
-                  <span className="block text-xs text-ink-500">Provider approved · details added by provider</span>
+                  <span className="text-body font-medium text-ink-100">{r.title}</span>
+                  <span className="block text-detail text-ink-500">Provider approved · details added by provider</span>
                 </div>
                 <Badge tone="optimal">Approved</Badge>
               </div>
@@ -305,7 +305,7 @@ function OverviewTab({ id }: { id: string }) {
 
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Stethoscope className="h-4 w-4 text-gold-400" /> Care team</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-3 text-body">
             <TeamRow label="Provider" staffId={client.providerId} />
             <TeamRow label="Coach" staffId={client.coachId} />
           </CardContent>
@@ -321,10 +321,10 @@ function OverviewTab({ id }: { id: string }) {
                 {appts.map((a) => (
                   <div key={a.id} className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-ink-100">{a.type}</span>
+                      <span className="text-body font-medium text-ink-100">{a.type}</span>
                       <Badge tone="info">{relativeDays(a.start)}</Badge>
                     </div>
-                    <span className="text-xs text-ink-500">{formatDateTime(a.start)} · {staffName(a.staffId)}</span>
+                    <span className="text-detail text-ink-500">{formatDateTime(a.start)} · {staffName(a.staffId)}</span>
                   </div>
                 ))}
               </div>
@@ -339,7 +339,7 @@ function OverviewTab({ id }: { id: string }) {
                 <Database className="h-4 w-4 text-gold-400" /> Membership
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 text-body">
               <Row label="Record no." value={<span className="stat-mono">{client.mrn}</span>} />
               <Row label="Plan" value={membership.tier} />
               <Row
@@ -397,7 +397,7 @@ function AlphaScoreCard({ id }: { id: string }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
             <AlphaScoreRing result={result} size={104} showLabel={false} />
-            <span className="text-sm font-medium" style={{ color: scoreColor(result.band) }}>{result.label}</span>
+            <span className="text-body font-medium" style={{ color: scoreColor(result.band) }}>{result.label}</span>
             <div className="w-full">
               <TrendLine data={result.trend} height={70} />
             </div>
@@ -410,11 +410,11 @@ function AlphaScoreCard({ id }: { id: string }) {
                 height={210}
               />
             ) : (
-              <p className="text-sm text-ink-500">Provisional score — order the Alpha Base Panel to compute a full domain breakdown.</p>
+              <p className="text-body text-ink-500">Provisional score — order the Alpha Base Panel to compute a full domain breakdown.</p>
             )}
           </div>
         </div>
-        <p className="mt-3 text-[11px] text-ink-600">Composite of biomarker domains, body composition &amp; risk flags. Visualization only — not a diagnosis.</p>
+        <p className="mt-3 text-micro text-ink-600">Composite of biomarker domains, body composition &amp; risk flags. Visualization only — not a diagnosis.</p>
       </CardContent>
     </Card>
   );
@@ -434,24 +434,24 @@ function AiSnapshot({ id }: { id: string }) {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-            <span className="block text-[10px] uppercase tracking-wide text-ink-600">Triage</span>
+            <span className="block text-micro uppercase tracking-wide text-ink-600">Triage</span>
             <div className="flex items-center gap-1.5">
-              <span className="stat-mono text-lg font-bold text-ink-50">{triage.score}</span>
+              <span className="stat-mono text-heading font-bold text-ink-50">{triage.score}</span>
               <Badge tone={triageTone}>{triage.level}</Badge>
             </div>
           </div>
           <div className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-            <span className="block text-[10px] uppercase tracking-wide text-ink-600">Churn risk</span>
+            <span className="block text-micro uppercase tracking-wide text-ink-600">Churn risk</span>
             <div className="flex items-center gap-1.5">
-              <span className="stat-mono text-lg font-bold text-ink-50">{churn.score}</span>
+              <span className="stat-mono text-heading font-bold text-ink-50">{churn.score}</span>
               <Badge tone={churnTone}>{churn.level}</Badge>
             </div>
           </div>
         </div>
         <div className="rounded-lg border border-gold-400/20 bg-gold-400/[0.05] px-3 py-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gold-300">Next best action</span>
-          <p className="mt-0.5 text-sm text-ink-100">{nba.action}</p>
-          <p className="text-[11px] text-ink-500">{nba.reason} · {nba.owner}</p>
+          <span className="text-micro font-semibold uppercase tracking-wide text-gold-300">Next best action</span>
+          <p className="mt-0.5 text-body text-ink-100">{nba.action}</p>
+          <p className="text-micro text-ink-500">{nba.reason} · {nba.owner}</p>
         </div>
       </CardContent>
     </Card>
@@ -462,12 +462,12 @@ function TeamRow({ label, staffId }: { label: string; staffId: string }) {
   const s = staffMap[staffId];
   return (
     <div className="flex items-center gap-3">
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-ink-800 text-xs font-semibold text-ink-200">
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-ink-800 text-detail font-semibold text-ink-200">
         {s?.avatarInitials}
       </span>
       <div>
-        <span className="block text-[11px] uppercase tracking-wide text-ink-600">{label}</span>
-        <span className="text-sm text-ink-100">{s?.name}{s?.credentials ? `, ${s.credentials}` : ""}</span>
+        <span className="block text-micro uppercase tracking-wide text-ink-600">{label}</span>
+        <span className="text-body text-ink-100">{s?.name}{s?.credentials ? `, ${s.credentials}` : ""}</span>
       </div>
     </div>
   );
@@ -495,8 +495,8 @@ function LabsTab({ id }: { id: string }) {
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-ink-700 px-6 py-12 text-center">
           <Database className="h-7 w-7 text-ink-500" />
           <div>
-            <p className="text-sm font-medium text-ink-300">No labs on file</p>
-            <p className="mt-1 text-xs text-ink-500">Order the Alpha Base Panel, or import an existing lab PDF to populate this tab.</p>
+            <p className="text-body font-medium text-ink-300">No labs on file</p>
+            <p className="mt-1 text-detail text-ink-500">Order the Alpha Base Panel, or import an existing lab PDF to populate this tab.</p>
           </div>
           <LabUploadSim markerCount={28} label="Import existing lab PDF" />
         </div>
@@ -512,8 +512,8 @@ function LabsTab({ id }: { id: string }) {
       <div className="lg:col-span-2">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <span className="font-display text-base font-semibold text-ink-50">{labs.panelName}</span>
-            <span className="ml-2 text-xs text-ink-500">collected {formatDate(labs.collectedOn)}</span>
+            <span className="font-display text-heading font-semibold text-ink-50">{labs.panelName}</span>
+            <span className="ml-2 text-detail text-ink-500">collected {formatDate(labs.collectedOn)}</span>
           </div>
           <LabUploadSim markerCount={labs.biomarkers.length} />
         </div>
@@ -527,8 +527,8 @@ function LabsTab({ id }: { id: string }) {
             {selectedBm && trendData.length > 0 ? (
               <>
                 <div className="mb-2 flex items-baseline justify-between">
-                  <span className="text-sm font-medium text-ink-100">{selectedBm.name}</span>
-                  <span className="stat-mono text-sm text-ink-300">{selectedBm.value} {selectedBm.unit}</span>
+                  <span className="text-body font-medium text-ink-100">{selectedBm.name}</span>
+                  <span className="stat-mono text-body text-ink-300">{selectedBm.value} {selectedBm.unit}</span>
                 </div>
                 <TrendLine
                   data={trendData}
@@ -536,7 +536,7 @@ function LabsTab({ id }: { id: string }) {
                   optimalLow={selectedBm.optimalLow}
                   optimalHigh={selectedBm.optimalHigh}
                 />
-                <p className="mt-2 text-[11px] text-ink-500">Shaded band = optimal range. Select any marker with a trend icon to view its history.</p>
+                <p className="mt-2 text-micro text-ink-500">Shaded band = optimal range. Select any marker with a trend icon to view its history.</p>
               </>
             ) : (
               <EmptyState title="Select a flagged marker to see its trend" />
@@ -550,7 +550,7 @@ function LabsTab({ id }: { id: string }) {
             <AiLabel />
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-ink-300">{labs.summary}</p>
+            <p className="text-body leading-relaxed text-ink-300">{labs.summary}</p>
           </CardContent>
         </Card>
       </div>
@@ -580,7 +580,7 @@ function ScanTab({ id }: { id: string }) {
         {metrics.map((m) => (
           <Card key={m.label} className="p-4">
             <span className="label-eyebrow">{m.label}</span>
-            <p className="mt-1.5 font-display text-xl font-bold text-ink-50">{m.value}</p>
+            <p className="mt-1.5 font-display text-title font-bold text-ink-50">{m.value}</p>
           </Card>
         ))}
       </div>
@@ -589,7 +589,7 @@ function ScanTab({ id }: { id: string }) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Progress</CardTitle>
-            <span className="text-xs text-ink-500">Last scan {formatDate(scan.scannedOn)} · {scan.device}</span>
+            <span className="text-detail text-ink-500">Last scan {formatDate(scan.scannedOn)} · {scan.device}</span>
           </CardHeader>
           <CardContent>
             <TrendArea
@@ -600,7 +600,7 @@ function ScanTab({ id }: { id: string }) {
                 { key: "bodyFatPct", label: "Body fat (%)", color: "#60a5fa" },
               ]}
             />
-            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+            <div className="mt-2 flex flex-wrap gap-3 text-detail">
               <Legend color="#e93d3d" label="Weight (kg)" />
               <Legend color="#34d399" label="Skeletal muscle (kg)" />
               <Legend color="#60a5fa" label="Body fat (%)" />
@@ -613,7 +613,7 @@ function ScanTab({ id }: { id: string }) {
           <CardContent className="space-y-2.5">
             {scan.segmental.map((s) => (
               <div key={s.segment}>
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-detail">
                   <span className="text-ink-300">{s.segment}</span>
                   <span className="stat-mono text-ink-200">{s.massKg} kg</span>
                 </div>
@@ -708,8 +708,8 @@ function TasksTab({ id }: { id: string }) {
                     <Circle className="h-4 w-4 shrink-0 text-ink-500" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={"block text-sm " + (t.done ? "text-ink-500 line-through" : "text-ink-100")}>{t.title}</span>
-                    <span className="text-[11px] text-ink-500">{t.type} · due {formatDate(t.dueDate)}</span>
+                    <span className={"block text-body " + (t.done ? "text-ink-500 line-through" : "text-ink-100")}>{t.title}</span>
+                    <span className="text-micro text-ink-500">{t.type} · due {formatDate(t.dueDate)}</span>
                   </div>
                   <Badge tone={t.priority === "high" ? "high" : t.priority === "medium" ? "watch" : "neutral"}>{t.priority}</Badge>
                 </button>
@@ -725,7 +725,7 @@ function TasksTab({ id }: { id: string }) {
           <select
             value={type}
             onChange={(e) => setType(e.target.value as TaskType)}
-            className="h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-sm text-ink-100 focus-ring"
+            className="h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-body text-ink-100 focus-ring"
           >
             {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -772,9 +772,9 @@ function NotesTab({ id }: { id: string }) {
                 <Badge tone={n.author === "AI" ? "gold" : n.author === "Provider" ? "optimal" : "info"}>{n.author}</Badge>
                 {n.author === "AI" && <AiLabel />}
                 {n.pinned && <Badge tone="watch">Pinned</Badge>}
-                <span className="ml-auto stat-mono text-[11px] text-ink-500">{formatDateTime(n.createdAt)}</span>
+                <span className="ml-auto stat-mono text-micro text-ink-500">{formatDateTime(n.createdAt)}</span>
               </div>
-              <p className="text-sm leading-relaxed text-ink-300">{n.body}</p>
+              <p className="text-body leading-relaxed text-ink-300">{n.body}</p>
             </Card>
           ))
         )}
@@ -790,7 +790,7 @@ function NotesTab({ id }: { id: string }) {
               onChange={(e) => setBody(e.target.value)}
               rows={4}
               placeholder="Write a note for this client's chart…"
-              className="w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 focus-ring"
+              className="w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-body text-ink-100 placeholder:text-ink-500 focus-ring"
             />
             <Button
               variant="primary"

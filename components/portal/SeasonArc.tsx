@@ -51,7 +51,7 @@ export function SeasonArc({
         <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div className="min-w-0">
             <p className="label-eyebrow">Season {season.number}</p>
-            <h3 className="mt-1.5 font-display text-xl font-semibold text-ink-50">{season.name}</h3>
+            <h3 className="mt-1.5 font-display text-title font-semibold text-ink-50">{season.name}</h3>
           </div>
           <Badge tone="gold">
             Week <span className="stat-mono">{season.week}</span> of{" "}
@@ -59,7 +59,7 @@ export function SeasonArc({
           </Badge>
         </div>
 
-        <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">{season.premise}</p>
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">{season.premise}</p>
 
         {/* ── Block progress ───────────────────────────────────────────── */}
         <div className="mt-4">
@@ -71,7 +71,7 @@ export function SeasonArc({
               transition={reduced ? { duration: 0 } : { duration: 0.9, ease: EASE }}
             />
           </div>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-ink-500">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-micro text-ink-500">
             <span>
               Started <span className="stat-mono text-ink-400">{formatDateShort(season.startedOn)}</span>
             </span>
@@ -108,27 +108,30 @@ export function SeasonArc({
         </div>
 
         {/* ── Where you are / what's next ──────────────────────────────── */}
-        <div className="mt-4 grid grid-cols-1 gap-2 border-t border-ink-800 pt-4 sm:grid-cols-2">
+        {/* Two labelled facts, not two panels inside a panel. "You are here"
+            keeps the accent on its eyebrow alone — the tinted, bordered box
+            around it was saying the same thing three times. */}
+        <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-5 border-t border-ink-800/60 pt-5 sm:grid-cols-2">
           {current && (
-            <div className="rounded-xl border border-gold-400/25 bg-gold-400/[0.06] p-3.5">
+            <div className="min-w-0">
               <p className="label-eyebrow text-gold-300">You are here</p>
-              <p className="mt-1.5 text-sm font-medium text-ink-100">{current.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">{current.meaning}</p>
+              <p className="mt-1.5 text-detail font-medium text-ink-100">{current.title}</p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-400">{current.meaning}</p>
             </div>
           )}
           {next ? (
-            <div className="rounded-xl border border-ink-800 bg-ink-900/60 p-3.5">
+            <div className="min-w-0">
               <p className="label-eyebrow">Next chapter</p>
-              <p className="mt-1.5 text-sm font-medium text-ink-100">{next.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">
+              <p className="mt-1.5 text-detail font-medium text-ink-100">{next.title}</p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-400">
                 Week {next.week} · {formatDateShort(next.on)} · led by {next.owner.toLowerCase()}
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-ink-800 bg-ink-900/60 p-3.5">
+            <div className="min-w-0">
               <p className="label-eyebrow">Next chapter</p>
-              <p className="mt-1.5 text-sm font-medium text-ink-100">The recap</p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">
+              <p className="mt-1.5 text-detail font-medium text-ink-100">The recap</p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-400">
                 Every checkpoint in this block is behind you. What moved gets written up next.
               </p>
             </div>
@@ -194,18 +197,18 @@ function ChapterNode({
       {/* Copy is centred under the marker and allowed to wrap to three lines —
           truncating a chapter title turns the rail into decoration. */}
       <div className="mt-2 px-1.5 text-center">
-        <p className={cn("stat-mono text-[11px]", isCurrent ? "text-gold-300" : "text-ink-500")}>
+        <p className={cn("stat-mono text-micro", isCurrent ? "text-gold-300" : "text-ink-500")}>
           Week {chapter.week}
         </p>
         <p
           className={cn(
-            "mt-0.5 text-[12px] font-medium leading-snug",
+            "mt-0.5 text-micro font-medium leading-snug",
             isCurrent ? "text-ink-50" : done ? "text-ink-200" : "text-ink-400",
           )}
         >
           {chapter.title}
         </p>
-        <p className="mt-1 text-[10px] leading-snug text-ink-600">{formatDateShort(chapter.on)}</p>
+        <p className="mt-1 text-micro leading-snug text-ink-600">{formatDateShort(chapter.on)}</p>
       </div>
     </li>
   );

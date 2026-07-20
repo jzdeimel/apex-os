@@ -235,7 +235,7 @@ export function engagementState(clientId: string, nowIso: string = NOW): Engagem
 
 /** True inside the do-not-disturb window. Handles the midnight wrap. */
 export function inQuietHours(nowIso: string = NOW): boolean {
-  const hour = absolute(nowIso).getHours();
+  const hour = absolute(nowIso).getUTCHours();
   return hour >= NUDGE_QUIET_HOURS.startHour || hour < NUDGE_QUIET_HOURS.endHour;
 }
 
@@ -290,7 +290,7 @@ const LABS_DUE_DAYS = 100;
 
 function candidates(client: Client, nowIso: string): Nudge[] {
   const out: Nudge[] = [];
-  const hour = absolute(nowIso).getHours();
+  const hour = absolute(nowIso).getUTCHours();
   const plan = buildDailyPlan(client, nowIso);
 
   // --- a person is waiting on them -----------------------------------------

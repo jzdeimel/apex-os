@@ -239,12 +239,12 @@ function iso(date: string, minutes: number): string {
 /** Add whole days to a yyyy-mm-dd without touching the clock. */
 function addDays(date: string, n: number): string {
   const d = absolute(`${date}T12:00:00`);
-  d.setDate(d.getDate() + n);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
 function weekdayOf(date: string): number {
-  return absolute(`${date}T12:00:00`).getDay();
+  return absolute(`${date}T12:00:00`).getUTCDay();
 }
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

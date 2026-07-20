@@ -279,8 +279,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 function shift(iso: string, hours: number): string {
   const d = absolute(absolute(iso).getTime() + hours * HOUR_MS);
   return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}` +
+    `T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getSeconds())}`
   );
 }
 

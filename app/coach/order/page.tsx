@@ -1,6 +1,5 @@
 "use client";
 
-import { FadeIn } from "@/components/motion";
 import { OrderForm } from "@/components/orders/OrderForm";
 
 /**
@@ -15,17 +14,17 @@ import { OrderForm } from "@/components/orders/OrderForm";
  */
 export default function CoachNewOrderPage() {
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">COACH CONSOLE</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           New Order
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-2 text-body text-ink-400">
           Pick the member, tap what they need, and see the price move as you go — with every
           problem named before Place turns on, so nothing can be silently dropped on submit.
         </p>
-      </FadeIn>
+      </header>
 
       <OrderForm />
     </div>

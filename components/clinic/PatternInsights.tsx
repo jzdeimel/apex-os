@@ -58,7 +58,7 @@ function MarkerScale({ m }: { m: PatternMarker }) {
           style={{ left: `${Math.min(100, Math.max(0, pct(m.value)))}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-ink-500">
+      <div className="mt-1 flex justify-between text-micro text-ink-500">
         <span className="stat-mono">{m.refLow}</span>
         <span className="stat-mono text-optimal/70">
           optimal {m.optimalLow}–{m.optimalHigh}
@@ -73,17 +73,17 @@ function MarkerRow({ m }: { m: PatternMarker }) {
   return (
     <li className="rounded-xl border border-ink-700/60 bg-ink-900/40 p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="text-sm font-medium text-ink-100">{m.name}</span>
+        <span className="text-body font-medium text-ink-100">{m.name}</span>
         <span className="flex items-center gap-2">
-          <span className="stat-mono text-sm text-ink-50">
+          <span className="stat-mono text-body text-ink-50">
             {m.value}
-            <span className="ml-1 text-[11px] text-ink-400">{m.unit}</span>
+            <span className="ml-1 text-micro text-ink-400">{m.unit}</span>
           </span>
           <Badge tone={STATUS_TONE[m.status]}>{m.status}</Badge>
         </span>
       </div>
       <MarkerScale m={m} />
-      <p className="mt-2 text-xs leading-relaxed text-ink-400">{m.note}</p>
+      <p className="mt-2 text-detail leading-relaxed text-ink-400">{m.note}</p>
     </li>
   );
 }
@@ -112,7 +112,7 @@ function PatternCard({ pattern, index }: { pattern: Pattern; index: number }) {
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-400/12 text-gold-300">
             <Activity className="h-4 w-4" />
           </span>
-          <h3 className="font-display text-base font-semibold leading-snug text-ink-50">{pattern.name}</h3>
+          <h3 className="font-display text-heading font-semibold leading-snug text-ink-50">{pattern.name}</h3>
         </div>
         <ConfidenceChip confidence={pattern.confidence} />
       </header>
@@ -132,24 +132,24 @@ function PatternCard({ pattern, index }: { pattern: Pattern; index: number }) {
       <div className="mt-4 grid grid-cols-1 gap-4 border-t border-ink-700/60 pt-4 lg:grid-cols-2">
         <div>
           <p className="label-eyebrow text-ink-400">Clinical read</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-200">{pattern.explanation}</p>
+          <p className="mt-1.5 text-body leading-relaxed text-ink-200">{pattern.explanation}</p>
         </div>
         <div>
           <p className="label-eyebrow text-ink-400">What it suggests</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-200">{pattern.whatItSuggests}</p>
+          <p className="mt-1.5 text-body leading-relaxed text-ink-200">{pattern.whatItSuggests}</p>
         </div>
       </div>
 
       <div className="mt-4 rounded-xl border border-ink-700/60 bg-ink-900/50 p-3">
         <p className="label-eyebrow text-ink-400">In the member&rsquo;s words</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-300">{pattern.memberExplanation}</p>
+        <p className="mt-1.5 text-body leading-relaxed text-ink-300">{pattern.memberExplanation}</p>
       </div>
 
       <footer className="mt-4 flex flex-wrap items-start gap-3 rounded-xl border border-gold-400/25 bg-gold-400/[0.06] p-3">
         <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" />
         <div className="min-w-0 flex-1">
           <p className="label-eyebrow text-gold-300">Next step</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink-200">{pattern.nextStep}</p>
+          <p className="mt-1 text-body leading-relaxed text-ink-200">{pattern.nextStep}</p>
         </div>
         <Badge tone="gold" className="shrink-0">
           <Stethoscope className="h-3 w-3" /> Provider decision
@@ -178,7 +178,7 @@ export default function PatternInsights({ clientId }: { clientId?: string }) {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <CardTitle>Pattern insights</CardTitle>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-400">
+          <p className="mt-1 max-w-2xl text-body leading-relaxed text-ink-400">
             Combinations across the panel, not single flagged markers. Every pattern below names the exact values that
             produced it — a pattern that cannot point at its evidence is not shown.
           </p>
@@ -198,7 +198,7 @@ export default function PatternInsights({ clientId }: { clientId?: string }) {
 
       <CardContent>
         {client && (
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink-400">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-detail text-ink-400">
             <Badge tone="neutral">
               <User className="h-3 w-3" /> {clientName(client)}
             </Badge>
@@ -231,7 +231,7 @@ export default function PatternInsights({ clientId }: { clientId?: string }) {
           </div>
         )}
 
-        <p className="mt-5 border-t border-ink-700/60 pt-4 text-xs leading-relaxed text-ink-500">
+        <p className="mt-5 border-t border-ink-700/60 pt-4 text-detail leading-relaxed text-ink-500">
           Pattern detection is decision support, not a diagnosis. Thresholds are read from each marker&rsquo;s own
           reference and optimal windows on the resulted panel. A licensed provider interprets, orders and decides.
         </p>

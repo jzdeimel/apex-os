@@ -20,7 +20,6 @@ import {
   EmptyState,
   Select,
 } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import { locations, locationName } from "@/lib/mock/locations";
 import { appendLedger } from "@/lib/trace/ledger";
@@ -109,16 +108,14 @@ export default function RosterHealthPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Header ------------------------------------------------------------ */}
-      <FadeIn>
         <p className="label-eyebrow">OPERATIONS</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Roster health
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-1 text-body text-ink-400">
           Every gap in the client base that will cost someone something later — each one
           a single click from the record that fixes it.
         </p>
-      </FadeIn>
 
       {/* Score + counts ---------------------------------------------------- */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -127,10 +124,10 @@ export default function RosterHealthPage() {
             <ScoreRing score={health.score} color={band.color} />
             <div className="min-w-0">
               <p className="label-eyebrow">Health score</p>
-              <p className="mt-1 font-display text-lg font-semibold" style={{ color: band.color }}>
+              <p className="mt-1 font-display text-heading font-semibold" style={{ color: band.color }}>
                 {band.label}
               </p>
-              <p className="mt-1 text-xs text-ink-400">
+              <p className="mt-1 text-detail text-ink-400">
                 <span className="stat-mono text-ink-200">{health.clientsAffected}</span> of{" "}
                 <span className="stat-mono text-ink-200">{health.clientsScanned}</span> records
                 carry a finding
@@ -155,10 +152,10 @@ export default function RosterHealthPage() {
                 )}
               >
                 <p className="label-eyebrow">{SEVERITY_LABEL[bucket.severity]}</p>
-                <p className="stat-mono mt-1 text-2xl font-semibold text-ink-50">
+                <p className="stat-mono mt-1 text-title font-semibold text-ink-50">
                   {bucket.findings.length}
                 </p>
-                <p className="mt-0.5 text-[11px] text-ink-500">
+                <p className="mt-0.5 text-micro text-ink-500">
                   {bucket.severity === "critical"
                     ? "Someone is unreachable or unowned"
                     : bucket.severity === "warning"
@@ -223,7 +220,7 @@ export default function RosterHealthPage() {
           {checkId !== "all" && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-ink-700/70 bg-ink-900/50 p-3">
               <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-300" />
-              <p className="text-xs text-ink-300">
+              <p className="text-detail text-ink-300">
                 <span className="font-medium text-ink-100">Why this matters. </span>
                 {CHECK_BY_ID[checkId].whyItMatters}
               </p>
@@ -256,7 +253,7 @@ export default function RosterHealthPage() {
                 <section key={bucket.severity}>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <SeverityIcon severity={bucket.severity} />
-                    <h2 className="font-display text-lg font-semibold text-ink-50">
+                    <h2 className="font-display text-heading font-semibold text-ink-50">
                       {SEVERITY_LABEL[bucket.severity]}
                     </h2>
                     <Badge tone={SEVERITY_TONE[bucket.severity]}>
@@ -264,13 +261,13 @@ export default function RosterHealthPage() {
                     </Badge>
                   </div>
 
-                  <Stagger className="space-y-2">
+                  <div className="space-y-2">
                     {shown.map((f) => (
-                      <StaggerItem key={f.id}>
+                      <div key={f.id}>
                         <FindingRow finding={f} onResolve={resolve} />
-                      </StaggerItem>
+                      </div>
                     ))}
-                  </Stagger>
+                  </div>
 
                   {bucket.findings.length > PAGE_SIZE && (
                     <div className="mt-3">
@@ -298,7 +295,7 @@ export default function RosterHealthPage() {
         </div>
       )}
 
-      <p className="mt-8 text-xs text-ink-500">
+      <p className="mt-8 text-detail text-ink-500">
         Scanned {health.clientsScanned} client records against {CHECKS.length} checks. Inline
         resolutions append an attributable row to the audit ledger; nothing here mutates a
         record without one.
@@ -333,17 +330,17 @@ function FindingRow({
             <span className="font-medium text-ink-50 group-hover:text-gold-200">
               {finding.clientName}
             </span>
-            <span className="stat-mono text-[11px] text-ink-500">{finding.mrn}</span>
+            <span className="stat-mono text-micro text-ink-500">{finding.mrn}</span>
             <Badge tone={SEVERITY_TONE[finding.severity]}>{check.label}</Badge>
-            <span className="inline-flex items-center gap-1 text-[11px] text-ink-500">
+            <span className="inline-flex items-center gap-1 text-micro text-ink-500">
               <MapPin className="h-3 w-3" />
               {finding.locationId ? locationName(finding.locationId) : "No location"}
             </span>
           </div>
 
-          <p className="mt-1.5 text-sm text-ink-300">{finding.detail}</p>
+          <p className="mt-1.5 text-body text-ink-300">{finding.detail}</p>
 
-          <p className="mt-1 text-xs text-ink-500">
+          <p className="mt-1 text-detail text-ink-500">
             <span className="text-ink-400">Why it matters. </span>
             {check.whyItMatters}
           </p>
@@ -407,7 +404,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
           strokeDasharray={`${dash} ${circ - dash}`}
         />
       </svg>
-      <span className="stat-mono absolute text-xl font-bold text-ink-50">{score}</span>
+      <span className="stat-mono absolute text-title font-bold text-ink-50">{score}</span>
     </div>
   );
 }

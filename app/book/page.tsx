@@ -49,19 +49,19 @@ function PublicHeader() {
     <header className="sticky top-0 z-30 border-b border-ink-800/80 bg-ink-950/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <Link href="/book" className="flex min-w-0 items-center gap-2.5 rounded-lg focus-ring">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gold-500 font-display text-sm font-bold text-white">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gold-500 font-display text-body font-bold text-white">
             A
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-display text-sm font-semibold text-ink-50">
+            <span className="block truncate font-display text-body font-semibold text-ink-50">
               {BRAND.name}
             </span>
-            <span className="block truncate text-[11px] text-ink-500">{BRAND.tagline}</span>
+            <span className="block truncate text-micro text-ink-500">{BRAND.tagline}</span>
           </span>
         </Link>
         <a
           href={`tel:${BRAND.telehealthPhone}`}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-ink-300 hover:text-ink-50 focus-ring"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-body text-ink-300 hover:text-ink-50 focus-ring"
         >
           <Phone className="h-4 w-4" />
           <span className="stat-mono hidden sm:inline">{BRAND.telehealthPhone}</span>
@@ -139,15 +139,15 @@ export default function BookPage() {
             <section className="mx-auto w-full max-w-5xl px-4 pb-10 pt-12 sm:px-6 sm:pt-16">
               <FadeIn>
                 <p className="label-eyebrow">{BRAND.motto}</p>
-                <h1 className="mt-3 max-w-3xl font-display text-3xl font-semibold leading-tight tracking-tight text-ink-50 sm:text-5xl">
+                <h1 className="mt-3 max-w-3xl font-display text-title font-semibold leading-tight tracking-tight text-ink-50 sm:text-display">
                   Book your free consultation.
                 </h1>
-                <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
+                <p className="mt-4 max-w-xl text-body leading-relaxed text-ink-300 sm:text-heading">
                   {BRAND.promise} We look past “normal” labs to find the real cause — then
                   build a plan a real clinician signs and a real coach helps you execute.
                 </p>
 
-                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-400">
+                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-body text-ink-400">
                   <span className="flex items-center gap-1.5">
                     <Star className="h-4 w-4 text-gold-400" />
                     <span className="stat-mono text-ink-200">{PROOF.googleRating}</span> Google
@@ -169,13 +169,13 @@ export default function BookPage() {
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a href="#book">
-                    <Button variant="primary" className="h-11 gap-2 px-6 text-sm">
+                    <Button variant="primary" className="h-11 gap-2 px-6 text-body">
                       Book my consultation
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </a>
                   <a href={`tel:${BRAND.telehealthPhone}`}>
-                    <Button variant="outline" className="h-11 gap-2 px-5 text-sm">
+                    <Button variant="outline" className="h-11 gap-2 px-5 text-body">
                       <Phone className="h-4 w-4" />
                       {BRAND.telehealthPhone}
                     </Button>
@@ -192,11 +192,11 @@ export default function BookPage() {
                 {PILLARS.map((p) => (
                   <StaggerItem key={p.key}>
                     <div className="card h-full p-5">
-                      <p className="font-display text-base font-semibold text-ink-50">
+                      <p className="font-display text-body font-semibold text-ink-50">
                         {p.title}
                       </p>
-                      <p className="mt-2 text-sm leading-relaxed text-ink-300">{p.blurb}</p>
-                      <p className="mt-2 text-xs leading-relaxed text-ink-500">{p.detail}</p>
+                      <p className="mt-2 text-body leading-relaxed text-ink-300">{p.blurb}</p>
+                      <p className="mt-2 text-detail leading-relaxed text-ink-500">{p.detail}</p>
                     </div>
                   </StaggerItem>
                 ))}
@@ -208,10 +208,10 @@ export default function BookPage() {
             --------------------------------------------------------------- */}
             <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
               <p className="label-eyebrow">How it works</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+              <h2 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
                 Four steps, in this order, every time.
               </h2>
-              <p className="mt-1.5 max-w-prose text-sm text-ink-400">
+              <p className="mt-1.5 max-w-prose text-body text-ink-400">
                 Nothing gets prescribed before it gets measured, and nothing gets measured
                 before somebody listens to you.
               </p>
@@ -219,14 +219,14 @@ export default function BookPage() {
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {JOURNEY.map((j) => (
                   <div key={j.step} className="card card-hover flex gap-4 p-5">
-                    <span className="stat-mono grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold-500/15 text-sm font-semibold text-gold-300">
+                    <span className="stat-mono grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold-500/15 text-body font-semibold text-gold-300">
                       {j.step}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-display text-base font-semibold text-ink-50">
+                      <p className="font-display text-body font-semibold text-ink-50">
                         {j.title}
                       </p>
-                      <p className="mt-1.5 text-sm leading-relaxed text-ink-400">{j.detail}</p>
+                      <p className="mt-1.5 text-body leading-relaxed text-ink-400">{j.detail}</p>
                     </div>
                   </div>
                 ))}
@@ -241,16 +241,16 @@ export default function BookPage() {
                 {/* The form itself */}
                 <div className="card p-5 sm:p-7">
                   <p className="label-eyebrow">No charge, no obligation</p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+                  <h2 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
                     Tell us where to reach you.
                   </h2>
-                  <p className="mt-1.5 text-sm text-ink-400">
+                  <p className="mt-1.5 text-body text-ink-400">
                     Four fields. We call within one business day to book the consultation.
                   </p>
 
                   {/* Track */}
                   <div className="mt-6">
-                    <p className="mb-2 text-sm font-medium text-ink-200">Which track?</p>
+                    <p className="mb-2 text-body font-medium text-ink-200">Which track?</p>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {(Object.keys(CARE_TRACKS) as CareTrackKey[]).map((k) => {
                         const t = CARE_TRACKS[k];
@@ -277,9 +277,9 @@ export default function BookPage() {
                               >
                                 {on && <Check className="h-2.5 w-2.5 text-white" />}
                               </span>
-                              <span className="text-sm font-medium text-ink-100">{t.label}</span>
+                              <span className="text-body font-medium text-ink-100">{t.label}</span>
                             </span>
-                            <span className="mt-2 block text-xs leading-relaxed text-ink-500">
+                            <span className="mt-2 block text-detail leading-relaxed text-ink-500">
                               {t.services.slice(0, 3).join(" · ")}
                             </span>
                           </button>
@@ -290,7 +290,7 @@ export default function BookPage() {
 
                   {/* Location */}
                   <div className="mt-6">
-                    <p className="mb-2 text-sm font-medium text-ink-200">Where would you go?</p>
+                    <p className="mb-2 text-body font-medium text-ink-200">Where would you go?</p>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {locations.map((l) => {
                         const on = form.locationId === l.id;
@@ -315,14 +315,14 @@ export default function BookPage() {
                                 )}
                               />
                               <span className="min-w-0">
-                                <span className="block text-sm font-medium text-ink-100">
+                                <span className="block text-body font-medium text-ink-100">
                                   {l.short}
                                 </span>
-                                <span className="block text-xs leading-relaxed text-ink-500">
+                                <span className="block text-detail leading-relaxed text-ink-500">
                                   {l.address ?? "Nationwide by video and phone"}
                                 </span>
                                 {l.phone && (
-                                  <span className="stat-mono mt-0.5 block text-xs text-ink-600">
+                                  <span className="stat-mono mt-0.5 block text-detail text-ink-600">
                                     {l.phone}
                                   </span>
                                 )}
@@ -337,7 +337,7 @@ export default function BookPage() {
                   {/* Contact */}
                   <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-medium text-ink-200">
+                      <span className="mb-1.5 block text-body font-medium text-ink-200">
                         First name
                       </span>
                       <Input
@@ -347,7 +347,7 @@ export default function BookPage() {
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-medium text-ink-200">
+                      <span className="mb-1.5 block text-body font-medium text-ink-200">
                         Last name
                       </span>
                       <Input
@@ -357,7 +357,7 @@ export default function BookPage() {
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-medium text-ink-200">Email</span>
+                      <span className="mb-1.5 block text-body font-medium text-ink-200">Email</span>
                       <Input
                         type="email"
                         value={form.email}
@@ -366,7 +366,7 @@ export default function BookPage() {
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-medium text-ink-200">Mobile</span>
+                      <span className="mb-1.5 block text-body font-medium text-ink-200">Mobile</span>
                       <Input
                         type="tel"
                         value={form.phone}
@@ -377,7 +377,7 @@ export default function BookPage() {
                   </div>
 
                   <label className="mt-4 block">
-                    <span className="mb-1.5 block text-sm font-medium text-ink-200">
+                    <span className="mb-1.5 block text-body font-medium text-ink-200">
                       What's going on? <span className="text-ink-500">(optional)</span>
                     </span>
                     <Textarea
@@ -388,18 +388,18 @@ export default function BookPage() {
                     />
                   </label>
 
-                  {error && <p className="mt-4 text-sm text-high">{error}</p>}
+                  {error && <p className="mt-4 text-body text-high">{error}</p>}
 
                   <Button
                     variant="primary"
-                    className="mt-5 h-11 w-full gap-2 text-sm"
+                    className="mt-5 h-11 w-full gap-2 text-body"
                     onClick={submit}
                   >
                     Book my free consultation
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
-                  <p className="mt-3 text-xs leading-relaxed text-ink-500">
+                  <p className="mt-3 text-detail leading-relaxed text-ink-500">
                     Booking a consultation does not sign you up for marketing. You'll be
                     asked about that separately, on its own checkbox, during intake — and
                     saying no changes nothing about your care.
@@ -418,18 +418,18 @@ export default function BookPage() {
                         "You meet a clinician. No plan, no charge, no pressure — yet.",
                       ].map((s, i) => (
                         <li key={i} className="flex gap-3">
-                          <span className="stat-mono grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-800 text-xs text-ink-300">
+                          <span className="stat-mono grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-800 text-detail text-ink-300">
                             {i + 1}
                           </span>
-                          <span className="text-sm leading-relaxed text-ink-400">{s}</span>
+                          <span className="text-body leading-relaxed text-ink-400">{s}</span>
                         </li>
                       ))}
                     </ol>
 
                     <div className="mt-5 border-t border-ink-700/70 pt-4">
                       <p className="label-eyebrow">Your selection</p>
-                      <p className="mt-2 text-sm text-ink-200">{track.label}</p>
-                      <p className="text-xs leading-relaxed text-ink-500">
+                      <p className="mt-2 text-body text-ink-200">{track.label}</p>
+                      <p className="text-detail leading-relaxed text-ink-500">
                         {chosen?.name ?? "—"}
                         {chosen?.address ? ` · ${chosen.address}` : ""}
                       </p>
@@ -451,7 +451,7 @@ export default function BookPage() {
 
       <footer className="mt-8 border-t border-ink-800/80">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-          <p className="text-xs leading-relaxed text-ink-600">
+          <p className="text-detail leading-relaxed text-ink-600">
             Demo environment. {BRAND.name} · {BRAND.motto} · Nothing on this page is
             transmitted or treated as medical advice. Telehealth {BRAND.telehealthPhone}.
           </p>
@@ -491,10 +491,10 @@ function Confirmation({
         <span className="grid h-11 w-11 place-items-center rounded-full bg-optimal/15 text-optimal">
           <Check className="h-5 w-5" />
         </span>
-        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-4 font-display text-title font-semibold tracking-tight text-ink-50">
           You're on the list, {form.firstName}.
         </h1>
-        <p className="mt-2 text-base leading-relaxed text-ink-300">
+        <p className="mt-2 text-body leading-relaxed text-ink-300">
           Someone from {chosen?.short ?? "the clinic"} calls within one business day to book
           your free consultation. If you'd rather not wait, call{" "}
           <a href={`tel:${BRAND.telehealthPhone}`} className="text-gold-300 hover:underline">
@@ -505,14 +505,14 @@ function Confirmation({
 
         <div className="card mt-7 p-5">
           <p className="label-eyebrow">Your private intake link</p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-400">
+          <p className="mt-2 text-body leading-relaxed text-ink-400">
             We're sending this to <span className="text-ink-100">{form.email}</span> and{" "}
             <span className="stat-mono text-ink-100">{form.phone}</span>. Fill it in before
             your call and the clinician reads it beforehand.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <code className="stat-mono min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-ink-700 bg-ink-950/70 px-3 py-2 text-xs text-ink-300">
+            <code className="stat-mono min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-ink-700 bg-ink-950/70 px-3 py-2 text-detail text-ink-300">
               {link}
             </code>
             <Button variant="outline" size="sm" onClick={copy} className="gap-1.5">
@@ -521,7 +521,7 @@ function Confirmation({
             </Button>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-detail text-ink-500">
             <span>
               Backup code <span className="stat-mono text-ink-200">{shortCode}</span>
             </span>
@@ -537,7 +537,7 @@ function Confirmation({
             opens a seeded invite that the store does know about.
           */}
           <div className="mt-5 rounded-xl border border-dashed border-ink-700 p-4">
-            <p className="text-xs leading-relaxed text-ink-500">
+            <p className="text-detail leading-relaxed text-ink-500">
               Demo: this token was minted for you but no invite was persisted, so the
               intake page will (correctly) reject it — unissued tokens are indistinguishable
               from expired ones by design. Open a seeded invite instead:
@@ -556,12 +556,12 @@ function Confirmation({
           <ul className="mt-3 space-y-2">
             {JOURNEY.map((j) => (
               <li key={j.step} className="flex gap-3">
-                <span className="stat-mono grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-800 text-xs text-ink-300">
+                <span className="stat-mono grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-800 text-detail text-ink-300">
                   {j.step}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-ink-100">{j.title}</span>
-                  <span className="block text-xs leading-relaxed text-ink-500">{j.detail}</span>
+                  <span className="block text-body font-medium text-ink-100">{j.title}</span>
+                  <span className="block text-detail leading-relaxed text-ink-500">{j.detail}</span>
                 </span>
               </li>
             ))}

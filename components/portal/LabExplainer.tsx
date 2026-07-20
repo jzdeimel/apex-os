@@ -20,7 +20,7 @@ import {
   EmptyState,
 } from "@/components/ui/primitives";
 import { TrendLine } from "@/components/charts";
-import { Stagger, StaggerItem, SwitchView } from "@/components/motion";
+import { Stagger, StaggerItem, SwitchView } from "@/components/portal/still";
 import { cn, formatDate } from "@/lib/utils";
 
 /**
@@ -79,8 +79,8 @@ export function LabExplainer({ clientId }: { clientId: string }) {
           <CardTitle>Your results</CardTitle>
           {overview && (
             <>
-              <p className="mt-1 text-sm text-ink-300">{overview.line}</p>
-              <p className="mt-0.5 text-xs text-ink-500">{overview.source}</p>
+              <p className="mt-1 text-detail text-ink-300">{overview.line}</p>
+              <p className="mt-0.5 text-micro text-ink-500">{overview.source}</p>
             </>
           )}
         </CardHeader>
@@ -100,7 +100,7 @@ export function LabExplainer({ clientId }: { clientId: string }) {
                     onClick={() => setOpenKey(m.key)}
                     aria-expanded={open}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors focus-ring",
+                      "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors focus-ring",
                       open ? "bg-ink-800" : "hover:bg-ink-800/60",
                     )}
                   >
@@ -110,12 +110,12 @@ export function LabExplainer({ clientId }: { clientId: string }) {
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-ink-100">{m.name}</span>
-                      <span className="block text-xs text-ink-500">{sits}</span>
+                      <span className="block truncate text-detail text-ink-100">{m.name}</span>
+                      <span className="block text-micro text-ink-500">{sits}</span>
                     </span>
-                    <span className="stat-mono shrink-0 text-sm text-ink-200">
+                    <span className="stat-mono shrink-0 text-detail text-ink-200">
                       {m.value}
-                      <span className="ml-1 text-[10px] text-ink-500">{m.unit}</span>
+                      <span className="ml-1 text-micro text-ink-500">{m.unit}</span>
                     </span>
                     <ChevronRight
                       className={cn(
@@ -153,7 +153,7 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
           <CardTitle className="mr-auto">{x.name}</CardTitle>
           <Badge tone={TONE[x.whereItSits]}>{x.whereItSits}</Badge>
         </div>
-        <p className="mt-2 font-display text-lg font-semibold leading-snug text-ink-50">
+        <p className="mt-2 font-display text-heading font-semibold leading-snug text-ink-50">
           {x.headline}
         </p>
       </CardHeader>
@@ -165,7 +165,7 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
         {/* ── Their own trend, before any general explanation ──────── */}
         <section>
           <p className="label-eyebrow text-ink-500">Your trend</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink-100">{x.trendDetail}</p>
+          <p className="mt-1 text-detail leading-relaxed text-ink-100">{x.trendDetail}</p>
           {x.history.length > 1 && (
             <div className="mt-3">
               <TrendLine
@@ -175,7 +175,7 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
                 optimalHigh={x.optimalBand?.[1]}
                 height={170}
               />
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="mt-1 text-micro text-ink-500">
                 Shaded band is the window we aim for. Latest draw {formatDate(
                   x.history[x.history.length - 1].date,
                 )}.
@@ -184,10 +184,10 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
           )}
         </section>
 
-        <section className="rounded-xl bg-ink-900 p-4">
+        <section className="rounded-panel bg-ink-900 p-4">
           <p className="label-eyebrow text-ink-500">What this actually is</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink-200">{x.plain}</p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-300">{x.whyItMatters}</p>
+          <p className="mt-1 text-detail leading-relaxed text-ink-200">{x.plain}</p>
+          <p className="mt-2 text-detail leading-relaxed text-ink-300">{x.whyItMatters}</p>
         </section>
 
         {/* ── Lifestyle levers only ────────────────────────────────── */}
@@ -195,14 +195,14 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
           <p className="label-eyebrow text-ink-500">What moves it</p>
           <ul className="mt-2 space-y-1.5">
             {x.whatMovesIt.map((m) => (
-              <li key={m} className="flex gap-2 text-sm text-ink-200">
+              <li key={m} className="flex gap-2 text-detail text-ink-200">
                 <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-gold-400" aria-hidden />
                 <span className="leading-relaxed">{m}</span>
               </li>
             ))}
           </ul>
           {!x.lifestyleAlone && (
-            <p className="mt-3 flex gap-2 rounded-lg bg-ink-900 p-3 text-xs leading-relaxed text-ink-300">
+            <p className="mt-3 flex gap-2 rounded-control bg-ink-900 p-3 text-micro leading-relaxed text-ink-300">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden />
               {/* Saying "just sleep more" about a marker that lifestyle barely
                   touches is a quietly false promise — and the member finds out
@@ -220,7 +220,7 @@ function MarkerDetail({ x }: { x: MarkerExplanation }) {
             <MessageSquare className="h-3.5 w-3.5" aria-hidden />
             Ask about this result
           </Button>
-          <p className="text-xs text-ink-500">{x.source}</p>
+          <p className="text-micro text-ink-500">{x.source}</p>
         </div>
       </CardContent>
     </Card>
@@ -256,7 +256,7 @@ function BandScale({ x, reduced }: { x: MarkerExplanation; reduced: boolean }) {
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="label-eyebrow text-ink-500">Where yours sits</p>
-        <p className="stat-mono text-xl font-semibold text-ink-50">{x.yourValue}</p>
+        <p className="stat-mono text-title font-semibold text-ink-50">{x.yourValue}</p>
       </div>
 
       <div className="relative mt-6 h-3 w-full rounded-full bg-ink-800">
@@ -285,7 +285,7 @@ function BandScale({ x, reduced }: { x: MarkerExplanation; reduced: boolean }) {
         />
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-400">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-micro text-ink-400">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-4 rounded-full bg-ink-700" aria-hidden />
           Lab&rsquo;s normal range {refLo}–{refHi} {x.unit}
@@ -297,7 +297,7 @@ function BandScale({ x, reduced }: { x: MarkerExplanation; reduced: boolean }) {
           </span>
         )}
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-ink-500">
+      <p className="mt-2 text-micro leading-relaxed text-ink-500">
         Most labs call anything inside the wide band &ldquo;normal&rdquo;. We work to the narrow
         one, which is why a result can be normal and still be worth doing something about.
       </p>

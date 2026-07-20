@@ -33,7 +33,7 @@ export function ConsultSummaryView({
       <p
         className={cn(
           "font-display text-ink-100",
-          compact ? "text-sm" : "text-base leading-relaxed",
+          compact ? "text-body" : "text-body leading-relaxed",
         )}
       >
         {summary.headline}
@@ -51,7 +51,7 @@ export function ConsultSummaryView({
             {summary.escalations.map((e, i) => (
               <li
                 key={i}
-                className="rounded-lg border border-high/25 bg-high/5 px-3 py-2 text-sm text-ink-100"
+                className="rounded-lg border border-high/25 bg-high/5 px-3 py-2 text-body text-ink-100"
               >
                 {e.value}
                 <SourceLine item={e} raw={raw} />
@@ -92,7 +92,7 @@ export function ConsultSummaryView({
         <Section title="Action items" icon={<CheckSquare className="h-3.5 w-3.5 text-gold-400" />}>
           <ul className="space-y-1.5">
             {summary.actionItems.map((a, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-ink-200">
+              <li key={i} className="flex gap-2.5 text-body text-ink-200">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400" />
                 <span>
                   {a.value}
@@ -111,7 +111,7 @@ export function ConsultSummaryView({
           title="Not classified"
           icon={<HelpCircle className="h-3.5 w-3.5 text-ink-500" />}
         >
-          <p className="mb-2 text-xs text-ink-500">
+          <p className="mb-2 text-detail text-ink-500">
             The engine saw these but would not assign them a category. Surfaced rather
             than discarded.
           </p>
@@ -119,7 +119,7 @@ export function ConsultSummaryView({
             {summary.unclassified.map((u, i) => (
               <span
                 key={i}
-                className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-xs text-ink-400"
+                className="rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1 text-detail text-ink-400"
               >
                 {u}
               </span>
@@ -157,9 +157,9 @@ function BulletList({ items, mono }: { items: string[]; mono?: boolean }) {
   return (
     <ul className="space-y-1.5">
       {items.map((t, i) => (
-        <li key={i} className="flex gap-2.5 text-sm text-ink-200">
+        <li key={i} className="flex gap-2.5 text-body text-ink-200">
           <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-600" />
-          <span className={cn(mono && "stat-mono text-[13px]")}>{t}</span>
+          <span className={cn(mono && "stat-mono text-detail")}>{t}</span>
         </li>
       ))}
     </ul>
@@ -179,7 +179,7 @@ function SourceLine({ item, raw }: { item: ExtractedItem; raw?: string }) {
       : item.sourceQuote;
 
   return (
-    <span className="mt-1 flex items-start gap-1.5 text-[11px] italic text-ink-500">
+    <span className="mt-1 flex items-start gap-1.5 text-micro italic text-ink-500">
       <Quote className="mt-[3px] h-2.5 w-2.5 shrink-0" />
       <span className="line-clamp-2">&ldquo;{quote}&rdquo;</span>
     </span>

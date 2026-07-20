@@ -22,9 +22,9 @@ import { useMemo, useState } from "react";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { alphaScore, scoreColor } from "@/lib/alphaScore";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
-import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
+import { Card, CardContent, EmptyState } from "@/components/ui/primitives";
 import { TrendLine, TrendArea } from "@/components/charts";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 import { Tabs } from "@/components/ui/Tabs";
 import { formatDate, seededRandom, cn, absolute } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
@@ -212,7 +212,10 @@ export default function PortalProgressPage() {
   }
 
   return (
-    <div className="space-y-8">
+    /* Groups, not a flat stack: the win panel, the four movers, the charts and
+       the two lists are 48px apart, while the tiles inside each are 12px
+       apart. */
+    <div className="space-y-12">
       <PortalPageHeader
         eyebrow="Progress"
         title="Is this working?"
@@ -223,15 +226,15 @@ export default function PortalProgressPage() {
       {/* The win. One number, one sentence, above everything else.          */}
       {/* ------------------------------------------------------------------ */}
       <FadeIn>
-        <div className="relative overflow-hidden rounded-3xl border border-optimal/25 bg-gradient-to-br from-optimal/15 via-optimal/5 to-transparent px-5 py-7 sm:px-8 sm:py-10">
+        <div className="relative overflow-hidden rounded-panel border border-optimal/25 bg-gradient-to-br from-optimal/15 via-optimal/5 to-transparent px-5 py-7 sm:px-8 sm:py-10">
           {win ? (
             <>
               <p className="label-eyebrow">Your biggest move</p>
-              <p className="mt-3 font-display text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-ink-50 sm:text-4xl">
+              <p className="mt-3 font-display text-display font-semibold leading-[1.15] tracking-tight text-ink-50 sm:text-display">
                 {win.headline(win.delta)}
               </p>
-              <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">{win.because}</p>
-              <p className="mt-5 text-[13px] text-ink-400">
+              <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">{win.because}</p>
+              <p className="mt-5 text-detail text-ink-400">
                 From{" "}
                 <span className="stat-mono text-ink-200">
                   {win.key === "bodyFat"
@@ -249,10 +252,10 @@ export default function PortalProgressPage() {
           ) : (
             <>
               <p className="label-eyebrow">This block</p>
-              <p className="mt-3 font-display text-2xl font-semibold leading-tight text-ink-50">
+              <p className="mt-3 font-display text-title font-semibold leading-tight text-ink-50">
                 Nothing has moved much yet — and that&rsquo;s worth saying out loud.
               </p>
-              <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">
+              <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">
                 Flat months happen. Bring this page to your next visit; it&rsquo;s exactly the conversation
                 your provider wants to have.
               </p>
@@ -264,43 +267,44 @@ export default function PortalProgressPage() {
       {/* ------------------------------------------------------------------ */}
       {/* The other three numbers. 2-up on a phone, 4-up on a desk.          */}
       {/* ------------------------------------------------------------------ */}
-      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* The Stagger/StaggerItem wrapper is gone, so the Cards are direct grid
+          children and `h-full` finally does what it says — the tiles are equal
+          height instead of each being as tall as its own text. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {movers.map((k) => {
           const improving = k.goodWhenDown ? k.delta < 0 : k.delta > 0;
           const Icon = k.delta < 0 ? TrendingDown : TrendingUp;
           return (
-            <StaggerItem key={k.key}>
-              <Card className="card-hover h-full">
-                <CardContent className="p-4">
-                  <p className="text-[11px] uppercase tracking-wide text-ink-500">{k.label}</p>
-                  <p className="stat-mono mt-1.5 text-2xl font-semibold text-ink-50">{k.now}</p>
-                  <p
-                    className={cn(
-                      "mt-1.5 flex flex-wrap items-center gap-x-1 text-xs",
-                      improving ? "text-optimal" : "text-ink-400",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="stat-mono">
-                      {k.delta > 0 ? "+" : ""}
-                      {k.delta.toFixed(1)} {k.unit}
-                    </span>
-                    <span className="text-ink-500">since {baselineMonth.slice(0, 3)}</span>
-                  </p>
-                </CardContent>
-              </Card>
-            </StaggerItem>
+            <Card key={k.key} className="card-hover h-full min-w-0">
+              <CardContent className="p-4">
+                <p className="text-micro uppercase text-ink-500">{k.label}</p>
+                <p className="stat-mono mt-1.5 text-title text-ink-50">{k.now}</p>
+                <p
+                  className={cn(
+                    "mt-1.5 flex flex-wrap items-center gap-x-1 text-micro",
+                    improving ? "text-optimal" : "text-ink-400",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="stat-mono">
+                    {k.delta > 0 ? "+" : ""}
+                    {k.delta.toFixed(1)} {k.unit}
+                  </span>
+                  <span className="text-ink-500">since {baselineMonth.slice(0, 3)}</span>
+                </p>
+              </CardContent>
+            </Card>
           );
         })}
-      </Stagger>
+      </div>
 
       {/* Charts ------------------------------------------------------------- */}
       <Card>
         <CardContent className="p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <h2 className="font-display text-xl font-semibold text-ink-50">The long view</h2>
-              <p className="mt-1 text-sm text-ink-400">
+              <h2 className="font-display text-title font-semibold text-ink-50">The long view</h2>
+              <p className="mt-1 text-detail text-ink-400">
                 <span className="stat-mono">{history.length}</span> scans on the same device, from{" "}
                 {first ? formatDate(first.date) : "—"} to {formatDate(scan.scannedOn)}.
               </p>
@@ -329,7 +333,7 @@ export default function PortalProgressPage() {
                   ]}
                   height={280}
                 />
-                <p className="mt-3 text-[13px] leading-relaxed text-ink-500">
+                <p className="mt-3 text-detail leading-relaxed text-ink-500">
                   Weight moves with hydration and food timing; body fat and muscle are the lines your coach
                   actually reads. All three come from the same {scan.device.replace(" (simulated)", "")} scan.
                 </p>
@@ -337,7 +341,7 @@ export default function PortalProgressPage() {
             ) : (
               <FadeIn key="score">
                 <TrendLine data={score.trend} height={280} />
-                <p className="mt-3 text-[13px] leading-relaxed text-ink-500">
+                <p className="mt-3 text-detail leading-relaxed text-ink-500">
                   One point per panel. Currently{" "}
                   <span className="stat-mono" style={{ color: scoreColor(score.band) }}>
                     {score.score}
@@ -354,19 +358,22 @@ export default function PortalProgressPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="p-5 sm:p-6">
-            <h2 className="font-display text-xl font-semibold text-ink-50">The part you control</h2>
-            <p className="mt-1 text-sm text-ink-400">Showing up is the input. Everything above is the output.</p>
-            <div className="mt-4 space-y-2.5">
+            <h2 className="font-display text-title text-ink-50">The part you control</h2>
+            <p className="mt-1 text-detail text-ink-400">Showing up is the input. Everything above is the output.</p>
+            {/* Rows, not boxes-in-a-box. The green icon tile on each row is
+                gone too: a coloured square behind a glyph is decoration, and
+                three of them turned a two-column read into a traffic light.
+                The count on the right is what the row is for, so it is the
+                only thing here with any weight. */}
+            <div className="mt-5 divide-y divide-ink-800/60 border-y border-ink-800/60">
               {streaks.map((s) => (
-                <div key={s.label} className="hairline flex items-center gap-3.5 rounded-2xl bg-ink-900/50 p-4">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-optimal/15 text-optimal">
-                    <s.icon className="h-5 w-5" />
-                  </span>
+                <div key={s.label} className="flex items-center gap-3.5 py-3.5">
+                  <s.icon className="h-4 w-4 shrink-0 text-ink-500" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-medium text-ink-50">{s.label}</p>
-                    <p className="text-xs text-ink-500">{s.unit}</p>
+                    <p className="text-body font-medium text-ink-50">{s.label}</p>
+                    <p className="text-micro text-ink-500">{s.unit}</p>
                   </div>
-                  <span className="stat-mono shrink-0 text-2xl font-semibold text-ink-50">{s.value}</span>
+                  <span className="stat-mono shrink-0 text-title text-ink-50">{s.value}</span>
                 </div>
               ))}
             </div>
@@ -375,24 +382,25 @@ export default function PortalProgressPage() {
 
         <Card>
           <CardContent className="p-5 sm:p-6">
-            <h2 className="font-display text-xl font-semibold text-ink-50">Everything that moved</h2>
-            <p className="mt-1 text-sm text-ink-400">
+            <h2 className="font-display text-title text-ink-50">Everything that moved</h2>
+            <p className="mt-1 text-detail text-ink-400">
               Pulled straight from your scans — if a number stops supporting one of these, it disappears.
             </p>
-            <Stagger className="mt-4 space-y-2">
+            {/* The date was a green badge. A date is not a status — colour
+                here was pure decoration, and it made every milestone shout
+                equally. It is a muted date now, which is what it is. */}
+            <div className="mt-5 divide-y divide-ink-800/60 border-y border-ink-800/60">
               {milestones.map((m) => (
-                <StaggerItem key={m.title}>
-                  <div className="hairline rounded-2xl bg-ink-900/50 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="text-[15px] font-medium text-ink-50">{m.title}</p>
-                      <Badge tone="optimal">{formatDate(m.when)}</Badge>
-                    </div>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">{m.detail}</p>
+                <div key={m.title} className="py-3.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="text-body font-medium text-ink-50">{m.title}</p>
+                    <span className="stat-mono shrink-0 text-micro text-ink-500">{formatDate(m.when)}</span>
                   </div>
-                </StaggerItem>
+                  <p className="mt-1 text-detail leading-relaxed text-ink-400">{m.detail}</p>
+                </div>
               ))}
-            </Stagger>
-            <p className="mt-4 text-[12px] leading-relaxed text-ink-500">
+            </div>
+            <p className="mt-4 text-micro leading-relaxed text-ink-500">
               Your plan re-checks these at weeks{" "}
               <span className="stat-mono">
                 {plan.monitoring

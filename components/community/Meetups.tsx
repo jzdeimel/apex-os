@@ -53,7 +53,7 @@ export function Meetups({ meetups }: { meetups: Meetup[] }) {
       {/* Telehealth members have no clinic of their own, and the honest answer
           is that they're welcome at all four rather than pretending a video
           call is a meetup. Said once, at the top, instead of on every card. */}
-      <p className="max-w-prose text-sm leading-relaxed text-ink-400">
+      <p className="max-w-prose text-body leading-relaxed text-ink-400">
         In-person, at the clinics. If you&apos;re a Telehealth member you&apos;re welcome at any
         of them — plenty of people drive in for these.
       </p>
@@ -75,18 +75,18 @@ export function Meetups({ meetups }: { meetups: Meetup[] }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <Badge tone="gold">{locationName(m.locationId)}</Badge>
-                      <h3 className="mt-2 font-display text-lg font-semibold leading-snug tracking-tight text-ink-50">
+                      <h3 className="mt-2 font-display text-heading font-semibold leading-snug tracking-tight text-ink-50">
                         {m.title}
                       </h3>
                     </div>
-                    <span className="shrink-0 text-[11px] text-ink-500">
+                    <span className="shrink-0 text-micro text-ink-500">
                       {relativeDays(m.startsAt)}
                     </span>
                   </div>
 
-                  <p className="text-sm leading-relaxed text-ink-400">{m.blurb}</p>
+                  <p className="text-body leading-relaxed text-ink-400">{m.blurb}</p>
 
-                  <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                  <dl className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2">
                     <div className="flex items-start gap-2 text-ink-300">
                       <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
                       <span>
@@ -121,7 +121,7 @@ export function Meetups({ meetups }: { meetups: Meetup[] }) {
                   </dl>
 
                   <div className="mt-auto space-y-2.5 pt-1">
-                    <div className="flex items-center justify-between text-[11px] text-ink-500">
+                    <div className="flex items-center justify-between text-micro text-ink-500">
                       <span className="flex items-center gap-1.5">
                         <Users className="h-3 w-3" />
                         <span className="stat-mono">{rsvps}</span> going
@@ -136,7 +136,7 @@ export function Meetups({ meetups }: { meetups: Meetup[] }) {
                     />
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <p className="text-[11px] text-ink-500">
+                      <p className="text-micro text-ink-500">
                         Run by {host?.name ?? staffName(m.hostStaffId)}
                         {host?.credentials ? `, ${host.credentials}` : ""}
                       </p>

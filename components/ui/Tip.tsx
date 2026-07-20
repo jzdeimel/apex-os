@@ -251,7 +251,7 @@ export function Tip({
               }}
               className={cn(
                 "z-[70] rounded-xl border border-ink-600/70 bg-ink-850 p-3.5 text-left shadow-2xl shadow-black/60",
-                "text-[13px] leading-relaxed text-ink-200",
+                "text-detail leading-relaxed text-ink-200",
                 // Animation is opt-in per user preference, never assumed.
                 "transition-opacity duration-150 motion-reduce:transition-none",
               )}

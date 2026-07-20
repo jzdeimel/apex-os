@@ -80,27 +80,27 @@ function OutcomeRow({ outcome }: { outcome: MemberOutcome }) {
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               href={`/clients/${outcome.clientId}`}
-              className="focus-ring truncate rounded text-[13px] font-medium text-ink-50 hover:text-gold-300"
+              className="focus-ring truncate rounded text-detail font-medium text-ink-50 hover:text-gold-300"
             >
               {outcome.name}
             </Link>
             <Badge tone={meta.tone}>{meta.label}</Badge>
-            <span className="text-[10px] uppercase tracking-wide text-ink-600">
+            <span className="text-micro uppercase tracking-wide text-ink-600">
               goal: {outcome.goal}
             </span>
           </div>
 
-          <p className="mt-1 text-xs leading-relaxed text-ink-400">{outcome.summary}</p>
+          <p className="mt-1 text-detail leading-relaxed text-ink-400">{outcome.summary}</p>
 
           {outcome.unmeasurableReason && (
-            <p className="mt-1 text-[11px] leading-relaxed text-watch/90">
+            <p className="mt-1 text-micro leading-relaxed text-watch/90">
               {outcome.unmeasurableReason}
             </p>
           )}
 
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             {outcome.periodDays !== undefined && (
-              <span className="stat-mono inline-flex items-center gap-1 text-[10px] text-ink-600">
+              <span className="stat-mono inline-flex items-center gap-1 text-micro text-ink-600">
                 <Clock className="h-2.5 w-2.5" />
                 {outcome.periodDays}d
                 {outcome.from && outcome.to && (
@@ -116,7 +116,7 @@ function OutcomeRow({ outcome }: { outcome: MemberOutcome }) {
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded text-[10px] font-medium text-ink-500 transition-colors hover:text-ink-200"
+                className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded text-micro font-medium text-ink-500 transition-colors hover:text-ink-200"
               >
                 {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 {outcome.precededBy.length} intervention
@@ -130,12 +130,12 @@ function OutcomeRow({ outcome }: { outcome: MemberOutcome }) {
                   <ol className="space-y-1.5">
                     {outcome.precededBy.map((iv, i) => (
                       <li key={`${iv.source.recordId}-${i}`} className="flex min-w-0 gap-2">
-                        <span className="stat-mono mt-0.5 shrink-0 text-[10px] text-ink-700">
+                        <span className="stat-mono mt-0.5 shrink-0 text-micro text-ink-700">
                           {formatDate(iv.at)}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-medium text-ink-200">{iv.label}</p>
-                          <p className="text-[10px] leading-relaxed text-ink-500">{iv.detail}</p>
+                          <p className="text-micro font-medium text-ink-200">{iv.label}</p>
+                          <p className="text-micro leading-relaxed text-ink-500">{iv.detail}</p>
                           <div className="mt-0.5">
                             <SourceChip source={iv.source} />
                           </div>
@@ -143,7 +143,7 @@ function OutcomeRow({ outcome }: { outcome: MemberOutcome }) {
                       </li>
                     ))}
                   </ol>
-                  <p className="mt-2 border-t border-ink-800 pt-1.5 text-[10px] leading-relaxed text-watch/80">
+                  <p className="mt-2 border-t border-ink-800 pt-1.5 text-micro leading-relaxed text-watch/80">
                     {PRECEDED_BY_NOTE}
                   </p>
                 </div>
@@ -167,19 +167,19 @@ function Comparison({ coachId, goal }: { coachId: string; goal?: Goal }) {
           <Lock className="h-3 w-3" />
           No comparison shown
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-300">{cmp.explanation}</p>
+        <p className="mt-1 text-detail leading-relaxed text-ink-300">{cmp.explanation}</p>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-watch/20 pt-2">
           <span className="flex items-baseline gap-1.5">
-            <span className="stat-mono text-sm font-semibold text-ink-100">{cmp.mineN}</span>
-            <span className="text-[10px] text-ink-500">your measurable members</span>
+            <span className="stat-mono text-body font-semibold text-ink-100">{cmp.mineN}</span>
+            <span className="text-micro text-ink-500">your measurable members</span>
           </span>
           <span className="flex items-baseline gap-1.5">
-            <span className="stat-mono text-sm font-semibold text-ink-100">{cmp.clinicN}</span>
-            <span className="text-[10px] text-ink-500">clinic-wide</span>
+            <span className="stat-mono text-body font-semibold text-ink-100">{cmp.clinicN}</span>
+            <span className="text-micro text-ink-500">clinic-wide</span>
           </span>
           <span className="flex items-baseline gap-1.5">
-            <span className="stat-mono text-sm font-semibold text-watch">{K_MIN}</span>
-            <span className="text-[10px] text-ink-500">needed on each side</span>
+            <span className="stat-mono text-body font-semibold text-watch">{K_MIN}</span>
+            <span className="text-micro text-ink-500">needed on each side</span>
           </span>
         </div>
       </div>
@@ -195,17 +195,17 @@ function Comparison({ coachId, goal }: { coachId: string; goal?: Goal }) {
           { label: "Clinic-wide", side: cmp.clinic, accent: "text-ink-100" },
         ].map((s) => (
           <div key={s.label} className="min-w-0 rounded-lg bg-ink-900/60 px-2.5 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-ink-600">{s.label}</p>
-            <p className={cn("stat-mono mt-0.5 text-xl font-semibold leading-none", s.accent)}>
+            <p className="text-micro uppercase tracking-wide text-ink-600">{s.label}</p>
+            <p className={cn("stat-mono mt-0.5 text-title font-semibold leading-none", s.accent)}>
               {s.side.improvedPct}%
             </p>
-            <p className="mt-1 text-[10px] text-ink-500">
+            <p className="mt-1 text-micro text-ink-500">
               {s.side.improved} improved of {s.side.n} measurable
             </p>
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-ink-400">{cmp.verdict}</p>
+      <p className="mt-2 text-detail leading-relaxed text-ink-400">{cmp.verdict}</p>
     </div>
   );
 }
@@ -231,7 +231,7 @@ export function OutcomePanel({ coachId }: { coachId: string }) {
       >
         <div className="min-w-0">
           <p className="label-eyebrow">Outcomes on primary goals</p>
-          <p className="mt-0.5 text-xs text-ink-400">
+          <p className="mt-0.5 text-detail text-ink-400">
             <span className="stat-mono text-optimal">{totals.improved}</span> improved ·{" "}
             <span className="stat-mono text-ink-300">{totals.unchanged}</span> flat ·{" "}
             <span className="stat-mono text-high">{totals.worse}</span> worse ·{" "}
@@ -248,7 +248,7 @@ export function OutcomePanel({ coachId }: { coachId: string }) {
       {open && (
         <div className="mt-3 space-y-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr] sm:items-center">
-            <label className="text-[11px] text-ink-500" htmlFor="outcome-goal">
+            <label className="text-micro text-ink-500" htmlFor="outcome-goal">
               Primary goal
             </label>
             <Select
@@ -270,7 +270,7 @@ export function OutcomePanel({ coachId }: { coachId: string }) {
 
           {/* The standing caveat, on the panel itself rather than only inside
               each expanded chronology. Somebody will screenshot this. */}
-          <p className="rounded-lg border border-ink-800 bg-ink-900/40 px-2.5 py-2 text-[10px] leading-relaxed text-ink-500">
+          <p className="rounded-lg border border-ink-800 bg-ink-900/40 px-2.5 py-2 text-micro leading-relaxed text-ink-500">
             {PRECEDED_BY_NOTE}
           </p>
 

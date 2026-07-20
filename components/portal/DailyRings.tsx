@@ -6,7 +6,7 @@ import { Lock, Flame, Check, Shield } from "lucide-react";
 import { buildDailyPlan, ringHistory, hasDose, type Ring, type DailyPlan } from "@/lib/daily/today";
 import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Stagger, StaggerItem } from "@/components/portal/still";
 
 /**
  * The daily loop, on one screen.
@@ -54,7 +54,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
                 <button
                   key={ring.id}
                   onClick={() => setOpenRing((v) => (v === ring.id ? null : ring.id))}
-                  className="group relative grid place-items-center rounded-2xl p-1 focus-ring"
+                  className="group relative grid place-items-center rounded-panel p-1 focus-ring"
                   aria-label={`${ring.label}: ${ring.done} of ${ring.target} ${ring.unit}`}
                 >
                   <svg width="104" height="104" viewBox="0 0 104 104" className="-rotate-90">
@@ -79,11 +79,11 @@ export function DailyRings({ clientId }: { clientId: string }) {
                     />
                   </svg>
                   <span className="absolute flex flex-col items-center">
-                    <span className="stat-mono text-lg font-semibold text-ink-50">
+                    <span className="stat-mono text-heading font-semibold text-ink-50">
                       {Math.round(ring.progress * 100)}
-                      <span className="text-[10px] text-ink-500">%</span>
+                      <span className="text-micro text-ink-500">%</span>
                     </span>
-                    <span className="text-[10px] uppercase tracking-wide text-ink-500">
+                    <span className="text-micro uppercase tracking-wide text-ink-500">
                       {ring.label}
                     </span>
                   </span>
@@ -93,29 +93,29 @@ export function DailyRings({ clientId }: { clientId: string }) {
 
             <div className="min-w-0 flex-1">
               <p className="label-eyebrow">Today</p>
-              <p className="mt-1 font-display text-lg font-semibold text-ink-50">
+              <p className="mt-1 font-display text-heading font-semibold text-ink-50">
                 {plan.focus}
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-gold-400/12 px-2.5 py-1">
+                <span className="inline-flex items-center gap-1.5 rounded-control border border-gold-400/30 bg-gold-400/12 px-2.5 py-1">
                   <Flame className="h-3.5 w-3.5 text-gold-300" />
-                  <span className="stat-mono text-xs font-semibold text-gold-200">
+                  <span className="stat-mono text-micro font-semibold text-gold-200">
                     {plan.streak.current}
                   </span>
-                  <span className="text-[11px] text-ink-300">day streak</span>
+                  <span className="text-micro text-ink-300">day streak</span>
                 </span>
-                <span className="text-[11px] text-ink-500">
+                <span className="text-micro text-ink-500">
                   best <span className="stat-mono text-ink-300">{plan.streak.best}</span>
                 </span>
-                <span className="text-[11px] text-ink-600">·</span>
-                <span className="text-[11px] text-ink-500">
+                <span className="text-micro text-ink-600">·</span>
+                <span className="text-micro text-ink-500">
                   <span className="stat-mono text-ink-300">{closed}</span> of 3 rings closed
                 </span>
               </div>
 
               {plan.streak.protectedDays > 0 && (
-                <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-ink-500">
+                <p className="mt-2 inline-flex items-center gap-1.5 text-micro text-ink-500">
                   <Shield className="h-3 w-3 text-optimal" />
                   <span className="stat-mono text-ink-300">{plan.streak.protectedDays}</span>
                   held day{plan.streak.protectedDays === 1 ? "" : "s"} — your provider paused
@@ -136,8 +136,8 @@ export function DailyRings({ clientId }: { clientId: string }) {
                 .filter((r) => r.id === openRing)
                 .map((r) => (
                   <div key={r.id}>
-                    <p className="text-sm text-ink-200">{r.detail}</p>
-                    <p className="mt-1 text-[11px] text-ink-500">
+                    <p className="text-detail text-ink-200">{r.detail}</p>
+                    <p className="mt-1 text-micro text-ink-500">
                       <span className="stat-mono text-ink-300">{r.done}</span> of{" "}
                       <span className="stat-mono text-ink-300">{r.target}</span> {r.unit}
                     </p>
@@ -153,20 +153,20 @@ export function DailyRings({ clientId }: { clientId: string }) {
         <CardContent className="p-5">
           <p className="label-eyebrow">Protocol · today</p>
           {plan.doses.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-400">Nothing scheduled today.</p>
+            <p className="mt-2 text-detail text-ink-400">Nothing scheduled today.</p>
           ) : (
             <Stagger className="mt-3 space-y-2">
               {plan.doses.map((d) => (
                 <StaggerItem key={d.id}>
                   <div
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+                    className={`flex items-center gap-3 rounded-panel border px-4 py-3 ${
                       d.heldReason
                         ? "border-watch/25 bg-watch/5"
                         : "border-ink-800 bg-ink-900/40"
                     }`}
                   >
                     <span
-                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${
+                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-control border ${
                         d.taken
                           ? "border-optimal/40 bg-optimal/15 text-optimal"
                           : "border-ink-700 bg-ink-800 text-ink-500"
@@ -175,19 +175,19 @@ export function DailyRings({ clientId }: { clientId: string }) {
                       {d.taken ? <Check className="h-3.5 w-3.5" /> : null}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-ink-100">{d.name}</p>
-                      <p className="mt-0.5 text-[11px] text-ink-500">
+                      <p className="text-detail font-medium text-ink-100">{d.name}</p>
+                      <p className="mt-0.5 text-micro text-ink-500">
                         {d.timing} · {d.route}
                       </p>
                       {d.heldReason && (
-                        <p className="mt-1 text-[11px] text-watch">{d.heldReason}</p>
+                        <p className="mt-1 text-micro text-watch">{d.heldReason}</p>
                       )}
                     </div>
                     {/* The dose is never shown to the member — it lives on the
                         provider-signed prescription. A coaching session has no
                         dose, so it gets no lock. */}
                     {hasDose(d.route) && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-[10px] text-ink-400">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-control border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-micro text-ink-400">
                         <Lock className="h-2.5 w-2.5" /> Dose set by your provider
                       </span>
                     )}
@@ -205,20 +205,20 @@ export function DailyRings({ clientId }: { clientId: string }) {
           <CardContent className="p-5">
             <p className="label-eyebrow">Fuel · today</p>
             <p className="mt-1">
-              <span className="stat-mono text-2xl font-semibold text-ink-50">
+              <span className="stat-mono text-title font-semibold text-ink-50">
                 {plan.meals.calories.toLocaleString()}
               </span>
-              <span className="ml-1 text-[11px] text-ink-500">kcal</span>
+              <span className="ml-1 text-micro text-ink-500">kcal</span>
             </p>
             <div className="mt-3 space-y-2">
               {[plan.meals.protein, plan.meals.carbs, plan.meals.fat].map((m) => (
                 <div key={m.label} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm text-ink-200">{m.label}</p>
-                    <p className="text-[11px] text-ink-600">{m.hint}</p>
+                    <p className="text-detail text-ink-200">{m.label}</p>
+                    <p className="text-micro text-ink-600">{m.hint}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="stat-mono text-sm text-ink-100">{m.grams}g</span>
+                    <span className="stat-mono text-detail text-ink-100">{m.grams}g</span>
                     {m.hit && <Check className="h-3.5 w-3.5 text-optimal" />}
                   </div>
                 </div>
@@ -230,10 +230,10 @@ export function DailyRings({ clientId }: { clientId: string }) {
         <Card>
           <CardContent className="p-5">
             <p className="label-eyebrow">Train · today</p>
-            <p className="mt-1 font-display text-lg font-semibold text-ink-50">
+            <p className="mt-1 font-display text-heading font-semibold text-ink-50">
               {plan.workout.focus}
             </p>
-            <p className="mt-1 text-sm text-ink-400">{plan.workout.detail}</p>
+            <p className="mt-1 text-detail text-ink-400">{plan.workout.detail}</p>
             <div className="mt-3">
               <Badge tone={plan.workout.completed ? "optimal" : "neutral"}>
                 {plan.workout.isRest
@@ -252,7 +252,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
         <CardContent className="p-5">
           <div className="flex items-center justify-between">
             <p className="label-eyebrow">Last 28 days</p>
-            <p className="text-[11px] text-ink-600">
+            <p className="text-micro text-ink-600">
               held days count — they are not misses
             </p>
           </div>
@@ -281,10 +281,10 @@ export function DailyRings({ clientId }: { clientId: string }) {
           {plan.wins.map((w) => (
             <div
               key={w.label}
-              className="rounded-2xl border border-gold-400/25 bg-gradient-to-br from-gold-500/12 to-transparent p-4"
+              className="rounded-panel border border-gold-400/25 bg-gradient-to-br from-gold-500/12 to-transparent p-4"
             >
-              <p className="font-display text-sm font-semibold text-gold-200">{w.label}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-ink-300">{w.detail}</p>
+              <p className="font-display text-detail font-semibold text-gold-200">{w.label}</p>
+              <p className="mt-1 text-detail leading-relaxed text-ink-300">{w.detail}</p>
             </div>
           ))}
         </div>

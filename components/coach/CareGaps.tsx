@@ -27,7 +27,6 @@ import {
 import { clientMap } from "@/lib/mock/clients";
 import { Badge, Button, Select, EmptyState } from "@/components/ui/primitives";
 import { ClientRow } from "@/components/coach/ClientRow";
-import { Stagger, StaggerItem } from "@/components/motion";
 import { cn, formatDate } from "@/lib/utils";
 
 /**
@@ -112,11 +111,11 @@ function Coverage({
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <div>
           <p className="label-eyebrow">Coverage</p>
-          <p className={cn("stat-mono text-2xl font-semibold leading-none", tone)}>{pct}%</p>
+          <p className={cn("stat-mono text-title font-semibold leading-none", tone)}>{pct}%</p>
         </div>
         {/* The definition sits next to the number on purpose. A coverage figure
             a coach cannot audit is a figure they argue with instead of act on. */}
-        <p className="text-[11px] leading-tight text-ink-500">
+        <p className="text-micro leading-tight text-ink-500">
           <span className="stat-mono text-ink-200">{clear}</span> of{" "}
           <span className="stat-mono text-ink-200">{total}</span> members in your book have no open
           care gap.{" "}
@@ -152,7 +151,7 @@ function GapCard({ gap, client }: { gap: Gap; client: Client }) {
             </Badge>
             <Badge tone={OWNER_TONE[gap.owner]}>{gap.owner}</Badge>
             {gap.dueOn && (
-              <span className="stat-mono text-[10px] text-ink-600">
+              <span className="stat-mono text-micro text-ink-600">
                 {gap.daysOverdue > 0
                   ? `${gap.daysOverdue}d past ${formatDate(gap.dueOn)}`
                   : `due ${formatDate(gap.dueOn)}`}
@@ -191,13 +190,13 @@ function GapCard({ gap, client }: { gap: Gap; client: Client }) {
           <p className="label-eyebrow mb-1.5">Evidence</p>
           <ul className="space-y-1">
             {gap.evidence.filter(Boolean).map((e, i) => (
-              <li key={i} className="flex gap-2 text-[11px] leading-snug text-ink-300">
+              <li key={i} className="flex gap-2 text-micro leading-snug text-ink-300">
                 <Activity className="mt-px h-3 w-3 shrink-0 text-ink-600" />
                 <span>{e}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[11px] leading-snug text-ink-400">
+          <p className="mt-2 text-micro leading-snug text-ink-400">
             <span className="text-ink-500">Suggested next step · </span>
             {gap.suggestedAction}
             <span className="text-ink-600"> ({gap.owner})</span>
@@ -246,7 +245,7 @@ export function CareGaps({ coachId }: { coachId: string }) {
       {/* Filters. Base grid-cols-1 so the controls stack on a phone rather than
           sizing to content and pushing the board sideways. */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr_1fr] sm:items-center">
-        <div className="flex items-center gap-1.5 text-[11px] text-ink-500">
+        <div className="flex items-center gap-1.5 text-micro text-ink-500">
           <Filter className="h-3.5 w-3.5" />
           <span>
             Showing <span className="stat-mono text-ink-200">{filtered.length}</span> of{" "}
@@ -294,16 +293,16 @@ export function CareGaps({ coachId }: { coachId: string }) {
           />
         )
       ) : (
-        <Stagger className="space-y-4">
+        <div className="space-y-4">
           {groups.map((group) => {
             const m = SEVERITY_META[group.severity];
             return (
-              <StaggerItem key={group.severity}>
+              <div key={group.severity}>
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <h3 className="font-display text-sm font-semibold text-ink-50">{m.label}</h3>
-                    <span className="stat-mono text-xs text-ink-500">{group.gaps.length}</span>
-                    <p className="text-[11px] text-ink-600">{m.blurb}</p>
+                    <h3 className="font-display text-body font-semibold text-ink-50">{m.label}</h3>
+                    <span className="stat-mono text-detail text-ink-500">{group.gaps.length}</span>
+                    <p className="text-micro text-ink-600">{m.blurb}</p>
                   </div>
                   <div className="space-y-1.5">
                     {group.gaps.map((gap) => {
@@ -316,13 +315,13 @@ export function CareGaps({ coachId }: { coachId: string }) {
                     })}
                   </div>
                 </div>
-              </StaggerItem>
+              </div>
             );
           })}
-        </Stagger>
+        </div>
       )}
 
-      <p className="text-[11px] leading-snug text-ink-600">
+      <p className="text-micro leading-snug text-ink-600">
         A care gap is a gap in care, not an unsold product. Every row here comes from the member&apos;s
         own plan of care, panel, protocol or calendar — nothing is surfaced because it would sell.
       </p>

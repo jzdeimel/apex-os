@@ -50,7 +50,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         {isMember ? (
           /* ── Member: where you're cared for, and how to reach a person ── */
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex items-center gap-1.5 text-sm text-ink-300">
+            <span className="flex items-center gap-1.5 text-body text-ink-300">
               <HeartPulse className="h-4 w-4 text-optimal" />
               <span className="truncate font-medium text-ink-100">
                 {member ? member.firstName : "Your"} · Alpha Health
@@ -58,7 +58,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             </span>
             <a
               href={`tel:${BRAND.telehealthPhone}`}
-              className="hidden items-center gap-1.5 rounded-full border border-ink-800 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-300 transition-colors hover:border-ink-700 hover:text-ink-100 focus-ring sm:inline-flex"
+              className="hidden items-center gap-1.5 rounded-full border border-ink-800 bg-ink-900/60 px-2.5 py-1 text-micro text-ink-300 transition-colors hover:border-ink-700 hover:text-ink-100 focus-ring sm:inline-flex"
             >
               <Phone className="h-3 w-3" />
               {BRAND.telehealthPhone}
@@ -69,11 +69,11 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           <>
             <button
               onClick={openCommand}
-              className="relative hidden h-9 max-w-sm flex-1 items-center rounded-lg border border-ink-800 bg-ink-900/70 pl-9 pr-2 text-left text-sm text-ink-500 transition-colors hover:border-ink-700 sm:flex"
+              className="relative hidden h-9 max-w-sm flex-1 items-center rounded-lg border border-ink-800 bg-ink-900/70 pl-9 pr-2 text-left text-body text-ink-500 transition-colors hover:border-ink-700 sm:flex"
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
               {portal.id === "clinic" ? "Find a patient, lab or protocol…" : "Find a member, order or task…"}
-              <kbd className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-500">
+              <kbd className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-micro text-ink-500">
                 ⌘K
               </kbd>
             </button>
@@ -100,7 +100,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           className="h-3.5 w-3.5 shrink-0"
           style={{ color: isMember ? "#34d399" : undefined }}
         />
-        <p className="text-[11px] text-ink-400">
+        <p className="text-micro text-ink-400">
           {isMember ? (
             <>
               Demonstration build. Synthetic data — not a real health record, and

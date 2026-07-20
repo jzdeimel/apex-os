@@ -69,7 +69,7 @@ export function ConsultCard({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-display text-sm font-semibold text-ink-50">
+              <span className="font-display text-body font-semibold text-ink-50">
                 {consult.kind}
               </span>
               <Badge tone={signed ? "optimal" : "watch"}>
@@ -82,7 +82,7 @@ export function ConsultCard({
               )}
             </div>
 
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-detail text-ink-500">
               {staffName(consult.authorId)} · {consult.channel} ·{" "}
               <span className="stat-mono">{formatDateTime(consult.startedAt)}</span>
               {consult.durationMin != null && (
@@ -94,12 +94,12 @@ export function ConsultCard({
             </p>
 
             {summary && (
-              <p className="mt-2 line-clamp-2 text-sm text-ink-200">{summary.headline}</p>
+              <p className="mt-2 line-clamp-2 text-body text-ink-200">{summary.headline}</p>
             )}
 
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {summary && (
-                <span className="stat-mono text-[11px] text-ink-500">
+                <span className="stat-mono text-micro text-ink-500">
                   {findingCount(summary)} findings
                 </span>
               )}
@@ -150,7 +150,7 @@ export function ConsultCard({
                     <ConsultSummaryView summary={summary} raw={consult.rawNotes} />
                   </>
                 ) : (
-                  <p className="text-sm text-ink-500">
+                  <p className="text-body text-ink-500">
                     No summary yet — this consult is still in progress.
                   </p>
                 )}
@@ -164,8 +164,8 @@ export function ConsultCard({
                           key={a.id}
                           className="rounded-lg border border-ink-700 bg-ink-900/50 p-3"
                         >
-                          <p className="text-sm text-ink-200">{a.text}</p>
-                          <p className="mt-1 text-[11px] text-ink-500">
+                          <p className="text-body text-ink-200">{a.text}</p>
+                          <p className="mt-1 text-micro text-ink-500">
                             {staffName(a.authorId)} ·{" "}
                             <span className="stat-mono">{formatDateTime(a.at)}</span> ·{" "}
                             {a.reason}
@@ -181,7 +181,7 @@ export function ConsultCard({
                 <div className="mt-5">
                   <button
                     onClick={() => setShowRaw((s) => !s)}
-                    className="focus-ring inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-ink-400 transition-colors hover:text-gold-300"
+                    className="focus-ring inline-flex items-center gap-1.5 rounded-md text-detail font-medium text-ink-400 transition-colors hover:text-gold-300"
                   >
                     <FileText className="h-3.5 w-3.5" />
                     {showRaw ? "Hide original notes" : "View original notes"}
@@ -195,10 +195,10 @@ export function ConsultCard({
                         transition={{ duration: 0.25, ease: EASE }}
                         className="overflow-hidden"
                       >
-                        <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-ink-700 bg-ink-950/60 p-3 font-mono text-xs leading-relaxed text-ink-300">
+                        <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-ink-700 bg-ink-950/60 p-3 font-mono text-detail leading-relaxed text-ink-300">
                           {consult.rawNotes}
                         </pre>
-                        <p className="mt-1.5 text-[11px] text-ink-600">
+                        <p className="mt-1.5 text-micro text-ink-600">
                           Verbatim, as typed. Immutable — corrections are recorded as
                           addenda, never as edits to this text.
                         </p>

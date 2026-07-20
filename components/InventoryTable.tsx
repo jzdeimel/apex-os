@@ -15,9 +15,9 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
   }
   return (
     <div className="card overflow-x-auto">
-      <table className="w-full min-w-[760px] text-sm">
+      <table className="w-full min-w-[760px] text-body">
         <thead>
-          <tr className="border-b border-ink-800 text-left text-[11px] uppercase tracking-wider text-ink-500">
+          <tr className="border-b border-ink-800 text-left text-micro uppercase tracking-wider text-ink-500">
             <th className="px-4 py-3 font-medium">Product</th>
             <th className="px-4 py-3 font-medium">SKU</th>
             <th className="px-4 py-3 font-medium">Location</th>
@@ -36,20 +36,20 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
                   <PeptideIcon name={i.name} size="sm" />
                   <div>
                     <span className="block font-medium text-ink-50">{i.name}</span>
-                    <span className="text-[11px] text-ink-500">{i.category}</span>
+                    <span className="text-micro text-ink-500">{i.category}</span>
                   </div>
                 </div>
               </td>
-              <td className="px-4 py-3 stat-mono text-xs text-ink-400">{i.sku}</td>
+              <td className="px-4 py-3 stat-mono text-detail text-ink-400">{i.sku}</td>
               <td className="px-4 py-3 text-ink-300">{locationName(i.locationId)}</td>
               <td className="px-4 py-3 text-right">
                 <span className="stat-mono font-semibold text-ink-50">{i.quantity}</span>
-                <span className="ml-1 text-[11px] text-ink-500">{i.unit}</span>
-                <div className="text-[10px] text-ink-600">reorder ≤ {i.reorderPoint}</div>
+                <span className="ml-1 text-micro text-ink-500">{i.unit}</span>
+                <div className="text-micro text-ink-600">reorder ≤ {i.reorderPoint}</div>
               </td>
-              <td className="px-4 py-3 stat-mono text-xs text-ink-400">{i.lotNumber}</td>
-              <td className="px-4 py-3 stat-mono text-xs text-ink-300">{formatDate(i.expirationDate)}</td>
-              <td className="px-4 py-3 text-xs text-ink-300">{vendorMap[i.vendorId]?.name ?? i.vendorId}</td>
+              <td className="px-4 py-3 stat-mono text-detail text-ink-400">{i.lotNumber}</td>
+              <td className="px-4 py-3 stat-mono text-detail text-ink-300">{formatDate(i.expirationDate)}</td>
+              <td className="px-4 py-3 text-detail text-ink-300">{vendorMap[i.vendorId]?.name ?? i.vendorId}</td>
               <td className="px-4 py-3"><InventoryStatusBadge status={i.status} /></td>
             </tr>
           ))}

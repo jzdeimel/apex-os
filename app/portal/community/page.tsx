@@ -27,7 +27,7 @@
 import { useState } from "react";
 import { COACH_GROUP_ID, challenges, groupFor, handleFor, meetups, postsForGroup, wins } from "@/lib/mock/community";
 import { Tabs } from "@/components/ui/Tabs";
-import { SwitchView } from "@/components/motion";
+import { SwitchView } from "@/components/portal/still";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { WinsWall } from "@/components/community/WinsWall";
 import { Challenges } from "@/components/community/Challenges";
@@ -86,7 +86,7 @@ export default function PortalCommunityPage() {
       {/* The rule, said plainly to the member once per page rather than only at
           the moment they trip it. People follow a norm they were told about;
           they resent one they only discover by being blocked. */}
-      <p className="max-w-prose border-t border-ink-700/60 pt-5 text-xs leading-relaxed text-ink-500">
+      <p className="max-w-prose border-t border-ink-700/60 pt-5 text-micro leading-relaxed text-ink-500">
         Anything about medication, dosing or your lab results goes to your care team, not the
         group — post it here and we&apos;ll offer to send it straight to your provider instead.
         What works for someone else can be wrong for you, and nobody here can see your chart.

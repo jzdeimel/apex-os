@@ -13,7 +13,7 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn("p-5 pb-3", className)} {...props} />;
 }
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("font-display text-base font-semibold text-ink-50", className)} {...props} />;
+  return <h3 className={cn("font-display text-body font-semibold text-ink-50", className)} {...props} />;
 }
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("p-5 pt-0", className)} {...props} />;
@@ -34,8 +34,8 @@ const buttonVariants: Record<ButtonVariant, string> = {
   success: "bg-optimal/15 text-optimal border border-optimal/30 hover:bg-optimal/25",
 };
 const buttonSizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-xs gap-1.5",
-  md: "h-9 px-4 text-sm gap-2",
+  sm: "h-8 px-3 text-detail gap-1.5",
+  md: "h-9 px-4 text-body gap-2",
   icon: "h-9 w-9",
 };
 
@@ -103,7 +103,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-sm text-ink-100 placeholder:text-ink-500 focus-ring",
+        "h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-body text-ink-100 placeholder:text-ink-500 focus-ring",
         className,
       )}
       {...props}
@@ -117,7 +117,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     <select
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-sm text-ink-100 focus-ring appearance-none",
+        "h-9 w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 text-body text-ink-100 focus-ring appearance-none",
         className,
       )}
       {...props}
@@ -133,7 +133,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 focus-ring",
+        "w-full rounded-lg border border-ink-700 bg-ink-900/70 px-3 py-2 text-body text-ink-100 placeholder:text-ink-500 focus-ring",
         className,
       )}
       {...props}
@@ -158,7 +158,7 @@ export function Progress({ value, className, tone = "gold" }: { value: number; c
 // Section heading
 // ---------------------------------------------------------------------------
 export function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <h2 className={cn("font-display text-lg font-semibold text-ink-50", className)}>{children}</h2>;
+  return <h2 className={cn("font-display text-heading font-semibold text-ink-50", className)}>{children}</h2>;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,8 +168,8 @@ export function EmptyState({ icon, title, hint }: { icon?: React.ReactNode; titl
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-700 px-6 py-12 text-center">
       {icon && <div className="mb-3 text-ink-500">{icon}</div>}
-      <p className="text-sm font-medium text-ink-300">{title}</p>
-      {hint && <p className="mt-1 text-xs text-ink-500">{hint}</p>}
+      <p className="text-body font-medium text-ink-300">{title}</p>
+      {hint && <p className="mt-1 text-detail text-ink-500">{hint}</p>}
     </div>
   );
 }

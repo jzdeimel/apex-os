@@ -81,15 +81,15 @@ function ChangeRow({ item }: { item: VisitChange }) {
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <p className={cn("text-[13px] font-medium", high ? "text-ink-50" : "text-ink-200")}>
+          <p className={cn("text-detail font-medium", high ? "text-ink-50" : "text-ink-200")}>
             {item.headline}
           </p>
           <Badge tone="neutral">{COACH_CHANGE_KIND_LABEL[item.kind]}</Badge>
           {high && <Badge tone="high">Before you call</Badge>}
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-ink-400">{item.detail}</p>
+        <p className="mt-1 text-detail leading-relaxed text-ink-400">{item.detail}</p>
         <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="stat-mono text-[10px] text-ink-600">{formatDateTime(item.at)}</span>
+          <span className="stat-mono text-micro text-ink-600">{formatDateTime(item.at)}</span>
           {/* Only render a chip where there is a record to point at. The
               unsourced case is handled once, in the card footer, rather than
               repeated on every derived row — see the note there. */}
@@ -130,7 +130,7 @@ export function SinceLastVisitCard({
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="label-eyebrow">Since you last saw them</p>
-          <p className="mt-0.5 text-sm font-medium leading-snug text-ink-50">{diff.headline}</p>
+          <p className="mt-0.5 text-body font-medium leading-snug text-ink-50">{diff.headline}</p>
         </div>
         {diff.needsAttention > 0 && (
           <Badge tone="high">
@@ -145,7 +145,7 @@ export function SinceLastVisitCard({
           actively misleading — so the degraded cases get a warning tone. */}
       <p
         className={cn(
-          "mt-1.5 text-[11px] leading-relaxed",
+          "mt-1.5 text-micro leading-relaxed",
           diff.baseline.kind === "consult-with-me" ? "text-ink-500" : "text-watch",
         )}
       >
@@ -156,7 +156,7 @@ export function SinceLastVisitCard({
       </p>
 
       {diff.items.length === 0 ? (
-        <p className="mt-2.5 rounded-xl border border-dashed border-ink-700 px-3 py-4 text-center text-xs text-ink-500">
+        <p className="mt-2.5 rounded-xl border border-dashed border-ink-700 px-3 py-4 text-center text-detail text-ink-500">
           Nothing has been recorded against this member since then. That is a real answer, not an
           empty panel — no labs, no orders, no messages, no journal entries.
         </p>
@@ -172,7 +172,7 @@ export function SinceLastVisitCard({
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="focus-ring mt-2 inline-flex items-center gap-1 rounded text-[11px] font-medium text-ink-400 transition-colors hover:text-ink-100"
+              className="focus-ring mt-2 inline-flex items-center gap-1 rounded text-micro font-medium text-ink-400 transition-colors hover:text-ink-100"
             >
               {open ? (
                 <>
@@ -197,7 +197,7 @@ export function SinceLastVisitCard({
         got a chip would not be.
       */}
       {derived > 0 && (
-        <p className="mt-2 border-t border-ink-800 pt-2 text-[10px] leading-relaxed text-ink-600">
+        <p className="mt-2 border-t border-ink-800 pt-2 text-micro leading-relaxed text-ink-600">
           {derived} of these {diff.items.length} lines are derived from engines that do not return a
           source row, so they carry no chip. They are summaries of the record, not quotations from
           it.
@@ -226,7 +226,7 @@ export function SinceLastVisitInline({
   return (
     <span
       className={cn(
-        "stat-mono whitespace-nowrap text-xs",
+        "stat-mono whitespace-nowrap text-detail",
         diff.needsAttention ? "text-high" : diff.items.length ? "text-ink-300" : "text-ink-600",
       )}
       title={`${diff.headline} — ${diff.baseline.note}`}

@@ -1,7 +1,6 @@
 "use client";
 
 import { EscalationQueue } from "@/components/escalations/EscalationQueue";
-import { FadeIn } from "@/components/motion";
 
 /**
  * Clinic · Escalations — the provider inbox.
@@ -14,21 +13,19 @@ import { FadeIn } from "@/components/motion";
  */
 export default function ClinicEscalationsPage() {
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">CLINIC</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Escalations
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-2 text-body text-ink-400">
           Everything a coach has handed to a provider, with the clock running. Overdue first —
           because an escalation nobody can see the state of is the same as no escalation.
         </p>
-      </FadeIn>
+      </header>
 
-      <FadeIn delay={0.05}>
         <EscalationQueue />
-      </FadeIn>
     </div>
   );
 }

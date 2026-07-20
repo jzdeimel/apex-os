@@ -289,7 +289,7 @@ export function atRiskToday(clientId: string, nowIso: string = NOW): RiskState |
     }));
 
   // Parse the hour straight out of the pinned ISO string. Going through
-  // `absolute(nowIso).getHours()` reads LOCAL hours from a zoneless string, so
+  // `absolute(nowIso).getUTCHours()` reads LOCAL hours from a zoneless string, so
   // a UTC server and a non-UTC browser rendered different "Nh left" copy — a
   // hydration mismatch on text the member reads.
   const hoursLeft = Math.max(0, 24 - Number(nowIso.slice(11, 13)));

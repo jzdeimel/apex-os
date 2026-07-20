@@ -107,9 +107,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-ink-200">{label}</span>
+      <span className="mb-1.5 block text-body font-medium text-ink-200">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-ink-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-detail text-ink-500">{hint}</span>}
     </label>
   );
 }
@@ -147,8 +147,8 @@ function ChoiceChip({
         {selected && <Check className="h-3.5 w-3.5" />}
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-ink-100">{plain}</span>
-        <span className="block text-xs text-ink-500">{title}</span>
+        <span className="block text-body font-medium text-ink-100">{plain}</span>
+        <span className="block text-detail text-ink-500">{title}</span>
       </span>
     </button>
   );
@@ -168,8 +168,8 @@ function YesNo({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-700 bg-ink-900/40 p-3.5">
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-ink-100">{label}</p>
-        {detail && <p className="mt-0.5 text-xs text-ink-500">{detail}</p>}
+        <p className="text-body text-ink-100">{label}</p>
+        {detail && <p className="mt-0.5 text-detail text-ink-500">{detail}</p>}
       </div>
       <div className="flex shrink-0 gap-1 rounded-lg border border-ink-700 p-1">
         {[
@@ -181,7 +181,7 @@ function YesNo({
             type="button"
             onClick={() => onChange(o.v)}
             className={cn(
-              "rounded-md px-3 py-1 text-xs font-medium transition-colors focus-ring",
+              "rounded-md px-3 py-1 text-detail font-medium transition-colors focus-ring",
               value === o.v ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
             )}
           >
@@ -297,8 +297,8 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
       <div className="lg:sticky lg:top-6 lg:self-start">
         <div className="lg:hidden">
           <div className="mb-2 flex items-baseline justify-between">
-            <p className="text-sm font-medium text-ink-100">{step.label}</p>
-            <p className="stat-mono text-xs text-ink-500">
+            <p className="text-body font-medium text-ink-100">{step.label}</p>
+            <p className="stat-mono text-detail text-ink-500">
               {stepIndex + 1}/{STEPS.length}
             </p>
           </div>
@@ -332,7 +332,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                 </span>
                 <span
                   className={cn(
-                    "pt-1 text-sm",
+                    "pt-1 text-body",
                     active ? "font-medium text-ink-50" : done ? "text-ink-300" : "text-ink-500",
                   )}
                 >
@@ -405,7 +405,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                           type="button"
                           onClick={() => set("sex", t)}
                           className={cn(
-                            "h-9 flex-1 rounded-lg border text-sm transition-colors focus-ring",
+                            "h-9 flex-1 rounded-lg border text-body transition-colors focus-ring",
                             answers.sex === t
                               ? "border-gold-400/50 bg-gold-400/10 text-gold-200"
                               : "border-ink-700 text-ink-300 hover:border-ink-600",
@@ -420,7 +420,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
 
                 <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-ink-700/70 bg-ink-900/40 p-3.5">
                   <Lock className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" />
-                  <p className="text-xs leading-relaxed text-ink-400">
+                  <p className="text-detail leading-relaxed text-ink-400">
                     Your answers are stored by {BRAND.name} and visible to your care team
                     only. Every time a staff member opens your record it is logged, and you
                     can see that log yourself once your account is active.
@@ -486,7 +486,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                   </Field>
 
                   <div>
-                    <span className="mb-1.5 block text-sm font-medium text-ink-200">
+                    <span className="mb-1.5 block text-body font-medium text-ink-200">
                       Current medications and supplements
                     </span>
                     <div className="space-y-2">
@@ -598,15 +598,15 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                         )}
                       >
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-medium text-ink-50">{d.title}</p>
+                          <p className="text-body font-medium text-ink-50">{d.title}</p>
                           <Badge tone={d.required ? "neutral" : "gold"}>
                             {d.required ? "Required" : "Optional"}
                           </Badge>
                         </div>
-                        <p className="mt-0.5 text-[11px] uppercase tracking-[0.12em] text-ink-500">
+                        <p className="mt-0.5 text-micro uppercase tracking-[0.12em] text-ink-500">
                           {d.regime}
                         </p>
-                        <p className="mt-2.5 text-sm leading-relaxed text-ink-300">{d.body}</p>
+                        <p className="mt-2.5 text-body leading-relaxed text-ink-300">{d.body}</p>
 
                         <label className="mt-3.5 flex cursor-pointer items-start gap-3 rounded-lg border border-ink-700/70 bg-ink-950/40 p-3 focus-within:ring-2 focus-within:ring-gold-400/40">
                           <input
@@ -617,7 +617,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                               setConsentState((s) => ({ ...s, [d.kind]: e.target.checked }))
                             }
                           />
-                          <span className="text-sm text-ink-200">
+                          <span className="text-body text-ink-200">
                             {d.kind === "hipaaNotice"
                               ? "I acknowledge I received this notice."
                               : d.kind === "marketing"
@@ -626,7 +626,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                           </span>
                         </label>
 
-                        <p className="stat-mono mt-2 text-[11px] text-ink-600">
+                        <p className="stat-mono mt-2 text-micro text-ink-600">
                           v{d.version} · text {shortHash(consentTextHash(d.kind))}
                         </p>
                       </div>
@@ -634,7 +634,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                   })}
                 </div>
 
-                <p className="mt-4 text-xs leading-relaxed text-ink-500">
+                <p className="mt-4 text-detail leading-relaxed text-ink-500">
                   Each box you tick is recorded as its own signature, against the exact
                   wording above — which is why the version and text hash are printed on
                   each one. Rewriting this copy later creates a new version rather than
@@ -650,13 +650,13 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
               >
                 <div className="space-y-3">
                   <ReviewBlock label="You">
-                    <p className="text-sm text-ink-200">
+                    <p className="text-body text-ink-200">
                       {answers.firstName} {answers.lastName}
                     </p>
-                    <p className="stat-mono text-xs text-ink-500">
+                    <p className="stat-mono text-detail text-ink-500">
                       {answers.email} · {answers.phone} · DOB {answers.dateOfBirth || "—"}
                     </p>
-                    <p className="mt-1 text-xs text-ink-500">
+                    <p className="mt-1 text-detail text-ink-500">
                       {answers.sex === "female" ? "Women's health" : "Men's health"} ·{" "}
                       {location?.name ?? answers.locationId}
                     </p>
@@ -671,10 +671,10 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                   </ReviewBlock>
 
                   <ReviewBlock label="History">
-                    <p className="text-sm text-ink-300">
+                    <p className="text-body text-ink-300">
                       {answers.history.conditions.trim() || "No conditions listed"}
                     </p>
-                    <p className="mt-1 text-xs text-ink-500">
+                    <p className="mt-1 text-detail text-ink-500">
                       Medications:{" "}
                       {answers.history.medications.filter((m) => m.name.trim()).length
                         ? answers.history.medications
@@ -683,7 +683,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                             .join(", ")
                         : "none listed"}
                     </p>
-                    <p className="mt-1 text-xs text-ink-500">
+                    <p className="mt-1 text-detail text-ink-500">
                       Allergies: {answers.history.allergies.trim() || "none listed"}
                     </p>
                   </ReviewBlock>
@@ -691,7 +691,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                   <ReviewBlock label="Consents">
                     <ul className="space-y-1">
                       {CONSENT_DEFINITIONS.map((d) => (
-                        <li key={d.kind} className="flex items-center gap-2 text-sm">
+                        <li key={d.kind} className="flex items-center gap-2 text-body">
                           <span
                             className={cn(
                               "grid h-4 w-4 shrink-0 place-items-center rounded-full",
@@ -707,7 +707,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                             )}
                           </span>
                           <span className="text-ink-300">{d.title}</span>
-                          <span className="text-xs text-ink-500">
+                          <span className="text-detail text-ink-500">
                             {consentState[d.kind] ? "granted" : "declined"}
                           </span>
                         </li>
@@ -718,12 +718,12 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
 
                 <Button
                   variant="primary"
-                  className="mt-5 h-11 w-full text-sm"
+                  className="mt-5 h-11 w-full text-body"
                   onClick={() => setSubmitted(true)}
                 >
                   Submit intake
                 </Button>
-                <p className="mt-2 text-center text-xs text-ink-600">
+                <p className="mt-2 text-center text-detail text-ink-600">
                   Demo — nothing is transmitted. The next screen shows exactly what would
                   be written.
                 </p>
@@ -734,7 +734,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
             {step.id !== "review" && (
               <div className="mt-6 border-t border-ink-700/70 pt-4">
                 {touchedNext && blockedBecause && (
-                  <p className="mb-3 text-sm text-high">{blockedBecause}</p>
+                  <p className="mb-3 text-body text-high">{blockedBecause}</p>
                 )}
                 <div className="flex items-center justify-between gap-3">
                   <Button
@@ -783,8 +783,8 @@ function StepShell({
 }) {
   return (
     <div>
-      <h2 className="font-display text-xl font-semibold tracking-tight text-ink-50">{title}</h2>
-      <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-400">{blurb}</p>
+      <h2 className="font-display text-heading font-semibold tracking-tight text-ink-50">{title}</h2>
+      <p className="mt-1.5 max-w-prose text-body leading-relaxed text-ink-400">{blurb}</p>
       <div className="mt-5">{children}</div>
     </div>
   );
@@ -800,7 +800,7 @@ function ReviewBlock({ label, children }: { label: string; children: React.React
 }
 
 function TagList({ items, empty }: { items: string[]; empty: string }) {
-  if (!items.length) return <p className="text-sm text-ink-500">{empty}</p>;
+  if (!items.length) return <p className="text-body text-ink-500">{empty}</p>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((i) => (
@@ -869,10 +869,10 @@ function SubmittedPanel({
             <Check className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-display text-xl font-semibold tracking-tight text-ink-50">
+            <h2 className="font-display text-heading font-semibold tracking-tight text-ink-50">
               Thanks, {answers.firstName || "there"} — that's everything we needed.
             </h2>
-            <p className="text-sm text-ink-400">
+            <p className="text-body text-ink-400">
               Your care team has it. Here's what happens from here.
             </p>
           </div>
@@ -890,26 +890,26 @@ function SubmittedPanel({
             >
               <span
                 className={cn(
-                  "stat-mono grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                  "stat-mono grid h-7 w-7 shrink-0 place-items-center rounded-full text-detail font-semibold",
                   i === 0 ? "bg-gold-500 text-white" : "bg-ink-800 text-ink-400",
                 )}
               >
                 {j.step}
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-ink-100">
+                <p className="text-body font-medium text-ink-100">
                   {j.title}
                   {i === 0 && (
-                    <span className="ml-2 text-xs font-normal text-gold-300">you're here</span>
+                    <span className="ml-2 text-detail font-normal text-gold-300">you're here</span>
                   )}
                 </p>
-                <p className="mt-0.5 text-sm leading-relaxed text-ink-400">{j.detail}</p>
+                <p className="mt-0.5 text-body leading-relaxed text-ink-400">{j.detail}</p>
               </div>
             </li>
           ))}
         </ol>
 
-        <p className="mt-4 text-sm text-ink-400">
+        <p className="mt-4 text-body text-ink-400">
           Someone from the team calls within one business day to book your free
           consultation. If you'd rather not wait, call{" "}
           <a href={`tel:${BRAND.telehealthPhone}`} className="text-gold-300 hover:underline">
@@ -922,12 +922,12 @@ function SubmittedPanel({
         <div className="mt-7 rounded-xl border border-dashed border-ink-700 bg-ink-900/40 p-4">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gold-300" />
-            <p className="text-sm font-medium text-ink-100">
+            <p className="text-body font-medium text-ink-100">
               What this would create (demo — nothing was sent)
             </p>
           </div>
 
-          <ul className="mt-3 space-y-1.5 text-sm text-ink-300">
+          <ul className="mt-3 space-y-1.5 text-body text-ink-300">
             <li>
               · One <span className="text-ink-100">Client</span> record at status{" "}
               <span className="text-ink-100">Consult Booked</span>, with{" "}
@@ -951,10 +951,10 @@ function SubmittedPanel({
           </ul>
 
           <p className="label-eyebrow mt-4 mb-2">Ledger row that would be appended</p>
-          <pre className="stat-mono overflow-x-auto rounded-lg border border-ink-700/70 bg-ink-950/70 p-3 text-[11px] leading-relaxed text-ink-300">
+          <pre className="stat-mono overflow-x-auto rounded-lg border border-ink-700/70 bg-ink-950/70 p-3 text-micro leading-relaxed text-ink-300">
 {JSON.stringify(ledgerDraft, null, 2)}
           </pre>
-          <p className="mt-2 text-xs leading-relaxed text-ink-500">
+          <p className="mt-2 text-detail leading-relaxed text-ink-500">
             Note the action is <span className="text-ink-300">sign</span> and the entity is{" "}
             <span className="text-ink-300">consent</span>. A signature that leaves no
             hash-chained trace is a signature you cannot defend two years later.

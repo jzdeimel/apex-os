@@ -112,7 +112,7 @@ export function isTravellingOn(clientId: string, date: string): boolean {
 
 function addDays(date: string, n: number): string {
   const d = absolute(`${date}T12:00:00`);
-  d.setDate(d.getDate() + n);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 

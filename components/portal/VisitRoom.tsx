@@ -46,7 +46,7 @@ import { latestConsult } from "@/lib/mock/consults";
 import { staffMap } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { Badge, Button, Card, CardContent, EmptyState } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
+import { FadeIn, Stagger, StaggerItem } from "@/components/portal/still";
 import { me } from "@/components/portal/PortalHeader";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -85,10 +85,10 @@ export function VisitRoom({ apptId }: { apptId: string }) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="label-eyebrow">{state.appointment.type}</p>
-                  <h2 className="mt-1.5 font-display text-xl font-semibold leading-tight text-ink-50">
+                  <h2 className="mt-1.5 font-display text-title font-semibold leading-tight text-ink-50">
                     {formatDateTime(state.appointment.start)}
                   </h2>
-                  <p className="mt-1 text-[13px] text-ink-400">
+                  <p className="mt-1 text-detail text-ink-400">
                     {clinician?.name ?? "Your care team"}
                     {clinician?.credentials ? `, ${clinician.credentials}` : ""} ·{" "}
                     {locationName(state.appointment.locationId)}
@@ -107,35 +107,35 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                 </Badge>
               </div>
 
-              <p className="mt-3 text-[13px] leading-relaxed text-ink-400">{state.joinHint}</p>
+              <p className="mt-3 text-detail leading-relaxed text-ink-400">{state.joinHint}</p>
 
               {/* The stage. A frame rather than a fake video feed — a mocked
                   face on a screenshot is the kind of thing that ends up in a
                   slide deck being mistaken for a working product. */}
-              <div className="mt-4 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900/70">
+              <div className="mt-4 overflow-hidden rounded-panel border border-ink-700 bg-ink-900/70">
                 <div className="flex aspect-video flex-col items-center justify-center gap-2 px-5 text-center">
                   {joined ? (
                     <>
                       <Loader2 className="h-6 w-6 animate-spin text-gold-300 motion-reduce:animate-none" />
-                      <p className="text-sm font-medium text-ink-100">Connecting to the room…</p>
-                      <p className="max-w-sm text-xs leading-relaxed text-ink-500">
+                      <p className="text-detail font-medium text-ink-100">Connecting to the room…</p>
+                      <p className="max-w-sm text-micro leading-relaxed text-ink-500">
                         Demo build — no session is established and no media is captured.
                       </p>
                     </>
                   ) : (
                     <>
                       <Video className="h-6 w-6 text-ink-500" />
-                      <p className="text-sm font-medium text-ink-200">
+                      <p className="text-detail font-medium text-ink-200">
                         {state.ready ? "Ready when you are" : "Finish the checks below first"}
                       </p>
-                      <p className="max-w-sm text-xs leading-relaxed text-ink-500">
+                      <p className="max-w-sm text-micro leading-relaxed text-ink-500">
                         You'll see your own preview before anyone else can see you.
                       </p>
                     </>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-700 bg-ink-850/70 px-4 py-3">
-                  <div className="flex items-center gap-2 text-xs text-ink-400">
+                  <div className="flex items-center gap-2 text-micro text-ink-400">
                     <Lock className="h-3.5 w-3.5" />
                     <span>Not recorded</span>
                     <Circle className="h-1 w-1 fill-ink-600 text-ink-600" />
@@ -156,12 +156,12 @@ export function VisitRoom({ apptId }: { apptId: string }) {
               </div>
 
               {state.room && (
-                <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+                <p className="mt-3 text-micro leading-relaxed text-ink-500">
                   Room <span className="stat-mono">{state.room.roomId}</span> · roster of{" "}
                   <span className="stat-mono">{state.room.participants.length}</span>. {state.disclosure}
                 </p>
               )}
-              {state.error && <p className="mt-3 text-[13px] text-high">{state.error}</p>}
+              {state.error && <p className="mt-3 text-detail text-high">{state.error}</p>}
             </CardContent>
           </Card>
 
@@ -177,7 +177,7 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                 ))}
               </Stagger>
               {!state.ready && (
-                <p className="mt-3 text-[13px] leading-relaxed text-watch">
+                <p className="mt-3 text-detail leading-relaxed text-watch">
                   We can't start without a microphone — a visit you can't speak in isn't a visit. Everything else is
                   optional: audio-only is a real telehealth visit and your provider is used to it.
                 </p>
@@ -191,7 +191,7 @@ export function VisitRoom({ apptId }: { apptId: string }) {
               <p className="label-eyebrow">About this room</p>
               <ul className="mt-3 space-y-2">
                 {ROOM_ASSURANCES.map((a) => (
-                  <li key={a} className="flex gap-2.5 text-[13px] leading-relaxed text-ink-300">
+                  <li key={a} className="flex gap-2.5 text-detail leading-relaxed text-ink-300">
                     <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-optimal" />
                     <span>{a}</span>
                   </li>
@@ -210,25 +210,25 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                   <p className="label-eyebrow">Your plan, in front of you</p>
                   <Badge tone="neutral">{plan.status}</Badge>
                 </div>
-                <p className="mt-2.5 text-[13px] leading-relaxed text-ink-300">{plan.summary}</p>
+                <p className="mt-2.5 text-detail leading-relaxed text-ink-300">{plan.summary}</p>
 
                 <div className="mt-4 space-y-2.5">
                   {plan.protocol.slice(0, 3).map((item) => (
-                    <div key={item.id} className="rounded-xl border border-ink-700 bg-ink-900/50 p-3">
-                      <p className="text-[13px] font-medium text-ink-50">{item.title}</p>
+                    <div key={item.id} className="rounded-panel border border-ink-700 bg-ink-900/50 p-3">
+                      <p className="text-detail font-medium text-ink-50">{item.title}</p>
                       {/* Member voice, always. The engine's own `detail` is
                           written for a chart. */}
-                      <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{memberSummary(item)}</p>
+                      <p className="mt-1 text-detail leading-relaxed text-ink-400">{memberSummary(item)}</p>
                       {memberReasons(item)
                         .slice(0, 2)
                         .map((r) => (
-                          <p key={r} className="mt-1.5 flex gap-1.5 text-xs leading-relaxed text-ink-500">
+                          <p key={r} className="mt-1.5 flex gap-1.5 text-micro leading-relaxed text-ink-500">
                             <Check className="mt-0.5 h-3 w-3 shrink-0 text-optimal" />
                             <span>{r}</span>
                           </p>
                         ))}
                       {item.cadence && (
-                        <p className="mt-2 text-xs text-ink-500">
+                        <p className="mt-2 text-micro text-ink-500">
                           Cadence: <span className="stat-mono">{item.cadence}</span>
                         </p>
                       )}
@@ -244,9 +244,9 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                       { k: "carbs", v: `${plan.macros.carbsG}g` },
                       { k: "fat", v: `${plan.macros.fatG}g` },
                     ].map((m) => (
-                      <div key={m.k} className="rounded-xl border border-ink-700 bg-ink-900/50 p-2.5 text-center">
-                        <p className="stat-mono text-sm text-ink-50">{m.v}</p>
-                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-500">{m.k}</p>
+                      <div key={m.k} className="rounded-panel border border-ink-700 bg-ink-900/50 p-2.5 text-center">
+                        <p className="stat-mono text-detail text-ink-50">{m.v}</p>
+                        <p className="mt-0.5 text-micro uppercase tracking-wide text-ink-500">{m.k}</p>
                       </div>
                     ))}
                   </div>
@@ -261,7 +261,7 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                 <p className="label-eyebrow">Last time you spoke</p>
                 {lastConsult ? (
                   <>
-                    <p className="mt-2 text-[13px] text-ink-500">
+                    <p className="mt-2 text-detail text-ink-500">
                       {lastConsult.kind} · {lastConsult.channel} · {formatDate(lastConsult.startedAt)}
                     </p>
                     {/* Only what a human signed. An unsigned AI summary is a
@@ -269,13 +269,13 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                         thirty seconds before their provider joins. */}
                     {lastConsult.finalSummary ? (
                       <>
-                        <p className="mt-2.5 text-[13px] leading-relaxed text-ink-200">
+                        <p className="mt-2.5 text-detail leading-relaxed text-ink-200">
                           {lastConsult.finalSummary.headline}
                         </p>
                         {lastConsult.finalSummary.actionItems.length > 0 && (
                           <ul className="mt-3 space-y-1.5">
                             {lastConsult.finalSummary.actionItems.slice(0, 4).map((a, i) => (
-                              <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-ink-300">
+                              <li key={i} className="flex gap-2 text-detail leading-relaxed text-ink-300">
                                 <Circle className="mt-1.5 h-1.5 w-1.5 shrink-0 fill-gold-400 text-gold-400" />
                                 <span>{a.value}</span>
                               </li>
@@ -284,14 +284,14 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                         )}
                       </>
                     ) : (
-                      <p className="mt-2.5 text-[13px] leading-relaxed text-ink-400">
+                      <p className="mt-2.5 text-detail leading-relaxed text-ink-400">
                         Your coach hasn't signed off on the notes from that conversation yet, so we're not showing you a
                         draft. They'll be here as soon as they are.
                       </p>
                     )}
                   </>
                 ) : (
-                  <p className="mt-2.5 text-[13px] leading-relaxed text-ink-400">
+                  <p className="mt-2.5 text-detail leading-relaxed text-ink-400">
                     This is your first visit with us. Nothing to catch up on — come as you are.
                   </p>
                 )}
@@ -306,12 +306,12 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                 <div className="mt-3 space-y-2">
                   {state.attendees.map((a) => (
                     <div key={a.name} className="flex items-center justify-between gap-3">
-                      <span className="truncate text-[13px] text-ink-100">{a.name}</span>
-                      <span className="shrink-0 text-xs text-ink-500">{a.role}</span>
+                      <span className="truncate text-detail text-ink-100">{a.name}</span>
+                      <span className="shrink-0 text-micro text-ink-500">{a.role}</span>
                     </div>
                   ))}
                 </div>
-                <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-500">
+                <p className="mt-3 flex items-start gap-2 text-micro leading-relaxed text-ink-500">
                   <Clock className="mt-0.5 h-3 w-3 shrink-0" />
                   <span>
                     Open from <span className="stat-mono">{state.opensAt.slice(11, 16)}</span> until{" "}
@@ -336,19 +336,19 @@ function CheckRow({ check }: { check: PreflightCheck }) {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-3",
+        "flex items-start gap-3 rounded-panel border p-3",
         check.status === "ok" ? "border-ink-700 bg-ink-900/40" : "border-watch/25 bg-watch/5",
       )}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="text-[13px] font-medium text-ink-50">{check.label}</p>
+          <p className="text-detail font-medium text-ink-50">{check.label}</p>
           <StatusIcon className={cn("h-3.5 w-3.5", tone)} />
           {check.blocking && check.status !== "ok" && <Badge tone="high">Required</Badge>}
         </div>
-        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{check.detail}</p>
-        {check.fix && <p className="mt-1 text-xs leading-relaxed text-ink-500">{check.fix}</p>}
+        <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{check.detail}</p>
+        {check.fix && <p className="mt-1 text-micro leading-relaxed text-ink-500">{check.fix}</p>}
       </div>
     </div>
   );

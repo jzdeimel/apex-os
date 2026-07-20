@@ -72,8 +72,8 @@ export default function SupplyChainPage() {
     <div className="space-y-5">
       <div>
         <p className="label-eyebrow">Inventory &amp; supply chain · {locations.length} locations</p>
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-50">Supply Chain</h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50">Supply Chain</h1>
+        <p className="mt-1 text-body text-ink-400">
           Most peptides are sourced from <span className="text-gold-300">third-party vendors</span> —
           stock levels, lead times and reorders are tracked against external suppliers.
         </p>
@@ -89,7 +89,7 @@ export default function SupplyChainPage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Stock status</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">Stock status</CardTitle></CardHeader>
           <CardContent>
             <DonutCount
               data={[
@@ -105,7 +105,7 @@ export default function SupplyChainPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">On-hand value by location</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">On-hand value by location</CardTitle></CardHeader>
           <CardContent>
             <RevenueBars
               data={["raleigh", "southern-pines", "myrtle-beach"]
@@ -119,7 +119,7 @@ export default function SupplyChainPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Units by category</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">Units by category</CardTitle></CardHeader>
           <CardContent>
             <CountBars
               data={Array.from(
@@ -140,13 +140,13 @@ export default function SupplyChainPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><PackageX className="h-4 w-4 text-high" /> Low / reorder</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {low.length === 0 && <p className="text-sm text-ink-500">All stock above reorder points.</p>}
+            {low.length === 0 && <p className="text-body text-ink-500">All stock above reorder points.</p>}
             {low.map((i) => (
               <div key={i.id} className="flex items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                 <PeptideIcon name={i.name} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <span className="text-sm font-medium text-ink-100">{i.name}</span>
-                  <span className="block text-[11px] text-ink-500">{locationName(i.locationId)} · {i.quantity} {i.unit}</span>
+                  <span className="text-body font-medium text-ink-100">{i.name}</span>
+                  <span className="block text-micro text-ink-500">{locationName(i.locationId)} · {i.quantity} {i.unit}</span>
                 </div>
                 <InventoryStatusBadge status={i.status} />
               </div>
@@ -157,15 +157,15 @@ export default function SupplyChainPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><CalendarX className="h-4 w-4 text-watch" /> Expiring soon</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {expiring.length === 0 && <p className="text-sm text-ink-500">Nothing expiring within 60 days.</p>}
+            {expiring.length === 0 && <p className="text-body text-ink-500">Nothing expiring within 60 days.</p>}
             {expiring.map((i) => (
               <div key={i.id} className="flex items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                 <PeptideIcon name={i.name} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <span className="text-sm font-medium text-ink-100">{i.name}</span>
-                  <span className="block text-[11px] text-ink-500">{locationName(i.locationId)} · lot {i.lotNumber}</span>
+                  <span className="text-body font-medium text-ink-100">{i.name}</span>
+                  <span className="block text-micro text-ink-500">{locationName(i.locationId)} · lot {i.lotNumber}</span>
                 </div>
-                <span className="stat-mono text-xs text-watch">{formatDate(i.expirationDate)}</span>
+                <span className="stat-mono text-detail text-watch">{formatDate(i.expirationDate)}</span>
               </div>
             ))}
           </CardContent>
@@ -174,11 +174,11 @@ export default function SupplyChainPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><ArrowLeftRight className="h-4 w-4 text-gold-400" /> Transfer suggestions</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {transfers.length === 0 && <p className="text-sm text-ink-500">No inter-site transfers suggested.</p>}
+            {transfers.length === 0 && <p className="text-body text-ink-500">No inter-site transfers suggested.</p>}
             {transfers.map((t, i) => (
               <div key={i} className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-                <span className="text-sm font-medium text-ink-100">{t.name}</span>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-ink-400">
+                <span className="text-body font-medium text-ink-100">{t.name}</span>
+                <div className="mt-0.5 flex items-center gap-1.5 text-micro text-ink-400">
                   <span>{locationName(t.from as never)}</span>
                   <ArrowLeftRight className="h-3 w-3 text-gold-400" />
                   <span>{locationName(t.to as never)}</span>
@@ -192,7 +192,7 @@ export default function SupplyChainPage() {
 
       {/* Inventory table */}
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold text-ink-50">Inventory</h2>
+        <h2 className="font-display text-heading font-semibold text-ink-50">Inventory</h2>
         <div className="w-48">
           <Select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="all">All categories</option>
@@ -211,10 +211,10 @@ export default function SupplyChainPage() {
               {vendors.map((v) => (
                 <div key={v.id} className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                   <div className="min-w-0">
-                    <span className="text-sm font-medium text-ink-100">{v.name}</span>
-                    <span className="block truncate text-[11px] text-ink-500">{v.type} · {v.leadTimeDays}d lead · {v.contact}</span>
+                    <span className="text-body font-medium text-ink-100">{v.name}</span>
+                    <span className="block truncate text-micro text-ink-500">{v.type} · {v.leadTimeDays}d lead · {v.contact}</span>
                   </div>
-                  <span className="ml-2 inline-flex shrink-0 items-center gap-1 text-xs text-gold-300">
+                  <span className="ml-2 inline-flex shrink-0 items-center gap-1 text-detail text-gold-300">
                     <Star className="h-3 w-3 fill-gold-400 text-gold-400" /> {v.rating}
                   </span>
                 </div>
@@ -235,14 +235,14 @@ export default function SupplyChainPage() {
                 return (
                   <div key={po.id} className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="stat-mono text-sm font-medium text-ink-100">{po.id}</span>
+                      <span className="stat-mono text-body font-medium text-ink-100">{po.id}</span>
                       <Badge tone={PO_TONE[po.status]}>{po.status}</Badge>
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-ink-500">
+                    <div className="mt-1 flex items-center justify-between text-micro text-ink-500">
                       <span>{vendorMap[po.vendorId]?.name} · {locationName(po.locationId)}</span>
                       <span className="stat-mono text-ink-300">{currency(total)}</span>
                     </div>
-                    <div className="mt-1 text-[11px] text-ink-500">
+                    <div className="mt-1 text-micro text-ink-500">
                       {po.lines.map((l) => `${l.name} ×${l.quantity}`).join(" · ")}
                     </div>
                   </div>

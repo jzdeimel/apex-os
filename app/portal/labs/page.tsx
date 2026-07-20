@@ -31,7 +31,7 @@ import type { Biomarker, BiomarkerStatus } from "@/lib/types";
 import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
 import { Tabs } from "@/components/ui/Tabs";
-import { Stagger, StaggerItem, SwitchView, FadeIn } from "@/components/motion";
+import { SwitchView, FadeIn } from "@/components/portal/still";
 import { PILLARS } from "@/lib/brand";
 import { formatDate, clamp, cn } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
@@ -166,7 +166,7 @@ function RangeBar({ b }: { b: Biomarker }) {
       </div>
       {/* Endpoints carry their units so the numbers under the bar are never
           three anonymous digits floating in space. */}
-      <div className="mt-2.5 flex items-baseline justify-between gap-2 text-[10px] text-ink-600">
+      <div className="mt-2.5 flex items-baseline justify-between gap-2 text-micro text-ink-600">
         <span className="stat-mono">{b.refLow}</span>
         <span className="text-optimal">
           where we aim: <span className="stat-mono">{optLow}</span>–<span className="stat-mono">{optHigh}</span>
@@ -223,7 +223,11 @@ export default function PortalLabsPage() {
   const shown = group === "all" ? grouped : grouped.filter((g) => g.id === group);
 
   return (
-    <div className="space-y-8">
+    /* space-y-10 between the page's five blocks, against space-y-3/4 inside
+       them. The uniform space-y-8 that was here gave the header, the framing
+       panel, the counts, the filter and the results all exactly equal
+       separation, so none of them read as belonging to any other. */
+    <div className="space-y-10">
       <PortalPageHeader
         eyebrow="Your results"
         title="Your labs"
@@ -234,9 +238,9 @@ export default function PortalLabsPage() {
       {/* The frame. The clinic's own sentence, then the proof of it.        */}
       {/* ------------------------------------------------------------------ */}
       <FadeIn>
-        <div className="rounded-3xl border border-optimal/25 bg-gradient-to-br from-optimal/15 via-optimal/5 to-transparent px-5 py-7 sm:px-8 sm:py-9">
+        <div className="rounded-panel border border-optimal/25 bg-gradient-to-br from-optimal/15 via-optimal/5 to-transparent px-5 py-7 sm:px-8 sm:py-9">
           <p className="label-eyebrow">{PILLARS[0].title}</p>
-          <p className="mt-3 font-display text-[1.5rem] font-semibold leading-tight tracking-tight text-ink-50 sm:text-3xl">
+          <p className="mt-3 font-display text-title font-semibold leading-tight tracking-tight text-ink-50 sm:text-display">
             {/* Verbatim from Alpha Health. We show it because we can back it. */}
             {PILLARS[0].blurb}
           </p>
@@ -245,14 +249,14 @@ export default function PortalLabsPage() {
           <div className="mt-6 space-y-3">
             <div className="flex items-start gap-3">
               <span className="mt-1 h-2.5 w-8 shrink-0 rounded-full bg-ink-700" />
-              <p className="text-[13px] leading-relaxed text-ink-300">
+              <p className="text-detail leading-relaxed text-ink-300">
                 <span className="font-medium text-ink-100">Normal</span> — the range the lab uses for the
                 general population, sick and healthy alike.
               </p>
             </div>
             <div className="flex items-start gap-3">
               <span className="mt-1 h-2.5 w-8 shrink-0 rounded-full bg-optimal/45" />
-              <p className="text-[13px] leading-relaxed text-ink-300">
+              <p className="text-detail leading-relaxed text-ink-300">
                 <span className="font-medium text-ink-100">Where we aim</span> — the tighter window your plan
                 targets. It sits inside &ldquo;normal&rdquo;, and it is the one your provider reads.
               </p>
@@ -261,7 +265,7 @@ export default function PortalLabsPage() {
 
           {missedByNormal.length > 0 && (
             <div className="mt-6 border-t border-optimal/20 pt-5">
-              <p className="flex items-start gap-2.5 text-[15px] leading-relaxed text-ink-100">
+              <p className="flex items-start gap-2.5 text-body leading-relaxed text-ink-100">
                 <Eye className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
                 <span>
                   <span className="stat-mono font-semibold">{missedByNormal.length}</span> of your results
@@ -272,7 +276,10 @@ export default function PortalLabsPage() {
                 {missedByNormal.map((b) => (
                   <span
                     key={b.key}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-ink-600/60 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-200"
+                    /* rounded-control, not rounded-full: these are labels, not
+                       buttons, and a row of capsules around nouns is the house
+                       style of generated dashboards. */
+                    className="inline-flex items-center gap-1.5 rounded-control border border-ink-600/60 bg-ink-900/60 px-2.5 py-1 text-micro text-ink-200"
                   >
                     <Term k={b.key}>{b.name}</Term>
                     <span className="stat-mono text-ink-400">
@@ -281,7 +288,7 @@ export default function PortalLabsPage() {
                   </span>
                 ))}
               </div>
-              <p className="mt-3 text-[12px] leading-relaxed text-ink-400">
+              <p className="mt-3 text-micro leading-relaxed text-ink-400">
                 None of these is an emergency. They are the reason your plan looks the way it does.
               </p>
             </div>
@@ -298,9 +305,9 @@ export default function PortalLabsPage() {
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-baseline justify-between gap-2">
                 <Badge tone={READING[k].tone}>{READING[k].label}</Badge>
-                <span className="stat-mono text-3xl font-semibold text-ink-50">{counts[k]}</span>
+                <span className="stat-mono text-display font-semibold text-ink-50">{counts[k]}</span>
               </div>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-ink-400">{READING[k].blurb}</p>
+              <p className="mt-2.5 text-detail leading-relaxed text-ink-400">{READING[k].blurb}</p>
             </CardContent>
           </Card>
         ))}
@@ -316,72 +323,86 @@ export default function PortalLabsPage() {
         onChange={setGroup}
       />
 
-      <SwitchView k={group} className="space-y-4">
+      {/**
+       * One level of boxing, not two.
+       *
+       * Each group used to be a Card whose CardContent held a grid of further
+       * bordered, filled, rounded boxes — a card inside a card inside the page
+       * shell, for what is really just a titled list. The group title now sits
+       * on the page background as a genuine section heading and each marker is
+       * the only box on screen, which is also what lets the marker cards read
+       * as a scannable set rather than as filler inside a container.
+       *
+       * The gap between groups (40px) is deliberately much larger than the gap
+       * between markers (12px), so the grouping is legible without a border
+       * being drawn around it.
+       */}
+      <SwitchView k={group} className="space-y-10">
         {shown.map((g) => (
-          <Card key={g.id}>
-            <CardContent className="p-5 sm:p-6">
-              <h2 className="font-display text-xl font-semibold text-ink-50">{g.title}</h2>
-              <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">{g.why}</p>
+          <section key={g.id}>
+            <h2 className="font-display text-title text-ink-50">{g.title}</h2>
+            <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">{g.why}</p>
 
-              <Stagger className="mt-5 space-y-3 md:grid grid-cols-1 md:grid-cols-2 md:gap-3 md:space-y-0">
-                {g.markers.map((b) => {
-                  const r = readingFor(b.status);
-                  const missed = normalButNotOptimal(b);
-                  const prev = b.history && b.history.length > 1 ? b.history[b.history.length - 2] : null;
-                  return (
-                    <StaggerItem key={b.key}>
-                      <div
-                        className={cn(
-                          "hairline h-full rounded-2xl bg-ink-900/50 p-4 sm:p-5",
-                          // The "normal but not optimal" case earns a visible
-                          // edge — it is the case the page exists to surface.
-                          missed && "border-watch/30 bg-watch/5",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-snug text-ink-50">
-                              <Term k={b.key}>{b.name}</Term>
-                            </p>
-                            <p className="stat-mono mt-1.5 text-2xl font-semibold text-ink-50">
-                              {b.value}
-                              <span className="ml-1.5 text-xs font-normal text-ink-500">{b.unit}</span>
-                            </p>
-                          </div>
-                          <Badge tone={READING[r].tone}>{READING[r].label}</Badge>
-                        </div>
-
-                        <RangeBar b={b} />
-
-                        {missed && (
-                          <p className="mt-3 text-[12px] leading-relaxed text-watch">
-                            Normal by the lab&rsquo;s standard, outside where we aim. Tracked, not chased.
-                          </p>
-                        )}
-
-                        {prev && (
-                          <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
-                            Last panel{" "}
-                            <span className="stat-mono text-ink-400">
-                              {prev.value} {b.unit}
-                            </span>{" "}
-                            —{" "}
-                            {b.value === prev.value
-                              ? "unchanged"
-                              : `${b.value > prev.value ? "up" : "down"} since ${formatDate(prev.date)}`}
-                          </p>
-                        )}
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+              {g.markers.map((b) => {
+                const r = readingFor(b.status);
+                const missed = normalButNotOptimal(b);
+                const prev = b.history && b.history.length > 1 ? b.history[b.history.length - 2] : null;
+                return (
+                  <div
+                    key={b.key}
+                    className={cn(
+                      "card h-full min-w-0 p-4 sm:p-5",
+                      // The "normal but not optimal" case earns a visible
+                      // edge — it is the case the page exists to surface.
+                      missed && "border-watch/30 bg-watch/5",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-detail font-medium leading-snug text-ink-300">
+                          <Term k={b.key}>{b.name}</Term>
+                        </p>
+                        {/* The value is the point of the card, so it is the
+                            biggest thing in it by a clear margin rather than
+                            one step up from its own label. */}
+                        <p className="stat-mono mt-1 text-title text-ink-50">
+                          {b.value}
+                          <span className="ml-1.5 text-micro font-normal text-ink-500">{b.unit}</span>
+                        </p>
                       </div>
-                    </StaggerItem>
-                  );
-                })}
-              </Stagger>
-            </CardContent>
-          </Card>
+                      <Badge tone={READING[r].tone}>{READING[r].label}</Badge>
+                    </div>
+
+                    <RangeBar b={b} />
+
+                    {missed && (
+                      <p className="mt-3 text-micro leading-relaxed text-watch">
+                        Normal by the lab&rsquo;s standard, outside where we aim. Tracked, not chased.
+                      </p>
+                    )}
+
+                    {prev && (
+                      <p className="mt-3 text-micro leading-relaxed text-ink-500">
+                        Last panel{" "}
+                        <span className="stat-mono text-ink-400">
+                          {prev.value} {b.unit}
+                        </span>{" "}
+                        —{" "}
+                        {b.value === prev.value
+                          ? "unchanged"
+                          : `${b.value > prev.value ? "up" : "down"} since ${formatDate(prev.date)}`}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         ))}
       </SwitchView>
 
-      <p className="pb-2 text-[13px] leading-relaxed text-ink-500">
+      <p className="pb-2 text-detail leading-relaxed text-ink-500">
         These are your results, not advice. Anything on this page is worth raising at your next visit — and if
         something changes before then, message your coach rather than waiting.
       </p>

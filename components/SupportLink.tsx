@@ -54,7 +54,7 @@ export function SupportLink({ compact = false }: { compact?: boolean }) {
     return (
       <a
         href={href}
-        className="focus-ring inline-flex items-center gap-1.5 rounded-lg text-[11px] text-ink-500 transition-colors hover:text-ink-200"
+        className="focus-ring inline-flex items-center gap-1.5 rounded-lg text-micro text-ink-500 transition-colors hover:text-ink-200"
       >
         <LifeBuoy className="h-3.5 w-3.5" />
         Report a problem
@@ -72,8 +72,8 @@ export function SupportLink({ compact = false }: { compact?: boolean }) {
         style={{ color: portal.accent.hex }}
       />
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium text-ink-200">Need help, or found a bug?</span>
-        <span className="mt-0.5 block break-words text-[11px] leading-relaxed text-ink-500">
+        <span className="block text-micro font-medium text-ink-200">Need help, or found a bug?</span>
+        <span className="mt-0.5 block break-words text-micro leading-relaxed text-ink-500">
           Email {SUPPORT_EMAIL} — this page and portal are filled in for you.
         </span>
       </span>

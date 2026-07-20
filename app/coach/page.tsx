@@ -7,7 +7,6 @@ import type { Client } from "@/lib/types";
 import { staffName } from "@/lib/mock/staff";
 import { unsignedConsultsFor } from "@/lib/mock/consults";
 import { triageScore, churnRisk } from "@/lib/aiInsights";
-import { FadeIn } from "@/components/motion";
 import { TodayQueue, ME_COACH, clientsForCoach } from "@/components/coach/TodayQueue";
 import { CoachWaitingOn } from "@/components/escalations/CoachEscalationStatus";
 import { AdherenceWorklist } from "@/components/coach/AdherenceWorklist";
@@ -57,10 +56,10 @@ function Stat({
         {label}
         {href && <ArrowUpRight className="h-2.5 w-2.5 shrink-0 text-ink-600" />}
       </p>
-      <p className={cn("stat-mono mt-0.5 text-xl font-semibold leading-none", toneText)}>{value}</p>
+      <p className={cn("stat-mono mt-0.5 text-title font-semibold leading-none", toneText)}>{value}</p>
       {/* The hint carries the definition. A number a coach cannot audit is a
           number a coach will argue with instead of act on. */}
-      <p className="mt-1 truncate text-[10px] leading-tight text-ink-600" title={hint}>
+      <p className="mt-1 truncate text-micro leading-tight text-ink-600" title={hint}>
         {hint}
       </p>
     </div>
@@ -120,7 +119,7 @@ function BookAtAGlance({ book }: { book: Client[] }) {
         <p className="label-eyebrow">My book at a glance</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {order.map((b) => (
-            <span key={b} className="inline-flex items-center gap-1.5 text-[11px]">
+            <span key={b} className="inline-flex items-center gap-1.5 text-micro">
               <span className={cn("h-2 w-2 shrink-0 rounded-full", BAND_META[b].dot)} />
               <span className="stat-mono font-semibold text-ink-100">{counts[b]}</span>
               <span className="text-ink-500">{BAND_META[b].label}</span>
@@ -169,26 +168,41 @@ export default function CoachTodayPage() {
     [mine],
   );
 
+  /**
+   * Spacing on this page is deliberately UNEVEN.
+   *
+   * A uniform `space-y-3` between every block said all six regions were equally
+   * important, which is the flattest thing an interface can say. The rhythm now
+   * encodes the ranking the page already argues for in prose: the two book
+   * readouts sit almost touching because they are one thought, functional
+   * groups get a clear gap, and the discretionary worklist is pushed well down
+   * behind a hairline rule so it can never be mistaken for the queue.
+   *
+   * The budget is tight on purpose. Everything above the queue still costs less
+   * than a laptop viewport, because the layout rule for this screen is that the
+   * first queue row is visible without scrolling.
+   */
   return (
-    <div className="space-y-3">
-      <FadeIn>
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <p className="label-eyebrow">COACH CONSOLE</p>
-            <h1 className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink-50">
-              Today
-            </h1>
-          </div>
-          <p className="text-[11px] text-ink-500">
-            {staffName(ME_COACH)} · Jun 12 · ranked by what needs a human, scoped to your book
-          </p>
+    <div>
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="label-eyebrow">COACH CONSOLE</p>
+          <h1 className="mt-0.5 font-display text-title font-semibold tracking-tight text-ink-50">
+            Today
+          </h1>
         </div>
-      </FadeIn>
+        <p className="text-micro text-ink-500">
+          {staffName(ME_COACH)} · Jun 12 · ranked by what needs a human, scoped to your book
+        </p>
+      </header>
 
-      {/* Four numbers, one row, one card. Four separate tiles with icons cost a
+      {/* The state of the book: four counts and the band bar that explains them.
+          One thought, so they sit tight together.
+
+          Four numbers, one row, one card. Four separate tiles with icons cost a
           third of the viewport and told the coach nothing the numbers didn't. */}
-      <FadeIn delay={0.04}>
-        <div className="card grid grid-cols-4 divide-x divide-ink-700/60">
+      <section className="mt-4 space-y-1.5">
+        <div className="card grid grid-cols-4 divide-x divide-ink-800/60">
           <Stat
             label="Book"
             value={mine.length}
@@ -204,23 +218,22 @@ export default function CoachTodayPage() {
             tone="high"
             href="/coach/consults"
           />
-          <Stat label="Plans" value={plansWaiting} hint="Need review" tone="optimal" />
+          <Stat label="Plans" value={plansWaiting} hint="Need review" tone="neutral" />
         </div>
-      </FadeIn>
 
-      <FadeIn delay={0.06}>
         <BookAtAGlance book={mine} />
-      </FadeIn>
+      </section>
 
       {/* What this coach is waiting on a provider for — including anything
           already answered and safe to relay to the member. */}
-      <FadeIn delay={0.08}>
+      <section className="mt-5">
         <CoachWaitingOn coachId={ME_COACH} />
-      </FadeIn>
+      </section>
 
-      <FadeIn delay={0.12}>
+      {/* THE QUEUE IS THE PAGE. */}
+      <section className="mt-5">
         <TodayQueue coachId={ME_COACH} />
-      </FadeIn>
+      </section>
 
       {/*
         The adherence worklist sits BELOW the queue, not above it.
@@ -233,17 +246,19 @@ export default function CoachTodayPage() {
         is how the unsigned note ages another day, and this page's stated layout
         rule is that the first queue row is visible without scrolling.
 
+        The gap and the rule below carry that argument visually. A second
+        bordered container would have said "another box of the same kind";
+        space and a hairline say "a different kind of work".
+
         They are deliberately not deduplicated against each other either. A
         member can legitimately appear in both, and for different reasons — the
         queue says "you owe them a signature", the worklist says "they are about
         to run out of product". Suppressing the second because the first exists
         would hide the reason the call actually matters.
       */}
-      <FadeIn delay={0.16}>
-        <div className="pt-1">
-          <AdherenceWorklist coachId={ME_COACH} />
-        </div>
-      </FadeIn>
+      <section className="mt-10 border-t border-ink-800/60 pt-6">
+        <AdherenceWorklist coachId={ME_COACH} />
+      </section>
     </div>
   );
 }

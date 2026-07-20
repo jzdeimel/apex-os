@@ -34,8 +34,8 @@ export default function PortalCostsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-display text-xl font-semibold text-ink-50">What is on its way</h2>
-          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-400">
+          <h2 className="font-display text-title font-semibold text-ink-50">What is on its way</h2>
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
             The recurring items below are what you are paying for. Here is how much of each you have left
             and when the next one is due.
           </p>
@@ -45,8 +45,8 @@ export default function PortalCostsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-display text-xl font-semibold text-ink-50">The numbers</h2>
-          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-400">
+          <h2 className="font-display text-title font-semibold text-ink-50">The numbers</h2>
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
             Membership, recurring protocol, one-offs, and what the membership takes off the top.
           </p>
         </div>

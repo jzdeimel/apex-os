@@ -32,7 +32,7 @@ import { appendLedger } from "@/lib/trace/ledger";
 import type { PlanItem } from "@/lib/planOfCare/types";
 import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
@@ -76,8 +76,8 @@ function memberWhat(modality?: string) {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] uppercase tracking-wide text-ink-600">{label}</p>
-      <p className="mt-0.5 text-[13px] leading-snug text-ink-200">{value}</p>
+      <p className="text-micro uppercase tracking-wide text-ink-600">{label}</p>
+      <p className="mt-0.5 text-detail leading-snug text-ink-200">{value}</p>
     </div>
   );
 }
@@ -123,7 +123,7 @@ export default function PortalProtocolPage() {
     return (
       <div
         className={cn(
-          "hairline overflow-hidden rounded-2xl bg-ink-900/50 transition-colors",
+          "hairline overflow-hidden rounded-panel bg-ink-900/50 transition-colors",
           isOpen && "bg-ink-900",
         )}
       >
@@ -133,8 +133,8 @@ export default function PortalProtocolPage() {
           className="focus-ring flex w-full items-start gap-3 p-4 text-left sm:p-5"
         >
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-medium leading-snug text-ink-50">{item.title}</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">{memberSummary(item)}</p>
+            <p className="text-body font-medium leading-snug text-ink-50">{item.title}</p>
+            <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{memberSummary(item)}</p>
             {facts}
           </div>
           <ChevronDown
@@ -173,7 +173,17 @@ export default function PortalProtocolPage() {
   }
 
   return (
-    <div className="space-y-8">
+    /**
+     * space-y-12 between sections, space-y-2.5 between the rows inside one.
+     *
+     * Every section on this page used to be a Card wrapping a stack of already
+     * bordered rows — a box around boxes — separated from the next Card by the
+     * same 32px that separated the rows inside it. The Cards are gone: the only
+     * boxed thing left is the summary at the top (which is genuinely the one
+     * dominant element) and the individual expandable rows. Grouping is now
+     * done with space and headings, which is what a designed page does.
+     */
+    <div className="space-y-12">
       <PortalPageHeader
         eyebrow="Your plan"
         title="What you're on, and why"
@@ -184,7 +194,7 @@ export default function PortalProtocolPage() {
       <Card>
         <CardContent className="p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold text-ink-50">
+            <h2 className="font-display text-title font-semibold text-ink-50">
               Your <span className="stat-mono">{plan.durationWeeks}</span>-week block
             </h2>
             {/* Derived from the ITEMS, not from `plan.status`.
@@ -207,7 +217,7 @@ export default function PortalProtocolPage() {
                     : `${signedOff} of ${totalProtocol} signed off`}
             </Badge>
           </div>
-          <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">{plan.summary}</p>
+          <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">{plan.summary}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {plan.goals.map((g) => (
               <Badge key={g} tone="neutral">
@@ -215,211 +225,201 @@ export default function PortalProtocolPage() {
               </Badge>
             ))}
           </div>
-          <p className="mt-4 text-[12px] leading-relaxed text-ink-500">
+          <p className="mt-4 text-micro leading-relaxed text-ink-500">
             Built {formatDate(plan.createdAt)} · reviewed by {provider?.name} · day-to-day with {coach?.name}.
           </p>
         </CardContent>
       </Card>
 
       {/* Protocol ----------------------------------------------------------- */}
-      <Card>
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <FlaskConical className="h-5 w-5 text-optimal" />
-            <h2 className="font-display text-xl font-semibold text-ink-50">What to take</h2>
-          </div>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
-            What it is and roughly when. The exact amount lives on the signed order from your provider — we
-            never print it here, and we never let this page be the thing you dose from.
-          </p>
+      <section>
+        <div className="flex items-center gap-2">
+          <FlaskConical className="h-5 w-5 text-ink-500" />
+          <h2 className="font-display text-title font-semibold text-ink-50">What to take</h2>
+        </div>
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+          What it is and roughly when. The exact amount lives on the signed order from your provider — we
+          never print it here, and we never let this page be the thing you dose from.
+        </p>
 
-          <Stagger className="mt-4 space-y-2.5">
-            {plan.protocol.map((item) => {
-              const what = memberWhat(item.modality);
-              return (
-                <StaggerItem key={item.id}>
-                  <EvidenceItem
-                    item={item}
-                    facts={
-                      <>
-                        {/* what / when / how, as a labelled grid rather than a
-                            row of undifferentiated chips — a member scanning at
-                            6am needs "when" to be findable, not decoded. */}
-                        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          <Fact label="How often" value={memberCadence(item.cadence)} />
-                          {what && <Fact label="What" value={what} />}
-                        </div>
-                        {/* The lock chip is not decoration. It is the member-facing
-                            statement of the safety boundary. */}
-                        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-ink-600/60 bg-ink-800 px-2.5 py-1 text-[11px] font-medium leading-none text-ink-300">
-                          <Lock className="h-3 w-3" />
-                          Amount set by {provider?.name ?? "your provider"}
-                        </span>
-                      </>
-                    }
-                  />
-                </StaggerItem>
-              );
-            })}
-            {plan.protocol.length === 0 && (
-              <p className="text-sm text-ink-400">
-                Nothing prescribed right now — your plan is nutrition and training for this block.
-              </p>
-            )}
-          </Stagger>
-        </CardContent>
-      </Card>
+        <Stagger className="mt-4 space-y-2.5">
+          {plan.protocol.map((item) => {
+            const what = memberWhat(item.modality);
+            return (
+              <StaggerItem key={item.id}>
+                <EvidenceItem
+                  item={item}
+                  facts={
+                    <>
+                      {/* what / when / how, as a labelled grid rather than a
+                          row of undifferentiated chips — a member scanning at
+                          6am needs "when" to be findable, not decoded. */}
+                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <Fact label="How often" value={memberCadence(item.cadence)} />
+                        {what && <Fact label="What" value={what} />}
+                      </div>
+                      {/* The lock chip is not decoration. It is the member-facing
+                          statement of the safety boundary. */}
+                      <span className="mt-3 inline-flex items-center gap-1.5 rounded-control border border-ink-600/60 bg-ink-800 px-2.5 py-1 text-micro font-medium leading-none text-ink-300">
+                        <Lock className="h-3 w-3" />
+                        Amount set by {provider?.name ?? "your provider"}
+                      </span>
+                    </>
+                  }
+                />
+              </StaggerItem>
+            );
+          })}
+          {plan.protocol.length === 0 && (
+            <p className="text-detail text-ink-400">
+              Nothing prescribed right now — your plan is nutrition and training for this block.
+            </p>
+          )}
+        </Stagger>
+      </section>
 
       {/* Nutrition ---------------------------------------------------------- */}
-      <Card>
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <Utensils className="h-5 w-5 text-optimal" />
-            <h2 className="font-display text-xl font-semibold text-ink-50">What to eat</h2>
-          </div>
+      <section>
+        <div className="flex items-center gap-2">
+          <Utensils className="h-5 w-5 text-ink-500" />
+          <h2 className="font-display text-title font-semibold text-ink-50">What to eat</h2>
+        </div>
 
-          {plan.macros && (
-            <>
-              <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
-                Hit protein first. The other three take care of themselves most days.
-              </p>
-              {/* 2-up at 390px, 4-up from sm. Four tiles side by side on a phone
-                  turns every number into two cramped lines. */}
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                  { label: "Protein a day", value: `${plan.macros.proteinG}`, unit: "g", lead: true },
-                  { label: "Calories a day", value: plan.macros.calories.toLocaleString(), unit: "kcal" },
-                  { label: "Carbs a day", value: `${plan.macros.carbsG}`, unit: "g" },
-                  { label: "Fat a day", value: `${plan.macros.fatG}`, unit: "g" },
-                ].map((m) => (
-                  <div
-                    key={m.label}
-                    className={cn(
-                      "hairline rounded-2xl p-4",
-                      // Protein is the one target the plan is actually built
-                      // around, so it is visually first and visually louder.
-                      m.lead ? "border-optimal/25 bg-optimal/8" : "bg-ink-900/50",
-                    )}
-                  >
-                    <p className="text-[10px] uppercase tracking-wide text-ink-500">{m.label}</p>
-                    <p className="stat-mono mt-1.5 text-2xl font-semibold text-ink-50">
-                      {m.value}
-                      <span className="ml-1 text-xs font-normal text-ink-500">{m.unit}</span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-              {/* `basis` is rendered verbatim — the plain-English arithmetic is
-                  the answer to "where did 190 g of protein come from?". */}
-              <p className="mt-3 rounded-2xl border border-optimal/20 bg-optimal/5 p-4 text-[13px] leading-relaxed text-ink-300">
-                <span className="font-medium text-ink-100">How we got there: </span>
-                {plan.macros.basis}
-              </p>
-            </>
-          )}
-
-          <Stagger className="mt-4 space-y-2.5">
-            {plan.nutrition.map((item) => (
-              <StaggerItem key={item.id}>
-                <EvidenceItem item={item} />
-              </StaggerItem>
-            ))}
-          </Stagger>
-        </CardContent>
-      </Card>
-
-      {/* Training ----------------------------------------------------------- */}
-      <Card>
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5 text-optimal" />
-            <h2 className="font-display text-xl font-semibold text-ink-50">How to train</h2>
-          </div>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
-            Your week, laid out. Swap days around if life gets in the way — the order matters less than the
-            total.
-          </p>
-
-          {/* A vertical list on a phone: seven training days as a grid of
-              squares is a desktop idea that becomes unreadable at 390px. */}
-          <div className="mt-4 space-y-2 sm:grid grid-cols-1 sm:grid-cols-2 sm:gap-2 sm:space-y-0 lg:grid-cols-4">
-            {plan.trainingSplit.map((b) => (
-              <div key={b.day} className="hairline rounded-2xl bg-ink-900/50 p-4">
-                <p className="text-[10px] uppercase tracking-wide text-ink-500">{b.day}</p>
-                <p className="mt-1 text-[15px] font-medium text-ink-50">{b.focus}</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{b.detail}</p>
-              </div>
-            ))}
-          </div>
-
-          <Stagger className="mt-4 space-y-2.5">
-            {plan.training.map((item) => (
-              <StaggerItem key={item.id}>
-                <EvidenceItem item={item} />
-              </StaggerItem>
-            ))}
-          </Stagger>
-        </CardContent>
-      </Card>
-
-      {/* Monitoring ladder --------------------------------------------------- */}
-      <Card>
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <CalendarCheck className="h-5 w-5 text-optimal" />
-            <h2 className="font-display text-xl font-semibold text-ink-50">How we&rsquo;ll know it&rsquo;s working</h2>
-          </div>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
-            Published up front so nobody has to wonder whether they were forgotten.
-          </p>
-
-          <ol className="relative mt-5 space-y-5 pl-6">
-            <span aria-hidden className="absolute bottom-2 left-[7px] top-2 w-px bg-ink-700" />
-            {plan.monitoring.map((m) => (
-              <li key={m.week} className="relative">
-                <span
-                  aria-hidden
-                  className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full border-2 border-optimal/60 bg-ink-950"
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="stat-mono text-xs text-ink-300">Week {m.week}</span>
-                  <p className="text-[15px] font-medium text-ink-50">{m.label}</p>
-                  <Badge tone={m.owner === "Member" ? "optimal" : "neutral"}>
-                    {m.owner === "Member" ? "You" : m.owner === "Coach" ? "Your coach" : "Your provider"}
-                  </Badge>
-                </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">{m.detail}</p>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
-
-      {/* Safety screening ----------------------------------------------------- */}
-      {plan.screened.length > 0 && (
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-optimal" />
-              <h2 className="font-display text-xl font-semibold text-ink-50">Checks we ran first</h2>
-            </div>
-            <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
-              Shown to you for the same reason it is shown to your provider: a check nobody can see is a check
-              nobody can verify happened.
+        {plan.macros && (
+          <>
+            <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+              Hit protein first. The other three take care of themselves most days.
             </p>
-            <div className="mt-4 space-y-2 sm:grid grid-cols-1 sm:grid-cols-2 sm:gap-2 sm:space-y-0">
-              {plan.screened.map((s) => (
-                <div key={s.check} className="hairline flex items-start gap-3 rounded-2xl bg-ink-900/50 p-4">
-                  <Badge tone={s.passed ? "optimal" : "high"}>{s.passed ? "Clear" : "Flagged"}</Badge>
-                  <div className="min-w-0">
-                    <p className="text-sm text-ink-100">{s.check}</p>
-                    <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{s.detail}</p>
-                  </div>
+            {/* 2-up at 390px, 4-up from sm. Four tiles side by side on a phone
+                turns every number into two cramped lines. */}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Protein a day", value: `${plan.macros.proteinG}`, unit: "g", lead: true },
+                { label: "Calories a day", value: plan.macros.calories.toLocaleString(), unit: "kcal" },
+                { label: "Carbs a day", value: `${plan.macros.carbsG}`, unit: "g" },
+                { label: "Fat a day", value: `${plan.macros.fatG}`, unit: "g" },
+              ].map((m) => (
+                <div
+                  key={m.label}
+                  className={cn(
+                    "hairline rounded-panel p-4",
+                    // Protein is the one target the plan is actually built
+                    // around, so it is visually first and visually louder.
+                    m.lead ? "border-optimal/25 bg-optimal/8" : "bg-ink-900/50",
+                  )}
+                >
+                  <p className="text-micro uppercase tracking-wide text-ink-500">{m.label}</p>
+                  <p className="stat-mono mt-1.5 text-title font-semibold text-ink-50">
+                    {m.value}
+                    <span className="ml-1 text-micro font-normal text-ink-500">{m.unit}</span>
+                  </p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+            {/* `basis` is rendered verbatim — the plain-English arithmetic is
+                the answer to "where did 190 g of protein come from?". */}
+            <p className="mt-3 rounded-panel border border-optimal/20 bg-optimal/5 p-4 text-detail leading-relaxed text-ink-300">
+              <span className="font-medium text-ink-100">How we got there: </span>
+              {plan.macros.basis}
+            </p>
+          </>
+        )}
+
+        <Stagger className="mt-4 space-y-2.5">
+          {plan.nutrition.map((item) => (
+            <StaggerItem key={item.id}>
+              <EvidenceItem item={item} />
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </section>
+
+      {/* Training ----------------------------------------------------------- */}
+      <section>
+        <div className="flex items-center gap-2">
+          <Dumbbell className="h-5 w-5 text-ink-500" />
+          <h2 className="font-display text-title font-semibold text-ink-50">How to train</h2>
+        </div>
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+          Your week, laid out. Swap days around if life gets in the way — the order matters less than the
+          total.
+        </p>
+
+        {/* A vertical list on a phone: seven training days as a grid of
+            squares is a desktop idea that becomes unreadable at 390px. */}
+        <div className="mt-4 space-y-2 sm:grid grid-cols-1 sm:grid-cols-2 sm:gap-2 sm:space-y-0 lg:grid-cols-4">
+          {plan.trainingSplit.map((b) => (
+            <div key={b.day} className="hairline rounded-panel bg-ink-900/50 p-4">
+              <p className="text-micro uppercase tracking-wide text-ink-500">{b.day}</p>
+              <p className="mt-1 text-body font-medium text-ink-50">{b.focus}</p>
+              <p className="mt-1 text-detail leading-relaxed text-ink-400">{b.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        <Stagger className="mt-4 space-y-2.5">
+          {plan.training.map((item) => (
+            <StaggerItem key={item.id}>
+              <EvidenceItem item={item} />
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </section>
+
+      {/* Monitoring ladder --------------------------------------------------- */}
+      <section>
+        <div className="flex items-center gap-2">
+          <CalendarCheck className="h-5 w-5 text-ink-500" />
+          <h2 className="font-display text-title font-semibold text-ink-50">How we&rsquo;ll know it&rsquo;s working</h2>
+        </div>
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+          Published up front so nobody has to wonder whether they were forgotten.
+        </p>
+
+        <ol className="relative mt-5 space-y-5 pl-6">
+          <span aria-hidden className="absolute bottom-2 left-[7px] top-2 w-px bg-ink-700" />
+          {plan.monitoring.map((m) => (
+            <li key={m.week} className="relative">
+              <span
+                aria-hidden
+                className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full border-2 border-optimal/60 bg-ink-950"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="stat-mono text-micro text-ink-300">Week {m.week}</span>
+                <p className="text-body font-medium text-ink-50">{m.label}</p>
+                <Badge tone={m.owner === "Member" ? "optimal" : "neutral"}>
+                  {m.owner === "Member" ? "You" : m.owner === "Coach" ? "Your coach" : "Your provider"}
+                </Badge>
+              </div>
+              <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{m.detail}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* Safety screening ----------------------------------------------------- */}
+      {plan.screened.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-ink-500" />
+            <h2 className="font-display text-title font-semibold text-ink-50">Checks we ran first</h2>
+          </div>
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
+            Shown to you for the same reason it is shown to your provider: a check nobody can see is a check
+            nobody can verify happened.
+          </p>
+          <div className="mt-4 space-y-2 sm:grid grid-cols-1 sm:grid-cols-2 sm:gap-2 sm:space-y-0">
+            {plan.screened.map((s) => (
+              <div key={s.check} className="hairline flex items-start gap-3 rounded-panel bg-ink-900/50 p-4">
+                <Badge tone={s.passed ? "optimal" : "high"}>{s.passed ? "Clear" : "Flagged"}</Badge>
+                <div className="min-w-0">
+                  <p className="text-detail text-ink-100">{s.check}</p>
+                  <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{s.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

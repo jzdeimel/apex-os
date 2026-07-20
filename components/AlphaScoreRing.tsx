@@ -43,16 +43,16 @@ export function AlphaScoreRing({
           <span className="stat-mono font-bold text-ink-50" style={{ fontSize: size * 0.3 }}>
             {result.score}
           </span>
-          {size >= 56 && <span className="text-[8px] uppercase tracking-wide text-ink-500">score</span>}
+          {size >= 56 && <span className="text-micro uppercase tracking-wide text-ink-500">score</span>}
         </div>
       </div>
       {showLabel && (
         <div>
-          <span className="block text-[10px] uppercase tracking-wide text-ink-600">Alpha Score</span>
-          <span className="text-sm font-medium" style={{ color }}>
+          <span className="block text-micro uppercase tracking-wide text-ink-600">Alpha Score</span>
+          <span className="text-body font-medium" style={{ color }}>
             {result.label}
           </span>
-          {!result.hasLabs && <span className="block text-[10px] text-ink-600">provisional · pending labs</span>}
+          {!result.hasLabs && <span className="block text-micro text-ink-600">provisional · pending labs</span>}
         </div>
       )}
     </div>
@@ -63,7 +63,7 @@ export function AlphaScoreChip({ result }: { result: AlphaScoreResult }) {
   const color = scoreColor(result.band);
   return (
     <span
-      className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium")}
+      className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-micro font-medium")}
       style={{ borderColor: `${color}55`, background: `${color}1a`, color }}
     >
       <span className="stat-mono font-bold">{result.score}</span>

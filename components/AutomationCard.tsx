@@ -31,8 +31,8 @@ export function AutomationCard({ automation }: { automation: Automation }) {
             <Zap className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <h3 className="font-display text-sm font-semibold text-ink-50">{automation.name}</h3>
-            <p className="mt-0.5 text-xs leading-relaxed text-ink-400">{automation.description}</p>
+            <h3 className="font-display text-body font-semibold text-ink-50">{automation.name}</h3>
+            <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{automation.description}</p>
           </div>
         </div>
 
@@ -55,7 +55,7 @@ export function AutomationCard({ automation }: { automation: Automation }) {
         </button>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-detail">
         <Meta label="Trigger" value={automation.trigger} />
         <Meta label="Audience" value={automation.audience} />
         <Meta
@@ -76,7 +76,7 @@ export function AutomationCard({ automation }: { automation: Automation }) {
           <span className="label-eyebrow">Message preview</span>
           <Badge tone={enabled ? "optimal" : "neutral"}>{enabled ? "Enabled" : "Disabled"}</Badge>
         </div>
-        <p className="text-xs italic leading-relaxed text-ink-400">“{automation.previewMessage}”</p>
+        <p className="text-detail italic leading-relaxed text-ink-400">“{automation.previewMessage}”</p>
       </div>
     </div>
   );
@@ -85,7 +85,7 @@ export function AutomationCard({ automation }: { automation: Automation }) {
 function Meta({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <span className="block text-[10px] uppercase tracking-wide text-ink-600">{label}</span>
+      <span className="block text-micro uppercase tracking-wide text-ink-600">{label}</span>
       <span className="text-ink-200">{value}</span>
     </div>
   );

@@ -67,7 +67,7 @@ export default function TasksPage() {
     <div className="space-y-5">
       <div>
         <p className="label-eyebrow">Operations · task board</p>
-        <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
+        <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
             <ListChecks className="h-5 w-5" />
           </span>
@@ -110,7 +110,7 @@ export default function TasksPage() {
       </Card>
 
       {/* Kanban — drag cards between columns to re-prioritize */}
-      <p className="text-xs text-ink-500">Drag a card between columns, or tap the handle to move it (mobile-friendly).</p>
+      <p className="text-detail text-ink-500">Drag a card between columns, or tap the handle to move it (mobile-friendly).</p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {byCol.map((col) => (
           <div
@@ -124,12 +124,12 @@ export default function TasksPage() {
             )}
           >
             <div className="mb-3 flex items-center justify-between px-1">
-              <span className="text-sm font-semibold text-ink-200">{col.label}</span>
+              <span className="text-body font-semibold text-ink-200">{col.label}</span>
               <Badge tone={col.tone}>{col.items.length}</Badge>
             </div>
             <motion.div layout className="min-h-[60px] space-y-2">
               {col.items.length === 0 && (
-                <p className="rounded-lg border border-dashed border-ink-800 px-1 py-6 text-center text-xs text-ink-600">
+                <p className="rounded-lg border border-dashed border-ink-800 px-1 py-6 text-center text-detail text-ink-600">
                   {overCol === col.key ? "Drop here" : "No tasks"}
                 </p>
               )}
@@ -154,14 +154,14 @@ export default function TasksPage() {
                           <Circle className="h-4 w-4" />
                         </button>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-ink-100">{t.title}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+                          <p className="text-body text-ink-100">{t.title}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-micro text-ink-500">
                             <Badge tone="neutral">{t.type}</Badge>
                             <span className={cn(t.dueDate < "2026-06-12" && "text-high")}>{relativeDays(t.dueDate)}</span>
                             <span>· {staffName(t.assigneeId).split(" ")[0]}</span>
                           </div>
                           {c && (
-                            <Link href={`/clients/${c.id}`} className="mt-1 inline-block text-[11px] text-gold-300 hover:underline">
+                            <Link href={`/clients/${c.id}`} className="mt-1 inline-block text-micro text-gold-300 hover:underline">
                               {clientName(c)}
                             </Link>
                           )}
@@ -179,12 +179,12 @@ export default function TasksPage() {
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setMenuId(null)} />
                               <div className="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-lg border border-ink-700 bg-ink-850 py-1 shadow-card">
-                                <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-ink-500">Move to</p>
+                                <p className="px-3 py-1 text-micro uppercase tracking-wide text-ink-500">Move to</p>
                                 {COLUMNS.filter((col) => col.key !== t.priority).map((col) => (
                                   <button
                                     key={col.key}
                                     onClick={() => moveTask(t.id, col.key, col.label)}
-                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ink-200 hover:bg-ink-800"
+                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-detail text-ink-200 hover:bg-ink-800"
                                   >
                                     <MoveRight className="h-3 w-3 text-gold-400" /> {col.label}
                                   </button>
@@ -205,7 +205,7 @@ export default function TasksPage() {
 
       {/* Done */}
       <div>
-        <button onClick={() => setShowDone((s) => !s)} className="text-xs font-medium text-ink-400 hover:text-ink-100">
+        <button onClick={() => setShowDone((s) => !s)} className="text-detail font-medium text-ink-400 hover:text-ink-100">
           {showDone ? "Hide" : "Show"} completed ({done.length})
         </button>
         {showDone && (
@@ -217,8 +217,8 @@ export default function TasksPage() {
                 className="flex items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 text-left"
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-optimal" />
-                <span className="text-sm text-ink-500 line-through">{t.title}</span>
-                <span className="ml-auto text-[11px] text-ink-600">{formatDate(t.dueDate)}</span>
+                <span className="text-body text-ink-500 line-through">{t.title}</span>
+                <span className="ml-auto text-micro text-ink-600">{formatDate(t.dueDate)}</span>
               </button>
             ))}
           </div>

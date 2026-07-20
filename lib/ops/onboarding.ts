@@ -248,7 +248,7 @@ function startDateFor(coachId: string): string {
   const daysAgo = rand() < 0.25 ? 3 + Math.floor(rand() * 40) : 120 + Math.floor(rand() * 620);
   const d = absolute(absolute(`${NOW_DATE}T00:00:00`).getTime() - daysAgo * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 
 /**
@@ -279,7 +279,7 @@ function completionDate(startedOn: string, dueByDay: number, coachId: string, st
   const day = Math.round(dueByDay * (0.5 + rand() * 1.1));
   const d = absolute(absolute(`${startedOn}T00:00:00`).getTime() + day * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 
 /**

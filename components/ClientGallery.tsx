@@ -59,8 +59,8 @@ export function ClientGallery({ clients }: { clients: Client[] }) {
               <div className="flex items-center gap-3 pr-8">
                 <Monogram client={c} size="lg" />
                 <div>
-                  <h3 className="font-display text-base font-semibold leading-tight text-ink-50">{clientName(c)}</h3>
-                  <p className="text-xs text-ink-400">
+                  <h3 className="font-display text-body font-semibold leading-tight text-ink-50">{clientName(c)}</h3>
+                  <p className="text-detail text-ink-400">
                     {c.age} · {c.sex === "male" ? "M" : "F"} · {locationName(c.locationId)}
                   </p>
                 </div>
@@ -74,7 +74,7 @@ export function ClientGallery({ clients }: { clients: Client[] }) {
                 {score.hasLabs ? (
                   <AlphaScoreRing result={score} size={44} showLabel={false} />
                 ) : (
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-dashed border-ink-600 text-center text-[8px] leading-tight text-ink-400">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-dashed border-ink-600 text-center text-micro leading-tight text-ink-400">
                     Labs<br />pending
                   </span>
                 )}
@@ -87,7 +87,7 @@ export function ClientGallery({ clients }: { clients: Client[] }) {
                 {c.goals.length > 3 && <Badge>+{c.goals.length - 3}</Badge>}
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-ink-800/70 pt-3 text-xs text-ink-400">
+              <div className="mt-3 flex items-center justify-between border-t border-ink-800/70 pt-3 text-detail text-ink-400">
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarClock className="h-3.5 w-3.5" />
                   {c.nextAppointment ? relativeDays(c.nextAppointment) : "No visit booked"}

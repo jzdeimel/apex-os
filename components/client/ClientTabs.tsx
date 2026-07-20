@@ -77,7 +77,7 @@ export function PlanTab({ id }: { id: string }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="label-eyebrow">{plan.durationWeeks}-week block</p>
-              <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-200">
+              <p className="mt-1.5 max-w-2xl text-body leading-relaxed text-ink-200">
                 {plan.summary}
               </p>
             </div>
@@ -100,7 +100,7 @@ export function PlanTab({ id }: { id: string }) {
               <MacroTile label="Protein" value={String(plan.macros.proteinG)} unit="g" />
               <MacroTile label="Carbs" value={String(plan.macros.carbsG)} unit="g" />
               <MacroTile label="Fat" value={String(plan.macros.fatG)} unit="g" />
-              <p className="text-[11px] leading-relaxed text-ink-500 sm:col-span-4">
+              <p className="text-micro leading-relaxed text-ink-500 sm:col-span-4">
                 {plan.macros.basis}
               </p>
             </div>
@@ -112,7 +112,7 @@ export function PlanTab({ id }: { id: string }) {
         <Card key={s.key}>
           <CardHeader>
             <CardTitle>{s.label}</CardTitle>
-            <p className="mt-1 text-[11px] text-ink-500">{s.note}</p>
+            <p className="mt-1 text-micro text-ink-500">{s.note}</p>
           </CardHeader>
           <CardContent className="space-y-2">
             {s.items.length === 0 ? (
@@ -122,8 +122,8 @@ export function PlanTab({ id }: { id: string }) {
                 <div key={item.id} className="rounded-xl border border-ink-800 bg-ink-900/40 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-ink-100">{item.title}</p>
-                      <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">
+                      <p className="text-body font-medium text-ink-100">{item.title}</p>
+                      <p className="mt-0.5 text-detail leading-relaxed text-ink-400">
                         {item.detail}
                       </p>
                     </div>
@@ -139,7 +139,7 @@ export function PlanTab({ id }: { id: string }) {
                       {item.cadence && <Badge tone="neutral">{item.cadence}</Badge>}
                       {/* The dose field does not exist on PlanItem. This chip is
                           the visible consequence of that structural decision. */}
-                      <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-[11px] text-ink-400">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-micro text-ink-400">
                         <Lock className="h-3 w-3" /> Dose set by provider
                       </span>
                     </div>
@@ -161,12 +161,12 @@ export function PlanTab({ id }: { id: string }) {
               key={m.week}
               className="flex items-start gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-4 py-2.5"
             >
-              <span className="stat-mono mt-0.5 shrink-0 rounded-md border border-ink-700 bg-ink-800 px-2 py-0.5 text-[11px] text-ink-300">
+              <span className="stat-mono mt-0.5 shrink-0 rounded-md border border-ink-700 bg-ink-800 px-2 py-0.5 text-micro text-ink-300">
                 W{m.week}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-ink-100">{m.label}</p>
-                <p className="mt-0.5 text-[11px] text-ink-500">{m.detail}</p>
+                <p className="text-body text-ink-100">{m.label}</p>
+                <p className="mt-0.5 text-micro text-ink-500">{m.detail}</p>
               </div>
               <Badge
                 tone={m.owner === "Provider" ? "optimal" : m.owner === "Coach" ? "gold" : "neutral"}
@@ -196,8 +196,8 @@ function MacroTile({ label, value, unit }: { label: string; value: string; unit:
     <div className="rounded-xl border border-ink-800 bg-ink-900/40 px-3 py-2.5">
       <p className="label-eyebrow">{label}</p>
       <p className="mt-0.5">
-        <span className="stat-mono text-lg font-semibold text-ink-50">{value}</span>
-        <span className="ml-1 text-[11px] text-ink-500">{unit}</span>
+        <span className="stat-mono text-heading font-semibold text-ink-50">{value}</span>
+        <span className="ml-1 text-micro text-ink-500">{unit}</span>
       </p>
     </div>
   );
@@ -213,7 +213,7 @@ export function ConsultsTab({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-400">
+        <p className="text-body text-ink-400">
           <span className="stat-mono text-ink-200">{list.length}</span> consult
           {list.length === 1 ? "" : "s"} on record. Raw notes are kept immutable alongside every
           summary.
@@ -265,7 +265,7 @@ export function OrdersTab({ id }: { id: string }) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="stat-mono text-sm text-ink-100">{o.id}</span>
+                    <span className="stat-mono text-body text-ink-100">{o.id}</span>
                     <Badge
                       tone={stuck ? "high" : o.status === "Delivered" ? "optimal" : "neutral"}
                     >
@@ -273,15 +273,15 @@ export function OrdersTab({ id }: { id: string }) {
                     </Badge>
                     {stuck && <Badge tone="high">Needs attention</Badge>}
                   </div>
-                  <p className="mt-1.5 text-[13px] text-ink-400">
+                  <p className="mt-1.5 text-detail text-ink-400">
                     {o.lines.map((l) => `${l.name} x${l.qty}`).join(", ")}
                   </p>
-                  <p className="mt-1 text-[11px] text-ink-500">{clientFacingStatus(o.status)}</p>
+                  <p className="mt-1 text-micro text-ink-500">{clientFacingStatus(o.status)}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="stat-mono text-sm text-ink-200">{currency(total)}</p>
+                  <p className="stat-mono text-body text-ink-200">{currency(total)}</p>
                   {o.tracking && (
-                    <p className="stat-mono mt-0.5 text-[11px] text-ink-500">{o.tracking}</p>
+                    <p className="stat-mono mt-0.5 text-micro text-ink-500">{o.tracking}</p>
                   )}
                 </div>
               </div>
@@ -297,7 +297,7 @@ export function OrdersTab({ id }: { id: string }) {
                   statusHistory has no actor field at all. */}
               <div className="mt-2.5 space-y-1">
                 {o.statusHistory.slice(-4).map((e, i) => (
-                  <div key={i} className="flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+                  <div key={i} className="flex flex-wrap items-center gap-2 text-micro text-ink-500">
                     <span className="stat-mono">{formatDateTime(e.at)}</span>
                     <span className="text-ink-300">{e.status}</span>
                     <span>·</span>
@@ -335,7 +335,7 @@ export function ContactTab({ id }: { id: string }) {
                   renders every touch as an outbound coach bubble regardless of
                   direction, so client replies read as staff messages. */}
               <span
-                className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border text-[10px] font-semibold ${
+                className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border text-micro font-semibold ${
                   e.direction === "inbound"
                     ? "border-low/30 bg-low/12 text-low"
                     : "border-ink-700 bg-ink-800 text-ink-400"
@@ -345,7 +345,7 @@ export function ContactTab({ id }: { id: string }) {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="text-sm text-ink-100">
+                  <span className="text-body text-ink-100">
                     {e.direction === "inbound" && client
                       ? clientName(client)
                       : staffName(e.staffId)}
@@ -360,9 +360,9 @@ export function ContactTab({ id }: { id: string }) {
                   </Badge>
                 </div>
                 {e.body && (
-                  <p className="mt-1 text-[13px] leading-relaxed text-ink-300">{e.body}</p>
+                  <p className="mt-1 text-detail leading-relaxed text-ink-300">{e.body}</p>
                 )}
-                <p className="mt-1 text-[11px] text-ink-600">
+                <p className="mt-1 text-micro text-ink-600">
                   <span className="stat-mono">{formatDateTime(e.at)}</span> · consent:{" "}
                   {e.consentScopeUsed}
                 </p>

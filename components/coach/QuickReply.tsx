@@ -216,7 +216,7 @@ export function QuickReply({
 
   if (!client) {
     return (
-      <div className={cn("card p-5 text-sm text-ink-400", className)}>
+      <div className={cn("card p-5 text-body text-ink-400", className)}>
         No member selected.
       </div>
     );
@@ -227,11 +227,11 @@ export function QuickReply({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700/70 p-4">
         <div className="min-w-0">
           <p className="label-eyebrow">Quick reply</p>
-          <h3 className="font-display text-base font-semibold text-ink-50">
+          <h3 className="font-display text-heading font-semibold text-ink-50">
             {clientName(client)}
           </h3>
         </div>
-        <p className="text-xs text-ink-500">
+        <p className="text-detail text-ink-500">
           {actor?.name ?? "Coach"} · <kbd className="stat-mono">↑↓</kbd> pick ·{" "}
           <kbd className="stat-mono">⏎</kbd> load · <kbd className="stat-mono">⌘⏎</kbd> send
         </p>
@@ -276,8 +276,8 @@ export function QuickReply({
                           : "text-ink-300 hover:bg-ink-800",
                     )}
                   >
-                    <span className="block truncate text-sm font-medium">{t.name}</span>
-                    <span className="mt-0.5 block truncate text-[11px] text-ink-500">
+                    <span className="block truncate text-body font-medium">{t.name}</span>
+                    <span className="mt-0.5 block truncate text-micro text-ink-500">
                       {t.situation}
                     </span>
                   </button>
@@ -285,7 +285,7 @@ export function QuickReply({
               );
             })}
             {matches.length === 0 && (
-              <li className="px-2.5 py-6 text-center text-xs text-ink-500">
+              <li className="px-2.5 py-6 text-center text-detail text-ink-500">
                 Nothing matches “{query}”.
               </li>
             )}
@@ -295,7 +295,7 @@ export function QuickReply({
         {/* ── Draft ─────────────────────────────────────────────────────── */}
         <div className="p-4">
           {!rendered ? (
-            <p className="py-10 text-center text-sm text-ink-500">
+            <p className="py-10 text-center text-body text-ink-500">
               Pick a situation on the left. {TEMPLATES_ARE_DRAFTS}
             </p>
           ) : (
@@ -314,7 +314,7 @@ export function QuickReply({
                 )}
               </div>
 
-              <p className="mb-3 text-xs leading-relaxed text-ink-500">
+              <p className="mb-3 text-detail leading-relaxed text-ink-500">
                 {rendered.template.scopeNote}
               </p>
 
@@ -340,7 +340,7 @@ export function QuickReply({
                 className="mt-1 font-sans leading-relaxed"
               />
 
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-ink-500">
+              <p className="mt-2 flex items-start gap-1.5 text-detail text-ink-500">
                 <Pencil className="mt-0.5 h-3 w-3 shrink-0" />
                 <span>{rendered.template.editHint}</span>
               </p>
@@ -349,7 +349,7 @@ export function QuickReply({
                   "[Next visit — not on file]" reaching a member is the exact
                   failure this whole module exists to prevent. */}
               {blocked && (
-                <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-high/30 bg-high/10 p-2.5 text-xs text-high">
+                <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-high/30 bg-high/10 p-2.5 text-detail text-high">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     Missing from this record:{" "}
@@ -360,14 +360,14 @@ export function QuickReply({
               )}
 
               {guard && !guard.allowed && !blocked && (
-                <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-watch/30 bg-watch/10 p-2.5 text-xs text-watch">
+                <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-watch/30 bg-watch/10 p-2.5 text-detail text-watch">
                   <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>{guard.message}</span>
                 </p>
               )}
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] text-ink-600">{TEMPLATES_ARE_DRAFTS}</p>
+                <p className="text-micro text-ink-600">{TEMPLATES_ARE_DRAFTS}</p>
                 <Button variant="primary" onClick={handleSend} disabled={!canSend}>
                   <Send className="h-3.5 w-3.5" />
                   {sending ? "Sending…" : "Send"}

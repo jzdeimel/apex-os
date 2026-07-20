@@ -77,7 +77,7 @@ export function WinsWall({ wins }: { wins: Win[] }) {
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-ring",
+              "rounded-full border px-3 py-1 text-detail font-medium transition-colors focus-ring",
               filter === f
                 ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
                 : "border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-100",
@@ -107,12 +107,12 @@ export function WinsWall({ wins }: { wins: Win[] }) {
                       <div className="flex items-center gap-2.5 min-w-0">
                         {/* Handle initial, not a Monogram — Monogram takes a
                             real first/last name and there isn't one here. */}
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700/70 font-display text-xs font-semibold text-ink-200">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700/70 font-display text-detail font-semibold text-ink-200">
                           {w.handle.slice(0, 2)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-ink-100">{w.handle}</p>
-                          <p className="flex items-center gap-1 text-[11px] text-ink-500">
+                          <p className="truncate text-body font-medium text-ink-100">{w.handle}</p>
+                          <p className="flex items-center gap-1 text-micro text-ink-500">
                             <MapPin className="h-3 w-3" />
                             {locationName(w.locationId)}
                             <span aria-hidden>·</span>
@@ -123,11 +123,11 @@ export function WinsWall({ wins }: { wins: Win[] }) {
                       <Badge tone={CATEGORY_TONE[w.category]}>{w.category}</Badge>
                     </div>
 
-                    <p className="font-display text-lg font-semibold leading-snug text-ink-50">
+                    <p className="font-display text-heading font-semibold leading-snug text-ink-50">
                       {w.headline}
                     </p>
                     {w.detail && (
-                      <p className="text-sm leading-relaxed text-ink-400">{w.detail}</p>
+                      <p className="text-body leading-relaxed text-ink-400">{w.detail}</p>
                     )}
 
                     <div className="mt-auto pt-1">

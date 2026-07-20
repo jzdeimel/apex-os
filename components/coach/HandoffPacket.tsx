@@ -23,7 +23,6 @@ import {
   EmptyState,
   Progress,
 } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
 import { useToast } from "@/components/ui/Toast";
 import { clientMap } from "@/lib/mock/clients";
@@ -69,8 +68,8 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
       <header className="flex items-start gap-3">
         {client && <Monogram client={client} />}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-base font-semibold text-ink-50">{brief.name}</p>
-          <p className="truncate text-xs text-ink-400">
+          <p className="truncate font-display text-heading font-semibold text-ink-50">{brief.name}</p>
+          <p className="truncate text-detail text-ink-400">
             {brief.age}
             {brief.sex === "male" ? "M" : "F"} · MRN {brief.mrn} · {brief.locationLabel}
           </p>
@@ -80,7 +79,7 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
         </Badge>
       </header>
 
-      <p className="mt-2 text-xs text-ink-400">{brief.journey}</p>
+      <p className="mt-2 text-detail text-ink-400">{brief.journey}</p>
 
       {/* The one line the covering coach reads first. */}
       <div
@@ -94,7 +93,7 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
         <p className="label-eyebrow">MOST IMPORTANT</p>
         <p
           className={cn(
-            "mt-1 text-sm leading-relaxed",
+            "mt-1 text-body leading-relaxed",
             urgent.length ? "text-high" : "text-ink-100",
           )}
         >
@@ -109,18 +108,18 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
           </p>
           {brief.lastDiscussed ? (
             <>
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="mt-1 text-detail text-ink-500">
                 {formatDate(brief.lastDiscussed.at)} · {brief.lastDiscussed.kind} /{" "}
                 {brief.lastDiscussed.channel}
                 {!brief.lastDiscussed.signed && " · unsigned"}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-ink-200">
+              <p className="mt-1 text-body leading-relaxed text-ink-200">
                 {brief.lastDiscussed.headline}
               </p>
               {brief.lastDiscussed.actionItems.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {brief.lastDiscussed.actionItems.map((a, i) => (
-                    <li key={i} className="text-xs leading-snug text-ink-400">
+                    <li key={i} className="text-detail leading-snug text-ink-400">
                       • committed: {a}
                     </li>
                   ))}
@@ -128,10 +127,10 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
               )}
             </>
           ) : (
-            <p className="mt-1 text-xs text-ink-500">No consult on file.</p>
+            <p className="mt-1 text-detail text-ink-500">No consult on file.</p>
           )}
           {brief.lastTouch && (
-            <p className="mt-2 text-[11px] text-ink-500">
+            <p className="mt-2 text-micro text-ink-500">
               Last contact of any kind: {brief.lastTouch.channel},{" "}
               <span className="stat-mono">{brief.lastTouch.daysAgo}</span>d ago.
             </p>
@@ -143,20 +142,20 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
             <AlertTriangle className="h-3 w-3" /> OPEN
           </p>
           {brief.open.length === 0 ? (
-            <p className="mt-1 text-xs text-ink-500">Nothing outstanding.</p>
+            <p className="mt-1 text-detail text-ink-500">Nothing outstanding.</p>
           ) : (
             <ul className="mt-1 space-y-1.5">
               {brief.open.map((o, i) => (
                 <li key={i} className="rounded-lg bg-ink-900/70 px-2.5 py-2">
                   <p
                     className={cn(
-                      "text-xs font-medium",
+                      "text-detail font-medium",
                       o.urgent ? "text-high" : "text-ink-200",
                     )}
                   >
                     {o.label}
                   </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-ink-500">{o.detail}</p>
+                  <p className="mt-0.5 text-micro leading-snug text-ink-500">{o.detail}</p>
                 </li>
               ))}
             </ul>
@@ -169,7 +168,7 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
           <CalendarClock className="h-3 w-3" /> DUE IN THE NEXT {COVER_WINDOW_DAYS} DAYS
         </p>
         {brief.dueNext.length === 0 ? (
-          <p className="mt-1 text-xs text-ink-500">Nothing scheduled in the cover window.</p>
+          <p className="mt-1 text-detail text-ink-500">Nothing scheduled in the cover window.</p>
         ) : (
           <ul className="mt-1 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {brief.dueNext.map((d, i) => (
@@ -177,10 +176,10 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
                 key={i}
                 className="flex items-center justify-between gap-2 rounded-lg bg-ink-900/70 px-2.5 py-1.5"
               >
-                <span className="min-w-0 truncate text-xs text-ink-300">{d.label}</span>
+                <span className="min-w-0 truncate text-detail text-ink-300">{d.label}</span>
                 <span
                   className={cn(
-                    "stat-mono shrink-0 text-[11px]",
+                    "stat-mono shrink-0 text-micro",
                     d.overdue ? "text-high" : "text-ink-400",
                   )}
                 >
@@ -200,7 +199,7 @@ function BriefCard({ brief }: { brief: HandoffBrief }) {
           </Badge>
           {brief.membershipTier && <Badge tone="gold">{brief.membershipTier}</Badge>}
         </div>
-        <p className="mt-2 text-xs leading-relaxed text-ink-400">
+        <p className="mt-2 text-detail leading-relaxed text-ink-400">
           <span className="text-ink-200">Next action:</span> {brief.nextAction.action}{" "}
           <span className="text-ink-500">
             ({brief.nextAction.owner}) — {brief.nextAction.reason}
@@ -304,7 +303,7 @@ export function HandoffPacket() {
             </label>
           </div>
 
-          <p className="mt-3 flex items-start gap-2 rounded-xl border border-ink-700/70 bg-ink-900/60 p-3 text-xs leading-relaxed text-ink-400">
+          <p className="mt-3 flex items-start gap-2 rounded-xl border border-ink-700/70 bg-ink-900/60 p-3 text-detail leading-relaxed text-ink-400">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-300" />
             <span>
               A handoff packet discloses protected health information to another staff member.
@@ -332,15 +331,14 @@ export function HandoffPacket() {
       </Card>
 
       {isCommitted && committed && (
-        <FadeIn>
           <Card className="print:hidden border-optimal/30">
             <CardContent className="p-4">
-              <p className="flex items-center gap-2 text-sm font-medium text-optimal">
+              <p className="flex items-center gap-2 text-body font-medium text-optimal">
                 <Check className="h-4 w-4" />
                 Recorded — {committed.rows.length} disclosure row
                 {committed.rows.length === 1 ? "" : "s"} to {staffName(coveringId)}
               </p>
-              <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-400">
+              <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-detail text-ink-400">
                 <Hash className="h-3 w-3 shrink-0" />
                 <span className="stat-mono">{committed.rows[0]?.id}</span>
                 {committed.rows.length > 1 && (
@@ -358,16 +356,15 @@ export function HandoffPacket() {
               </p>
             </CardContent>
           </Card>
-        </FadeIn>
       )}
 
       {/* The document itself. */}
       <header className="rounded-2xl border border-ink-700 bg-ink-850 p-4">
         <p className="label-eyebrow">COACH HANDOFF PACKET</p>
-        <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-ink-50">
+        <h2 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           {packet.coachName}
         </h2>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-1 text-body text-ink-400">
           Cover window {formatDate(packet.coverFrom)} → {formatDate(packet.coverTo)} · covering
           coach {staffName(coveringId)}
         </p>
@@ -382,8 +379,8 @@ export function HandoffPacket() {
             { label: `DUE IN ${COVER_WINDOW_DAYS}D`, value: t.dueInWindow },
           ].map((s) => (
             <div key={s.label} className="rounded-xl bg-ink-900 p-3">
-              <p className="stat-mono text-xl text-ink-50">{s.value}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-500">{s.label}</p>
+              <p className="stat-mono text-title text-ink-50">{s.value}</p>
+              <p className="mt-0.5 text-micro uppercase tracking-wide text-ink-500">{s.label}</p>
             </div>
           ))}
         </div>
@@ -395,7 +392,7 @@ export function HandoffPacket() {
               tone={t.needsAttention / t.clients > 0.4 ? "high" : "gold"}
               value={(t.needsAttention / t.clients) * 100}
             />
-            <p className="mt-1.5 text-xs text-ink-500">
+            <p className="mt-1.5 text-detail text-ink-500">
               Ordered by how much attention each member is likely to need during cover — triage
               weighted, churn included, because cover periods lose people quietly.
             </p>
@@ -409,7 +406,7 @@ export function HandoffPacket() {
         <>
           {packet.briefs.length > SCREEN_SLICE && (
             <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-              <p className="text-xs text-ink-500">
+              <p className="text-detail text-ink-500">
                 Showing the{" "}
                 <span className="stat-mono">
                   {showAll ? packet.briefs.length : SCREEN_SLICE}
@@ -425,9 +422,9 @@ export function HandoffPacket() {
           {/* Every brief is rendered; the ones past the slice are hidden on
               screen but restored for print, so the paper packet is complete
               without the reader having to remember to expand it first. */}
-          <Stagger className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {packet.briefs.map((b, i) => (
-              <StaggerItem
+              <div
                 key={b.clientId}
                 className={cn(
                   "break-inside-avoid",
@@ -435,9 +432,9 @@ export function HandoffPacket() {
                 )}
               >
                 <BriefCard brief={b} />
-              </StaggerItem>
+              </div>
             ))}
-          </Stagger>
+          </div>
         </>
       )}
     </div>

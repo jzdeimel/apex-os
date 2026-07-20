@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarRange, CircleSlash, Users } from "lucide-react";
 import { Badge, Card, CardContent, CardHeader, CardTitle, Select } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { locations, locationName } from "@/lib/mock/locations";
 import {
   BOTTLENECK_THRESHOLD,
@@ -61,14 +60,13 @@ export default function CapacityPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="label-eyebrow">Operations</p>
-            <h1 className="font-display text-2xl font-semibold text-ink-50">
+            <h1 className="font-display text-title font-semibold text-ink-50">
               Capacity &amp; utilisation
             </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-400">
+            <p className="mt-1 flex items-center gap-1.5 text-body text-ink-400">
               <CalendarRange className="h-3.5 w-3.5" />
               Rostered week {formatDate(range.from)} – {formatDate(range.to)}
             </p>
@@ -87,10 +85,8 @@ export default function CapacityPage() {
             </Select>
           </div>
         </div>
-      </FadeIn>
 
       {/* Hours first. A ratio is not staffable. */}
-      <FadeIn delay={0.04}>
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Stat
             label="Open hours this week"
@@ -126,25 +122,23 @@ export default function CapacityPage() {
             tone={summary.unrosteredHours > 0 ? "high" : "neutral"}
           />
         </div>
-      </FadeIn>
 
       {/* Findings — ranked by hours at stake. */}
-      <FadeIn delay={0.08}>
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Where the hours are going</CardTitle>
-            <span className="text-xs text-ink-500">Ranked by hours at stake</span>
+            <span className="text-detail text-ink-500">Ranked by hours at stake</span>
           </CardHeader>
           <CardContent>
             {findings.length === 0 ? (
-              <p className="text-sm text-ink-400">
+              <p className="text-body text-ink-400">
                 Nothing above threshold this week at{" "}
                 {locationId === "all" ? "any location" : locationName(locationId)}.
               </p>
             ) : (
-              <Stagger className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                 {findings.slice(0, 10).map((f) => (
-                  <StaggerItem key={f.id}>
+                  <div key={f.id}>
                     <div className="flex items-start gap-3 rounded-xl border border-ink-700/60 bg-ink-900/40 p-3.5">
                       <span
                         className={cn(
@@ -163,20 +157,19 @@ export default function CapacityPage() {
                         )}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink-100">{f.label}</p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-ink-400">{f.detail}</p>
+                        <p className="text-body font-medium text-ink-100">{f.label}</p>
+                        <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{f.detail}</p>
                       </div>
-                      <span className="stat-mono shrink-0 text-sm text-ink-300">
+                      <span className="stat-mono shrink-0 text-body text-ink-300">
                         {f.hours.toFixed(1)}h
                       </span>
                     </div>
-                  </StaggerItem>
+                  </div>
                 ))}
-              </Stagger>
+              </div>
             )}
           </CardContent>
         </Card>
-      </FadeIn>
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
         {/* By day */}
@@ -189,14 +182,14 @@ export default function CapacityPage() {
               <div key={d.date} className="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-3">
                 <span
                   className={cn(
-                    "text-xs font-medium",
+                    "text-detail font-medium",
                     d.isToday ? "text-gold-300" : "text-ink-400",
                   )}
                 >
                   {d.weekday}
                 </span>
                 <UtilBar cell={d} />
-                <span className="stat-mono text-right text-xs text-ink-300">
+                <span className="stat-mono text-right text-detail text-ink-300">
                   {d.bookedHours.toFixed(0)}/{d.availableHours.toFixed(0)}h
                 </span>
               </div>
@@ -209,7 +202,7 @@ export default function CapacityPage() {
           <CardHeader className="flex flex-row items-baseline justify-between">
             <CardTitle>By hour of day</CardTitle>
             {peakHour && (
-              <span className="text-xs text-ink-500">
+              <span className="text-detail text-ink-500">
                 Peak {peakHour.label} · {Math.round(peakHour.utilisation * 100)}%
               </span>
             )}
@@ -231,11 +224,11 @@ export default function CapacityPage() {
                       style={{ height: `${Math.min(100, h.utilisation * 100)}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-ink-500">{h.label}</span>
+                  <span className="text-micro text-ink-500">{h.label}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-ink-500">
+            <p className="mt-3 text-detail text-ink-500">
               Height is booked ÷ rostered for that hour. Bars are not clamped
               at the top elsewhere in this page — here they are, so read the
               provider table for anyone genuinely over 100%.
@@ -248,14 +241,14 @@ export default function CapacityPage() {
       <Card className="mt-4">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>By clinician</CardTitle>
-          <span className="flex items-center gap-1.5 text-xs text-ink-500">
+          <span className="flex items-center gap-1.5 text-detail text-ink-500">
             <Users className="h-3.5 w-3.5" />
             Admin staff excluded — members are not booked into them
           </span>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[720px] text-body">
               <thead>
                 <tr className="border-b border-ink-700/60 text-left">
                   <th className="label-eyebrow px-5 py-2.5 font-medium">Clinician</th>
@@ -272,7 +265,7 @@ export default function CapacityPage() {
                   <tr key={p.staffId} className="border-b border-ink-800/70">
                     <td className="px-5 py-3">
                       <span className="text-ink-100">{p.label}</span>
-                      <span className="ml-2 text-xs text-ink-500">
+                      <span className="ml-2 text-detail text-ink-500">
                         {p.credentials ?? p.role}
                       </span>
                     </td>
@@ -316,15 +309,15 @@ export default function CapacityPage() {
           {byLocation.map((l) => (
             <div key={l.key} className="rounded-xl border border-ink-700/60 bg-ink-900/40 p-4">
               <div className="flex items-baseline justify-between">
-                <p className="text-sm font-medium text-ink-100">{l.label}</p>
-                <span className="stat-mono text-sm text-ink-200">
+                <p className="text-body font-medium text-ink-100">{l.label}</p>
+                <span className="stat-mono text-body text-ink-200">
                   {Math.round(l.utilisation * 100)}%
                 </span>
               </div>
               <div className="mt-2.5">
                 <UtilBar cell={l} />
               </div>
-              <p className="mt-2 text-xs text-ink-500">
+              <p className="mt-2 text-detail text-ink-500">
                 <span className="stat-mono">{l.bookedHours.toFixed(1)}h</span> booked ·{" "}
                 <span className="stat-mono">{l.openHours.toFixed(1)}h</span> open ·{" "}
                 <span className="stat-mono">{l.bookingCount}</span> bookings
@@ -334,7 +327,7 @@ export default function CapacityPage() {
         </CardContent>
       </Card>
 
-      <p className="mt-4 text-xs leading-relaxed text-ink-500">
+      <p className="mt-4 text-detail leading-relaxed text-ink-500">
         Cancellations and late cancels do not consume capacity — the slot was
         released. No-shows do: the clinician sat in the room and the slot was
         never resellable. Getting that backwards is the most common way a
@@ -366,11 +359,11 @@ function Stat({
   return (
     <div className="card p-4">
       <p className="label-eyebrow">{label}</p>
-      <p className={cn("stat-mono mt-1 text-2xl", toneClass)}>
+      <p className={cn("stat-mono mt-1 text-title", toneClass)}>
         {value}
-        {unit && <span className="ml-0.5 text-sm text-ink-500">{unit}</span>}
+        {unit && <span className="ml-0.5 text-body text-ink-500">{unit}</span>}
       </p>
-      <p className="mt-1 text-[11px] leading-snug text-ink-500">{hint}</p>
+      <p className="mt-1 text-micro leading-snug text-ink-500">{hint}</p>
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function VisitRoomPage() {
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-16 pt-4 sm:px-6">
       <Link
         href="/portal/book-visit"
-        className="inline-flex items-center gap-1.5 rounded-lg text-[13px] text-ink-400 transition-colors hover:text-ink-100 focus-ring"
+        className="inline-flex items-center gap-1.5 rounded-control text-detail text-ink-400 transition-colors hover:text-ink-100 focus-ring"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Appointments
       </Link>

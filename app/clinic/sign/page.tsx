@@ -3,7 +3,7 @@
 import * as React from "react";
 import { MobileSignQueue } from "@/components/clinic/MobileSignQueue";
 import { SecondOpinion } from "@/components/clinic/SecondOpinion";
-import { FadeIn, SwitchView } from "@/components/motion";
+import { SwitchView } from "@/components/motion";
 import { Tabs } from "@/components/ui/Tabs";
 
 /**
@@ -20,20 +20,19 @@ export default function ClinicSignPage() {
   const [tab, setTab] = React.useState("queue");
 
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">CLINIC</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Sign
         </h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-2 text-body text-ink-400">
           Clear your signature queue one item at a time, with the evidence on the same screen as
           the decision. Built for a phone between patients — the failure mode a mobile sign-off
           flow has to design against is signing blind.
         </p>
-      </FadeIn>
+      </header>
 
-      <FadeIn delay={0.05}>
         <Tabs
           tabs={[
             { id: "queue", label: "Signature queue" },
@@ -42,7 +41,6 @@ export default function ClinicSignPage() {
           active={tab}
           onChange={setTab}
         />
-      </FadeIn>
 
       <SwitchView k={tab}>
         {tab === "queue" ? <MobileSignQueue /> : <SecondOpinion />}

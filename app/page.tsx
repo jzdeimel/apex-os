@@ -80,20 +80,20 @@ export default function EntryPage() {
         >
           <div className="flex items-center gap-2.5">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500 shadow-glow">
-              <span className="font-display text-sm font-bold text-white">A</span>
+              <span className="font-display text-body font-bold text-white">A</span>
             </div>
             <div className="leading-none">
-              <p className="font-display text-sm font-semibold tracking-tight text-ink-50">
+              <p className="font-display text-body font-semibold tracking-tight text-ink-50">
                 Apex
               </p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-500">
+              <p className="mt-0.5 text-micro uppercase tracking-[0.18em] text-ink-500">
                 Alpha Health
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-ink-700/70 bg-ink-900/60 px-3 py-1.5 backdrop-blur">
             <ShieldCheck className="h-3.5 w-3.5 text-optimal" />
-            <span className="text-[11px] text-ink-300">Demonstration build · synthetic data</span>
+            <span className="text-micro text-ink-300">Demonstration build · synthetic data</span>
           </div>
         </motion.header>
 
@@ -107,12 +107,12 @@ export default function EntryPage() {
           >
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-gold-400/25 bg-gold-400/8 px-3 py-1">
               <Lock className="h-3 w-3 text-gold-300" />
-              <span className="text-[11px] font-medium tracking-wide text-gold-200">
+              <span className="text-micro font-medium tracking-wide text-gold-200">
                 Traceable by construction
               </span>
             </div>
 
-            <h1 className="font-display text-4xl font-semibold leading-[1.05] tracking-tightest text-ink-50 sm:text-6xl">
+            <h1 className="font-display text-display font-semibold leading-[1.05] tracking-tightest text-ink-50 sm:text-6xl">
               The clinic operating system
               <br />
               <span className="bg-gradient-to-r from-gold-300 via-gold-400 to-gold-600 bg-clip-text text-transparent">
@@ -120,7 +120,7 @@ export default function EntryPage() {
               </span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-400">
+            <p className="mt-5 max-w-xl text-body leading-relaxed text-ink-400">
               Three portals over one system of record. Every recommendation carries
               the rule that produced it, every chart view is logged, and any record
               can be replayed exactly as it looked on any past date.
@@ -136,8 +136,8 @@ export default function EntryPage() {
                   className="flex items-baseline gap-2"
                 >
                   <span className="h-1 w-1 rounded-full bg-optimal" />
-                  <span className="text-xs font-medium text-ink-200">{p.label}</span>
-                  <span className="text-[11px] text-ink-600">{p.detail}</span>
+                  <span className="text-detail font-medium text-ink-200">{p.label}</span>
+                  <span className="text-micro text-ink-600">{p.detail}</span>
                 </motion.div>
               ))}
             </div>
@@ -191,23 +191,23 @@ export default function EntryPage() {
                     </div>
 
                     <p className="label-eyebrow">{p.persona}</p>
-                    <h2 className="mt-1 font-display text-lg font-semibold text-ink-50">
+                    <h2 className="mt-1 font-display text-heading font-semibold text-ink-50">
                       {p.label}
                     </h2>
-                    <p className="mt-2 min-h-[3.25rem] text-[13px] leading-relaxed text-ink-400">
+                    <p className="mt-2 min-h-[3.25rem] text-detail leading-relaxed text-ink-400">
                       {p.tagline}
                     </p>
 
                     <div className="mt-4 space-y-1.5 border-t border-ink-700/60 pt-3">
                       <div className="flex items-center gap-1.5">
                         <Fingerprint className="h-3 w-3 text-ink-500" />
-                        <span className="text-[11px] text-ink-300">{p.identity.method}</span>
+                        <span className="text-micro text-ink-300">{p.identity.method}</span>
                       </div>
-                      <p className="pl-[18px] text-[11px] text-ink-600">{p.identity.session}</p>
+                      <p className="pl-[18px] text-micro text-ink-600">{p.identity.session}</p>
                     </div>
 
                     <div className="mt-4 flex items-center gap-1.5">
-                      <span className={`text-xs font-medium ${p.accent.text}`}>
+                      <span className={`text-detail font-medium ${p.accent.text}`}>
                         {entering === p.id ? "Signing in" : "Enter"}
                       </span>
                       <ArrowRight
@@ -228,13 +228,13 @@ export default function EntryPage() {
           transition={{ duration: 0.6, delay: 0.9 }}
           className="flex flex-col items-start justify-between gap-3 border-t border-ink-800/60 pt-5 sm:flex-row sm:items-center"
         >
-          <p className="text-[11px] leading-relaxed text-ink-600">
+          <p className="text-micro leading-relaxed text-ink-600">
             Apex demonstration build. Synthetic data, Apex-owned. No PHI, no real
             prescribing, no real fulfillment.
           </p>
           <Link
             href="/clinic"
-            className="text-[11px] text-ink-500 underline-offset-4 transition-colors hover:text-ink-300 hover:underline focus-ring"
+            className="text-micro text-ink-500 underline-offset-4 transition-colors hover:text-ink-300 hover:underline focus-ring"
           >
             Skip to the medical console →
           </Link>

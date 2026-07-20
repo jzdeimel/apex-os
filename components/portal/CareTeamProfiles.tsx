@@ -33,7 +33,7 @@ import { me } from "@/components/portal/PortalHeader";
 import { staff, staffMap } from "@/lib/mock/staff";
 import { locationMap, locationName } from "@/lib/mock/locations";
 import { Card, CardContent, SectionTitle, Badge, EmptyState } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
+import { Stagger, StaggerItem, FadeIn } from "@/components/portal/still";
 import { cn } from "@/lib/utils";
 import type { StaffMember } from "@/lib/types";
 
@@ -72,7 +72,7 @@ function StaffChip({ s, size = "md" }: { s: StaffMember; size?: "md" | "lg" }) {
       aria-hidden="true"
       className={cn(
         "grid shrink-0 place-items-center rounded-full border border-ink-600/70 bg-ink-800 font-display font-semibold text-ink-100",
-        size === "lg" ? "h-14 w-14 text-lg" : "h-10 w-10 text-sm",
+        size === "lg" ? "h-14 w-14 text-heading" : "h-10 w-10 text-detail",
       )}
     >
       {s.avatarInitials}
@@ -116,10 +116,10 @@ function PrimaryPersonCard({
           <StaffChip s={s} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="label-eyebrow">{relationship}</p>
-            <h3 className="mt-1.5 font-display text-xl font-semibold leading-tight text-ink-50">
+            <h3 className="mt-1.5 font-display text-title font-semibold leading-tight text-ink-50">
               {s.name}
               {s.credentials && (
-                <span className="ml-2 text-sm font-normal text-ink-400">{s.credentials}</span>
+                <span className="ml-2 text-detail font-normal text-ink-400">{s.credentials}</span>
               )}
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -132,10 +132,10 @@ function PrimaryPersonCard({
         {/* The clinic's one-line bio, then our sentence about what this person
             does FOR THE MEMBER. The bio alone is written for staff directories
             and reads like one. */}
-        {s.bio && <p className="mt-4 text-[15px] leading-relaxed text-ink-200">{s.bio}</p>}
-        <p className="mt-2 text-[15px] leading-relaxed text-ink-400">{blurb}</p>
+        {s.bio && <p className="mt-4 text-body leading-relaxed text-ink-200">{s.bio}</p>}
+        <p className="mt-2 text-body leading-relaxed text-ink-400">{blurb}</p>
 
-        <dl className="mt-5 space-y-2.5 border-t border-ink-700/70 pt-4 text-sm">
+        <dl className="mt-5 space-y-2.5 border-t border-ink-700/70 pt-4 text-detail">
           <div className="flex items-start gap-2.5">
             <dt className="sr-only">Works from</dt>
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" aria-hidden="true" />
@@ -147,7 +147,7 @@ function PrimaryPersonCard({
             <dd className="min-w-0">
               {/* break-all: a long address must wrap rather than widen the
                   card — at 390px an unbroken email is the whole viewport. */}
-              <a href={`mailto:${s.email}`} className="focus-ring break-all rounded-sm text-ink-300 hover:text-ink-50">
+              <a href={`mailto:${s.email}`} className="focus-ring break-all rounded-control text-ink-300 hover:text-ink-50">
                 {s.email}
               </a>
             </dd>
@@ -157,7 +157,7 @@ function PrimaryPersonCard({
               <dt className="sr-only">Clinic phone</dt>
               <Phone className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" aria-hidden="true" />
               <dd>
-                <a href={`tel:${home.phone.replace(/[^0-9+]/g, "")}`} className="focus-ring rounded-sm text-ink-300 hover:text-ink-50">
+                <a href={`tel:${home.phone.replace(/[^0-9+]/g, "")}`} className="focus-ring rounded-control text-ink-300 hover:text-ink-50">
                   {home.phone}
                 </a>
                 <span className="ml-1.5 text-ink-500">· {home.short}</span>
@@ -170,7 +170,7 @@ function PrimaryPersonCard({
             only styled action — everything above is a fallback, not a peer. */}
         <Link
           href="/portal/messages"
-          className="focus-ring mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-gold-500 px-4 text-sm font-medium text-white transition-colors hover:bg-gold-400 motion-reduce:transition-none"
+          className="focus-ring mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-control bg-gold-500 px-4 text-detail font-medium text-white transition-colors hover:bg-gold-400 motion-reduce:transition-none"
         >
           <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Message {s.name.split(" ").slice(-1)[0]}
@@ -188,17 +188,17 @@ function TeamPersonCard({ s }: { s: StaffMember }) {
         <div className="flex items-start gap-3">
           <StaffChip s={s} />
           <div className="min-w-0 flex-1">
-            <p className="font-display text-sm font-semibold leading-tight text-ink-50">
+            <p className="font-display text-detail font-semibold leading-tight text-ink-50">
               {s.name}
               {s.credentials && (
-                <span className="ml-1.5 text-xs font-normal text-ink-500">{s.credentials}</span>
+                <span className="ml-1.5 text-micro font-normal text-ink-500">{s.credentials}</span>
               )}
             </p>
-            <p className="mt-1 text-xs text-ink-400">{memberFacingRole(s)}</p>
+            <p className="mt-1 text-micro text-ink-400">{memberFacingRole(s)}</p>
           </div>
         </div>
-        {s.bio && <p className="mt-3 text-sm leading-relaxed text-ink-300">{s.bio}</p>}
-        <p className="mt-auto pt-3 text-xs text-ink-500">{worksFrom(s)}</p>
+        {s.bio && <p className="mt-3 text-detail leading-relaxed text-ink-300">{s.bio}</p>}
+        <p className="mt-auto pt-3 text-micro text-ink-500">{worksFrom(s)}</p>
       </CardContent>
     </Card>
   );
@@ -240,7 +240,7 @@ export function CareTeamProfiles() {
           <Stethoscope className="h-4 w-4 text-gold-400" aria-hidden="true" />
           <SectionTitle>Your two people</SectionTitle>
         </div>
-        <p className="max-w-prose text-[15px] leading-relaxed text-ink-400">
+        <p className="max-w-prose text-body leading-relaxed text-ink-400">
           Between them they see everything: every lab, every scan, every note you send. You
           never have to explain your history twice.
         </p>
@@ -285,7 +285,7 @@ export function CareTeamProfiles() {
           <Users className="h-4 w-4 text-gold-400" aria-hidden="true" />
           <SectionTitle>The rest of the team at {home?.short ?? "your clinic"}</SectionTitle>
         </div>
-        <p className="max-w-prose text-[15px] leading-relaxed text-ink-400">
+        <p className="max-w-prose text-body leading-relaxed text-ink-400">
           People you&apos;ll meet at the front desk, cover your coach when they&apos;re out, or
           run your draw. Worth knowing the names.
         </p>
@@ -311,13 +311,13 @@ export function CareTeamProfiles() {
           <SectionTitle>Where to find us</SectionTitle>
           <Card>
             <CardContent className="p-5">
-              <p className="font-display text-base font-semibold text-ink-50">{home.name}</p>
-              {home.address && <p className="mt-1.5 text-sm text-ink-300">{home.address}</p>}
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              <p className="font-display text-body font-semibold text-ink-50">{home.name}</p>
+              {home.address && <p className="mt-1.5 text-detail text-ink-300">{home.address}</p>}
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-detail">
                 {home.phone && (
                   <a
                     href={`tel:${home.phone.replace(/[^0-9+]/g, "")}`}
-                    className="focus-ring inline-flex items-center gap-2 rounded-sm text-ink-300 hover:text-ink-50"
+                    className="focus-ring inline-flex items-center gap-2 rounded-control text-ink-300 hover:text-ink-50"
                   >
                     <Phone className="h-4 w-4 text-ink-500" aria-hidden="true" />
                     {home.phone}

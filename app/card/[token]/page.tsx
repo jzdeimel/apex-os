@@ -40,7 +40,7 @@ const STALE_STYLE = {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-ink-800 pt-5">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500">{title}</h2>
+      <h2 className="text-detail font-semibold uppercase tracking-[0.14em] text-ink-500">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -49,8 +49,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function NotFound() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-12">
-      <h1 className="font-display text-2xl font-semibold text-ink-50">This card is not available</h1>
-      <p className="mt-3 text-base leading-relaxed text-ink-300">
+      <h1 className="font-display text-title font-semibold text-ink-50">This card is not available</h1>
+      <p className="mt-3 text-body leading-relaxed text-ink-300">
         The link may have expired or been mistyped. If you are treating an Alpha Health member, call{" "}
         <a href={`tel:${BRAND.telehealthPhone}`} className="stat-mono underline">
           {BRAND.telehealthPhone}
@@ -68,26 +68,26 @@ function CardBody({ card }: { card: EmergencyCard }) {
     <main className="mx-auto w-full max-w-xl px-5 py-6 sm:py-10">
       {/* What this is — first thing on the page, before any clinical content. */}
       <div className="rounded-2xl border-2 border-high/60 bg-high/15 p-4">
-        <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.12em] text-high">
+        <p className="flex items-center gap-2 text-body font-bold uppercase tracking-[0.12em] text-high">
           <ShieldAlert className="h-5 w-5 shrink-0" />
           Emergency summary
         </p>
-        <p className="mt-2 text-base font-medium leading-relaxed text-ink-50">{CARD_DISCLAIMER}</p>
+        <p className="mt-2 text-body font-medium leading-relaxed text-ink-50">{CARD_DISCLAIMER}</p>
       </div>
 
       {/* Staleness — loud when it needs to be, quiet when it does not. */}
       <div className={`mt-3 flex items-start gap-2.5 rounded-2xl border p-4 ${stale.wrap}`}>
         <Clock className={`mt-0.5 h-5 w-5 shrink-0 ${stale.icon}`} />
         <div className="min-w-0">
-          <p className={`text-base font-semibold leading-snug ${stale.text}`}>
+          <p className={`text-body font-semibold leading-snug ${stale.text}`}>
             {card.staleness === "stale"
               ? "This card is out of date"
               : card.staleness === "aging"
                 ? "This card may be out of date"
                 : "This card is current"}
           </p>
-          <p className="mt-1 text-[15px] leading-relaxed text-ink-300">{card.stalenessNote}</p>
-          <p className="stat-mono mt-2 text-sm text-ink-400">
+          <p className="mt-1 text-body leading-relaxed text-ink-300">{card.stalenessNote}</p>
+          <p className="stat-mono mt-2 text-body text-ink-400">
             Last updated {formatDay(card.generatedOn)}
           </p>
         </div>
@@ -95,14 +95,14 @@ function CardBody({ card }: { card: EmergencyCard }) {
 
       {/* Identity ---------------------------------------------------------- */}
       <header className="mt-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500">Patient</p>
-        <h1 className="mt-1.5 font-display text-4xl font-bold leading-[1.05] tracking-tight text-ink-50">
+        <p className="text-detail font-semibold uppercase tracking-[0.14em] text-ink-500">Patient</p>
+        <h1 className="mt-1.5 font-display text-display font-bold leading-[1.05] tracking-tight text-ink-50">
           {card.name}
         </h1>
-        <p className="stat-mono mt-2 text-lg text-ink-200">
+        <p className="stat-mono mt-2 text-heading text-ink-200">
           Age {card.age} · {card.sex === "male" ? "Male" : "Female"} · MRN {card.mrn}
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
+        <p className="mt-1.5 text-body leading-relaxed text-ink-500">
           Alpha Health records age and an Alpha-issued MRN. No date of birth is printed here because none is
           held — confirm identity with the patient or their ID.
         </p>
@@ -112,7 +112,7 @@ function CardBody({ card }: { card: EmergencyCard }) {
         {/* Prescribed --------------------------------------------------------- */}
         <Section title="Currently prescribed">
           {card.prescribed.length === 0 ? (
-            <p className="text-lg leading-relaxed text-ink-200">
+            <p className="text-heading leading-relaxed text-ink-200">
               No active Alpha Health prescription is attached to this card. That is not the same as nothing
               at all — call the clinic.
             </p>
@@ -120,17 +120,17 @@ function CardBody({ card }: { card: EmergencyCard }) {
             <ul className="space-y-2.5">
               {card.prescribed.map((p) => (
                 <li key={p.name} className="rounded-2xl border border-ink-700 bg-ink-900 p-4">
-                  <p className="text-xl font-semibold leading-snug text-ink-50">{p.name}</p>
+                  <p className="text-heading font-semibold leading-snug text-ink-50">{p.name}</p>
                   {/* No route is a real answer, and it is printed as one. A
                       guessed route on this page is worse than a gap. */}
-                  <p className="stat-mono mt-1 text-base text-ink-300">
+                  <p className="stat-mono mt-1 text-body text-ink-300">
                     {p.route ?? "Route not recorded — confirm with the clinic"}
                   </p>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 text-[15px] leading-relaxed text-ink-200">
+          <p className="mt-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 text-body leading-relaxed text-ink-200">
             <span className="font-semibold text-ink-50">No amounts are listed, deliberately.</span> Doses are
             adjusted over time and a figure printed on a card is a figure frozen at the day it was printed.
             Call the clinic for the current prescription.
@@ -142,7 +142,7 @@ function CardBody({ card }: { card: EmergencyCard }) {
           {card.allergiesRecorded && card.allergies.length > 0 ? (
             <ul className="space-y-2">
               {card.allergies.map((a) => (
-                <li key={a} className="rounded-2xl border border-high/50 bg-high/10 p-4 text-xl font-semibold text-ink-50">
+                <li key={a} className="rounded-2xl border border-high/50 bg-high/10 p-4 text-heading font-semibold text-ink-50">
                   {a}
                 </li>
               ))}
@@ -153,7 +153,7 @@ function CardBody({ card }: { card: EmergencyCard }) {
                this page could do. */
             <div className="flex items-start gap-2.5 rounded-2xl border border-watch/40 bg-watch/10 p-4">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-watch" />
-              <p className="text-[17px] font-medium leading-relaxed text-ink-50">
+              <p className="text-heading font-medium leading-relaxed text-ink-50">
                 No allergy history is recorded at Alpha Health. This is not a clearance — ask the patient and
                 confirm independently.
               </p>
@@ -167,8 +167,8 @@ function CardBody({ card }: { card: EmergencyCard }) {
             <ul className="space-y-2.5">
               {card.riskFlags.map((f) => (
                 <li key={f.label} className="rounded-2xl border border-ink-700 bg-ink-900 p-4">
-                  <p className="text-lg font-semibold text-ink-50">{f.label}</p>
-                  <p className="mt-1 text-[15px] leading-relaxed text-ink-300">{f.detail}</p>
+                  <p className="text-heading font-semibold text-ink-50">{f.label}</p>
+                  <p className="mt-1 text-body leading-relaxed text-ink-300">{f.detail}</p>
                 </li>
               ))}
             </ul>
@@ -183,18 +183,18 @@ function CardBody({ card }: { card: EmergencyCard }) {
           >
             <Phone className="h-6 w-6 shrink-0 text-optimal" />
             <span className="min-w-0">
-              <span className="block text-sm text-ink-300">
+              <span className="block text-body text-ink-300">
                 {card.careTeam.location?.name ?? BRAND.name}
               </span>
-              <span className="stat-mono block text-2xl font-bold text-ink-50">{card.careTeam.phone}</span>
+              <span className="stat-mono block text-title font-bold text-ink-50">{card.careTeam.phone}</span>
             </span>
           </a>
 
           <dl className="mt-3 space-y-2">
             {card.careTeam.provider && (
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 rounded-xl border border-ink-800 p-3">
-                <dt className="text-sm text-ink-500">Provider</dt>
-                <dd className="text-[17px] font-medium text-ink-50">
+                <dt className="text-body text-ink-500">Provider</dt>
+                <dd className="text-heading font-medium text-ink-50">
                   {card.careTeam.provider.name}
                   {card.careTeam.provider.credentials ? `, ${card.careTeam.provider.credentials}` : ""}
                 </dd>
@@ -202,14 +202,14 @@ function CardBody({ card }: { card: EmergencyCard }) {
             )}
             {card.careTeam.coach && (
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 rounded-xl border border-ink-800 p-3">
-                <dt className="text-sm text-ink-500">Coach</dt>
-                <dd className="text-[17px] font-medium text-ink-50">{card.careTeam.coach.name}</dd>
+                <dt className="text-body text-ink-500">Coach</dt>
+                <dd className="text-heading font-medium text-ink-50">{card.careTeam.coach.name}</dd>
               </div>
             )}
             {card.careTeam.location?.address && (
               <div className="rounded-xl border border-ink-800 p-3">
-                <dt className="text-sm text-ink-500">Clinic</dt>
-                <dd className="mt-0.5 text-[17px] text-ink-100">{card.careTeam.location.address}</dd>
+                <dt className="text-body text-ink-500">Clinic</dt>
+                <dd className="mt-0.5 text-heading text-ink-100">{card.careTeam.location.address}</dd>
               </div>
             )}
           </dl>
@@ -218,10 +218,10 @@ function CardBody({ card }: { card: EmergencyCard }) {
 
       {/* Footer ------------------------------------------------------------- */}
       <footer className="mt-8 border-t border-ink-800 pt-5">
-        <p className="stat-mono text-sm text-ink-400">
+        <p className="stat-mono text-body text-ink-400">
           Generated {formatDay(card.generatedOn)} · record last changed {formatDay(card.sourcedOn)}
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-ink-500">
+        <p className="mt-2 text-body leading-relaxed text-ink-500">
           {BRAND.name} — {BRAND.tagline}. Demo data. Not medical advice and not a medical record.
         </p>
       </footer>

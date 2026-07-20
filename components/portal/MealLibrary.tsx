@@ -46,14 +46,14 @@ function MacroTile({
   return (
     <div
       className={cn(
-        "hairline rounded-2xl border p-3.5",
+        "hairline rounded-panel border p-3.5",
         lead ? "border-gold-400/25 bg-gold-400/[0.06]" : "bg-ink-900/50",
       )}
     >
-      <p className="text-[10px] uppercase tracking-wide text-ink-500">{label}</p>
-      <p className="stat-mono mt-1 text-xl font-semibold text-ink-50">
+      <p className="text-micro uppercase tracking-wide text-ink-500">{label}</p>
+      <p className="stat-mono mt-1 text-title font-semibold text-ink-50">
         {value.toLocaleString()}
-        <span className="ml-0.5 text-xs font-normal text-ink-400">{unit}</span>
+        <span className="ml-0.5 text-micro font-normal text-ink-400">{unit}</span>
       </p>
     </div>
   );
@@ -77,7 +77,7 @@ function MacroBar({ fit }: { fit: MealFit }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {parts.map((p) => (
-          <span key={p.label} className="text-[12px] text-ink-400">
+          <span key={p.label} className="text-micro text-ink-400">
             <span className="stat-mono font-medium text-ink-100">{p.grams} g</span>{" "}
             {p.label === "P" ? "protein" : p.label === "C" ? "carbs" : "fat"}
           </span>
@@ -96,15 +96,15 @@ function MealCard({ fit, index }: { fit: MealFit; index: number }) {
     <Card className="motion-safe:animate-fade-up" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
       <CardContent className="p-4 pt-4 sm:p-5 sm:pt-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 font-display text-[17px] font-semibold leading-snug text-ink-50">
+          <h3 className="min-w-0 font-display text-heading font-semibold leading-snug text-ink-50">
             {meal.name}
           </h3>
-          <span className="stat-mono shrink-0 rounded-full border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300">
+          <span className="stat-mono shrink-0 rounded-control border border-ink-700 px-2 py-0.5 text-micro text-ink-300">
             {meal.kcal} kcal
           </span>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-500">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-500">
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
             <span className="stat-mono">{meal.minutes}</span> min
@@ -120,7 +120,7 @@ function MealCard({ fit, index }: { fit: MealFit; index: number }) {
         </div>
 
         {/* The whole point: what this meal does to THEIR day. */}
-        <p className="mt-3 text-[13px] leading-relaxed text-ink-400">{fit.fitNote}</p>
+        <p className="mt-3 text-detail leading-relaxed text-ink-400">{fit.fitNote}</p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {fit.matchedGoals.map((g) => (
@@ -139,7 +139,7 @@ function MealCard({ fit, index }: { fit: MealFit; index: number }) {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={panelId}
-          className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-medium text-gold-300 hover:text-gold-200"
+          className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-control text-detail font-medium text-gold-300 hover:text-gold-200"
         >
           {open ? "Hide the recipe" : "How to make it"}
           <ChevronDown
@@ -153,7 +153,7 @@ function MealCard({ fit, index }: { fit: MealFit; index: number }) {
               <p className="label-eyebrow">What you need</p>
               <ul className="mt-2 space-y-1.5">
                 {meal.ingredients.map((ing) => (
-                  <li key={ing} className="flex gap-2 text-[13px] leading-relaxed text-ink-300">
+                  <li key={ing} className="flex gap-2 text-detail leading-relaxed text-ink-300">
                     <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-ink-500" />
                     {ing}
                   </li>
@@ -164,8 +164,8 @@ function MealCard({ fit, index }: { fit: MealFit; index: number }) {
               <p className="label-eyebrow">How to make it</p>
               <ol className="mt-2 space-y-2.5">
                 {meal.steps.map((step, i) => (
-                  <li key={step} className="flex gap-2.5 text-[13px] leading-relaxed text-ink-300">
-                    <span className="stat-mono mt-px shrink-0 text-[11px] font-semibold text-gold-300">
+                  <li key={step} className="flex gap-2.5 text-detail leading-relaxed text-ink-300">
+                    <span className="stat-mono mt-px shrink-0 text-micro font-semibold text-gold-300">
                       {i + 1}
                     </span>
                     {step}
@@ -205,7 +205,7 @@ export function MealLibrary({ client }: { client: Client }) {
         <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
           <div className="flex items-center gap-2">
             <UtensilsCrossed className="h-5 w-5 text-gold-300" />
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               What your day is aiming at
             </h2>
           </div>
@@ -219,7 +219,7 @@ export function MealLibrary({ client }: { client: Client }) {
 
           {/* The basis renders verbatim — a target you cannot trace is a
               target you argue with. */}
-          <p className="mt-3.5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-400">
+          <p className="mt-3.5 flex items-start gap-2 text-detail leading-relaxed text-ink-400">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
             {targets.basis}
           </p>
@@ -230,10 +230,10 @@ export function MealLibrary({ client }: { client: Client }) {
       {day.meals.length > 0 && (
         <Card>
           <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               What a day could look like
             </h2>
-            <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-400">
+            <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
               Your four best-fitting meals, one from each part of the day. This is a shape to copy, not a
               plan you have to follow — swap anything for anything else in the list below.
             </p>
@@ -242,19 +242,19 @@ export function MealLibrary({ client }: { client: Client }) {
               {day.meals.map((f) => (
                 <li
                   key={f.meal.id}
-                  className="hairline flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl border bg-ink-900/50 p-3.5"
+                  className="hairline flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-panel border bg-ink-900/50 p-3.5"
                 >
-                  <span className="min-w-0 text-[14px] text-ink-100">{f.meal.name}</span>
-                  <span className="stat-mono shrink-0 text-[13px] text-ink-400">
+                  <span className="min-w-0 text-detail text-ink-100">{f.meal.name}</span>
+                  <span className="stat-mono shrink-0 text-detail text-ink-400">
                     {f.meal.kcal} kcal · {f.meal.proteinG} g protein
                   </span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl border border-ink-700 bg-ink-900 p-3.5">
-              <span className="text-sm font-medium text-ink-50">That day totals</span>
-              <span className="stat-mono shrink-0 text-[15px] font-semibold text-ink-50">
+            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-panel border border-ink-700 bg-ink-900 p-3.5">
+              <span className="text-detail font-medium text-ink-50">That day totals</span>
+              <span className="stat-mono shrink-0 text-body font-semibold text-ink-50">
                 {day.totals.kcal.toLocaleString()} kcal · {day.totals.proteinG} g protein
               </span>
             </div>
@@ -262,7 +262,7 @@ export function MealLibrary({ client }: { client: Client }) {
                 that lands 600 kcal short is a normal thing for a four-meal
                 example to do, and pretending otherwise is how a member ends up
                 undereating while believing they followed the page. */}
-            <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
+            <p className="mt-2 text-micro leading-relaxed text-ink-500">
               Your targets are {targets.calories.toLocaleString()} kcal and {targets.proteinG} g protein, so
               this day runs{" "}
               <span className="stat-mono text-ink-300">
@@ -288,7 +288,7 @@ export function MealLibrary({ client }: { client: Client }) {
             key={t}
             onClick={() => setFilter(t as MealTag | "All")}
             className={cn(
-              "focus-ring shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors motion-reduce:transition-none",
+              "focus-ring shrink-0 rounded-control border px-3.5 py-1.5 text-detail font-medium transition-colors motion-reduce:transition-none",
               filter === t
                 ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
                 : "border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-100",
@@ -301,7 +301,7 @@ export function MealLibrary({ client }: { client: Client }) {
 
       {/* The library ------------------------------------------------------ */}
       <div>
-        <p className="text-[13px] text-ink-500">
+        <p className="text-detail text-ink-500">
           <span className="stat-mono text-ink-300">{shown.length}</span> recipes, best fit for your targets
           first.
         </p>

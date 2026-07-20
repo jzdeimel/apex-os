@@ -48,10 +48,10 @@ export function PersonaSwitcher() {
   if (!VIEWER.canSwitchPersona) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-[10px] font-bold text-ink-950">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-micro font-bold text-ink-950">
           {VIEWER.initials}
         </span>
-        <span className="hidden text-xs font-medium text-ink-200 sm:block">{VIEWER.name}</span>
+        <span className="hidden text-detail font-medium text-ink-200 sm:block">{VIEWER.name}</span>
       </div>
     );
   }
@@ -64,14 +64,14 @@ export function PersonaSwitcher() {
         aria-haspopup="listbox"
         className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5 transition-colors hover:border-ink-700 focus-ring"
       >
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-[10px] font-bold text-ink-950">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-micro font-bold text-ink-950">
           {VIEWER.initials}
         </span>
         <span className="hidden min-w-0 text-left sm:block">
-          <span className="block truncate text-xs font-medium leading-tight text-ink-200">
+          <span className="block truncate text-detail font-medium leading-tight text-ink-200">
             {VIEWER.name}
           </span>
-          <span className="flex items-center gap-1 text-[10px] leading-tight text-ink-500">
+          <span className="flex items-center gap-1 text-micro leading-tight text-ink-500">
             <Eye className="h-2.5 w-2.5" />
             viewing as {active.label}
           </span>
@@ -90,8 +90,8 @@ export function PersonaSwitcher() {
             className="absolute right-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card"
           >
             <div className="border-b border-ink-800 px-3 py-2.5">
-              <p className="text-[11px] font-medium text-ink-200">{VIEWER.name}</p>
-              <p className="text-[10px] text-ink-500">{VIEWER.email}</p>
+              <p className="text-micro font-medium text-ink-200">{VIEWER.name}</p>
+              <p className="text-micro text-ink-500">{VIEWER.email}</p>
             </div>
 
             <div className="px-3 pb-1 pt-2">
@@ -119,13 +119,13 @@ export function PersonaSwitcher() {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-1.5">
-                      <span className="text-[13px] font-medium text-ink-100">{p.label}</span>
-                      <span className="text-[10px] text-ink-600">{p.who}</span>
+                      <span className="text-detail font-medium text-ink-100">{p.label}</span>
+                      <span className="text-micro text-ink-600">{p.who}</span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] text-ink-400">
+                    <span className="mt-0.5 block truncate text-micro text-ink-400">
                       as {p.asName}
                     </span>
-                    <span className="block truncate text-[10px] text-ink-600">{p.asDetail}</span>
+                    <span className="block truncate text-micro text-ink-600">{p.asDetail}</span>
                   </span>
                   {isActive && <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-ink-400" />}
                 </button>
@@ -134,7 +134,7 @@ export function PersonaSwitcher() {
 
             <div className="flex items-start gap-2 border-t border-ink-800 bg-ink-950/50 px-3 py-2.5">
               <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-optimal" />
-              <p className="text-[10px] leading-relaxed text-ink-500">
+              <p className="text-micro leading-relaxed text-ink-500">
                 Owner preview. Switching changes what you see, never what you may
                 do — anything you act on still records{" "}
                 <span className="text-ink-400">{VIEWER.name}</span> as the actor.

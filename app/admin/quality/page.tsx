@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Clock, Eye, FlaskConical, ShieldAlert } from "lucide-react";
 import { Badge, Card, CardContent, CardHeader, CardTitle, Select } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { Tabs } from "@/components/ui/Tabs";
 import { locations, locationName } from "@/lib/mock/locations";
 import {
@@ -52,14 +51,13 @@ export default function LabQualityPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="label-eyebrow">Quality</p>
-            <h1 className="font-display text-2xl font-semibold text-ink-50">
+            <h1 className="font-display text-title font-semibold text-ink-50">
               Lab turnaround &amp; review
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-ink-400">
+            <p className="mt-1 max-w-2xl text-body text-ink-400">
               A resulted panel nobody has opened is not &ldquo;in progress&rdquo; — it is a
               member with a number in their chart who does not know. This page
               exists for that leg.
@@ -87,9 +85,7 @@ export default function LabQualityPage() {
             </Select>
           </div>
         </div>
-      </FadeIn>
 
-      <FadeIn delay={0.04}>
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <Stat
             label="Awaiting review"
@@ -121,13 +117,11 @@ export default function LabQualityPage() {
             tone={overall.p90ResultToReviewHours > REVIEW_BREACH_HOURS ? "high" : "watch"}
           />
         </div>
-      </FadeIn>
 
       {abnormalOverdue.length > 0 && (
-        <FadeIn delay={0.06}>
           <div className="mt-4 flex items-start gap-3 rounded-2xl border border-high/40 bg-high/[0.07] p-4">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-high" />
-            <p className="text-sm leading-relaxed text-ink-200">
+            <p className="text-body leading-relaxed text-ink-200">
               <span className="stat-mono text-high">{abnormalOverdue.length}</span>{" "}
               resulted panels are past {REVIEW_TARGET_HOURS}h unreviewed AND carry at
               least one marker outside its reference range. Nothing in the system
@@ -135,7 +129,6 @@ export default function LabQualityPage() {
               quiet risk.
             </p>
           </div>
-        </FadeIn>
       )}
 
       <div className="mt-5">
@@ -154,18 +147,18 @@ export default function LabQualityPage() {
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Unreviewed panels</CardTitle>
-            <span className="text-xs text-ink-500">
+            <span className="text-detail text-ink-500">
               Out-of-range first, then oldest
             </span>
           </CardHeader>
           <CardContent className="p-0">
             {worklist.length === 0 ? (
-              <p className="p-5 text-sm text-ink-400">
+              <p className="p-5 text-body text-ink-400">
                 Nothing awaiting review in this filter.
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[820px] text-sm">
+                <table className="w-full min-w-[820px] text-body">
                   <thead>
                     <tr className="border-b border-ink-700/60 text-left">
                       <Th className="pl-5">Member</Th>
@@ -200,7 +193,7 @@ export default function LabQualityPage() {
                             <span className="text-ink-600">—</span>
                           )}
                         </td>
-                        <td className="stat-mono px-4 py-3 text-right text-xs text-ink-400">
+                        <td className="stat-mono px-4 py-3 text-right text-detail text-ink-400">
                           {formatDate(r.resultedAt)}
                         </td>
                         <td
@@ -214,7 +207,7 @@ export default function LabQualityPage() {
                         <td className="px-4 py-3 pr-5">
                           <Link
                             href={`/clients/${r.clientId}`}
-                            className="focus-ring inline-flex items-center gap-1 rounded text-xs text-gold-300 hover:text-gold-200"
+                            className="focus-ring inline-flex items-center gap-1 rounded text-detail text-gold-300 hover:text-gold-200"
                           >
                             Chart <ArrowUpRight className="h-3 w-3" />
                           </Link>
@@ -230,26 +223,26 @@ export default function LabQualityPage() {
       )}
 
       {tab === "panel" && (
-        <Stagger className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {byPanel.map((s) => (
-            <StaggerItem key={s.key}>
+            <div key={s.key}>
               <StatBlock stat={s} icon={<FlaskConical className="h-4 w-4" />} />
-            </StaggerItem>
+            </div>
           ))}
-        </Stagger>
+        </div>
       )}
 
       {tab === "provider" && (
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>By reviewing provider</CardTitle>
-            <span className="text-xs text-ink-500">
+            <span className="text-detail text-ink-500">
               Ranked by abandoned panels, not by median
             </span>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[760px] text-body">
                 <thead>
                   <tr className="border-b border-ink-700/60 text-left">
                     <Th className="pl-5">Provider</Th>
@@ -268,7 +261,7 @@ export default function LabQualityPage() {
                       <td className="px-4 py-3 pl-5">
                         <span className="text-ink-100">{p.label}</span>
                         {p.credentials && (
-                          <span className="ml-2 text-xs text-ink-500">{p.credentials}</span>
+                          <span className="ml-2 text-detail text-ink-500">{p.credentials}</span>
                         )}
                       </td>
                       <td className="stat-mono px-4 py-3 text-right text-ink-300">{p.resulted}</td>
@@ -311,7 +304,7 @@ export default function LabQualityPage() {
       <div className="mt-5 rounded-2xl border border-ink-700/70 bg-ink-850/60 p-4">
         <div className="flex items-start gap-2.5">
           <Eye className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
-          <div className="space-y-1.5 text-xs leading-relaxed text-ink-400">
+          <div className="space-y-1.5 text-detail leading-relaxed text-ink-400">
             <p>
               <span className="text-ink-200">Window:</span>{" "}
               <span className="stat-mono">{range.panels}</span> panels collected
@@ -367,8 +360,8 @@ function Stat({
   return (
     <div className="card p-4">
       <p className="label-eyebrow">{label}</p>
-      <p className={cn("stat-mono mt-1 text-2xl", toneClass)}>{value}</p>
-      <p className="mt-1 text-[11px] leading-snug text-ink-500">{hint}</p>
+      <p className={cn("stat-mono mt-1 text-title", toneClass)}>{value}</p>
+      <p className="mt-1 text-micro leading-snug text-ink-500">{hint}</p>
     </div>
   );
 }
@@ -377,11 +370,11 @@ function StatBlock({ stat, icon }: { stat: TurnaroundStat; icon: React.ReactNode
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm font-medium text-ink-100">
+        <p className="flex items-center gap-2 text-body font-medium text-ink-100">
           <span className="text-ink-500">{icon}</span>
           {stat.label}
         </p>
-        <span className="stat-mono text-xs text-ink-500">n={stat.resulted}</span>
+        <span className="stat-mono text-detail text-ink-500">n={stat.resulted}</span>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Mini label="Draw → result" value={formatHours(stat.medianDrawToResultHours)} />
@@ -411,7 +404,7 @@ function Mini({
       <p className="label-eyebrow">{label}</p>
       <p
         className={cn(
-          "stat-mono mt-0.5 text-base",
+          "stat-mono mt-0.5 text-heading",
           tone === "high" ? "text-high" : "text-ink-100",
         )}
       >

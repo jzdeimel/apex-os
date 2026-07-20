@@ -145,7 +145,7 @@ function toDate(d: string): Date {
 export function addDays(date: string, n: number): string {
   const d = absolute(toDate(date).getTime() + n * DAY_MS);
   const p = (x: number) => String(x).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 
 export function daysBetween(a: string, b: string): number {
@@ -154,7 +154,7 @@ export function daysBetween(a: string, b: string): number {
 
 /** 0 = Sunday, matching Date#getDay. */
 export function dayOfWeek(date: string): number {
-  return toDate(date).getDay();
+  return toDate(date).getUTCDay();
 }
 
 export const WEEKDAY_NAMES = [

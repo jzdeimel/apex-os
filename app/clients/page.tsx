@@ -115,13 +115,13 @@ export default function ClientsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="label-eyebrow">Member directory · {base.length} people</p>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink-50">Clients</h1>
+          <h1 className="font-display text-title font-bold tracking-tight text-ink-50">Clients</h1>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             onClick={() => setStarredOnly((s) => !s)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-detail font-medium transition-colors",
               starredOnly ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-800 bg-ink-900/70 text-ink-400 hover:text-ink-100",
             )}
           >
@@ -134,7 +134,7 @@ export default function ClientsPage() {
                 key={v}
                 onClick={() => setView(v)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-detail font-medium capitalize transition-colors",
                   view === v ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
                 )}
               >
@@ -148,14 +148,14 @@ export default function ClientsPage() {
       {/* Insight strip */}
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Risk flags</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">Risk flags</CardTitle></CardHeader>
           <CardContent className="flex items-center gap-3">
             <div className="w-32">
               <DonutCount data={riskMix} height={120} centerValue={base.length} centerLabel="clients" />
             </div>
             <div className="flex-1 space-y-1">
               {riskMix.map((s) => (
-                <div key={s.name} className="flex items-center gap-2 text-[11px]">
+                <div key={s.name} className="flex items-center gap-2 text-micro">
                   <span className="h-2 w-2 rounded-sm" style={{ background: s.color }} />
                   <span className="flex-1 truncate capitalize text-ink-400">{s.name}</span>
                   <span className="stat-mono text-ink-500">{s.value}</span>
@@ -165,11 +165,11 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Alpha Score distribution</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">Alpha Score distribution</CardTitle></CardHeader>
           <CardContent><CountBars data={scoreDist} height={132} label="Clients" /></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Coach load</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-body">Coach load</CardTitle></CardHeader>
           <CardContent><CountBars data={coachLoad} height={132} label="Clients" /></CardContent>
         </Card>
       </div>
@@ -179,7 +179,7 @@ export default function ClientsPage() {
         <button
           onClick={() => setStatus("all")}
           className={cn(
-            "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-full border px-3 py-1 text-detail font-medium transition-colors",
             status === "all" ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-700 text-ink-400 hover:text-ink-100",
           )}
         >
@@ -190,7 +190,7 @@ export default function ClientsPage() {
             key={s}
             onClick={() => setStatus(s === status ? "all" : s)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              "rounded-full border px-3 py-1 text-detail font-medium transition-colors",
               status === s ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-700 text-ink-400 hover:text-ink-100",
             )}
           >
@@ -226,13 +226,13 @@ export default function ClientsPage() {
 
       {filtered.length > limit && (
         <div className="flex flex-col items-center gap-2 pt-1">
-          <p className="text-xs text-ink-500">
+          <p className="text-detail text-ink-500">
             Showing <span className="stat-mono text-ink-300">{Math.min(limit, filtered.length)}</span> of{" "}
             <span className="stat-mono text-ink-300">{filtered.length}</span>
           </p>
           <button
             onClick={() => setLimit((l) => l + PAGE)}
-            className="rounded-lg border border-ink-700 bg-ink-850/60 px-4 py-2 text-xs font-medium text-ink-200 transition-colors hover:border-gold-400/40 hover:text-gold-100"
+            className="rounded-lg border border-ink-700 bg-ink-850/60 px-4 py-2 text-detail font-medium text-ink-200 transition-colors hover:border-gold-400/40 hover:text-gold-100"
           >
             Load more clients
           </button>

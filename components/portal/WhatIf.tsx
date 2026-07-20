@@ -13,7 +13,7 @@ import {
   type ProjectionPoint,
 } from "@/lib/ai/twin";
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 import { cn } from "@/lib/utils";
 
 /**
@@ -91,15 +91,15 @@ export function WhatIf({ clientId }: { clientId: string }) {
       <FadeIn>
         <Card className="border-gold-400/30 bg-gradient-to-br from-gold-500/[0.09] to-transparent">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold-500/15 text-gold-300">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-panel bg-gold-500/15 text-gold-300">
               <Sparkles className="h-4 w-4" aria-hidden />
             </span>
             <div className="min-w-0">
               <p className="label-eyebrow text-gold-300">Biggest lever for you</p>
-              <p className="mt-1 font-display text-lg font-semibold text-ink-50">
+              <p className="mt-1 font-display text-heading font-semibold text-ink-50">
                 {sim.topLever.label}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-ink-200">
+              <p className="mt-1 text-detail leading-relaxed text-ink-200">
                 {sim.topLever.effectBasis}
               </p>
             </div>
@@ -132,7 +132,7 @@ export function WhatIf({ clientId }: { clientId: string }) {
                   <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                     <label
                       htmlFor={`lever-${spec.id}`}
-                      className="text-sm font-medium text-ink-100"
+                      className="text-detail font-medium text-ink-100"
                     >
                       {spec.label}
                       {isTop && (
@@ -141,9 +141,9 @@ export function WhatIf({ clientId }: { clientId: string }) {
                         </Badge>
                       )}
                     </label>
-                    <span className="stat-mono text-sm text-ink-50">
+                    <span className="stat-mono text-detail text-ink-50">
                       {formatLever(value)}
-                      <span className="ml-1 text-[11px] text-ink-500">{spec.unit}</span>
+                      <span className="ml-1 text-micro text-ink-500">{spec.unit}</span>
                     </span>
                   </div>
                   <input
@@ -159,7 +159,7 @@ export function WhatIf({ clientId }: { clientId: string }) {
                     className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-700 accent-gold-500 focus-ring"
                     aria-describedby={`lever-help-${spec.id}`}
                   />
-                  <p id={`lever-help-${spec.id}`} className="mt-1.5 text-xs text-ink-400">
+                  <p id={`lever-help-${spec.id}`} className="mt-1.5 text-micro text-ink-400">
                     {spec.help}{" "}
                     {moved !== 0 && (
                       <span className="text-ink-300">
@@ -183,7 +183,7 @@ export function WhatIf({ clientId }: { clientId: string }) {
                   key={m.id}
                   onClick={() => setMetric(m.id)}
                   className={cn(
-                    "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors focus-ring",
+                    "rounded-control px-2.5 py-1 text-micro font-medium transition-colors focus-ring",
                     m.id === active.id
                       ? "bg-ink-700 text-ink-50"
                       : "text-ink-400 hover:bg-ink-800 hover:text-ink-200",
@@ -221,7 +221,7 @@ export function WhatIf({ clientId }: { clientId: string }) {
               />
             </div>
 
-            <p className="text-xs leading-relaxed text-ink-400">
+            <p className="text-micro leading-relaxed text-ink-400">
               <TrendingUp className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
               This is a <span className="text-ink-200">typical range</span> for someone starting
               where you are — not a promise, and not a target you owe anyone.{" "}
@@ -229,7 +229,7 @@ export function WhatIf({ clientId }: { clientId: string }) {
             </p>
 
             {!sim.hasScan && (
-              <p className="rounded-lg bg-ink-900 p-3 text-xs text-ink-400">
+              <p className="rounded-control bg-ink-900 p-3 text-micro text-ink-400">
                 Body fat and lean mass aren&rsquo;t shown because you don&rsquo;t have a body scan
                 on file yet. We&rsquo;d rather leave them out than model a body we&rsquo;ve never
                 measured — book a scan and they&rsquo;ll appear here.
@@ -242,12 +242,12 @@ export function WhatIf({ clientId }: { clientId: string }) {
       {/* ── The lever that isn't here ─────────────────────────────────── */}
       <Card className="border-ink-700">
         <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-800 text-ink-400">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-panel bg-ink-800 text-ink-400">
             <Lock className="h-4 w-4" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-display text-sm font-semibold text-ink-50">{route.title}</p>
-            <p className="mt-1 text-sm leading-relaxed text-ink-300">{route.body}</p>
+            <p className="font-display text-detail font-semibold text-ink-50">{route.title}</p>
+            <p className="mt-1 text-detail leading-relaxed text-ink-300">{route.body}</p>
           </div>
           <Button variant="outline" size="sm" className="shrink-0 self-start">
             <MessageSquare className="h-3.5 w-3.5" aria-hidden />
@@ -360,7 +360,7 @@ function BandChart({
         />
         <circle cx={px(pts[pts.length - 1].x)} cy={py(pts[pts.length - 1].y)} r="3.5" fill={color} />
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] uppercase tracking-wide text-ink-500">
+      <div className="mt-1 flex justify-between text-micro uppercase tracking-wide text-ink-500">
         <span>Now</span>
         <span>Week 6</span>
         <span>Week 12</span>
@@ -381,11 +381,11 @@ function Stat({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-lg bg-ink-900 p-3", className)}>
+    <div className={cn("rounded-control bg-ink-900 p-3", className)}>
       <p className="label-eyebrow text-ink-500">{label}</p>
       <p
         className={cn(
-          "stat-mono mt-1 text-lg font-semibold",
+          "stat-mono mt-1 text-heading font-semibold",
           tone === "good" ? "text-optimal" : tone === "watch" ? "text-watch" : "text-ink-50",
         )}
       >

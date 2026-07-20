@@ -63,7 +63,7 @@ export function LabTable({
         <button
           onClick={() => setFilter("all")}
           className={cn(
-            "rounded-lg px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-lg px-3 py-1 text-detail font-medium transition-colors",
             filter === "all" ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-100",
           )}
         >
@@ -72,7 +72,7 @@ export function LabTable({
         <button
           onClick={() => setFilter("flagged")}
           className={cn(
-            "rounded-lg px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-lg px-3 py-1 text-detail font-medium transition-colors",
             filter === "flagged" ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-100",
           )}
         >
@@ -94,7 +94,7 @@ export function LabTable({
                     key={b.key}
                     onClick={() => selectable && onSelect?.(b.key)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 text-sm",
+                      "flex items-center gap-3 px-4 py-2.5 text-body",
                       selectable && "cursor-pointer hover:bg-ink-850/60",
                       selectedKey === b.key && "bg-gold-400/[0.06]",
                     )}
@@ -104,14 +104,14 @@ export function LabTable({
                         <span className="truncate font-medium text-ink-100">{b.name}</span>
                         {b.history && <LineIcon className="h-3 w-3 shrink-0 text-ink-600" />}
                       </div>
-                      <span className="text-[11px] text-ink-500">
+                      <span className="text-micro text-ink-500">
                         Ref {b.refLow}–{b.refHigh} {b.unit}
                       </span>
                     </div>
                     <div className="hidden sm:block"><RangeBar b={b} /></div>
                     <div className="w-20 text-right">
                       <span className="stat-mono font-semibold text-ink-50">{b.value}</span>
-                      <span className="ml-1 text-[11px] text-ink-500">{b.unit}</span>
+                      <span className="ml-1 text-micro text-ink-500">{b.unit}</span>
                     </div>
                     <div className="w-24 text-right">
                       <BiomarkerStatusBadge status={b.status} />

@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
     <div className="space-y-5">
       <div>
         <p className="label-eyebrow">Business analytics · {locationFilter === "all" ? "all locations" : locationName(locationFilter)}</p>
-        <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
+        <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
             <TrendingUp className="h-5 w-5" />
           </span>
@@ -55,7 +55,7 @@ export default function AnalyticsPage() {
           <CardHeader><CardTitle>LTV by tier</CardTitle></CardHeader>
           <CardContent>
             <RevenueBars data={a.ltvByTier} height={240} />
-            <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 text-micro">
               {a.ltvByTier.map((t) => (
                 <div key={t.name} className="flex justify-between text-ink-400">
                   <span>{t.name}</span>
@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
           <CardTitle>Revenue by service line over time</CardTitle>
           <div className="hidden flex-wrap gap-2 sm:flex">
             {a.serviceKeys.map((s) => (
-              <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-ink-400">
+              <span key={s.key} className="inline-flex items-center gap-1.5 text-micro text-ink-400">
                 <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} /> {s.label}
               </span>
             ))}
@@ -98,7 +98,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <PercentLine data={a.retention.map((r) => ({ name: r.month, value: r.pct }))} height={220} />
-            <p className="mt-1 text-[11px] text-ink-500">% of a join cohort still active each month.</p>
+            <p className="mt-1 text-micro text-ink-500">% of a join cohort still active each month.</p>
           </CardContent>
         </Card>
 
@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
             <div className="space-y-2">
               {a.funnel.map((f, i) => (
                 <div key={f.stage}>
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-detail">
                     <span className="text-ink-300">{f.stage}</span>
                     <span className="text-ink-500"><span className="stat-mono text-ink-200">{f.count}</span> · {f.rate}%</span>
                   </div>
@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
                       className="flex h-full items-center rounded-md bg-gradient-to-r from-gold-600 to-gold-400 pl-2"
                       style={{ width: `${Math.max(8, f.rate)}%` }}
                     >
-                      {i > 0 && <span className="stat-mono text-[10px] font-bold text-ink-950">{f.rate}%</span>}
+                      {i > 0 && <span className="stat-mono text-micro font-bold text-ink-950">{f.rate}%</span>}
                     </div>
                   </div>
                 </div>
@@ -127,7 +127,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <p className="text-[11px] text-ink-600">
+      <p className="text-micro text-ink-600">
         Demo figures derived from Apex membership plans &amp; mock client lifetime value. Not financial reporting.
       </p>
     </div>

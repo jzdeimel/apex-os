@@ -96,8 +96,8 @@ function BodyMap({
   onSelect: (site: InjectionSite) => void;
 }) {
   return (
-    <div className="hairline rounded-2xl bg-ink-900/50 p-3">
-      <p className="text-center text-[10px] uppercase tracking-wide text-ink-500">
+    <div className="hairline rounded-panel bg-ink-900/50 p-3">
+      <p className="text-center text-micro uppercase tracking-wide text-ink-500">
         {view === "front" ? "Front" : "Back"}
       </p>
       <div className="relative mx-auto mt-2 aspect-[1/2] w-full max-w-[150px] text-ink-800">
@@ -204,7 +204,7 @@ export function InjectionSites({ client }: { client: Client }) {
     return (
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <p className="text-[15px] leading-relaxed text-ink-300">
+          <p className="text-body leading-relaxed text-ink-300">
             Nothing on your plan is injected right now, so there is nothing to rotate. If that changes,
             this map fills in on its own.
           </p>
@@ -222,8 +222,8 @@ export function InjectionSites({ client }: { client: Client }) {
             className={cn("mt-0.5 h-5 w-5 shrink-0", headline.tone === "good" ? "text-optimal" : "text-watch")}
           />
           <div className="min-w-0">
-            <p className="text-[15px] leading-relaxed text-ink-100">{headline.text}</p>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-500">
+            <p className="text-body leading-relaxed text-ink-100">{headline.text}</p>
+            <p className="mt-2 text-detail leading-relaxed text-ink-500">
               Using the same spot over and over thickens the tissue underneath it. It does not hurt, which
               is exactly why it goes unnoticed — and thickened tissue absorbs unevenly. Giving each spot
               about {SITE_REST_DAYS} days off is all it takes.
@@ -237,15 +237,15 @@ export function InjectionSites({ client }: { client: Client }) {
         <Card className="border-optimal/25 bg-optimal/[0.04]">
           <CardContent className="p-5 sm:p-6">
             <p className="label-eyebrow">Use this next</p>
-            <h2 className="mt-1.5 font-display text-2xl font-semibold tracking-tight text-ink-50">
+            <h2 className="mt-1.5 font-display text-title font-semibold tracking-tight text-ink-50">
               {next.meta.label}
             </h2>
-            <p className="mt-1 text-[13px] text-ink-500">
+            <p className="mt-1 text-detail text-ink-500">
               {next.meta.anatomical} · {next.meta.tissue}
             </p>
-            <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">{next.reason}</p>
+            <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">{next.reason}</p>
             {next.alternate && (
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-500">
+              <p className="mt-2 text-detail leading-relaxed text-ink-500">
                 If that one is sore or awkward to reach, your{" "}
                 {loads[next.alternate].meta.label.toLowerCase()} is the next best rested.
               </p>
@@ -257,8 +257,8 @@ export function InjectionSites({ client }: { client: Client }) {
       {/* The map ------------------------------------------------------------ */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h2 className="font-display text-xl font-semibold text-ink-50">Your map</h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
+          <h2 className="font-display text-title font-semibold text-ink-50">Your map</h2>
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
             Tap a spot to see when you last used it. The dashed circle is the one we suggest next. Front
             view is drawn facing you and the back view from behind — go by the label, not the side of the
             picture.
@@ -284,7 +284,7 @@ export function InjectionSites({ client }: { client: Client }) {
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             {(["ready", "resting", "overused", "unused"] as SiteState[]).map((s) => (
-              <span key={s} className="flex items-center gap-1.5 text-[12px] text-ink-400">
+              <span key={s} className="flex items-center gap-1.5 text-micro text-ink-400">
                 <span className={cn("h-2.5 w-2.5 rounded-full", STATE_STYLE[s].dot)} />
                 {STATE_STYLE[s].label}
               </span>
@@ -293,21 +293,21 @@ export function InjectionSites({ client }: { client: Client }) {
 
           {/* Selected site + the log action ---------------------------------- */}
           {target && (
-            <div className="mt-5 rounded-2xl border border-ink-700 bg-ink-900 p-4 sm:p-5">
+            <div className="mt-5 rounded-panel border border-ink-700 bg-ink-900 p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-display text-lg font-semibold text-ink-50">{target.meta.label}</h3>
+                <h3 className="font-display text-heading font-semibold text-ink-50">{target.meta.label}</h3>
                 <Badge tone={STATE_STYLE[target.state].badge}>{STATE_STYLE[target.state].label}</Badge>
               </div>
-              <p className="mt-1 text-[13px] text-ink-500">
+              <p className="mt-1 text-detail text-ink-500">
                 {target.meta.anatomical} · {target.meta.tissue}
               </p>
-              <p className="mt-3 text-[15px] leading-relaxed text-ink-300">{target.note}</p>
+              <p className="mt-3 text-body leading-relaxed text-ink-300">{target.note}</p>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                 <div>
                   <label
                     htmlFor="site-item"
-                    className="block text-[10px] uppercase tracking-wide text-ink-500"
+                    className="block text-micro uppercase tracking-wide text-ink-500"
                   >
                     What went in (optional)
                   </label>
@@ -330,7 +330,7 @@ export function InjectionSites({ client }: { client: Client }) {
                   Log this site
                 </Button>
               </div>
-              <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-500">
+              <p className="mt-3 flex items-start gap-2 text-micro leading-relaxed text-ink-500">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 We record the spot and the date. We never record an amount here — that lives on the order
                 your provider signed.
@@ -343,8 +343,8 @@ export function InjectionSites({ client }: { client: Client }) {
       {/* Load table --------------------------------------------------------- */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h2 className="font-display text-xl font-semibold text-ink-50">Last {SITE_LOAD_WINDOW_DAYS} days</h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
+          <h2 className="font-display text-title font-semibold text-ink-50">Last {SITE_LOAD_WINDOW_DAYS} days</h2>
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
             Every spot you have, including the ones you have not touched. More than{" "}
             <span className="stat-mono">{maxUsesIn(SITE_LOAD_WINDOW_DAYS)}</span> uses in this window means
             that spot did not get its {SITE_REST_DAYS} days off between turns.
@@ -357,14 +357,14 @@ export function InjectionSites({ client }: { client: Client }) {
                 type="button"
                 onClick={() => setSelected(l.site)}
                 className={cn(
-                  "focus-ring hairline flex items-center gap-3 rounded-2xl bg-ink-900/50 p-3 text-left transition-colors hover:bg-ink-900",
+                  "focus-ring hairline flex items-center gap-3 rounded-panel bg-ink-900/50 p-3 text-left transition-colors hover:bg-ink-900",
                   selected === l.site && "bg-ink-900 ring-1 ring-ink-600",
                 )}
               >
                 <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", STATE_STYLE[l.state].dot)} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-ink-100">{l.meta.label}</span>
-                  <span className="block truncate text-[12px] text-ink-500">
+                  <span className="block truncate text-detail text-ink-100">{l.meta.label}</span>
+                  <span className="block truncate text-micro text-ink-500">
                     {l.daysSince === null
                       ? "Never used"
                       : l.daysSince === 0
@@ -372,7 +372,7 @@ export function InjectionSites({ client }: { client: Client }) {
                         : `${l.daysSince}d ago`}
                   </span>
                 </span>
-                <span className="stat-mono shrink-0 text-sm text-ink-300">{l.count}</span>
+                <span className="stat-mono shrink-0 text-detail text-ink-300">{l.count}</span>
               </button>
             ))}
           </div>
@@ -382,23 +382,23 @@ export function InjectionSites({ client }: { client: Client }) {
       {/* Recent log --------------------------------------------------------- */}
       <Card>
         <CardContent className="p-5 sm:p-6">
-          <h2 className="font-display text-xl font-semibold text-ink-50">Recently logged</h2>
+          <h2 className="font-display text-title font-semibold text-ink-50">Recently logged</h2>
           {history.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-400">Nothing logged yet. Tap a spot above after your next one.</p>
+            <p className="mt-2 text-detail text-ink-400">Nothing logged yet. Tap a spot above after your next one.</p>
           ) : (
             <ul className="mt-4 space-y-2">
               {history.map((h) => (
-                <li key={h.id} className="hairline flex items-center gap-3 rounded-2xl bg-ink-900/50 p-3">
+                <li key={h.id} className="hairline flex items-center gap-3 rounded-panel bg-ink-900/50 p-3">
                   <Check className="h-4 w-4 shrink-0 text-optimal" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink-100">
+                    <span className="block truncate text-detail text-ink-100">
                       {INJECTION_SITES.includes(h.site) ? loads[h.site].meta.label : h.site}
                     </span>
                     {h.itemName && (
-                      <span className="block truncate text-[12px] text-ink-500">{h.itemName}</span>
+                      <span className="block truncate text-micro text-ink-500">{h.itemName}</span>
                     )}
                   </span>
-                  <span className="stat-mono shrink-0 text-[12px] text-ink-400">{formatDate(h.at)}</span>
+                  <span className="stat-mono shrink-0 text-micro text-ink-400">{formatDate(h.at)}</span>
                 </li>
               ))}
             </ul>

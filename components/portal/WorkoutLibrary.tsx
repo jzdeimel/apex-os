@@ -37,7 +37,7 @@ import { cn, absolute } from "@/lib/utils";
  */
 
 /** Pinned NOW. Parsed at midday so the weekday cannot slip across a boundary. */
-const TODAY_INDEX = absolute("2026-06-12T12:00:00").getDay(); // 0 = Sunday
+const TODAY_INDEX = absolute("2026-06-12T12:00:00").getUTCDay(); // 0 = Sunday
 const TODAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][TODAY_INDEX];
 
 function BlockRow({
@@ -51,15 +51,15 @@ function BlockRow({
   const name = swapped ? block.jointFriendly!.exercise : block.exercise;
 
   return (
-    <li className="hairline rounded-2xl border bg-ink-900/50 p-3.5">
+    <li className="hairline rounded-panel border bg-ink-900/50 p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <p className="min-w-0 text-[15px] font-medium leading-snug text-ink-50">{name}</p>
-        <p className="stat-mono shrink-0 text-[13px] text-ink-300">
+        <p className="min-w-0 text-body font-medium leading-snug text-ink-50">{name}</p>
+        <p className="stat-mono shrink-0 text-detail text-ink-300">
           {block.sets} × {block.repRange}
         </p>
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-500">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-500">
         {block.restSeconds > 0 && (
           <span className="inline-flex items-center gap-1">
             <Timer className="h-3.5 w-3.5" />
@@ -74,16 +74,16 @@ function BlockRow({
         )}
       </div>
 
-      <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-ink-400">{block.cue}</p>
+      <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">{block.cue}</p>
 
       {swapped && (
-        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-500">
+        <p className="mt-2 max-w-prose text-micro leading-relaxed text-ink-500">
           {block.jointFriendly!.why}
         </p>
       )}
 
       {!jointFriendly && block.jointFriendly && (
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
+        <p className="mt-2 text-micro leading-relaxed text-ink-500">
           Easier on the joints: {block.jointFriendly.exercise}.
         </p>
       )}
@@ -108,10 +108,10 @@ function WorkoutCard({
       <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <h3 className="font-display text-lg font-semibold leading-snug text-ink-50">
+            <h3 className="font-display text-heading font-semibold leading-snug text-ink-50">
               {workout.name}
             </h3>
-            <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-400">
+            <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
               {workout.intent}
             </p>
           </div>
@@ -120,7 +120,7 @@ function WorkoutCard({
           </Badge>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-500">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-micro text-ink-500">
           <span className="inline-flex items-center gap-1">
             <Timer className="h-3.5 w-3.5" />
             about <span className="stat-mono">{workout.minutes}</span> min
@@ -165,7 +165,7 @@ function DayStrip({
             onClick={() => onPick(d)}
             aria-current={isActive ? "true" : undefined}
             className={cn(
-              "focus-ring w-[86px] shrink-0 rounded-2xl border px-2.5 py-2.5 text-left transition-colors motion-reduce:transition-none",
+              "focus-ring w-[86px] shrink-0 rounded-panel border px-2.5 py-2.5 text-left transition-colors motion-reduce:transition-none",
               isActive
                 ? "border-gold-400/40 bg-gold-400/12"
                 : "border-ink-700 bg-ink-900/40 hover:border-ink-600",
@@ -173,14 +173,14 @@ function DayStrip({
           >
             <span
               className={cn(
-                "block text-[11px] font-semibold uppercase tracking-wide",
+                "block text-micro font-semibold uppercase tracking-wide",
                 isActive ? "text-gold-200" : "text-ink-400",
               )}
             >
               {d}
               {d === TODAY && <span className="ml-1 text-gold-300">•</span>}
             </span>
-            <span className="mt-1 block text-[11px] leading-tight text-ink-500">
+            <span className="mt-1 block text-micro leading-tight text-ink-500">
               {session ? session.block.focus.replace(" — ", " ") : "—"}
             </span>
           </button>
@@ -215,13 +215,13 @@ export function WorkoutLibrary({ client }: { client: Client }) {
       <Card className="border-gold-400/25 bg-gold-400/[0.05]">
         <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
           <p className="label-eyebrow">From your plan — {session.block.day}</p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-ink-50 sm:text-2xl">
+          <h2 className="mt-2 font-display text-title font-semibold text-ink-50 sm:text-title">
             {FOCUS_LABEL[session.focus]}
           </h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-300">
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-300">
             {session.block.detail}
           </p>
-          <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-500">
+          <p className="mt-3 flex items-start gap-2 text-micro leading-relaxed text-ink-500">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Your coach set this split. The sessions below are ways to train it — pick whichever one suits
             the day, the gym you are in, and how you feel.
@@ -231,10 +231,10 @@ export function WorkoutLibrary({ client }: { client: Client }) {
 
       {/* Joint-friendly switch ------------------------------------------- */}
       {session.workouts.length > 0 && (
-        <div className="hairline flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-ink-900/50 p-4">
+        <div className="hairline flex flex-wrap items-center justify-between gap-3 rounded-panel border bg-ink-900/50 p-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-50">Joint-friendly versions</p>
-            <p className="mt-1 max-w-prose text-[12px] leading-relaxed text-ink-500">
+            <p className="text-detail font-medium text-ink-50">Joint-friendly versions</p>
+            <p className="mt-1 max-w-prose text-micro leading-relaxed text-ink-500">
               {session.jointCare
                 ? "Your plan flagged joint pain, so these are on by default. Turn them off any time you feel good."
                 : "Swaps that keep the same stimulus with less load through the joint. Use them on any day your body is asking you to."}

@@ -50,7 +50,7 @@ export function NewPOModal() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
           <div className="relative flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-glow animate-fade-up">
             <div className="flex items-center justify-between border-b border-ink-800 px-5 py-3.5">
-              <h3 className="flex items-center gap-2 font-display text-base font-semibold text-ink-50">
+              <h3 className="flex items-center gap-2 font-display text-body font-semibold text-ink-50">
                 <ShoppingCart className="h-4 w-4 text-gold-400" /> New purchase order
               </h3>
               <button onClick={() => setOpen(false)} className="text-ink-500 hover:text-ink-200"><X className="h-4 w-4" /></button>
@@ -75,7 +75,7 @@ export function NewPOModal() {
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="label-eyebrow">Line items</span>
-                  <button onClick={addLine} className="inline-flex items-center gap-1 text-xs text-gold-300 hover:text-gold-200">
+                  <button onClick={addLine} className="inline-flex items-center gap-1 text-detail text-gold-300 hover:text-gold-200">
                     <Plus className="h-3 w-3" /> Add
                   </button>
                 </div>
@@ -86,7 +86,7 @@ export function NewPOModal() {
                       <select
                         value={l.name}
                         onChange={(e) => setLine(i, { name: e.target.value, unitCost: inventory.find((x) => x.name === e.target.value)?.unitCost ?? l.unitCost })}
-                        className="h-8 min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-900/70 px-2 text-xs text-ink-100 focus-ring"
+                        className="h-8 min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-900/70 px-2 text-detail text-ink-100 focus-ring"
                       >
                         {PRODUCTS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -95,9 +95,9 @@ export function NewPOModal() {
                         value={l.qty}
                         min={1}
                         onChange={(e) => setLine(i, { qty: Math.max(1, Number(e.target.value)) })}
-                        className="h-8 w-16 rounded-md border border-ink-700 bg-ink-900/70 px-2 text-xs text-ink-100 focus-ring"
+                        className="h-8 w-16 rounded-md border border-ink-700 bg-ink-900/70 px-2 text-detail text-ink-100 focus-ring"
                       />
-                      <span className="w-16 text-right stat-mono text-xs text-ink-300">{currency(l.qty * l.unitCost)}</span>
+                      <span className="w-16 text-right stat-mono text-detail text-ink-300">{currency(l.qty * l.unitCost)}</span>
                       {lines.length > 1 && (
                         <button onClick={() => removeLine(i)} className="text-ink-600 hover:text-high"><Trash2 className="h-3.5 w-3.5" /></button>
                       )}
@@ -107,8 +107,8 @@ export function NewPOModal() {
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
-                <span className="text-sm text-ink-300">Order total · {locationName(locId)}</span>
-                <span className="stat-mono text-base font-bold text-ink-50">{currency(total)}</span>
+                <span className="text-body text-ink-300">Order total · {locationName(locId)}</span>
+                <span className="stat-mono text-body font-bold text-ink-50">{currency(total)}</span>
               </div>
             </div>
 

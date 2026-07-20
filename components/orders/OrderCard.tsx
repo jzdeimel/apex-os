@@ -153,28 +153,28 @@ export function OrderCard({
               >
                 <Monogram client={client} size="sm" />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-ink-50">
+                  <span className="block truncate text-body font-medium text-ink-50">
                     {clientName(client)}
                   </span>
-                  <span className="block truncate text-[11px] text-ink-600">
+                  <span className="block truncate text-micro text-ink-600">
                     {locationName(order.locationId)} · coach {staffName(order.coachId)}
                   </span>
                 </span>
               </Link>
             ) : (
-              <span className="text-sm text-ink-400">Unknown member</span>
+              <span className="text-body text-ink-400">Unknown member</span>
             )}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <Badge tone={statusTone(order.status)}>{order.status}</Badge>
-            <span className="stat-mono text-sm font-semibold text-ink-50">
+            <span className="stat-mono text-body font-semibold text-ink-50">
               {currency(orderTotalCents(order) / 100)}
             </span>
           </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-600">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-600">
           <span className="stat-mono text-ink-400">{order.id}</span>
           <span>{order.fulfillmentPartner}</span>
           {order.medsourceRef && (
@@ -210,8 +210,8 @@ export function OrderCard({
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-high" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-high">{reason}</p>
-              <p className="mt-1 text-[11px] text-ink-400">
+              <p className="text-body font-medium text-high">{reason}</p>
+              <p className="mt-1 text-micro text-ink-400">
                 <span className="stat-mono text-ink-200">{hours}h</span> in{" "}
                 <span className="text-ink-300">{order.status}</span> with no movement.
                 {order.delayReason && <span className="text-ink-500"> {order.delayReason}</span>}
@@ -219,7 +219,7 @@ export function OrderCard({
             </div>
             <div className="shrink-0">
               {chased ? (
-                <span className="stat-mono inline-flex items-center gap-1.5 rounded-lg border border-watch/30 bg-watch/12 px-2.5 py-1 text-[11px] text-watch">
+                <span className="stat-mono inline-flex items-center gap-1.5 rounded-lg border border-watch/30 bg-watch/12 px-2.5 py-1 text-micro text-watch">
                   <Megaphone className="h-3.5 w-3.5" />
                   {chased}
                 </span>
@@ -238,7 +238,7 @@ export function OrderCard({
        * What the member sees — the honesty check
        * ---------------------------------------------------------------- */}
       <div className="border-t border-ink-700/60 px-4 py-2.5">
-        <p className="flex items-center gap-1.5 text-[11px] text-ink-600">
+        <p className="flex items-center gap-1.5 text-micro text-ink-600">
           <Eye className="h-3 w-3 shrink-0" />
           <span className="label-eyebrow">What the member sees</span>
           <span className="text-ink-400">
@@ -255,7 +255,7 @@ export function OrderCard({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between border-t border-ink-700/60 px-4 py-2.5 text-left text-xs text-ink-400 transition-colors hover:bg-ink-800/50 hover:text-ink-200 focus-ring"
+        className="flex w-full items-center justify-between border-t border-ink-700/60 px-4 py-2.5 text-left text-detail text-ink-400 transition-colors hover:bg-ink-800/50 hover:text-ink-200 focus-ring"
       >
         <span>
           <span className="stat-mono">{order.lines.length}</span> line
@@ -281,17 +281,17 @@ export function OrderCard({
                 <p className="label-eyebrow">Items</p>
                 <ul className="mt-2 space-y-1.5">
                   {order.lines.map((line) => (
-                    <li key={line.id} className="flex items-start justify-between gap-3 text-xs">
+                    <li key={line.id} className="flex items-start justify-between gap-3 text-detail">
                       <span className="min-w-0">
                         <span className="block text-ink-200">
                           {line.name}
                           {line.isAddon && (
-                            <span className="ml-1.5 text-[10px] uppercase tracking-wide text-ink-600">
+                            <span className="ml-1.5 text-micro uppercase tracking-wide text-ink-600">
                               add-on
                             </span>
                           )}
                         </span>
-                        <span className="stat-mono block text-[11px] text-ink-600">
+                        <span className="stat-mono block text-micro text-ink-600">
                           {line.sku}
                           {/* Lot binds the patient to the physical unit — this is
                               what makes a recall answerable without phone calls. */}
@@ -324,12 +324,12 @@ export function OrderCard({
                         </span>
                         <span className="min-w-0 flex-1 pb-0.5">
                           <span className="flex flex-wrap items-baseline gap-x-2">
-                            <span className="text-xs font-medium text-ink-100">{ev.status}</span>
-                            <span className="stat-mono text-[11px] text-ink-600">
+                            <span className="text-detail font-medium text-ink-100">{ev.status}</span>
+                            <span className="stat-mono text-micro text-ink-600">
                               {formatDateTime(ev.at)}
                             </span>
                           </span>
-                          <span className="block text-[11px] text-ink-400">
+                          <span className="block text-micro text-ink-400">
                             {ev.actor}
                             <span className="text-ink-600">
                               {" "}
@@ -337,7 +337,7 @@ export function OrderCard({
                             </span>
                           </span>
                           {ev.note && (
-                            <span className="mt-0.5 block text-[11px] italic text-ink-500">
+                            <span className="mt-0.5 block text-micro italic text-ink-500">
                               {ev.note}
                             </span>
                           )}
@@ -349,7 +349,7 @@ export function OrderCard({
               </div>
 
               {order.estDelivery && (
-                <p className="flex items-center gap-1.5 text-[11px] text-ink-500">
+                <p className="flex items-center gap-1.5 text-micro text-ink-500">
                   <Package className="h-3 w-3" />
                   Estimated delivery{" "}
                   <span className="stat-mono text-ink-300">

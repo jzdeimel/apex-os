@@ -43,12 +43,12 @@ export function LabVelocityPanel({
         <div className="flex items-start gap-2">
           <Minus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-ink-300">
+            <p className="text-detail font-medium text-ink-300">
               {v.markerName ?? markerKey} — no projection offered
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">{v.message}</p>
+            <p className="mt-1 text-micro leading-relaxed text-ink-500">{v.message}</p>
             {v.reason === "too-few-points" && (
-              <p className="mt-1 text-[11px] text-ink-600">
+              <p className="mt-1 text-micro text-ink-600">
                 {v.points} of {MIN_POINTS} results needed.
               </p>
             )}
@@ -72,8 +72,8 @@ export function LabVelocityPanel({
             )}
           />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-100">{v.markerName}</p>
-            <p className="text-xs text-ink-300">{v.headline}</p>
+            <p className="text-body font-medium text-ink-100">{v.markerName}</p>
+            <p className="text-detail text-ink-300">{v.headline}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -89,7 +89,7 @@ export function LabVelocityPanel({
       {v.crossing && (
         <div
           className={cn(
-            "mt-2.5 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-relaxed",
+            "mt-2.5 flex items-start gap-2 rounded-lg border px-3 py-2 text-detail leading-relaxed",
             v.crossing.alreadyOutside
               ? "border-high/30 bg-high/[0.07] text-high"
               : "border-watch/25 bg-watch/[0.05] text-ink-200",
@@ -108,7 +108,7 @@ export function LabVelocityPanel({
 
       {/* Never a bare projection. The sample size and the residual scatter that
           set the band's width travel with it, always. */}
-      <p className="mt-2.5 text-[11px] leading-relaxed text-ink-500">{v.caveat}</p>
+      <p className="mt-2.5 text-micro leading-relaxed text-ink-500">{v.caveat}</p>
 
       <ProvenanceDrawer
         open={why}
@@ -150,7 +150,7 @@ export function VelocityStack({
   const shown = markerKeys.slice(0, limit);
   if (shown.length === 0) {
     return (
-      <p className="text-xs text-ink-500">
+      <p className="text-detail text-ink-500">
         No marker on this member&apos;s panel carries enough history to project.
       </p>
     );
@@ -169,7 +169,7 @@ export function VelocityChip({ clientId, markerKey }: { clientId: string; marker
   const v = React.useMemo(() => markerVelocity(clientId, markerKey), [clientId, markerKey]);
   if (!v.ok || !v.trendIsSignificant) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-ink-700 bg-ink-900/60 px-1.5 py-0.5 text-[11px] text-ink-300">
+    <span className="inline-flex items-center gap-1 rounded-md border border-ink-700 bg-ink-900/60 px-1.5 py-0.5 text-micro text-ink-300">
       <Activity className="h-3 w-3 shrink-0 text-watch" />
       <span className="stat-mono">{v.headline}</span>
     </span>

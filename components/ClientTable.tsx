@@ -28,9 +28,9 @@ export function ClientTable({ clients }: { clients: Client[] }) {
   return (
     <div className="card overflow-hidden">
       {/* Desktop table */}
-      <table className="hidden w-full text-sm md:table">
+      <table className="hidden w-full text-body md:table">
         <thead>
-          <tr className="border-b border-ink-800 text-left text-[11px] uppercase tracking-wider text-ink-500">
+          <tr className="border-b border-ink-800 text-left text-micro uppercase tracking-wider text-ink-500">
             <th className="w-8 px-2 py-3" />
             <th className="px-4 py-3 font-medium">Client</th>
             <th className="px-4 py-3 font-medium">Score</th>
@@ -54,7 +54,7 @@ export function ClientTable({ clients }: { clients: Client[] }) {
                     <Monogram client={c} size="sm" />
                     <span>
                       <span className="block font-medium text-ink-50">{clientName(c)}</span>
-                      <span className="block text-xs text-ink-500">
+                      <span className="block text-detail text-ink-500">
                         {c.age} · {c.sex === "male" ? "M" : "F"} · {staffName(c.coachId).split(" ")[0]}
                       </span>
                     </span>
@@ -71,8 +71,8 @@ export function ClientTable({ clients }: { clients: Client[] }) {
                     {c.goals.length > 2 && <Badge>+{c.goals.length - 2}</Badge>}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-ink-300 stat-mono text-xs">{formatDate(c.latestLabDate)}</td>
-                <td className="px-4 py-3 text-ink-300 text-xs">
+                <td className="px-4 py-3 text-ink-300 stat-mono text-detail">{formatDate(c.latestLabDate)}</td>
+                <td className="px-4 py-3 text-ink-300 text-detail">
                   {c.nextAppointment ? relativeDays(c.nextAppointment) : <span className="text-ink-600">—</span>}
                 </td>
                 <td className="px-4 py-3">{risk ? <RiskBadge level={risk.level} /> : <RiskBadge level="none" />}</td>
@@ -99,7 +99,7 @@ export function ClientTable({ clients }: { clients: Client[] }) {
                   <span className="truncate font-medium text-ink-50">{clientName(c)}</span>
                   <ClientStatusBadge status={c.status} />
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-500">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-detail text-ink-500">
                   <AlphaScoreChip result={alphaScore(c)} />
                   <span>{locationName(c.locationId)}</span>
                   <span>·</span>

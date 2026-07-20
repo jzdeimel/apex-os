@@ -170,23 +170,23 @@ export default function PortalMessagesPage() {
                     key={t.id}
                     onClick={() => setActiveId(t.id)}
                     className={cn(
-                      "focus-ring w-full rounded-xl p-3 text-left transition-colors",
+                      "focus-ring w-full rounded-panel p-3 text-left transition-colors",
                       isActive ? "bg-ink-800" : "hover:bg-ink-800/50",
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-ink-950"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-ink-950"
                         style={{ background: isActive ? portal.accent.hex : "#3a4048" }}
                       >
                         {staffMap[t.staffId ?? ""]?.avatarInitials ?? "AH"}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-ink-50">{t.title}</p>
-                        <p className="truncate text-[11px] text-ink-500">{t.subtitle}</p>
+                        <p className="truncate text-detail font-medium text-ink-50">{t.title}</p>
+                        <p className="truncate text-micro text-ink-500">{t.subtitle}</p>
                       </div>
                     </div>
-                    <p className="mt-2 line-clamp-2 text-xs text-ink-400">
+                    <p className="mt-2 line-clamp-2 text-micro text-ink-400">
                       {last ? last.body : "No messages yet — say hello."}
                     </p>
                   </button>
@@ -194,9 +194,13 @@ export default function PortalMessagesPage() {
               })}
             </div>
 
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-high/25 bg-high/10 p-3">
+            {/* The one accented thing on this screen, and the one that has
+                earned it: a genuine risk notice. Border dropped so it separates
+                from the thread list by tint alone rather than adding another
+                drawn box inside the card. */}
+            <div className="mt-4 flex items-start gap-2 rounded-control bg-high/10 p-3">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-high" />
-              <p className="text-[11px] leading-relaxed text-ink-300">
+              <p className="text-micro leading-relaxed text-ink-300">
                 Messages are not monitored around the clock. If something feels like an emergency, call{" "}
                 <span className="stat-mono">911</span> — not this box.
               </p>
@@ -208,27 +212,31 @@ export default function PortalMessagesPage() {
         <Card className="flex min-h-[34rem] flex-col">
           <div className="hairline flex items-center gap-3 p-4">
             <span
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-ink-950"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-ink-950"
               style={{ background: portal.accent.hex }}
             >
               {staffMap[active.staffId ?? ""]?.avatarInitials ?? "AH"}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink-50">{active.title}</p>
-              <p className="text-[11px] text-ink-500">{active.subtitle}</p>
+              <p className="truncate text-detail font-medium text-ink-50">{active.title}</p>
+              <p className="text-micro text-ink-500">{active.subtitle}</p>
             </div>
-            <Badge tone="optimal" className="ml-auto">
+            {/* Not a green badge. "Typically under 4h" is an expectation, not
+                a clinical status, and tone="optimal" spent the status colour on
+                it — which left the genuine risk notice in the sidebar competing
+                with a decoration for the member's attention. */}
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-micro text-ink-500">
               <Clock className="h-3 w-3" />
               Typically under 4h
-            </Badge>
+            </span>
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto p-4">
             {days.length === 0 && (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <MessageSquare className="h-6 w-6 text-ink-600" />
-                <p className="mt-2 text-sm text-ink-400">No messages with {active.title} yet.</p>
-                <p className="mt-1 max-w-xs text-xs text-ink-500">
+                <p className="mt-2 text-detail text-ink-400">No messages with {active.title} yet.</p>
+                <p className="mt-1 max-w-xs text-micro text-ink-500">
                   Clinical questions land here. Anything about food, training or scheduling is faster with your
                   coach.
                 </p>
@@ -239,7 +247,7 @@ export default function PortalMessagesPage() {
               <div key={day} className="space-y-3">
                 <div className="flex items-center gap-3">
                   <span className="h-px flex-1 bg-ink-800" />
-                  <span className="stat-mono text-[10px] uppercase tracking-wide text-ink-600">
+                  <span className="stat-mono text-micro uppercase tracking-wide text-ink-600">
                     {formatDate(day)}
                   </span>
                   <span className="h-px flex-1 bg-ink-800" />
@@ -253,24 +261,32 @@ export default function PortalMessagesPage() {
                         {/* Attribution only on team messages — the member knows
                             who they are, and repeating "You" every bubble is noise. */}
                         {!mine && (
-                          <p className="mb-1 pl-1 text-[11px] text-ink-500">
+                          <p className="mb-1 pl-1 text-micro text-ink-500">
                             <span className="text-ink-300">{m.from}</span>
                             {m.role && <span> · {m.role}</span>}
                           </p>
                         )}
                         <div
+                          /* The member's own bubbles were clinical green. Green
+                             means "in range" everywhere else in this product,
+                             so using it for "you said this" both wasted the
+                             status colour and quietly implied something. A
+                             lighter neutral surface plus the existing
+                             right-alignment separates the two speakers
+                             perfectly well, and leaves colour free to mean
+                             something. */
                           className={cn(
-                            "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                            "rounded-panel px-3.5 py-2.5 text-detail leading-relaxed",
                             mine
-                              ? "rounded-br-md bg-optimal/15 text-ink-100 ring-1 ring-inset ring-optimal/25"
-                              : "rounded-bl-md bg-ink-800 text-ink-200",
+                              ? "rounded-br-control bg-ink-700 text-ink-50"
+                              : "rounded-bl-control bg-ink-800 text-ink-200",
                           )}
                         >
                           {m.body}
                         </div>
                         <div
                           className={cn(
-                            "mt-1 flex items-center gap-2 px-1 text-[10px] text-ink-600",
+                            "mt-1 flex items-center gap-2 px-1 text-micro text-ink-600",
                             mine ? "justify-end" : "justify-start",
                           )}
                         >
@@ -308,12 +324,15 @@ export default function PortalMessagesPage() {
                   }
                 }}
               />
-              <Button variant="success" onClick={send} disabled={!draft.trim() || sending} className="h-9 shrink-0">
+              {/* primary, not success: nothing has succeeded when you press
+                  Send, and the green reads as a confirmation that has not
+                  happened yet. */}
+              <Button variant="primary" onClick={send} disabled={!draft.trim() || sending} className="h-9 shrink-0">
                 <Send className="h-3.5 w-3.5" />
                 Send
               </Button>
             </div>
-            <p className="mt-2 text-[10px] text-ink-600">
+            <p className="mt-2 text-micro text-ink-600">
               Your care team can see this thread. Nobody else can — check the{" "}
               <span className="text-ink-400">Who&rsquo;s seen my chart</span> page any time to confirm that
               yourself. Demo build: messages stay in this browser.

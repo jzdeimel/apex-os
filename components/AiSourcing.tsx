@@ -37,7 +37,7 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
       <CardContent className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Forecast */}
         <div>
-          <div className="mb-2 flex items-center gap-2 text-xs text-ink-400">
+          <div className="mb-2 flex items-center gap-2 text-detail text-ink-400">
             <TrendingDown className="h-3.5 w-3.5 text-gold-400" /> Reorder forecast (by risk)
           </div>
           <div className="space-y-2">
@@ -45,13 +45,13 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
               <div key={f.item.id} className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                 <div className="flex items-center gap-2">
                   <PeptideIcon name={f.item.name} size="xs" />
-                  <span className="truncate text-sm font-medium text-ink-100">{f.item.name}</span>
+                  <span className="truncate text-body font-medium text-ink-100">{f.item.name}</span>
                   <Badge tone={f.riskScore >= 60 ? "high" : f.riskScore >= 30 ? "watch" : "neutral"} className="ml-auto">
                     risk {f.riskScore}
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] text-ink-500">{locationName(f.item.locationId)} · {f.reason}</p>
-                <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                <p className="mt-0.5 text-micro text-ink-500">{locationName(f.item.locationId)} · {f.reason}</p>
+                <div className="mt-1.5 flex items-center justify-between text-micro">
                   <span className="text-ink-400">
                     Suggest order <span className="stat-mono text-gold-300">{f.recommendedOrderQty} {f.item.unit}</span>
                   </span>
@@ -70,7 +70,7 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
         <div className="space-y-4">
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-2 text-xs text-ink-400">
+              <span className="inline-flex items-center gap-2 text-detail text-ink-400">
                 <Star className="h-3.5 w-3.5 text-gold-400" /> Vendor comparison
               </span>
               <div className="w-44">
@@ -80,21 +80,21 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
               </div>
             </div>
             {vendorScores.length === 0 ? (
-              <p className="text-xs text-ink-500">No third-party vendors carry this product in the mock catalog.</p>
+              <p className="text-detail text-ink-500">No third-party vendors carry this product in the mock catalog.</p>
             ) : (
               <div className="space-y-1.5">
                 {vendorScores.map((v, i) => (
                   <div key={v.vendor.id} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", i === 0 ? "border-gold-400/30 bg-gold-400/[0.06]" : "border-ink-800 bg-ink-900/40")}>
                     {i === 0 && <Sparkles className="h-3.5 w-3.5 shrink-0 text-gold-400" />}
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-ink-100">{v.vendor.name}</span>
-                      <span className="text-[11px] text-ink-500">
+                      <span className="block truncate text-body text-ink-100">{v.vendor.name}</span>
+                      <span className="text-micro text-ink-500">
                         ★ {v.vendor.rating} · {v.vendor.leadTimeDays}d lead · est {currency(v.estUnitCost)}/unit
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="stat-mono text-sm font-bold text-ink-50">{v.score}</span>
-                      {i === 0 && <span className="block text-[10px] text-gold-300">AI pick</span>}
+                      <span className="stat-mono text-body font-bold text-ink-50">{v.score}</span>
+                      {i === 0 && <span className="block text-micro text-gold-300">AI pick</span>}
                     </div>
                   </div>
                 ))}
@@ -105,7 +105,7 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
           {/* Auto-draft POs */}
           <div className="rounded-lg border border-ink-800 bg-ink-900/40 p-3">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 text-xs text-ink-400">
+              <span className="inline-flex items-center gap-2 text-detail text-ink-400">
                 <FileSpreadsheet className="h-3.5 w-3.5 text-gold-400" /> Auto-drafted reorder POs
               </span>
               <Button size="sm" variant={drafted ? "success" : "primary"} onClick={() => setDrafted(true)}>
@@ -116,21 +116,21 @@ export function AiSourcing({ locationFilter }: { locationFilter: string }) {
             {drafted && (
               <div className="mt-2 space-y-2 animate-fade-in">
                 {draftPOs.length === 0 ? (
-                  <p className="text-[11px] text-ink-500">No reorders needed in this view.</p>
+                  <p className="text-micro text-ink-500">No reorders needed in this view.</p>
                 ) : (
                   draftPOs.map((po) => (
                     <div key={po.vendorId} className="rounded-md border border-ink-800 bg-ink-950/40 px-2.5 py-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-ink-100">{po.vendorName}</span>
-                        <span className="stat-mono text-xs text-gold-300">{currency(po.total)}</span>
+                        <span className="text-detail font-medium text-ink-100">{po.vendorName}</span>
+                        <span className="stat-mono text-detail text-gold-300">{currency(po.total)}</span>
                       </div>
-                      <p className="mt-0.5 text-[10px] text-ink-500">
+                      <p className="mt-0.5 text-micro text-ink-500">
                         {po.lines.map((l) => `${l.name} ×${l.quantity} (${locationName(l.locationId as never)})`).join(" · ")} · lead {po.leadTimeDays}d
                       </p>
                     </div>
                   ))
                 )}
-                <p className="text-[10px] text-ink-600">Draft only — operations reviews & submits. Pricing simulated.</p>
+                <p className="text-micro text-ink-600">Draft only — operations reviews & submits. Pricing simulated.</p>
               </div>
             )}
           </div>

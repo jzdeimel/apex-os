@@ -203,7 +203,7 @@ function isTypingTarget(el: Element | null): boolean {
 
 function Key({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded border border-ink-700 bg-ink-900 px-1 py-px font-mono text-[10px] leading-[14px] text-ink-400">
+    <kbd className="rounded border border-ink-700 bg-ink-900 px-1 py-px font-mono text-micro leading-[14px] text-ink-400">
       {children}
     </kbd>
   );
@@ -212,7 +212,7 @@ function Key({ children }: { children: React.ReactNode }) {
 /** The legend. Shortcuts nobody is told about are shortcuts nobody uses. */
 function KeyHints() {
   return (
-    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-ink-600">
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-micro text-ink-600">
       <span className="inline-flex items-center gap-1">
         <Key>j</Key>
         <Key>k</Key> move
@@ -345,10 +345,10 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <p className="label-eyebrow">Today&apos;s queue</p>
-            <p className="text-xs text-ink-400">
-              <span className="stat-mono text-base font-semibold text-ink-50">{doneCount}</span>
+            <p className="text-detail text-ink-400">
+              <span className="stat-mono text-heading font-semibold text-ink-50">{doneCount}</span>
               <span className="text-ink-500"> / </span>
-              <span className="stat-mono text-base font-semibold text-ink-50">{items.length}</span>
+              <span className="stat-mono text-heading font-semibold text-ink-50">{items.length}</span>
               <span> cleared</span>
             </p>
           </div>
@@ -377,7 +377,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
         </div>
       </div>
 
-      <Stagger className="space-y-1.5">
+      <div className="space-y-1.5">
         {items.map((item, idx) => {
           const isCleared = !!cleared[item.id];
           const isFocused = idx === focusIdx && !allDone;
@@ -385,7 +385,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
           const Icon = Meta.icon;
 
           return (
-            <StaggerItem key={item.id}>
+            <div key={item.id}>
               <motion.div
                 ref={(el: HTMLDivElement | null) => {
                   rowRefs.current[idx] = el;
@@ -426,11 +426,11 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                         <Icon className="h-3 w-3" />
                         {isCleared ? item.clearedLabel : Meta.label}
                       </Badge>
-                      <span className="text-[10px] uppercase tracking-wide text-ink-600">
+                      <span className="text-micro uppercase tracking-wide text-ink-600">
                         {item.owner}
                       </span>
-                      <span className="stat-mono text-[10px] text-ink-700">#{item.priority}</span>
-                      <span className="stat-mono text-[10px] text-ink-600">
+                      <span className="stat-mono text-micro text-ink-700">#{item.priority}</span>
+                      <span className="stat-mono text-micro text-ink-600">
                         {item.kind === "signature" && item.consult
                           ? relativeDays(item.consult.startedAt)
                           : `${daysSinceTouch(item.client)}d quiet`}
@@ -473,7 +473,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                           transition={{ duration: reduce ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                           className="flex items-center gap-1.5"
                         >
-                          <span className="inline-flex items-center gap-1 rounded-lg border border-optimal/30 bg-optimal/12 px-2 py-1 text-[11px] font-medium text-optimal">
+                          <span className="inline-flex items-center gap-1 rounded-lg border border-optimal/30 bg-optimal/12 px-2 py-1 text-micro font-medium text-optimal">
                             <Check className="h-3.5 w-3.5" />
                             {item.clearedLabel}
                           </span>
@@ -508,10 +508,10 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                   </div>
                 </div>
               </motion.div>
-            </StaggerItem>
+            </div>
           );
         })}
-      </Stagger>
+      </div>
 
       {allDone && (
         <motion.div
@@ -519,8 +519,8 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
           animate={{ opacity: 1, y: 0 }}
           className="card border-optimal/25 bg-optimal/5 p-4 text-center"
         >
-          <p className="font-display text-sm font-semibold text-optimal">Queue cleared</p>
-          <p className="mt-1 text-xs text-ink-400">
+          <p className="font-display text-body font-semibold text-optimal">Queue cleared</p>
+          <p className="mt-1 text-detail text-ink-400">
             {items.length} item{items.length === 1 ? "" : "s"} worked. Rows stayed where you left
             them — nothing re-sorted underneath you.
           </p>

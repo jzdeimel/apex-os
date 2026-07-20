@@ -150,7 +150,7 @@ export function MonitoringWorklist({
           <CardTitle className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-gold-400" /> Monitoring the protocol implies
           </CardTitle>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-500">
+          <p className="mt-1 max-w-2xl text-detail leading-relaxed text-ink-500">
             Derived from what each member is actually on. Nobody creates these — the protocol item
             creates the obligation and only a result on file clears it.
           </p>
@@ -226,11 +226,11 @@ export function MonitoringWorklist({
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/clients/${m.clientId}`}
-                        className="block truncate text-sm font-medium text-ink-50 hover:text-gold-300"
+                        className="block truncate text-body font-medium text-ink-50 hover:text-gold-300"
                       >
                         {m.clientName}
                       </Link>
-                      <span className="block truncate text-[11px] text-ink-500">
+                      <span className="block truncate text-micro text-ink-500">
                         {client ? `${locationName(client.locationId)} · ${staffName(client.providerId)}` : m.clientId}
                       </span>
                     </div>
@@ -254,7 +254,7 @@ export function MonitoringWorklist({
 
                   {/* Collapsed summary line: the single worst finding, in words. */}
                   {!open && (m.overdue[0] ?? m.dueSoon[0]) && (
-                    <p className="px-3 pb-3 text-xs leading-relaxed text-ink-400">
+                    <p className="px-3 pb-3 text-detail leading-relaxed text-ink-400">
                       {(m.overdue[0] ?? m.dueSoon[0]).line}
                     </p>
                   )}
@@ -282,7 +282,7 @@ export function MonitoringWorklist({
                           {ordered[m.clientId] ? "Ordered" : "Order outstanding monitoring"}
                         </Button>
                         {ordered[m.clientId] && (
-                          <span className="stat-mono text-[11px] text-ink-500">
+                          <span className="stat-mono text-micro text-ink-500">
                             {ordered[m.clientId]} written to the ledger
                           </span>
                         )}
@@ -336,8 +336,8 @@ function Stat({
   return (
     <div className="min-w-0">
       <p className="label-eyebrow break-words">{label}</p>
-      <p className={cn("stat-mono mt-1 font-display text-xl font-bold", colour)}>{value}</p>
-      <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">{hint}</p>
+      <p className={cn("stat-mono mt-1 font-display text-title font-bold", colour)}>{value}</p>
+      <p className="mt-0.5 text-micro leading-relaxed text-ink-500">{hint}</p>
     </div>
   );
 }
@@ -353,8 +353,8 @@ function RequirementRow({ item, onWhy }: { item: MonitoringItem; onWhy: () => vo
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-ink-100">{item.rule.targetLabel}</p>
-          <p className="mt-0.5 text-[11px] text-ink-500">
+          <p className="text-body font-medium text-ink-100">{item.rule.targetLabel}</p>
+          <p className="mt-0.5 text-micro text-ink-500">
             {item.therapyName}
             {item.from.specificity === "program-category" && (
               <span className="text-ink-600"> · inferred from a program, not a dispensed product</span>
@@ -370,9 +370,9 @@ function RequirementRow({ item, onWhy }: { item: MonitoringItem; onWhy: () => vo
         </div>
       </div>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{item.line}</p>
+      <p className="mt-1.5 text-detail leading-relaxed text-ink-300">{item.line}</p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-500">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-micro text-ink-500">
         <span>
           Interval: <span className="text-ink-400">{item.rule.windowLabel}</span>
         </span>
@@ -392,7 +392,7 @@ function RequirementRow({ item, onWhy }: { item: MonitoringItem; onWhy: () => vo
 
       {/* The guideline figure, quoted rather than applied. */}
       {item.rule.guidelineNote && (
-        <p className="mt-2 rounded-md border border-ink-800 bg-ink-950/50 px-2 py-1.5 text-[11px] leading-relaxed text-ink-500">
+        <p className="mt-2 rounded-md border border-ink-800 bg-ink-950/50 px-2 py-1.5 text-micro leading-relaxed text-ink-500">
           {item.rule.guidelineNote}
         </p>
       )}

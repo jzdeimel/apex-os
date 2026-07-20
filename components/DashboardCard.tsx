@@ -56,7 +56,7 @@ export function DashboardCard({
         )}
       </div>
       <div className="mt-3 flex items-end gap-2">
-        <span className="font-display text-2xl font-bold tracking-tight text-ink-50 sm:text-3xl">
+        <span className="font-display text-title font-bold tracking-tight text-ink-50 sm:text-title">
           {countTo !== undefined ? (
             <CountUp value={countTo} prefix={countPrefix} suffix={countSuffix} decimals={countDecimals} />
           ) : (
@@ -66,7 +66,7 @@ export function DashboardCard({
         {delta && (
           <span
             className={cn(
-              "mb-1 inline-flex items-center gap-0.5 text-xs font-medium",
+              "mb-1 inline-flex items-center gap-0.5 text-detail font-medium",
               deltaTone === "up" && "text-optimal",
               deltaTone === "down" && "text-high",
               deltaTone === "flat" && "text-ink-400",
@@ -78,7 +78,7 @@ export function DashboardCard({
           </span>
         )}
       </div>
-      {hint && <p className="mt-1 text-xs text-ink-500">{hint}</p>}
+      {hint && <p className="mt-1 text-detail text-ink-500">{hint}</p>}
       {spark && spark.length > 1 && (
         <div className="-mx-1 mt-auto pt-2 opacity-70 transition-opacity group-hover:opacity-100">
           <Sparkline data={spark} color={sparkColor ?? (accent ? "#e93d3d" : "#5d646f")} />

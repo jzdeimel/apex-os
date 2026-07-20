@@ -52,7 +52,7 @@ export function NotificationBell() {
       >
         <Bell className="h-4 w-4" />
         {total > 0 && (
-          <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-gold-400 px-1 text-[9px] font-bold text-ink-950">
+          <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-gold-400 px-1 text-micro font-bold text-ink-950">
             {total > 99 ? "99+" : total}
           </span>
         )}
@@ -61,12 +61,12 @@ export function NotificationBell() {
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-ink-700 bg-ink-850 shadow-card animate-fade-up">
           <div className="border-b border-ink-800 px-4 py-2.5">
-            <span className="text-sm font-semibold text-ink-100">Notifications</span>
-            <span className="ml-2 text-xs text-ink-500">{total} need attention</span>
+            <span className="text-body font-semibold text-ink-100">Notifications</span>
+            <span className="ml-2 text-detail text-ink-500">{total} need attention</span>
           </div>
           <div className="max-h-80 overflow-y-auto p-2">
             {items.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-ink-500">You&apos;re all caught up ✨</p>
+              <p className="px-3 py-8 text-center text-body text-ink-500">You&apos;re all caught up ✨</p>
             ) : (
               items.map((it, i) => (
                 <Link
@@ -78,7 +78,7 @@ export function NotificationBell() {
                   <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-800", it.tone)}>
                     <it.icon className="h-4 w-4" />
                   </span>
-                  <span className="flex-1 text-sm text-ink-200">{it.text}</span>
+                  <span className="flex-1 text-body text-ink-200">{it.text}</span>
                 </Link>
               ))
             )}

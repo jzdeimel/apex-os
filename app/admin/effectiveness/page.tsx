@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { FlaskConical, Info, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge, Card, CardContent, Select } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import {
   CONFIDENCE_LABEL,
   CONFIDENCE_NOTE,
@@ -43,14 +42,13 @@ export default function EffectivenessPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="label-eyebrow">Analytics</p>
-            <h1 className="font-display text-2xl font-semibold text-ink-50">
+            <h1 className="font-display text-title font-semibold text-ink-50">
               Protocol effectiveness by cohort
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-ink-400">
+            <p className="mt-1 max-w-2xl text-body text-ink-400">
               What moved, in this population, alongside each protocol. Read the
               method statement before any number below.
             </p>
@@ -66,23 +64,21 @@ export default function EffectivenessPage() {
             </Select>
           </div>
         </div>
-      </FadeIn>
 
       {/* ------------------------------------------------------------------ */}
       {/* Method statement. Above the first number, by design.                */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn delay={0.04}>
         <div className="mt-5 rounded-2xl border border-high/40 bg-high/[0.07] p-5">
           <div className="flex items-start gap-3">
             <FlaskConical className="mt-0.5 h-5 w-5 shrink-0 text-high" />
             <div>
-              <p className="font-display text-sm font-semibold text-ink-50">
+              <p className="font-display text-body font-semibold text-ink-50">
                 Observational analysis of routine care — not a trial
               </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-300">
+              <p className="mt-1.5 text-body leading-relaxed text-ink-300">
                 {report.methodStatement}
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-ink-300">
+              <p className="mt-2 text-body leading-relaxed text-ink-300">
                 Nothing on this page may be used as a claim about what a
                 protocol does. It is a hypothesis generator: it tells you which
                 questions are worth designing a real study around.
@@ -90,12 +86,10 @@ export default function EffectivenessPage() {
             </div>
           </div>
         </div>
-      </FadeIn>
 
       {/* ------------------------------------------------------------------ */}
       {/* Confounders. Named on screen, not in a footnote.                    */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn delay={0.08}>
         <div className="mt-4">
           <p className="label-eyebrow">Confounders present in every number below</p>
           <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -104,18 +98,16 @@ export default function EffectivenessPage() {
                 key={c.id}
                 className="rounded-xl border border-ink-700/70 bg-ink-850/60 p-4"
               >
-                <p className="text-sm font-medium text-ink-100">{c.title}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{c.detail}</p>
+                <p className="text-body font-medium text-ink-100">{c.title}</p>
+                <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{c.detail}</p>
               </div>
             ))}
           </div>
         </div>
-      </FadeIn>
 
       {/* ------------------------------------------------------------------ */}
       {/* Floors                                                              */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn delay={0.12}>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Floor label="Reporting floor" value={`n ≥ ${report.minCohortN}`} hint="Below this, no estimate is shown." />
           <Floor
@@ -134,18 +126,17 @@ export default function EffectivenessPage() {
             hint="On no protocol. Not a control arm."
           />
         </div>
-      </FadeIn>
 
       {/* ------------------------------------------------------------------ */}
       {/* Cohorts                                                             */}
       {/* ------------------------------------------------------------------ */}
-      <Stagger className="mt-6 flex flex-col gap-4">
+      <div className="mt-6 flex flex-col gap-4">
         {shown.map((p) => (
-          <StaggerItem key={p.protocol}>
+          <div key={p.protocol}>
             <ProtocolCard result={p} minN={report.minCohortN} />
-          </StaggerItem>
+          </div>
         ))}
-      </Stagger>
+      </div>
     </div>
   );
 }
@@ -154,8 +145,8 @@ function Floor({ label, value, hint }: { label: string; value: string; hint: str
   return (
     <div className="card p-4">
       <p className="label-eyebrow">{label}</p>
-      <p className="stat-mono mt-1 text-xl text-ink-50">{value}</p>
-      <p className="mt-1 text-[11px] leading-snug text-ink-500">{hint}</p>
+      <p className="stat-mono mt-1 text-title text-ink-50">{value}</p>
+      <p className="mt-1 text-micro leading-snug text-ink-500">{hint}</p>
     </div>
   );
 }
@@ -166,10 +157,10 @@ function ProtocolCard({ result, minN }: { result: ProtocolResult; minN: number }
       <CardContent className="p-0">
         <div className="flex flex-col gap-2 border-b border-ink-700/60 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-base font-semibold text-ink-50">
+            <h2 className="font-display text-heading font-semibold text-ink-50">
               {result.protocol}
             </h2>
-            <p className="mt-1 text-xs text-ink-400">
+            <p className="mt-1 text-detail text-ink-400">
               <span className="stat-mono text-ink-200">{result.cohortSize}</span>{" "}
               members on protocol ·{" "}
               <span className="stat-mono text-ink-200">{result.analysedSize}</span>{" "}
@@ -184,12 +175,12 @@ function ProtocolCard({ result, minN }: { result: ProtocolResult; minN: number }
         </div>
 
         {result.markers.length === 0 ? (
-          <p className="p-5 text-sm text-ink-400">
+          <p className="p-5 text-body text-ink-400">
             No markers with paired panels in this cohort.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[860px] text-body">
               <thead>
                 <tr className="border-b border-ink-700/60 text-left">
                   <Th>Marker</Th>
@@ -235,7 +226,7 @@ function MarkerRow({ protocol, m }: { protocol: string; m: MarkerResult }) {
       <tr className="border-b border-ink-800/70 text-ink-500">
         <td className="px-4 py-3">{m.markerName}</td>
         <td className="stat-mono px-4 py-3 text-right">{m.n}</td>
-        <td className="px-4 py-3 text-right text-xs" colSpan={5}>
+        <td className="px-4 py-3 text-right text-detail" colSpan={5}>
           Below the reporting floor — no estimate shown.
         </td>
         <td className="px-4 py-3">
@@ -265,7 +256,7 @@ function MarkerRow({ protocol, m }: { protocol: string; m: MarkerResult }) {
             {m.medianDelta.toFixed(Math.abs(m.medianDelta) < 10 ? 2 : 0)} {m.unit}
           </span>
         </td>
-        <td className="stat-mono px-4 py-3 text-right text-xs text-ink-400">
+        <td className="stat-mono px-4 py-3 text-right text-detail text-ink-400">
           {m.q1Delta.toFixed(2)} to {m.q3Delta.toFixed(2)}
         </td>
         <td className="stat-mono px-4 py-3 text-right text-ink-300">
@@ -273,9 +264,9 @@ function MarkerRow({ protocol, m }: { protocol: string; m: MarkerResult }) {
         </td>
         <td className="stat-mono px-4 py-3 text-right text-ink-300">
           {Math.round(m.towardTargetShare * 100)}%
-          <span className="ml-1 text-[11px] text-ink-500">({m.towardTarget}/{m.n})</span>
+          <span className="ml-1 text-micro text-ink-500">({m.towardTarget}/{m.n})</span>
         </td>
-        <td className="px-4 py-3 text-right text-xs">
+        <td className="px-4 py-3 text-right text-detail">
           {m.comparison?.reportable ? (
             <span className="stat-mono text-ink-300">
               {m.comparison.medianDelta > 0 ? "+" : ""}
@@ -298,9 +289,9 @@ function MarkerRow({ protocol, m }: { protocol: string; m: MarkerResult }) {
             <div className="flex items-start gap-2.5">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
               <div className="space-y-1.5">
-                <p className="text-sm text-ink-200">{observationSentence(protocol, m)}</p>
-                <p className="text-xs text-ink-400">{CONFIDENCE_NOTE[m.confidence]}</p>
-                <p className="text-xs text-ink-500">
+                <p className="text-body text-ink-200">{observationSentence(protocol, m)}</p>
+                <p className="text-detail text-ink-400">{CONFIDENCE_NOTE[m.confidence]}</p>
+                <p className="text-detail text-ink-500">
                   The no-protocol column is a comparison, not a control. Those
                   members were not randomised — they are on no protocol because
                   a clinician judged they did not need one.

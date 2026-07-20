@@ -20,7 +20,7 @@ import * as React from "react";
 import { Award, Check, Copy, PartyPopper, Share2 } from "lucide-react";
 
 import { Card, CardContent, Badge, Button } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
+import { Stagger, StaggerItem, FadeIn } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { cn, formatDate } from "@/lib/utils";
 import { getClient } from "@/lib/mock/clients";
@@ -85,15 +85,15 @@ export function Anniversary({
       {/* The moment                                                        */}
       {/* ---------------------------------------------------------------- */}
       <FadeIn>
-        <div className="relative overflow-hidden rounded-3xl border border-gold-400/25 bg-gradient-to-br from-gold-500/12 via-gold-500/[0.04] to-transparent px-5 py-7 sm:px-8 sm:py-9">
+        <div className="relative overflow-hidden rounded-panel border border-gold-400/25 bg-gradient-to-br from-gold-500/12 via-gold-500/[0.04] to-transparent px-5 py-7 sm:px-8 sm:py-9">
           <div className="flex items-center gap-2">
             <PartyPopper className="h-4 w-4 text-gold-300" />
             <p className="label-eyebrow">{formatDate(headline.achievedOn)}</p>
           </div>
-          <p className="mt-3 font-display text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-ink-50 sm:text-4xl">
+          <p className="mt-3 font-display text-display font-semibold leading-[1.15] tracking-tight text-ink-50 sm:text-display">
             {headline.title}
           </p>
-          <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">
+          <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">
             {headline.detail}
           </p>
 
@@ -115,32 +115,32 @@ export function Anniversary({
             <Card className="card-hover h-full">
               <CardContent className="flex h-full flex-col p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-[15px] font-medium leading-snug text-ink-50">{m.title}</p>
+                  <p className="text-body font-medium leading-snug text-ink-50">{m.title}</p>
                   <Badge tone={KIND_TONE[m.kind]}>{KIND_LABEL[m.kind]}</Badge>
                 </div>
 
                 {m.metric && (
                   // Their own before and after, on the same measurement. This
                   // row is the entire point of the screen.
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink-900/60 p-3">
+                  <div className="mt-3 flex items-center gap-2 rounded-panel bg-ink-900/60 p-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wide text-ink-500">
+                      <p className="text-micro uppercase tracking-wide text-ink-500">
                         {m.metric.label} then
                       </p>
-                      <p className="stat-mono text-sm text-ink-300">{m.metric.from}</p>
+                      <p className="stat-mono text-detail text-ink-300">{m.metric.from}</p>
                     </div>
                     <span className="text-ink-600">→</span>
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wide text-ink-500">now</p>
-                      <p className="stat-mono text-sm font-semibold text-ink-50">{m.metric.to}</p>
+                      <p className="text-micro uppercase tracking-wide text-ink-500">now</p>
+                      <p className="stat-mono text-detail font-semibold text-ink-50">{m.metric.to}</p>
                     </div>
                   </div>
                 )}
 
-                <p className="mt-3 text-[13px] leading-relaxed text-ink-400">{m.detail}</p>
+                <p className="mt-3 text-detail leading-relaxed text-ink-400">{m.detail}</p>
 
                 <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-                  <span className="stat-mono text-[11px] text-ink-500">
+                  <span className="stat-mono text-micro text-ink-500">
                     {formatDate(m.achievedOn)}
                   </span>
                   {m.shareable ? (
@@ -151,7 +151,7 @@ export function Anniversary({
                   ) : (
                     // Stated, not silently omitted — a missing button reads as
                     // a bug, a one-line reason reads as a decision.
-                    <span className="text-[11px] text-ink-500">Yours to share, not ours to package</span>
+                    <span className="text-micro text-ink-500">Yours to share, not ours to package</span>
                   )}
                 </div>
               </CardContent>
@@ -161,7 +161,7 @@ export function Anniversary({
       </Stagger>
 
       {compact && milestones.length > shown.length && (
-        <p className="text-[13px] text-ink-500">
+        <p className="text-detail text-ink-500">
           <span className="stat-mono">{milestones.length - shown.length}</span> more on your progress
           page.
         </p>
@@ -176,8 +176,8 @@ export function Anniversary({
             <CardContent className="p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="font-display text-lg font-semibold text-ink-50">Your card</h3>
-                  <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-400">
+                  <h3 className="font-display text-heading font-semibold text-ink-50">Your card</h3>
+                  <p className="mt-1 max-w-prose text-detail leading-relaxed text-ink-400">
                     A milestone, and nothing else. No measurements, no results, no program name — a
                     post about a year of showing up is yours forever, and a post with a number from
                     your chart in it is a disclosure you can&rsquo;t take back.
@@ -192,24 +192,24 @@ export function Anniversary({
                 {/* Image-shaped on purpose — 4:5 is what a story crop expects. */}
                 <div
                   className={cn(
-                    "relative flex aspect-[4/5] w-full flex-col justify-between overflow-hidden rounded-2xl p-6",
+                    "relative flex aspect-[4/5] w-full flex-col justify-between overflow-hidden rounded-panel p-6",
                     "border border-gold-400/30 bg-gradient-to-br from-gold-500/25 via-ink-900 to-ink-950",
                   )}
                 >
                   <Award className="h-6 w-6 text-gold-300" />
                   <div>
-                    <p className="font-display text-2xl font-semibold leading-tight tracking-tight text-ink-50">
+                    <p className="font-display text-title font-semibold leading-tight tracking-tight text-ink-50">
                       {card.headline}
                     </p>
-                    <p className="mt-2 text-sm text-ink-300">{card.subline}</p>
+                    <p className="mt-2 text-detail text-ink-300">{card.subline}</p>
                   </div>
-                  <p className="stat-mono text-[11px] text-ink-500">{card.footer}</p>
+                  <p className="stat-mono text-micro text-ink-500">{card.footer}</p>
                 </div>
 
                 <div className="space-y-3">
                   <div>
                     <p className="label-eyebrow">Caption</p>
-                    <p className="mt-1.5 rounded-xl bg-ink-900/60 p-3 text-sm text-ink-200">
+                    <p className="mt-1.5 rounded-panel bg-ink-900/60 p-3 text-detail text-ink-200">
                       {card.caption}
                     </p>
                   </div>
@@ -232,7 +232,7 @@ export function Anniversary({
                       Where does this go?
                     </Button>
                   </div>
-                  <p className="text-[12px] leading-relaxed text-ink-500">
+                  <p className="text-micro leading-relaxed text-ink-500">
                     We don&rsquo;t post anything, anywhere, on your behalf — and we don&rsquo;t know
                     whether you share this.
                   </p>

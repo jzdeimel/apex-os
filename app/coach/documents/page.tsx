@@ -24,7 +24,6 @@ import { clientMap, clientName } from "@/lib/mock/clients";
 import { staffName } from "@/lib/mock/staff";
 import { shortHash } from "@/lib/trace/hash";
 import { Button, Input, Select, Badge, EmptyState } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -128,10 +127,10 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       <div>
         <p className="label-eyebrow">DOCUMENTS</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Member documents
         </h1>
-        <p className="mt-1.5 text-sm text-ink-400">
+        <p className="mt-1.5 text-body text-ink-400">
           Every file on a member's record — what it is, who put it there, whether they can
           see it, and the hash that proves it hasn't been swapped.
         </p>
@@ -206,10 +205,9 @@ export default function DocumentsPage() {
           hint="Try clearing a filter, or search by member name or MRN."
         />
       ) : (
-        <FadeIn>
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[900px] text-body">
                 <thead>
                   <tr className="border-b border-ink-700/70 text-left">
                     <Th>Document</Th>
@@ -231,12 +229,11 @@ export default function DocumentsPage() {
               </table>
             </div>
             {rows.length > 120 && (
-              <p className="border-t border-ink-700/70 px-4 py-2.5 text-xs text-ink-500">
+              <p className="border-t border-ink-700/70 px-4 py-2.5 text-detail text-ink-500">
                 Showing the newest 120 of {rows.length}. Narrow the filters to see the rest.
               </p>
             )}
           </div>
-        </FadeIn>
       )}
     </div>
   );
@@ -262,13 +259,13 @@ function Stat({
       <p className="label-eyebrow">{label}</p>
       <p
         className={cn(
-          "stat-mono mt-1.5 text-xl font-semibold",
+          "stat-mono mt-1.5 text-title font-semibold",
           tone === "watch" ? "text-watch" : "text-ink-50",
         )}
       >
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-xs text-ink-500">{hint}</p>}
+      {hint && <p className="mt-0.5 text-detail text-ink-500">{hint}</p>}
     </div>
   );
 }
@@ -283,7 +280,7 @@ function Th({
   return (
     <th
       className={cn(
-        "whitespace-nowrap px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-500",
+        "whitespace-nowrap px-4 py-2.5 text-micro font-medium uppercase tracking-[0.12em] text-ink-500",
         align === "right" && "text-right",
       )}
     >
@@ -310,7 +307,7 @@ function Row({
             <p className="truncate font-medium text-ink-100">{doc.title}</p>
             {/* The storage key, not a URL. Reads go through a short-lived signed
                 link minted per request; there is no durable URL to leak. */}
-            <p className="stat-mono truncate text-[11px] text-ink-600">{doc.storageKey}</p>
+            <p className="stat-mono truncate text-micro text-ink-600">{doc.storageKey}</p>
           </div>
         </div>
       </td>
@@ -323,7 +320,7 @@ function Row({
         ) : (
           <span className="text-ink-500">—</span>
         )}
-        {client && <p className="stat-mono text-[11px] text-ink-600">{client.mrn}</p>}
+        {client && <p className="stat-mono text-micro text-ink-600">{client.mrn}</p>}
       </td>
 
       <td className="whitespace-nowrap px-4 py-3">
@@ -331,21 +328,21 @@ function Row({
       </td>
 
       <td className="whitespace-nowrap px-4 py-3">
-        <p className="stat-mono text-xs text-ink-300">{formatDate(doc.uploadedAt)}</p>
-        <p className="text-[11px] text-ink-600">
+        <p className="stat-mono text-detail text-ink-300">{formatDate(doc.uploadedAt)}</p>
+        <p className="text-micro text-ink-600">
           {doc.uploadedByStaffId ? staffName(doc.uploadedByStaffId) : "Member"}
         </p>
       </td>
 
-      <td className="stat-mono whitespace-nowrap px-4 py-3 text-right text-xs text-ink-300">
+      <td className="stat-mono whitespace-nowrap px-4 py-3 text-right text-detail text-ink-300">
         {formatBytes(doc.sizeBytes)}
       </td>
 
-      <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-400">{doc.source}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-detail text-ink-400">{doc.source}</td>
 
       <td className="whitespace-nowrap px-4 py-3">
         <span
-          className="stat-mono flex items-center gap-1.5 text-[11px] text-ink-400"
+          className="stat-mono flex items-center gap-1.5 text-micro text-ink-400"
           title={`sha256 ${doc.sha256}`}
         >
           <ShieldCheck className="h-3.5 w-3.5 text-optimal" />
@@ -355,12 +352,12 @@ function Row({
 
       <td className="whitespace-nowrap px-4 py-3">
         {doc.visibleToClient ? (
-          <span className="flex items-center gap-1.5 text-xs text-optimal">
+          <span className="flex items-center gap-1.5 text-detail text-optimal">
             <Eye className="h-3.5 w-3.5" />
             Yes
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 text-xs text-watch">
+          <span className="flex items-center gap-1.5 text-detail text-watch">
             <EyeOff className="h-3.5 w-3.5" />
             Not released
           </span>
@@ -427,7 +424,7 @@ function UploadPanel() {
               Add a document
               <Badge tone="gold">Demo — no upload</Badge>
             </p>
-            <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-400">
+            <p className="mt-1 max-w-prose text-body leading-relaxed text-ink-400">
               A real ingest hashes the file first, writes the bytes to a private blob
               container, stores only the pointer and digest, then runs{" "}
               <span className="text-ink-200">Azure Document Intelligence</span> over lab

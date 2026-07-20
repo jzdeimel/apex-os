@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { staffName } from "@/lib/mock/staff";
-import { FadeIn } from "@/components/motion";
 import { CareGaps } from "@/components/coach/CareGaps";
 import { ME_COACH } from "@/components/coach/TodayQueue";
 
@@ -24,19 +23,19 @@ import { ME_COACH } from "@/components/coach/TodayQueue";
  */
 export default function CareGapsPage() {
   return (
-    <div className="space-y-5">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">COACH CONSOLE</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Care gaps
         </h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-400">
+        <p className="mt-2 max-w-prose text-body text-ink-400">
           What the members on {staffName(ME_COACH)}&apos;s book are clinically missing — rechecks
           their plan scheduled and nobody drew, protocols with nothing booked, plans still waiting on
           a signature, and findings on a panel that no plan item addresses. Each row carries the
           records that produced it. Nothing here is an upsell.
         </p>
-      </FadeIn>
+      </header>
 
       <CareGaps coachId={ME_COACH} />
     </div>

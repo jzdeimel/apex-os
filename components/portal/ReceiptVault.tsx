@@ -62,13 +62,13 @@ function Stat({
   return (
     <div
       className={cn(
-        "hairline rounded-2xl border p-4",
+        "hairline rounded-panel border p-4",
         lead ? "border-gold-400/25 bg-gold-400/[0.06]" : "bg-ink-900/50",
       )}
     >
-      <p className="text-[10px] uppercase tracking-wide text-ink-500">{label}</p>
-      <p className="stat-mono mt-1.5 text-2xl font-semibold text-ink-50">{value}</p>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-500">{basis}</p>
+      <p className="text-micro uppercase tracking-wide text-ink-500">{label}</p>
+      <p className="stat-mono mt-1.5 text-title font-semibold text-ink-50">{value}</p>
+      <p className="mt-1.5 text-micro leading-relaxed text-ink-500">{basis}</p>
     </div>
   );
 }
@@ -76,13 +76,13 @@ function Stat({
 function ReceiptRow({ r }: { r: Receipt }) {
   const [open, setOpen] = React.useState(false);
   return (
-    <li className="hairline rounded-2xl border bg-ink-900/50 p-4">
+    <li className="hairline rounded-panel border bg-ink-900/50 p-4">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <div className="min-w-0">
-          <p className="text-[15px] font-medium leading-snug text-ink-50">{r.description}</p>
-          <p className="stat-mono mt-1 text-[12px] text-ink-500">{formatDate(r.date)}</p>
+          <p className="text-body font-medium leading-snug text-ink-50">{r.description}</p>
+          <p className="stat-mono mt-1 text-micro text-ink-500">{formatDate(r.date)}</p>
         </div>
-        <p className="stat-mono shrink-0 text-[15px] font-semibold text-ink-50">
+        <p className="stat-mono shrink-0 text-body font-semibold text-ink-50">
           {dollars(r.amountCents)}
         </p>
       </div>
@@ -91,7 +91,7 @@ function ReceiptRow({ r }: { r: Receipt }) {
         <Badge tone={FLAG_TONE[r.eligibility]}>{HSA_FLAG_LABEL[r.eligibility]}</Badge>
         <Badge tone="neutral">{r.category}</Badge>
         {r.itemised && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-ink-500">
+          <span className="inline-flex items-center gap-1 text-micro text-ink-500">
             <FileText className="h-3 w-3" />
             Itemised copy on file
           </span>
@@ -101,15 +101,15 @@ function ReceiptRow({ r }: { r: Receipt }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="focus-ring mt-2.5 rounded-lg text-[12px] font-medium text-gold-300 hover:text-gold-200"
+        className="focus-ring mt-2.5 rounded-control text-micro font-medium text-gold-300 hover:text-gold-200"
       >
         {open ? "Hide detail" : "Why it is flagged that way"}
       </button>
 
       {open && (
         <div className="mt-2.5 border-t border-ink-700/70 pt-2.5">
-          <p className="max-w-prose text-[13px] leading-relaxed text-ink-400">{r.eligibilityBasis}</p>
-          <p className="mt-2 text-[11px] text-ink-600">
+          <p className="max-w-prose text-detail leading-relaxed text-ink-400">{r.eligibilityBasis}</p>
+          <p className="mt-2 text-micro text-ink-600">
             {r.vendor} · reference <span className="stat-mono">{r.sourceRef}</span>
           </p>
         </div>
@@ -159,7 +159,7 @@ export function ReceiptVault({ client }: { client: Client }) {
             key={y}
             onClick={() => setYear(y)}
             className={cn(
-              "focus-ring shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-medium transition-colors motion-reduce:transition-none",
+              "focus-ring shrink-0 rounded-control border px-4 py-1.5 text-detail font-medium transition-colors motion-reduce:transition-none",
               year === y
                 ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
                 : "border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-100",
@@ -195,8 +195,8 @@ export function ReceiptVault({ client }: { client: Client }) {
         <CardContent className="flex items-start gap-3 p-4 sm:p-5">
           <PiggyBank className="mt-0.5 h-5 w-5 shrink-0 text-gold-300" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-50">Before you submit anything</p>
-            <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-400">
+            <p className="text-detail font-medium text-ink-50">Before you submit anything</p>
+            <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
               {HSA_DISCLAIMER}
             </p>
           </div>
@@ -207,7 +207,7 @@ export function ReceiptVault({ client }: { client: Client }) {
       {summary.byCategory.length > 0 && (
         <Card>
           <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               Where it went
             </h2>
             <ul className="mt-3 space-y-2">
@@ -216,8 +216,8 @@ export function ReceiptVault({ client }: { client: Client }) {
                 return (
                   <li key={c.category}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                      <span className="text-[14px] text-ink-100">{c.category}</span>
-                      <span className="stat-mono shrink-0 text-[13px] text-ink-300">
+                      <span className="text-detail text-ink-100">{c.category}</span>
+                      <span className="stat-mono shrink-0 text-detail text-ink-300">
                         {dollars(c.cents)}{" "}
                         <span className="text-ink-500">
                           · {c.count} {c.count === 1 ? "charge" : "charges"}
@@ -236,10 +236,10 @@ export function ReceiptVault({ client }: { client: Client }) {
       )}
 
       {/* Export ----------------------------------------------------------- */}
-      <div className="hairline flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-ink-900/50 p-4">
+      <div className="hairline flex flex-wrap items-center justify-between gap-3 rounded-panel border bg-ink-900/50 p-4">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-ink-50">Send it to your administrator</p>
-          <p className="mt-1 max-w-prose text-[12px] leading-relaxed text-ink-500">
+          <p className="text-detail font-medium text-ink-50">Send it to your administrator</p>
+          <p className="mt-1 max-w-prose text-micro leading-relaxed text-ink-500">
             One file, every {year} charge, itemised, with the eligibility note included so whoever opens it
             knows what our flags do and do not mean.
           </p>
@@ -257,7 +257,7 @@ export function ReceiptVault({ client }: { client: Client }) {
             key={c}
             onClick={() => setCategory(c as ReceiptCategory | "All")}
             className={cn(
-              "focus-ring shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors motion-reduce:transition-none",
+              "focus-ring shrink-0 rounded-control border px-3.5 py-1.5 text-detail font-medium transition-colors motion-reduce:transition-none",
               category === c
                 ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
                 : "border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-100",
@@ -272,13 +272,13 @@ export function ReceiptVault({ client }: { client: Client }) {
         <CardContent className="p-4 pt-4 sm:p-6 sm:pt-6">
           <div className="flex items-center gap-2">
             <ReceiptIcon className="h-5 w-5 text-gold-300" />
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               Every charge in {year}
             </h2>
           </div>
 
           {shown.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-400">Nothing in that category for {year}.</p>
+            <p className="mt-3 text-detail text-ink-400">Nothing in that category for {year}.</p>
           ) : (
             <ul className="mt-4 space-y-2.5">
               {shown.map((r) => (

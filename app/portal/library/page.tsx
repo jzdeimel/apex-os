@@ -32,7 +32,7 @@
 import { BookOpen, ShieldCheck, Stethoscope } from "lucide-react";
 import { PeptideGallery } from "@/components/peptides/PeptideGallery";
 import { Badge } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
+import { FadeIn } from "@/components/portal/still";
 import { me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import {
@@ -93,12 +93,12 @@ export default function LibraryPage() {
       {/* ------------------------------------------------------------------ */}
       <FadeIn>
         <div className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:gap-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-gold-400/30 bg-gold-400/10 text-gold-300">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-panel border border-gold-400/30 bg-gold-400/10 text-gold-300">
             <Stethoscope className="h-4 w-4" />
           </span>
           <div className="min-w-0 space-y-2">
-            <p className="text-sm leading-relaxed text-ink-200">{PROVIDER_LINE}</p>
-            <p className="text-sm leading-relaxed text-ink-400">{LIBRARY_DISCLAIMER}</p>
+            <p className="text-detail leading-relaxed text-ink-200">{PROVIDER_LINE}</p>
+            <p className="text-detail leading-relaxed text-ink-400">{LIBRARY_DISCLAIMER}</p>
           </div>
         </div>
       </FadeIn>
@@ -111,11 +111,11 @@ export default function LibraryPage() {
           <div className="card border-gold-400/30 p-5">
             <div className="flex flex-wrap items-center gap-2">
               <BookOpen className="h-4 w-4 text-gold-300" />
-              <h2 className="font-display text-base font-semibold text-ink-50">
+              <h2 className="font-display text-body font-semibold text-ink-50">
                 Start with yours
               </h2>
             </div>
-            <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
+            <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
               {chipKeys.length === 1
                 ? "One compound in this library appears on your plan of care. It is marked and listed first."
                 : `${chipKeys.length} compounds in this library appear on your plan of care. They are marked and listed first.`}{" "}
@@ -143,11 +143,11 @@ export default function LibraryPage() {
         <div className="card p-5">
           <div className="flex flex-wrap items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-ink-300" />
-            <h2 className="font-display text-base font-semibold text-ink-50">
+            <h2 className="font-display text-body font-semibold text-ink-50">
               How to read the evidence label
             </h2>
           </div>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
             Not everything on this page is equally proven, and pretending otherwise would not serve
             you. {established} of {peptideLibrary.length} entries have large human trials behind
             them. The rest range from promising to genuinely preliminary, and each one says which.
@@ -177,7 +177,7 @@ export default function LibraryPage() {
       {/* ------------------------------------------------------------------ */}
       <PeptideGallery entries={ordered} planChips={chips} />
 
-      <p className="max-w-prose text-xs leading-relaxed text-ink-500">
+      <p className="max-w-prose text-micro leading-relaxed text-ink-500">
         {PROVIDER_LINE} Nothing on this page is a prescription, a recommendation, or a statement
         that any of these compounds is suitable for you. If something here raises a question, send
         it to your care team — that is what the Messages page is for.
@@ -196,9 +196,9 @@ function EvidenceKey({
   body: string;
 }) {
   return (
-    <div className="rounded-xl border border-ink-700/70 bg-ink-900/40 p-3">
+    <div className="rounded-panel border border-ink-700/70 bg-ink-900/40 p-3">
       <Badge tone={tone}>{label}</Badge>
-      <p className="mt-2 text-xs leading-relaxed text-ink-400">{body}</p>
+      <p className="mt-2 text-micro leading-relaxed text-ink-400">{body}</p>
     </div>
   );
 }

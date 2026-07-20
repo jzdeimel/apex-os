@@ -65,16 +65,16 @@ export function SymptomSignal({ client }: { client: Client }) {
         <CardContent className="p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <NotebookPen className="h-5 w-5 text-ink-400" />
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               Not enough yet
             </h2>
           </div>
-          <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-ink-300">
+          <p className="mt-2 max-w-prose text-body leading-relaxed text-ink-300">
             {result.message}
           </p>
           <div className="mt-4 max-w-sm">
             <Progress value={pct} tone="gold" />
-            <p className="mt-2 text-[12px] text-ink-500">
+            <p className="mt-2 text-micro text-ink-500">
               <span className="stat-mono text-ink-300">{result.daysLogged}</span> of{" "}
               <span className="stat-mono text-ink-300">{MIN_ENTRIES}</span> days
             </p>
@@ -91,11 +91,11 @@ export function SymptomSignal({ client }: { client: Client }) {
         <CardContent className="p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <Link2 className="h-5 w-5 text-ink-400" />
-            <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+            <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
               Nothing to line up this month
             </h2>
           </div>
-          <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-ink-300">
+          <p className="mt-2 max-w-prose text-body leading-relaxed text-ink-300">
             {result.message}
           </p>
         </CardContent>
@@ -109,13 +109,13 @@ export function SymptomSignal({ client }: { client: Client }) {
       <CardContent className="p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <Link2 className="h-5 w-5 text-ink-400" />
-          <h2 className="font-display text-lg font-semibold text-ink-50 sm:text-xl">
+          <h2 className="font-display text-heading font-semibold text-ink-50 sm:text-title">
             What you logged, and what&rsquo;s on your panel
           </h2>
         </div>
 
         {/* The disclaimer, at body size, above everything. Not collapsible. */}
-        <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-ink-400">
+        <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
           {SIGNAL_DISCLAIMER}
         </p>
 
@@ -123,10 +123,10 @@ export function SymptomSignal({ client }: { client: Client }) {
           {result.signals.map((s) => {
             const isSent = sent.includes(s.id);
             return (
-              <div key={s.id} className="hairline rounded-2xl bg-ink-900/50 p-4 sm:p-5">
+              <div key={s.id} className="hairline rounded-panel bg-ink-900/50 p-4 sm:p-5">
                 {/* What you logged ------------------------------------------ */}
                 <p className="label-eyebrow">What you logged</p>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-ink-100">{s.logged}</p>
+                <p className="mt-1.5 text-body leading-relaxed text-ink-100">{s.logged}</p>
 
                 {/* The numbers -------------------------------------------- */}
                 {s.markers.length > 0 && (
@@ -137,17 +137,17 @@ export function SymptomSignal({ client }: { client: Client }) {
                         range onto a third. */}
                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {s.markers.map((m) => (
-                        <div key={m.key} className="hairline min-w-0 rounded-xl bg-ink-950/40 p-3.5">
-                          <p className="truncate text-[12px] text-ink-400">{m.name}</p>
+                        <div key={m.key} className="hairline min-w-0 rounded-panel bg-ink-950/40 p-3.5">
+                          <p className="truncate text-micro text-ink-400">{m.name}</p>
                           {/* Deliberately monochrome. Colouring this by band
                               would be this component telling the member whether
                               the number is good, which is exactly the thing
                               neither it nor the module underneath may do. */}
-                          <p className="stat-mono mt-1 text-xl font-semibold text-ink-50">
+                          <p className="stat-mono mt-1 text-title font-semibold text-ink-50">
                             {m.value}
-                            <span className="ml-1 text-[11px] font-normal text-ink-500">{m.unit}</span>
+                            <span className="ml-1 text-micro font-normal text-ink-500">{m.unit}</span>
                           </p>
-                          <p className="mt-1.5 text-[11px] leading-relaxed text-ink-500">
+                          <p className="mt-1.5 text-micro leading-relaxed text-ink-500">
                             Lab&rsquo;s printed range{" "}
                             <span className="stat-mono">
                               {m.refLow}&ndash;{m.refHigh}
@@ -160,15 +160,15 @@ export function SymptomSignal({ client }: { client: Client }) {
                   </>
                 )}
 
-                <p className="mt-3 text-[12px] leading-relaxed text-ink-500">{s.whyTheseMarkers}</p>
+                <p className="mt-3 text-micro leading-relaxed text-ink-500">{s.whyTheseMarkers}</p>
 
                 {/* The hedge, on the card face ---------------------------- */}
-                <p className="mt-3 rounded-xl border border-ink-700/60 bg-ink-950/30 p-3.5 text-[12px] leading-relaxed text-ink-400">
+                <p className="mt-3 rounded-panel border border-ink-700/60 bg-ink-950/30 p-3.5 text-micro leading-relaxed text-ink-400">
                   {s.notAConclusion}
                 </p>
 
                 {/* The hand-off ------------------------------------------- */}
-                <p className="mt-3 text-[13px] leading-relaxed text-ink-300">{s.bringThis}</p>
+                <p className="mt-3 text-detail leading-relaxed text-ink-300">{s.bringThis}</p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Button
@@ -182,7 +182,7 @@ export function SymptomSignal({ client }: { client: Client }) {
                   </Button>
                   <Link
                     href="/portal/labs"
-                    className="focus-ring rounded-md px-1 text-[12px] text-ink-500 hover:text-ink-200"
+                    className="focus-ring rounded-control px-1 text-micro text-ink-500 hover:text-ink-200"
                   >
                     See the full panel
                   </Link>
@@ -192,7 +192,7 @@ export function SymptomSignal({ client }: { client: Client }) {
           })}
         </div>
 
-        <p className="mt-4 text-[12px] leading-relaxed text-ink-500">
+        <p className="mt-4 text-micro leading-relaxed text-ink-500">
           Only the two things you logged most often show up here. A longer list would be a longer
           list of things to worry about, and the third-most-common one is never the one worth your
           provider&rsquo;s time.

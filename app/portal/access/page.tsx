@@ -23,7 +23,7 @@ import { shortHash } from "@/lib/trace/hash";
 import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
 import { Tabs } from "@/components/ui/Tabs";
-import { Stagger, StaggerItem, SwitchView } from "@/components/motion";
+import { Stagger, StaggerItem, SwitchView } from "@/components/portal/still";
 import { formatDateTime, relativeDays, cn } from "@/lib/utils";
 import { ME, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { Eye, Download, ShieldAlert, Fingerprint, ScrollText } from "lucide-react";
@@ -77,20 +77,20 @@ export default function PortalAccessPage() {
       />
 
       {/* The honest explainer. Not a disclaimer — a claim we then back up. */}
-      <div className="rounded-2xl border border-optimal/20 bg-optimal/[0.06] p-5">
+      <div className="rounded-panel border border-optimal/20 bg-optimal/[0.06] p-5">
         <div className="flex items-start gap-3">
           <ScrollText className="mt-0.5 h-5 w-5 shrink-0 text-optimal" />
           <div>
-            <p className="text-sm font-medium text-ink-50">
+            <p className="text-detail font-medium text-ink-50">
               You have always had a legal right to this. Most places just make it hard.
             </p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-300">
+            <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
               Federal privacy law gives you the right to an accounting of who has accessed your health
               information. At almost every clinic you exercise it by filing a written request and waiting —
               often up to <span className="stat-mono">60</span> days — for a printout. The record existed the
               whole time; you just could not see it.
             </p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-300">
+            <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
               Apex writes every read to an append-only, tamper-evident log at the moment it happens, so this
               page is simply that log filtered to you. No request, no waiting, no PDF. If a name on this list
               surprises you, ask us about it — that is what it is for.
@@ -109,10 +109,10 @@ export default function PortalAccessPage() {
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="p-4">
-              <p className="text-[11px] uppercase tracking-wide text-ink-500">{k.label}</p>
+              <p className="text-micro uppercase tracking-wide text-ink-500">{k.label}</p>
               <p
                 className={cn(
-                  "stat-mono mt-1 text-3xl font-semibold",
+                  "stat-mono mt-1 text-display font-semibold",
                   k.tone === "high" ? "text-high" : "text-ink-50",
                 )}
               >
@@ -125,19 +125,19 @@ export default function PortalAccessPage() {
 
       {/* Break-glass explainer, shown only when there is one to explain. */}
       {emergencyCount > 0 && (
-        <div className="rounded-2xl border border-high/30 bg-high/10 p-5">
+        <div className="rounded-panel border border-high/30 bg-high/10 p-5">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-high" />
             <div>
-              <p className="text-sm font-medium text-ink-50">
+              <p className="text-detail font-medium text-ink-50">
                 What &ldquo;emergency access&rdquo; means, in plain terms
               </p>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-300">
+              <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
                 Normally a clinician can only open the charts they are assigned to. Emergency access is a
                 deliberate override for the case where that rule would hurt you — you are in front of someone
                 who is not on your care team and they need your history now.
               </p>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-300">
+              <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
                 It is never silent. Using it requires a typed reason, it is flagged red in your record and in
                 ours, it is reviewed by our privacy officer, and it appears on this page immediately —{" "}
                 <span className="text-ink-100">including to you</span>. If you see one below and the reason
@@ -159,7 +159,7 @@ export default function PortalAccessPage() {
           active={filter}
           onChange={(id) => setFilter(id as Filter)}
         />
-        <p className="text-xs text-ink-500">
+        <p className="text-micro text-ink-500">
           Showing <span className="stat-mono text-ink-300">{rows.length}</span> of{" "}
           <span className="stat-mono text-ink-300">{all.length}</span>
         </p>
@@ -188,7 +188,7 @@ export default function PortalAccessPage() {
         )}
       </SwitchView>
 
-      <p className="text-[11px] leading-relaxed text-ink-500">
+      <p className="text-micro leading-relaxed text-ink-500">
         Each entry is sealed with a cryptographic fingerprint that includes the one before it. Altering or
         deleting any single line would break every line after it, which is what makes this a record rather
         than a claim.
@@ -206,14 +206,14 @@ function AccessRow({ row }: { row: LedgerRow }) {
   return (
     <div
       className={cn(
-        "hairline rounded-xl p-4",
+        "hairline rounded-panel p-4",
         emergency ? "border-high/40 bg-high/[0.07]" : "bg-ink-900/50",
       )}
     >
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
+            "grid h-9 w-9 shrink-0 place-items-center rounded-control",
             emergency ? "bg-high/20 text-high" : "bg-ink-800 text-ink-400",
           )}
         >
@@ -222,20 +222,20 @@ function AccessRow({ row }: { row: LedgerRow }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="text-sm font-medium text-ink-50">{row.actorName}</p>
-            <span className="text-[11px] uppercase tracking-wide text-ink-500">
+            <p className="text-detail font-medium text-ink-50">{row.actorName}</p>
+            <span className="text-micro uppercase tracking-wide text-ink-500">
               {person?.role ?? row.actorRole}
               {person?.credentials ? ` · ${person.credentials}` : ""}
             </span>
             {emergency && <Badge tone="high">Emergency access</Badge>}
           </div>
 
-          <p className="mt-1 text-sm text-ink-300">
+          <p className="mt-1 text-detail text-ink-300">
             {meta.verb} <span className="text-ink-100">{WHAT[row.entity] ?? "part of your record"}</span>
           </p>
 
           {row.reason && (
-            <p className="mt-2 text-xs leading-relaxed text-ink-400">
+            <p className="mt-2 text-micro leading-relaxed text-ink-400">
               <span className="text-ink-500">Reason given: </span>
               <span className={cn(emergency && "text-high")}>{row.reason}</span>
             </p>
@@ -243,9 +243,9 @@ function AccessRow({ row }: { row: LedgerRow }) {
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="stat-mono text-xs text-ink-200">{formatDateTime(row.at)}</p>
-          <p className="text-[10px] text-ink-600">{relativeDays(row.at)}</p>
-          <p className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-ink-600">
+          <p className="stat-mono text-micro text-ink-200">{formatDateTime(row.at)}</p>
+          <p className="text-micro text-ink-600">{relativeDays(row.at)}</p>
+          <p className="mt-1.5 inline-flex items-center gap-1 text-micro text-ink-600">
             <Fingerprint className="h-3 w-3" />
             <span className="stat-mono">{shortHash(row.hash)}</span>
           </p>

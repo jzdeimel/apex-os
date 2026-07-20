@@ -88,8 +88,8 @@ function Stat({ label, value, hint }: { label: string; value: React.ReactNode; h
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900/40 p-3">
       <div className="label-eyebrow text-ink-400">{label}</div>
-      <div className="stat-mono mt-1 text-xl text-ink-50">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-ink-500">{hint}</div>}
+      <div className="stat-mono mt-1 text-heading text-ink-50">{value}</div>
+      {hint && <div className="mt-0.5 text-detail text-ink-500">{hint}</div>}
     </div>
   );
 }
@@ -109,7 +109,7 @@ function NotVersioned() {
   return (
     <span
       title="Not versioned — this field has no dated history on the record."
-      className="inline-flex items-center rounded-full border border-ink-700 bg-ink-800/60 px-1.5 py-0.5 text-[10px] font-medium text-ink-400"
+      className="inline-flex items-center rounded-full border border-ink-700 bg-ink-800/60 px-1.5 py-0.5 text-micro font-medium text-ink-400"
     >
       not versioned
     </span>
@@ -224,7 +224,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
           >
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-watch" />
-              <p className="text-sm text-ink-100">
+              <p className="text-body text-ink-100">
                 Viewing this chart as it was on{" "}
                 <span className="stat-mono font-semibold">{formatDate(snapshot.asOf)}</span>.{" "}
                 <span className="font-semibold">This is not the current record.</span>
@@ -252,10 +252,10 @@ export function TimeMachine({ clientId }: { clientId: string }) {
                 <History className="mr-1.5 inline h-3.5 w-3.5" />
                 Replaying chart as of
               </div>
-              <div className="font-display text-2xl text-ink-50 sm:text-3xl">
+              <div className="font-display text-title text-ink-50 sm:text-title">
                 {formatDate(snapshot.asOf)}
               </div>
-              <div className="mt-0.5 text-sm text-ink-400">
+              <div className="mt-0.5 text-body text-ink-400">
                 {agoLabel(snapshot.asOf)} · {current?.label}
               </div>
             </div>
@@ -308,7 +308,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
               />
             </div>
 
-            <div className="mt-1 flex items-center justify-between text-xs text-ink-500">
+            <div className="mt-1 flex items-center justify-between text-detail text-ink-500">
               <span className="stat-mono">{formatDate(marks[0].at)}</span>
               <span>← → steps between events</span>
               <span className="stat-mono">Today</span>
@@ -318,7 +318,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
               {(Object.keys(MARK_LABEL) as MarkKind[])
                 .filter((k) => marks.some((m) => m.kind === k))
                 .map((k) => (
-                  <span key={k} className="flex items-center gap-1.5 text-xs text-ink-400">
+                  <span key={k} className="flex items-center gap-1.5 text-detail text-ink-400">
                     <span
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: MARK_COLOR[k] }}
@@ -370,7 +370,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
                   <NotVersioned />
                 </div>
                 {snapshot.careTeam ? (
-                  <dl className="mt-2 space-y-1 text-sm">
+                  <dl className="mt-2 space-y-1 text-body">
                     <div className="flex justify-between gap-2">
                       <dt className="text-ink-400">Coach</dt>
                       <dd className="text-ink-100">{staffName(snapshot.careTeam.coachId)}</dd>
@@ -381,7 +381,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
                     </div>
                   </dl>
                 ) : (
-                  <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                  <p className="mt-2 text-body leading-relaxed text-ink-500">
                     Assignment changes aren&rsquo;t dated on the record, so we can&rsquo;t say who
                     held this member on this date. Showing today&rsquo;s coach would attribute a
                     past visit to the wrong clinician.
@@ -395,16 +395,16 @@ export function TimeMachine({ clientId }: { clientId: string }) {
                   <NotVersioned />
                 </div>
                 {snapshot.activeProtocolItems === null ? (
-                  <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                  <p className="mt-2 text-body leading-relaxed text-ink-500">
                     Protocol changes aren&rsquo;t written to the record as dated entries yet, so
                     what was in force on this date isn&rsquo;t reconstructable. Today&rsquo;s plan
                     is derived from today&rsquo;s labs — showing it here would name treatments
                     justified by results that hadn&rsquo;t come back yet.
                   </p>
                 ) : snapshot.activeProtocolItems.length === 0 ? (
-                  <p className="mt-2 text-sm text-ink-500">Nothing in force at this date.</p>
+                  <p className="mt-2 text-body text-ink-500">Nothing in force at this date.</p>
                 ) : (
-                  <ul className="mt-2 space-y-1 text-sm text-ink-100">
+                  <ul className="mt-2 space-y-1 text-body text-ink-100">
                     {(snapshot.activeProtocolItems ?? []).map((t) => (
                       <li key={t} className="flex gap-2">
                         <span className="text-gold-500">·</span>
@@ -422,7 +422,7 @@ export function TimeMachine({ clientId }: { clientId: string }) {
               <div className="label-eyebrow text-ink-400">What the care team knew</div>
               <ul className="mt-2 space-y-1.5">
                 {snapshot.knownAt.map((k) => (
-                  <li key={k} className="flex gap-2 text-sm text-ink-200">
+                  <li key={k} className="flex gap-2 text-body text-ink-200">
                     <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-500" />
                     <span>{k}</span>
                   </li>
@@ -440,11 +440,11 @@ export function TimeMachine({ clientId }: { clientId: string }) {
             What changed since {formatDate(snapshot.asOf)}
           </div>
           {!scrubbed ? (
-            <p className="mt-2 text-sm text-ink-500">
+            <p className="mt-2 text-body text-ink-500">
               You are on the current record. Scrub backwards to compare.
             </p>
           ) : diffs.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-500">
+            <p className="mt-2 text-body text-ink-500">
               Nothing tracked on this chart changed between then and today.
             </p>
           ) : (
@@ -454,12 +454,12 @@ export function TimeMachine({ clientId }: { clientId: string }) {
                   key={`${d.field}-${i}`}
                   className="grid grid-cols-1 items-center gap-1 rounded-lg border border-ink-800 bg-ink-900/40 p-2.5 sm:grid-cols-[9rem_1fr_auto_1fr]"
                 >
-                  <span className="text-xs uppercase tracking-wide text-ink-400">{d.field}</span>
-                  <span className="stat-mono text-sm text-ink-400 line-through decoration-ink-600">
+                  <span className="text-detail uppercase tracking-wide text-ink-400">{d.field}</span>
+                  <span className="stat-mono text-body text-ink-400 line-through decoration-ink-600">
                     {d.from}
                   </span>
                   <ArrowRight className="hidden h-3.5 w-3.5 text-ink-600 sm:block" />
-                  <span className="stat-mono text-sm text-ink-50">{d.to}</span>
+                  <span className="stat-mono text-body text-ink-50">{d.to}</span>
                 </li>
               ))}
             </ul>

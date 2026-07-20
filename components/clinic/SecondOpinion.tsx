@@ -3,7 +3,6 @@
 import * as React from "react";
 import { GitCompare, ArrowRight, Info, CircleDot, AlertTriangle } from "lucide-react";
 import { Badge, Card, CardContent, CardHeader, CardTitle, Select, EmptyState } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
 import { clients, clientMap, clientName } from "@/lib/mock/clients";
 import { locationName } from "@/lib/mock/locations";
@@ -44,18 +43,18 @@ function DivergenceCard({ d, set }: { d: OnlyIn; set: RuleSetConfig }) {
   return (
     <li className="rounded-xl border border-gold-400/30 bg-gold-400/[0.06] p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 font-display text-sm font-semibold leading-snug text-ink-50">
+        <p className="min-w-0 font-display text-body font-semibold leading-snug text-ink-50">
           {rec.title}
         </p>
         <Badge tone="gold">only here</Badge>
       </div>
-      <p className="mt-1 text-[11px] text-ink-500">
+      <p className="mt-1 text-micro text-ink-500">
         {set.label} · rule <span className="stat-mono">{d.ruleId}</span>
       </p>
 
       <p
         className={cn(
-          "mt-2 rounded-lg px-2.5 py-1.5 text-[11px] leading-snug",
+          "mt-2 rounded-lg px-2.5 py-1.5 text-micro leading-snug",
           d.cause === "displaced"
             ? "border border-high/30 bg-high/10 text-high"
             : "bg-ink-900/70 text-ink-400",
@@ -74,12 +73,12 @@ function DivergenceCard({ d, set }: { d: OnlyIn; set: RuleSetConfig }) {
         </Badge>
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-ink-300">{rec.rationale}</p>
+      <p className="mt-2 text-detail leading-relaxed text-ink-300">{rec.rationale}</p>
 
       {labs.length > 0 && (
         <ul className="mt-2 space-y-1">
           {labs.map((l) => (
-            <li key={l.name} className="flex items-center justify-between gap-2 text-[11px]">
+            <li key={l.name} className="flex items-center justify-between gap-2 text-micro">
               <span className="min-w-0 truncate text-ink-400">{l.name}</span>
               <span className="stat-mono text-ink-200">{l.value}</span>
             </li>
@@ -163,8 +162,8 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
           <div className="mt-3 flex items-center gap-3 rounded-xl border border-ink-700/70 bg-ink-900/60 p-3">
             <Monogram client={client} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink-50">{clientName(client)}</p>
-              <p className="truncate text-xs text-ink-400">
+              <p className="truncate text-body font-medium text-ink-50">{clientName(client)}</p>
+              <p className="truncate text-detail text-ink-400">
                 {client.status} · {client.goals.join(", ") || "no goals recorded"}
               </p>
             </div>
@@ -181,7 +180,7 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
         <CardContent>
           <ul className="space-y-2">
             {result.summary.map((s, i) => (
-              <li key={i} className="flex gap-2 text-sm leading-relaxed text-ink-300">
+              <li key={i} className="flex gap-2 text-body leading-relaxed text-ink-300">
                 <CircleDot className="mt-1 h-3 w-3 shrink-0 text-gold-400" />
                 <span>{s}</span>
               </li>
@@ -193,16 +192,15 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
       {/* Two columns with agreement between them. Base grid-cols-1: on a phone
           this reads as A → agreed → B top to bottom, which is the same story. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <FadeIn>
           <Card className="h-full">
             <CardHeader>
               <p className="label-eyebrow">ONLY UNDER A</p>
               <CardTitle className="mt-1">{setA.label}</CardTitle>
-              <p className="mt-1 text-xs leading-relaxed text-ink-500">{setA.description}</p>
+              <p className="mt-1 text-detail leading-relaxed text-ink-500">{setA.description}</p>
             </CardHeader>
             <CardContent>
               {result.onlyInA.length === 0 ? (
-                <p className="text-xs text-ink-500">Nothing unique to this configuration.</p>
+                <p className="text-detail text-ink-500">Nothing unique to this configuration.</p>
               ) : (
                 <ul className="space-y-3">
                   {result.onlyInA.map((d) => (
@@ -212,22 +210,20 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
               )}
             </CardContent>
           </Card>
-        </FadeIn>
 
-        <FadeIn delay={0.05}>
           <Card className="h-full">
             <CardHeader>
               <p className="label-eyebrow">AGREED BY BOTH</p>
               <CardTitle className="mt-1">
                 {result.agreed.length} finding{result.agreed.length === 1 ? "" : "s"}
               </CardTitle>
-              <p className="mt-1 text-xs leading-relaxed text-ink-500">
+              <p className="mt-1 text-detail leading-relaxed text-ink-500">
                 Survives a change of assumptions. Least of the reviewer&apos;s attention belongs here.
               </p>
             </CardHeader>
             <CardContent>
               {result.agreed.length === 0 ? (
-                <p className="text-xs text-ink-500">The two configurations share nothing.</p>
+                <p className="text-detail text-ink-500">The two configurations share nothing.</p>
               ) : (
                 <ul className="space-y-2">
                   {result.agreed.map((a) => (
@@ -235,7 +231,7 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
                       key={a.ruleId}
                       className="rounded-xl border border-optimal/25 bg-optimal/[0.06] p-3"
                     >
-                      <p className="text-sm font-medium leading-snug text-ink-100">{a.title}</p>
+                      <p className="text-body font-medium leading-snug text-ink-100">{a.title}</p>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <Badge tone="optimal">
                           <span className="stat-mono">{Math.round(a.confidence * 100)}%</span>
@@ -253,8 +249,8 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
                   <ul className="mt-2 space-y-2">
                     {result.changedConfidence.map((c) => (
                       <li key={c.ruleId} className="rounded-lg bg-ink-900/70 p-2.5">
-                        <p className="text-xs font-medium text-ink-200">{c.title}</p>
-                        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-400">
+                        <p className="text-detail font-medium text-ink-200">{c.title}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-detail text-ink-400">
                           <span className="stat-mono">{Math.round(c.confidenceA * 100)}%</span>
                           <ArrowRight className="h-3 w-3" />
                           <span
@@ -278,18 +274,16 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
               )}
             </CardContent>
           </Card>
-        </FadeIn>
 
-        <FadeIn delay={0.1}>
           <Card className="h-full">
             <CardHeader>
               <p className="label-eyebrow">ONLY UNDER B</p>
               <CardTitle className="mt-1">{setB.label}</CardTitle>
-              <p className="mt-1 text-xs leading-relaxed text-ink-500">{setB.description}</p>
+              <p className="mt-1 text-detail leading-relaxed text-ink-500">{setB.description}</p>
             </CardHeader>
             <CardContent>
               {result.onlyInB.length === 0 ? (
-                <p className="text-xs text-ink-500">Nothing unique to this configuration.</p>
+                <p className="text-detail text-ink-500">Nothing unique to this configuration.</p>
               ) : (
                 <ul className="space-y-3">
                   {result.onlyInB.map((d) => (
@@ -299,10 +293,9 @@ export function SecondOpinion({ initialClientId }: { initialClientId?: string })
               )}
             </CardContent>
           </Card>
-        </FadeIn>
       </div>
 
-      <p className="text-xs leading-relaxed text-ink-500">
+      <p className="text-detail leading-relaxed text-ink-500">
         Both columns are the same engine over the same chart — only the rule configuration differs.
         Neither is authoritative, and every finding still requires provider approval before any
         protocol detail is written.

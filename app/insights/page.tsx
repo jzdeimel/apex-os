@@ -214,10 +214,10 @@ export default function InsightsPage() {
           <p className="label-eyebrow">
             Population insight · {locationFilter === "all" ? "all locations" : locationName(locationFilter)}
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-50 sm:text-3xl">
+          <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50 sm:text-display">
             Cohort clinical picture
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-ink-400">
+          <p className="mt-1 max-w-2xl text-body text-ink-400">
             Prevalence, attention load and protocol response across {data.total} patients in view.
             Every figure below is a count of patients, not of encounters or revenue.
           </p>
@@ -271,7 +271,7 @@ export default function InsightsPage() {
           </CardHeader>
           <CardContent>
             {data.prevalence.length === 0 ? (
-              <p className="text-sm text-ink-500">No resulted panels in this view.</p>
+              <p className="text-body text-ink-500">No resulted panels in this view.</p>
             ) : (
               <>
                 <CountBars
@@ -282,7 +282,7 @@ export default function InsightsPage() {
                 {/* The split is the point. Charting only the total would hide the
                     half of the cohort every other system calls healthy. */}
                 <div className="mt-3 overflow-x-auto">
-                  <table className="w-full min-w-[320px] text-xs">
+                  <table className="w-full min-w-[320px] text-detail">
                     <thead>
                       <tr className="text-left text-ink-500">
                         <th className="pb-1.5 font-medium">Marker</th>
@@ -325,14 +325,14 @@ export default function InsightsPage() {
             />
             <div className="mt-2 grid grid-cols-2 gap-1.5">
               {data.triageLevels.map((t) => (
-                <div key={t.name} className="flex items-center gap-2 text-[11px]">
+                <div key={t.name} className="flex items-center gap-2 text-micro">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: t.color }} />
                   <span className="flex-1 truncate capitalize text-ink-400">{t.name}</span>
                   <span className="stat-mono text-ink-500">{t.value}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-3 text-micro leading-relaxed text-ink-500">
               Attention level is a workload signal, not a diagnosis. It rises with lifecycle status,
               documented risk flags and unsigned work — not with lab severity alone.
             </p>
@@ -353,7 +353,7 @@ export default function InsightsPage() {
           </CardHeader>
           <CardContent>
             {data.drifting.length === 0 ? (
-              <p className="text-sm text-ink-500">No patient panels are moving away from optimal.</p>
+              <p className="text-body text-ink-500">No patient panels are moving away from optimal.</p>
             ) : (
               <div className="space-y-2">
                 {data.drifting.slice(0, 6).map((m) => (
@@ -361,7 +361,7 @@ export default function InsightsPage() {
                 ))}
               </div>
             )}
-            <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-3 text-micro leading-relaxed text-ink-500">
               Movement is measured against each marker&apos;s own optimal window across its draw
               history, so markers in different units are comparable.
             </p>
@@ -379,7 +379,7 @@ export default function InsightsPage() {
           </CardHeader>
           <CardContent>
             {data.responding.length === 0 ? (
-              <p className="text-sm text-ink-500">
+              <p className="text-body text-ink-500">
                 No active-protocol patients show markers moving toward optimal yet.
               </p>
             ) : (
@@ -389,7 +389,7 @@ export default function InsightsPage() {
                 ))}
               </div>
             )}
-            <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-3 text-micro leading-relaxed text-ink-500">
               Restricted to patients on an active protocol. Improvement without a protocol is not
               protocol response, and reporting it as such would overstate what the clinic did.
             </p>
@@ -435,20 +435,20 @@ export default function InsightsPage() {
                             strokeDasharray={`${(t.score / 100) * 97.4} 97.4`}
                           />
                         </svg>
-                        <span className="absolute stat-mono text-xs font-bold text-ink-100">{t.score}</span>
+                        <span className="absolute stat-mono text-detail font-bold text-ink-100">{t.score}</span>
                       </div>
                       <Monogram client={c} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
                             href={`/clients/${c.id}`}
-                            className="truncate text-sm font-medium text-ink-50 hover:text-gold-300"
+                            className="truncate text-body font-medium text-ink-50 hover:text-gold-300"
                           >
                             {clientName(c)}
                           </Link>
                           <Badge tone={TRIAGE_TONE[t.level]}>{t.level}</Badge>
                         </div>
-                        <span className="block truncate text-[11px] text-ink-500">
+                        <span className="block truncate text-micro text-ink-500">
                           {locationName(c.locationId)} · {c.status} · {staffName(c.providerId)}
                         </span>
                       </div>
@@ -464,13 +464,13 @@ export default function InsightsPage() {
                     {/* Drivers before the suggestion — same rule as the review
                         queue. The suggestion is worth less than its reasons. */}
                     {t.factors.length > 0 && (
-                      <p className="mt-2 text-[11px] leading-relaxed text-ink-400">
+                      <p className="mt-2 text-micro leading-relaxed text-ink-400">
                         <span className="text-ink-500">Drivers: </span>
                         {t.factors.join(" · ")}
                       </p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2 text-detail">
                         <span className="text-ink-500">Suggested owner</span>
                         <Badge tone="neutral">{nba.owner}</Badge>
                         <span className="truncate text-ink-300">{nba.action}</span>
@@ -498,7 +498,7 @@ export default function InsightsPage() {
               yLabel="Attention score"
               height={260}
             />
-            <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-2 text-micro leading-relaxed text-ink-500">
               Upper-right: an abnormal panel that no workflow has picked up. Lower-right is the
               quieter failure — a genuinely abnormal panel that scores low because nothing about the
               patient&apos;s status is overdue.
@@ -559,10 +559,10 @@ function CohortStat({
           {icon}
         </span>
       </div>
-      <span className="stat-mono mt-3 font-display text-2xl font-bold text-ink-50 sm:text-3xl">
+      <span className="stat-mono mt-3 font-display text-title font-bold text-ink-50">
         {value}
       </span>
-      <span className="mt-1 text-xs leading-snug text-ink-500">{hint}</span>
+      <span className="mt-1 text-detail leading-snug text-ink-500">{hint}</span>
     </div>
   );
 }
@@ -580,10 +580,10 @@ function MovementRow({ m, direction }: { m: Movement; direction: "worse" | "bett
       <div className="flex items-center gap-2.5">
         <Monogram client={m.client} size="sm" />
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-ink-100">
+          <span className="block truncate text-body font-medium text-ink-100">
             {clientName(m.client)}
           </span>
-          <span className="block truncate text-[11px] text-ink-500">
+          <span className="block truncate text-micro text-ink-500">
             {locationName(m.client.locationId)} · panel {formatDate(m.resultedOn)}
           </span>
         </div>
@@ -594,7 +594,7 @@ function MovementRow({ m, direction }: { m: Movement; direction: "worse" | "bett
       </div>
       {/* The lead marker with its actual numbers — a clinician should never have
           to open the chart to find out which marker moved. */}
-      <p className="mt-1.5 text-[11px] text-ink-400">
+      <p className="mt-1.5 text-micro text-ink-400">
         <span className="text-ink-200">{b.name}</span>{" "}
         <span className="stat-mono">
           {lead.from} → {lead.to} {b.unit}

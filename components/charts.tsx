@@ -373,8 +373,8 @@ export function DonutCount({
       </ResponsiveContainer>
       {centerValue !== undefined && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-2xl font-bold text-ink-50">{centerValue}</span>
-          {centerLabel && <span className="text-[10px] uppercase tracking-wide text-ink-500">{centerLabel}</span>}
+          <span className="font-display text-title font-bold text-ink-50">{centerValue}</span>
+          {centerLabel && <span className="text-micro uppercase tracking-wide text-ink-500">{centerLabel}</span>}
         </div>
       )}
     </div>

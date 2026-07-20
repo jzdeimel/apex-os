@@ -243,7 +243,7 @@ function staleAppointmentDate(client: Client, nowIso: string): string {
   const d = absolute(absolute(nowIso).getTime() - daysAgo * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   return (
-    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +
+    `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}` +
     `T${p(9 + (daysAgo % 8))}:00:00`
   );
 }

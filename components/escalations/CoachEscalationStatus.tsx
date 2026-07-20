@@ -12,7 +12,6 @@ import {
 import { staffName } from "@/lib/mock/staff";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
-import { Stagger, StaggerItem } from "@/components/motion";
 import { formatDateTime } from "@/lib/utils";
 
 /**
@@ -62,9 +61,9 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
   }
 
   return (
-    <Stagger className="space-y-3">
+    <div className="space-y-3">
       {list.map((e) => (
-        <StaggerItem key={e.id}>
+        <div key={e.id}>
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -76,16 +75,16 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
                     <Badge tone="neutral">{e.kind}</Badge>
                     <StateBadge e={e} />
                   </div>
-                  <p className="mt-2 text-sm text-ink-100">{e.question}</p>
+                  <p className="mt-2 text-body text-ink-100">{e.question}</p>
                   {e.sourceQuote && (
-                    <blockquote className="mt-2 border-l-2 border-ink-700 pl-3 text-[13px] italic leading-relaxed text-ink-500">
+                    <blockquote className="mt-2 border-l-2 border-ink-700 pl-3 text-detail italic leading-relaxed text-ink-500">
                       {e.sourceQuote}
                     </blockquote>
                   )}
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-800/60 pt-2.5 text-[11px] text-ink-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-800/60 pt-2.5 text-micro text-ink-500">
                 <span>
                   Raised by <span className="text-ink-300">{staffName(e.raisedByStaffId)}</span>
                 </span>
@@ -101,27 +100,27 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
                   <p className="label-eyebrow text-optimal">
                     Answer from {staffName(e.answeredByStaffId ?? e.assignedToStaffId)}
                   </p>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-200">{e.answer}</p>
+                  <p className="mt-1.5 text-detail leading-relaxed text-ink-200">{e.answer}</p>
                   {e.answeredAt && (
-                    <p className="stat-mono mt-1.5 text-[11px] text-ink-600">
+                    <p className="stat-mono mt-1.5 text-micro text-ink-600">
                       {formatDateTime(e.answeredAt)}
                     </p>
                   )}
                   {/* The sentence a coach can read straight to the member. */}
-                  <p className="mt-2 text-[11px] text-ink-500">
+                  <p className="mt-2 text-micro text-ink-500">
                     Safe to relay to the member.
                   </p>
                 </div>
               ) : (
-                <p className="mt-3 text-[11px] text-ink-500">
+                <p className="mt-3 text-micro text-ink-500">
                   Nothing to relay yet — you can tell the member their provider is reviewing it.
                 </p>
               )}
             </CardContent>
           </Card>
-        </StaggerItem>
+        </div>
       ))}
-    </Stagger>
+    </div>
   );
 }
 
@@ -158,10 +157,10 @@ export function CoachWaitingOn({ coachId }: { coachId: string }) {
                 >
                   <StateBadge e={e} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink-100">
+                    <span className="block truncate text-body text-ink-100">
                       {client ? clientName(client) : e.clientId}
                     </span>
-                    <span className="block truncate text-[11px] text-ink-500">{e.question}</span>
+                    <span className="block truncate text-micro text-ink-500">{e.question}</span>
                   </span>
                   <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-600" />
                 </Link>

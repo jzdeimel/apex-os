@@ -55,7 +55,7 @@ export function FaqAccordion({
           <div
             key={f.id}
             className={cn(
-              "overflow-hidden rounded-2xl border transition-colors",
+              "overflow-hidden rounded-panel border transition-colors",
               isOpen
                 ? "border-gold-400/30 bg-ink-850"
                 : "border-ink-700/70 bg-ink-850/60 hover:border-ink-600",
@@ -73,7 +73,7 @@ export function FaqAccordion({
                 <span className="min-w-0">
                   <span
                     className={cn(
-                      "block font-display text-[15px] font-semibold leading-snug sm:text-base",
+                      "block font-display text-body font-semibold leading-snug",
                       isOpen ? "text-ink-50" : "text-ink-100",
                     )}
                   >
@@ -83,7 +83,7 @@ export function FaqAccordion({
                       six bare questions makes a member open all six to find the
                       one they wanted. */}
                   {!isOpen && (
-                    <span className="mt-1.5 block text-[13px] leading-relaxed text-ink-400">
+                    <span className="mt-1.5 block text-detail leading-relaxed text-ink-400">
                       {f.short}
                     </span>
                   )}
@@ -107,7 +107,7 @@ export function FaqAccordion({
               >
                 <div className="max-w-prose space-y-3.5 border-t border-ink-700/70 pt-4">
                   {f.answer.map((p, i) => (
-                    <p key={i} className="text-[14px] leading-relaxed text-ink-300">
+                    <p key={i} className="text-detail leading-relaxed text-ink-300">
                       {p}
                     </p>
                   ))}
@@ -116,7 +116,7 @@ export function FaqAccordion({
                 {f.seeAlso && (
                   <Link
                     href={f.seeAlso.href}
-                    className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-medium text-gold-300 hover:text-gold-200"
+                    className="focus-ring mt-4 inline-flex items-center gap-1.5 rounded-control text-detail font-medium text-gold-300 hover:text-gold-200"
                   >
                     {f.seeAlso.label}
                     <span aria-hidden>→</span>
@@ -130,7 +130,7 @@ export function FaqAccordion({
 
       {/* The question none of the six answers is "what if my question isn't
           here", and the clinic's answer to that is a phone number. */}
-      <p className="flex flex-wrap items-center gap-1.5 pt-2 text-[13px] leading-relaxed text-ink-500">
+      <p className="flex flex-wrap items-center gap-1.5 pt-2 text-detail leading-relaxed text-ink-500">
         <Phone aria-hidden className="h-3.5 w-3.5" />
         Something not covered here? Message your coach, or call{" "}
         <a

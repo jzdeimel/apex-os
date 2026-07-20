@@ -45,8 +45,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             >
               <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", color)} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-ink-50">{t.title}</p>
-                {t.desc && <p className="mt-0.5 text-xs text-ink-400">{t.desc}</p>}
+                <p className="text-body font-medium text-ink-50">{t.title}</p>
+                {t.desc && <p className="mt-0.5 text-detail text-ink-400">{t.desc}</p>}
               </div>
               <button onClick={() => dismiss(t.id)} className="text-ink-500 hover:text-ink-200">
                 <X className="h-3.5 w-3.5" />

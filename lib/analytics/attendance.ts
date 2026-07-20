@@ -144,12 +144,12 @@ function hourMultiplier(hour: number, weekday: number): number {
 
 function iso(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:00`;
 }
 
 function dateOnly(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 
 /** Visit types a member of a given status plausibly books. */
@@ -201,12 +201,12 @@ function generateVisits(): Visit[] {
     for (let i = 0; i < visitCount; i++) {
       const daysAgo = Math.floor(rand() * (HISTORY_WEEKS * 7));
       const at = absolute(NOW.getTime() - daysAgo * DAY_MS);
-      const weekday = at.getDay();
+      const weekday = at.getUTCDay();
       if (weekday === 0) continue; // closed Sunday
 
       const hour = SLOT_HOURS[Math.floor(rand() * SLOT_HOURS.length)];
       const minute = rand() < 0.5 ? 0 : 30;
-      at.setHours(hour, minute, 0, 0);
+      at.setUTCHours(hour, minute, 0, 0);
 
       const type = types[Math.floor(rand() * types.length)];
       const start = iso(at);
@@ -365,7 +365,7 @@ export function attendanceBySlot(filter: AttendanceFilter = {}): SlotCell[] {
   const rows = applyFilter(visitHistory, filter);
   const grouped = groupBy(rows, (v) => {
     const d = absolute(v.start);
-    return `${d.getDay()}|${d.getHours()}`;
+    return `${d.getUTCDay()}|${d.getUTCHours()}`;
   });
 
   const out: SlotCell[] = [];

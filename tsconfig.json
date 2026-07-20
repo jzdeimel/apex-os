@@ -35,7 +35,9 @@
     ".next/types/**/*.ts",
     ".next-verify/types/**/*.ts",
     ".next-medical/types/**/*.ts",
-    ".next-med2/types/**/*.ts"
+    ".next-med2/types/**/*.ts",
+    ".next-design-ops/types/**/*.ts",
+    ".next-design-portal/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -18,7 +18,6 @@ import * as React from "react";
 import { HeartHandshake } from "lucide-react";
 
 import { Card, CardContent, EmptyState } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { cn, currency } from "@/lib/utils";
 import { staffMap, staffName } from "@/lib/mock/staff";
 import { ME_COACH } from "@/components/coach/TodayQueue";
@@ -47,17 +46,17 @@ export default function CoachWinBackPage() {
   const recoverable = all.reduce((s, r) => s + r.lifetimeValue, 0);
 
   return (
-    <div className="space-y-6">
-      <FadeIn>
+    <div className="space-y-8">
+      <header>
         <p className="label-eyebrow">COACH CONSOLE</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Win-backs
         </h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-400">
+        <p className="mt-2 max-w-prose text-body text-ink-400">
           Members on your book who stopped — with a play built from what each of them actually did
           here, and the records it came from sitting next to it. Nothing on this page sends anything.
         </p>
-      </FadeIn>
+      </header>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Lapsed on your book" value={String(all.length)} />
@@ -92,12 +91,12 @@ export default function CoachWinBackPage() {
                   )}
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-sm font-medium text-ink-50">
+                    <span className="truncate text-body font-medium text-ink-50">
                       {r.client.firstName} {r.client.lastName}
                     </span>
                     <span
                       className={cn(
-                        "stat-mono shrink-0 text-sm",
+                        "stat-mono shrink-0 text-body",
                         r.winnability >= 60
                           ? "text-optimal"
                           : r.winnability >= 40
@@ -108,8 +107,8 @@ export default function CoachWinBackPage() {
                       {r.winnability}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-[12px] text-ink-500">{r.trigger}</p>
-                  <p className="stat-mono mt-1 text-[11px] text-ink-600">
+                  <p className="mt-0.5 truncate text-micro text-ink-500">{r.trigger}</p>
+                  <p className="stat-mono mt-1 text-micro text-ink-600">
                     {currency(r.lifetimeValue)} · {r.tenureMonths}mo
                   </p>
                 </button>
@@ -117,7 +116,7 @@ export default function CoachWinBackPage() {
             })}
 
             {all.length > SHOWN && (
-              <p className="px-1 pt-1 text-[12px] leading-relaxed text-ink-500">
+              <p className="px-1 pt-1 text-micro leading-relaxed text-ink-500">
                 <span className="stat-mono">{all.length - SHOWN}</span> more below the line. They
                 aren&rsquo;t hidden because they don&rsquo;t matter — they&rsquo;re hidden because a
                 list you can&rsquo;t finish is a list you don&rsquo;t start.
@@ -154,7 +153,7 @@ function Stat({
         <p className="label-eyebrow">{label}</p>
         <p
           className={cn(
-            "stat-mono mt-2 text-2xl font-semibold",
+            "stat-mono mt-2 text-title font-semibold",
             tone === "gold" ? "text-gold-300" : "text-ink-50",
           )}
         >

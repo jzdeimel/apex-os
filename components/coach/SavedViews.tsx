@@ -167,7 +167,7 @@ export function SavedViews({
                 }}
                 placeholder="Name this view…"
                 aria-label="Name this view"
-                className="h-8 w-48 text-xs"
+                className="h-8 w-48 text-detail"
               />
               <Button size="sm" variant="primary" onClick={commitSave} disabled={!name.trim()}>
                 <Check className="h-3.5 w-3.5" />
@@ -215,7 +215,7 @@ function ViewPill({
       aria-pressed={active}
       title={view.description}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-ring",
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-detail font-medium transition-colors focus-ring",
         active
           ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
           : "border-ink-700 text-ink-300 hover:border-ink-600 hover:text-ink-100",
@@ -224,7 +224,7 @@ function ViewPill({
       {view.name}
       <span
         className={cn(
-          "stat-mono rounded-full px-1.5 py-0.5 text-[10px]",
+          "stat-mono rounded-full px-1.5 py-0.5 text-micro",
           active ? "bg-gold-400/20 text-gold-200" : "bg-ink-800 text-ink-400",
         )}
       >
@@ -237,7 +237,7 @@ function ViewPill({
 function ActiveViewNote({ view }: { view?: SavedView }) {
   if (!view) return null;
   return (
-    <p className="text-xs leading-relaxed text-ink-500">
+    <p className="text-detail leading-relaxed text-ink-500">
       <span className="text-ink-300">{view.name}</span> — {view.description}
     </p>
   );

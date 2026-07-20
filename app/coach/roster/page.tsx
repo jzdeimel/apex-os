@@ -10,7 +10,6 @@ import { locationName } from "@/lib/mock/locations";
 import { alphaScore } from "@/lib/alphaScore";
 import { nextBestAction, triageScore, churnRisk } from "@/lib/aiInsights";
 import { Input, Select, Button, Badge, EmptyState } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { ClientRow, ClientStatusBadge } from "@/components/coach/ClientRow";
 import { ME_COACH, clientsForCoach, daysSinceTouch } from "@/components/coach/TodayQueue";
 import { AlphaScoreChip } from "@/components/AlphaScoreRing";
@@ -86,7 +85,7 @@ function TriageCell({ score }: { score: number }) {
   const tone = score >= 45 ? "bg-high" : score >= 22 ? "bg-watch" : "bg-ink-600";
   return (
     <div className="flex items-center gap-2">
-      <span className="stat-mono w-6 text-right text-xs text-ink-200">{score}</span>
+      <span className="stat-mono w-6 text-right text-detail text-ink-200">{score}</span>
       <span className="h-1.5 w-14 overflow-hidden rounded-full bg-ink-900">
         <span className={cn("block h-full rounded-full", tone)} style={{ width: `${score}%` }} />
       </span>
@@ -241,25 +240,22 @@ export default function CoachRosterPage() {
 
   return (
     <div className="space-y-3">
-      <FadeIn>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="label-eyebrow">COACH CONSOLE</p>
-            <h1 className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink-50">
+            <h1 className="mt-0.5 font-display text-title font-semibold tracking-tight text-ink-50">
               {wide ? "All Clients" : "My Roster"}
             </h1>
           </div>
-          <p className="text-[11px] text-ink-500">
+          <p className="text-micro text-ink-500">
             {wide
               ? "Every client in the practice — read-only context, not your queue."
               : `Assigned to ${staffName(ME_COACH)} · same next-best-action the provider sees`}
           </p>
         </div>
-      </FadeIn>
 
       {/* Summary strip + scope toggle share a line: both answer "what am I
           looking at", and splitting them cost a full row of table. */}
-      <FadeIn delay={0.04}>
         <div className="card flex flex-wrap items-center justify-between gap-2 px-3 py-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {[
@@ -269,8 +265,8 @@ export default function CoachRosterPage() {
               { label: "Longest silence", value: `${summary.stalest}d` },
             ].map((s) => (
               <div key={s.label} className="flex items-baseline gap-1.5">
-                <span className="stat-mono text-base font-semibold text-ink-50">{s.value}</span>
-                <span className="text-[11px] text-ink-500">{s.label}</span>
+                <span className="stat-mono text-heading font-semibold text-ink-50">{s.value}</span>
+                <span className="text-micro text-ink-500">{s.label}</span>
               </div>
             ))}
           </div>
@@ -279,9 +275,7 @@ export default function CoachRosterPage() {
             {wide ? "My book only" : "Widen to practice"}
           </Button>
         </div>
-      </FadeIn>
 
-      <FadeIn delay={0.06}>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
@@ -315,41 +309,34 @@ export default function CoachRosterPage() {
             <option value="45">Quiet 45+ days</option>
           </Select>
         </div>
-      </FadeIn>
 
       {/* Outcomes. Collapsed by default and above the table on purpose: it is a
           reflective view, not a work queue, and expanding it should be a
           deliberate act that does not cost the coach their table position. */}
-      <FadeIn delay={0.08}>
         <OutcomePanel coachId={ME_COACH} />
-      </FadeIn>
 
       {/* The open prep brief, anchored above the table rather than inline in a
           row. A brief expanded inside a <tr> either forces a colSpan block that
           shoves every other row off-screen, or scrolls sideways with the table —
           and this one is read while a call is connecting. */}
       {prepFor && (
-        <FadeIn>
           <div className="relative">
             <button
               type="button"
               onClick={() => setPrepFor(null)}
-              className="focus-ring absolute right-2 top-2 z-10 rounded-lg border border-ink-700 bg-ink-900/90 px-2 py-1 text-[10px] font-medium text-ink-400 transition-colors hover:text-ink-100"
+              className="focus-ring absolute right-2 top-2 z-10 rounded-lg border border-ink-700 bg-ink-900/90 px-2 py-1 text-micro font-medium text-ink-400 transition-colors hover:text-ink-100"
             >
               Close
             </button>
             <ConsultPrepBrief clientId={prepFor} coachId={ME_COACH} />
           </div>
-        </FadeIn>
       )}
 
-      <FadeIn delay={0.1}>
-        <p className="text-[11px] text-ink-600">
+        <p className="text-micro text-ink-600">
           Showing <span className="stat-mono text-ink-300">{rows.length}</span> of{" "}
           <span className="stat-mono text-ink-300">{scored.length}</span>
           {filtersOn && " · filtered"}
         </p>
-      </FadeIn>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -358,16 +345,15 @@ export default function CoachRosterPage() {
           hint="Clear the search or widen the status, risk and last-touch filters."
         />
       ) : (
-        <FadeIn delay={0.1}>
-          {/* The scroll container, not the page, owns the overflow — the body
-              must never scroll sideways at 390px. */}
-          <div className="card overflow-x-auto">
+        /* The scroll container, not the page, owns the overflow — the body
+           must never scroll sideways at 390px. */
+        <div className="card overflow-x-auto">
             {/* Widened with the "Since seen" column. The min-width has to grow
                 with the column count or the table starts compressing cells
                 instead of scrolling, which is what the overflow container above
                 exists to prevent. */}
             <table className="w-full min-w-[1040px] border-collapse text-left">
-              <thead className="border-b border-ink-700/70 text-[11px] uppercase tracking-wide">
+              <thead className="border-b border-ink-700/70 text-micro uppercase tracking-wide">
                 <tr>
                   <SortHeader label="Member" sortKey="name" active={sort} dir={dir} onSort={onSort} />
                   <SortHeader label="Status" sortKey="status" active={sort} dir={dir} onSort={onSort} />
@@ -426,7 +412,7 @@ export default function CoachRosterPage() {
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <span
                         className={cn(
-                          "stat-mono text-xs",
+                          "stat-mono text-detail",
                           r.touchDays >= 21
                             ? "text-high"
                             : r.touchDays >= 10
@@ -451,7 +437,7 @@ export default function CoachRosterPage() {
                         <SinceLastVisitInline clientId={r.client.id} coachId={ME_COACH} />
                       ) : (
                         <span
-                          className="stat-mono text-xs text-ink-700"
+                          className="stat-mono text-detail text-ink-700"
                           title="Not your member — there is no last visit of yours to measure from."
                         >
                           —
@@ -461,7 +447,7 @@ export default function CoachRosterPage() {
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <span
                         className={cn(
-                          "stat-mono text-xs",
+                          "stat-mono text-detail",
                           r.client.nextAppointment ? "text-ink-300" : "text-ink-600",
                         )}
                       >
@@ -469,7 +455,7 @@ export default function CoachRosterPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
-                      <span className="stat-mono text-xs text-ink-400">
+                      <span className="stat-mono text-detail text-ink-400">
                         {currency(r.client.lifetimeValue, true)}
                       </span>
                     </td>
@@ -498,7 +484,6 @@ export default function CoachRosterPage() {
               </tbody>
             </table>
           </div>
-        </FadeIn>
       )}
     </div>
   );

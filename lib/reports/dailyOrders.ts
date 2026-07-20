@@ -60,8 +60,8 @@ function windowStart(nowIso: string, hours: number): string {
   // Same naive local-wall-clock shape the order fixtures use — emitting UTC
   // here would reintroduce a timezone offset into every comparison below.
   return (
-    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +
-    `T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+    `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}` +
+    `T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getSeconds())}`
   );
 }
 

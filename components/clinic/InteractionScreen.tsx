@@ -44,24 +44,33 @@ const SEVERITY_META: Record<
   InteractionSeverity,
   { tone: "high" | "watch" | "neutral" | "info"; ring: string; icon: React.ReactNode }
 > = {
+  /**
+   * `ring` is a left rule, not a box.
+   *
+   * Each finding used to be a filled, fully-bordered card — sitting inside the
+   * screen panel, inside the recommendation card. Three nested boxes to show one
+   * sentence. A severity-coloured rule down the left edge carries exactly the
+   * same information (and the same colour semantics) while letting the findings
+   * read as a list rather than as a stack of competing containers.
+   */
   contraindication: {
     tone: "high",
-    ring: "border-high/50 bg-high/[0.07]",
+    ring: "border-high/70",
     icon: <AlertOctagon className="h-4 w-4" />,
   },
   major: {
     tone: "high",
-    ring: "border-high/30 bg-high/[0.04]",
+    ring: "border-high/50",
     icon: <ShieldAlert className="h-4 w-4" />,
   },
   moderate: {
     tone: "watch",
-    ring: "border-watch/30 bg-watch/[0.04]",
+    ring: "border-watch/50",
     icon: <AlertTriangle className="h-4 w-4" />,
   },
   counsel: {
     tone: "neutral",
-    ring: "border-ink-700/70 bg-ink-900/40",
+    ring: "border-ink-700",
     icon: <Info className="h-4 w-4" />,
   },
 };
@@ -121,7 +130,7 @@ export function InteractionScreen({
 
       {/* What was actually looked at. A screen whose scope is invisible reads
           as a screen with no limits. */}
-      <p className="mt-1.5 text-[11px] leading-relaxed text-ink-500">
+      <p className="mt-1.5 text-micro leading-relaxed text-ink-500">
         Screened{" "}
         <span className="text-ink-400">
           {result.screened.length > 0 ? result.screened.map((a) => a.label).join(", ") : "nothing — no agent on this proposal resolved to a known molecule"}
@@ -138,15 +147,15 @@ export function InteractionScreen({
       </p>
 
       {result.findings.length === 0 ? (
-        <div className="mt-2.5 flex items-start gap-2 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2">
+        <div className="mt-2.5 flex items-start gap-2 border-t border-ink-800/60 pt-2.5">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-optimal" />
-          <p className="text-xs leading-relaxed text-ink-400">
+          <p className="text-detail leading-relaxed text-ink-400">
             Nothing fired against the data Apex holds. Read that as narrowly as it is meant —
             see the limits of this screen below.
           </p>
         </div>
       ) : (
-        <div className="mt-2.5 space-y-2">
+        <div className="mt-2.5 space-y-3">
           {result.findings.map((f) => (
             <FindingCard
               key={f.id}
@@ -161,7 +170,7 @@ export function InteractionScreen({
       )}
 
       {outstanding.length > 0 && (
-        <p className="mt-2.5 text-[11px] font-medium leading-relaxed text-high">
+        <p className="mt-2.5 text-micro font-medium leading-relaxed text-high">
           {outstanding.length} finding{outstanding.length === 1 ? "" : "s"} must be acknowledged
           before this can be signed. Acknowledging is not the same as clearing — each
           acknowledgement is recorded against your name.
@@ -173,15 +182,15 @@ export function InteractionScreen({
         type="button"
         onClick={() => setShowCoverage((s) => !s)}
         aria-expanded={showCoverage}
-        className="focus-ring mt-2.5 inline-flex items-center gap-1.5 rounded-md text-[11px] text-ink-400 hover:text-ink-200"
+        className="focus-ring mt-2.5 inline-flex items-center gap-1.5 rounded-md text-micro text-ink-400 hover:text-ink-200"
       >
         <Eye className="h-3 w-3" />
         {showCoverage ? "Hide" : "What this screen cannot see"} ({result.coverage.length})
       </button>
       {showCoverage && (
-        <ul className="animate-fade-in mt-1.5 space-y-1 rounded-lg border border-ink-800 bg-ink-950/40 p-2.5">
+        <ul className="animate-fade-in mt-1.5 space-y-1 border-t border-ink-800/60 pt-2">
           {result.coverage.map((c, i) => (
-            <li key={i} className="flex gap-2 text-[11px] leading-relaxed text-ink-400">
+            <li key={i} className="flex gap-2 text-micro leading-relaxed text-ink-400">
               <span className="text-ink-600">·</span>
               <span>{c}</span>
             </li>
@@ -231,7 +240,7 @@ function FindingCard({
   const meta = SEVERITY_META[finding.severity];
   return (
     <article
-      className={cn("min-w-0 rounded-lg border p-2.5", meta.ring)}
+      className={cn("min-w-0 border-l-2 py-0.5 pl-3", meta.ring)}
       // A contraindication is announced rather than merely rendered.
       role={finding.severity === "contraindication" ? "alert" : undefined}
     >
@@ -249,7 +258,7 @@ function FindingCard({
           >
             {meta.icon}
           </span>
-          <h4 className="min-w-0 text-sm font-semibold leading-snug text-ink-50">{finding.title}</h4>
+          <h4 className="min-w-0 text-body font-semibold leading-snug text-ink-50">{finding.title}</h4>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <Badge tone={meta.tone}>{SEVERITY_LABEL[finding.severity]}</Badge>
@@ -257,34 +266,36 @@ function FindingCard({
         </div>
       </header>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-ink-200">{finding.plain}</p>
+      <p className="mt-1.5 text-detail leading-relaxed text-ink-200">{finding.plain}</p>
 
       {/* The basis, never behind a toggle. An assertion without its source is
           the thing this whole product refuses to ship. */}
-      <p className="mt-1.5 border-l-2 border-ink-700 pl-2 text-[11px] leading-relaxed text-ink-500">
+      <p className="mt-1.5 border-l-2 border-ink-700 pl-2 text-micro leading-relaxed text-ink-500">
         <span className="text-ink-400">Basis: </span>
         {finding.basis}
       </p>
 
+      {/* Evidence reads as a definition list, not as tiles.
+          Each pair used to sit in its own bordered, filled box — which put a
+          fourth level of boxing inside a card inside a panel inside a card. A
+          hairline above the group separates it just as clearly and lets the
+          values line up as data instead of as a row of chips. */}
       {finding.evidence.length > 0 && (
-        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        <dl className="mt-2 grid grid-cols-1 gap-x-5 gap-y-1.5 border-t border-ink-800/60 pt-2 sm:grid-cols-2">
           {finding.evidence.map((e, i) => (
-            <div
-              key={`${finding.id}-ev-${i}`}
-              className="min-w-0 rounded-md border border-ink-800 bg-ink-950/40 px-2 py-1.5"
-            >
-              <p className="label-eyebrow break-words">{e.label}</p>
-              <p className="stat-mono mt-0.5 break-words text-xs text-ink-200">{e.value}</p>
+            <div key={`${finding.id}-ev-${i}`} className="min-w-0">
+              <dt className="label-eyebrow break-words">{e.label}</dt>
+              <dd className="stat-mono mt-0.5 break-words text-detail text-ink-200">{e.value}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         {finding.blocking ? (
           <label
             className={cn(
-              "flex min-w-0 cursor-pointer items-start gap-2 text-[11px] leading-relaxed",
+              "flex min-w-0 cursor-pointer items-start gap-2 text-micro leading-relaxed",
               acknowledged ? "text-ink-400" : "text-ink-200",
               !canAcknowledge && "cursor-not-allowed opacity-60",
             )}
@@ -302,7 +313,7 @@ function FindingCard({
             </span>
           </label>
         ) : (
-          <span className="text-[11px] text-ink-600">Advisory — does not block signature.</span>
+          <span className="text-micro text-ink-600">Advisory — does not block signature.</span>
         )}
         <WhyButton onClick={onWhy} label="Provenance" />
       </div>

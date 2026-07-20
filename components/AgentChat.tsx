@@ -77,7 +77,7 @@ export function AgentChat() {
             </span>
             <div
               className={cn(
-                "max-w-[85%] space-y-2 rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                "max-w-[85%] space-y-2 rounded-2xl px-4 py-3 text-body leading-relaxed",
                 m.role === "agent"
                   ? "bg-ink-800/80 text-ink-200"
                   : "bg-gold-400/15 text-gold-50",
@@ -85,13 +85,13 @@ export function AgentChat() {
             >
               {m.blocks.map((b, i) => (
                 <div key={i}>
-                  <p className={cn(b.text.startsWith("Note:") && "text-[11px] text-ink-500")}>{b.text}</p>
+                  <p className={cn(b.text.startsWith("Note:") && "text-micro text-ink-500")}>{b.text}</p>
                   {b.citations && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {b.citations.map((c) => (
                         <span
                           key={c}
-                          className="inline-flex items-center gap-1 rounded-md border border-ink-700 bg-ink-900/60 px-1.5 py-0.5 text-[10px] text-ink-400"
+                          className="inline-flex items-center gap-1 rounded-md border border-ink-700 bg-ink-900/60 px-1.5 py-0.5 text-micro text-ink-400"
                         >
                           <FileText className="h-2.5 w-2.5" /> {c}
                         </span>
@@ -124,7 +124,7 @@ export function AgentChat() {
           <button
             key={p}
             onClick={() => send(p)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-ink-700 bg-ink-850/60 px-3 py-1.5 text-xs text-ink-300 transition-colors hover:border-gold-400/40 hover:text-gold-200"
+            className="inline-flex items-center gap-1.5 rounded-full border border-ink-700 bg-ink-850/60 px-3 py-1.5 text-detail text-ink-300 transition-colors hover:border-gold-400/40 hover:text-gold-200"
           >
             <Sparkles className="h-3 w-3 text-gold-400" />
             {p}
@@ -144,7 +144,7 @@ export function AgentChat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about clients, labs, recommendations, inventory…"
-          className="h-11 flex-1 rounded-xl border border-ink-700 bg-ink-900/70 px-4 text-sm text-ink-100 placeholder:text-ink-500 focus-ring"
+          className="h-11 flex-1 rounded-xl border border-ink-700 bg-ink-900/70 px-4 text-body text-ink-100 placeholder:text-ink-500 focus-ring"
         />
         <button
           type="submit"

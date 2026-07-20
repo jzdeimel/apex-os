@@ -134,10 +134,10 @@ export function ChainVerifier({
             )}
           </motion.div>
           <div>
-            <p className="font-display text-base font-semibold text-ink-50">
+            <p className="font-display text-body font-semibold text-ink-50">
               Chain integrity
             </p>
-            <p className="text-xs text-ink-500">
+            <p className="text-detail text-ink-500">
               SHA-256 · {rows.length.toLocaleString()} linked records
             </p>
           </div>
@@ -182,7 +182,7 @@ export function ChainVerifier({
               )}
               <div className="min-w-0">
                 <p
-                  className={`text-sm font-semibold ${
+                  className={`text-body font-semibold ${
                     verdict.ok ? "text-optimal" : "text-high"
                   }`}
                 >
@@ -190,7 +190,7 @@ export function ChainVerifier({
                     ? `Verified — all ${verdict.checked.toLocaleString()} links intact`
                     : `Tampering detected at ${verdict.brokenAt}`}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                <p className="mt-1 text-detail leading-relaxed text-ink-400">
                   {verdict.ok ? (
                     <>
                       Every record still hashes to its stored digest, and every
@@ -222,7 +222,7 @@ export function ChainVerifier({
           <p className="label-eyebrow">
             Links {start + 1}–{start + window.length}
           </p>
-          <p className="stat-mono text-[11px] text-ink-500">
+          <p className="stat-mono text-micro text-ink-500">
             {phase === "idle" ? "not verified" : `${cursor.toLocaleString()} / ${rows.length.toLocaleString()}`}
           </p>
         </div>
@@ -264,7 +264,7 @@ export function ChainVerifier({
           <ChainFact label="Head" value={shortHash(rows[rows.length - 1]?.hash ?? "")} />
         </div>
 
-        <p className="mt-4 text-[11px] leading-relaxed text-ink-600">
+        <p className="mt-4 text-micro leading-relaxed text-ink-600">
           Each record stores <code className="font-mono text-ink-500">hash = sha256(prevHash + canonicalJson(payload))</code>.
           Editing any field re-derives a different digest, so the break is
           detectable at the exact record — and everything downstream of it fails
@@ -280,7 +280,7 @@ function ChainFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900/50 px-3 py-2">
       <p className="label-eyebrow">{label}</p>
-      <p className="stat-mono mt-0.5 truncate text-xs text-ink-200">{value}</p>
+      <p className="stat-mono mt-0.5 truncate text-detail text-ink-200">{value}</p>
     </div>
   );
 }

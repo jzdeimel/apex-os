@@ -78,22 +78,22 @@ export function SourceChip({ source, className }: { source: SourceRef; className
 
   const panel = (
     <div className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+      <p className="text-micro font-semibold uppercase tracking-wide text-ink-400">
         {sourced ? "Source record" : "No source"}
       </p>
-      <p className="text-[13px] font-medium text-ink-100">{source.label}</p>
-      <p className="text-xs text-ink-400">{KIND_BLURB[source.kind]}</p>
+      <p className="text-detail font-medium text-ink-100">{source.label}</p>
+      <p className="text-detail text-ink-400">{KIND_BLURB[source.kind]}</p>
 
       {/* The verbatim quote. Rendered as a quotation, never reflowed or
           sentence-cased — a coach recognising their own shorthand is what makes
           the citation persuasive. */}
       {source.quote && (
-        <blockquote className="border-l-2 border-ink-600 pl-2.5 text-xs italic leading-relaxed text-ink-300">
+        <blockquote className="border-l-2 border-ink-600 pl-2.5 text-detail italic leading-relaxed text-ink-300">
           {source.quote}
         </blockquote>
       )}
 
-      <dl className="space-y-1 border-t border-ink-700/70 pt-2 text-[11px]">
+      <dl className="space-y-1 border-t border-ink-700/70 pt-2 text-micro">
         {source.recordId && (
           <div className="flex min-w-0 gap-2">
             <dt className="shrink-0 text-ink-500">Record</dt>
@@ -109,7 +109,7 @@ export function SourceChip({ source, className }: { source: SourceRef; className
       </dl>
 
       {!sourced && (
-        <p className="text-xs leading-relaxed text-watch">
+        <p className="text-detail leading-relaxed text-watch">
           This line is derived, not quoted. Nothing in the record states it directly — treat it as a
           prompt to check, not as a finding.
         </p>
@@ -122,7 +122,7 @@ export function SourceChip({ source, className }: { source: SourceRef; className
       <button
         type="button"
         className={cn(
-          "inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none transition-colors focus-ring",
+          "inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-0.5 text-micro font-medium leading-none transition-colors focus-ring",
           sourced
             ? "border-ink-600/70 bg-ink-800/60 text-ink-400 hover:border-ink-500 hover:text-ink-200"
             : "border-watch/30 bg-watch/10 text-watch/90 hover:border-watch/50",
@@ -152,7 +152,7 @@ export function SourceChips({
   emptyLabel?: string;
 }) {
   if (!sources.length) {
-    return <p className={cn("text-[10px] italic text-ink-600", className)}>{emptyLabel}</p>;
+    return <p className={cn("text-micro italic text-ink-600", className)}>{emptyLabel}</p>;
   }
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)}>

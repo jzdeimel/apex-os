@@ -58,7 +58,7 @@ export function AiDraftPanel({ client }: { client: Client }) {
           <button
             onClick={() => setMode("visit")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-detail font-medium transition-colors",
               mode === "visit" ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
             )}
           >
@@ -67,7 +67,7 @@ export function AiDraftPanel({ client }: { client: Client }) {
           <button
             onClick={() => setMode("message")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-detail font-medium transition-colors",
               mode === "message" ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
             )}
           >
@@ -83,15 +83,15 @@ export function AiDraftPanel({ client }: { client: Client }) {
             </Button>
 
             {summary && (
-              <div className="animate-fade-in space-y-2 rounded-xl border border-ink-800 bg-ink-900/40 p-3 text-xs leading-relaxed">
+              <div className="animate-fade-in space-y-2 rounded-xl border border-ink-800 bg-ink-900/40 p-3 text-detail leading-relaxed">
                 <SoapRow label="S" body={summary.subjective} />
                 <SoapRow label="O" body={summary.objective} />
                 <SoapRow label="A" body={summary.assessment} />
                 <div>
-                  <span className="mr-1.5 inline-grid h-5 w-5 place-items-center rounded bg-gold-400/15 stat-mono text-[10px] font-bold text-gold-300">P</span>
+                  <span className="mr-1.5 inline-grid h-5 w-5 place-items-center rounded bg-gold-400/15 stat-mono text-micro font-bold text-gold-300">P</span>
                   <span className="whitespace-pre-line text-ink-300">{summary.plan}</span>
                 </div>
-                <p className="border-t border-ink-800 pt-2 text-[10px] text-gold-300/80">{summary.disclaimer}</p>
+                <p className="border-t border-ink-800 pt-2 text-micro text-gold-300/80">{summary.disclaimer}</p>
                 <div className="flex gap-2 pt-1">
                   <Button
                     size="sm"
@@ -123,7 +123,7 @@ export function AiDraftPanel({ client }: { client: Client }) {
                   key={t}
                   onClick={() => runMessage(t)}
                   className={cn(
-                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    "rounded-full border px-2.5 py-1 text-micro font-medium transition-colors",
                     tone === t && message
                       ? "border-gold-400/50 bg-gold-400/15 text-gold-100"
                       : "border-ink-700 text-ink-300 hover:text-ink-100",
@@ -134,13 +134,13 @@ export function AiDraftPanel({ client }: { client: Client }) {
               ))}
             </div>
 
-            {busy && <p className="text-xs text-ink-500">Drafting…</p>}
+            {busy && <p className="text-detail text-ink-500">Drafting…</p>}
 
             {message && !busy && (
               <div className="animate-fade-in space-y-2 rounded-xl border border-ink-800 bg-ink-900/40 p-3">
                 <Badge tone="gold">{tone}</Badge>
-                <p className="text-xs leading-relaxed text-ink-300">{message}</p>
-                <p className="text-[10px] text-ink-500">Generic, non-medical. Channel delivery is simulated in this demo.</p>
+                <p className="text-detail leading-relaxed text-ink-300">{message}</p>
+                <p className="text-micro text-ink-500">Generic, non-medical. Channel delivery is simulated in this demo.</p>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -180,7 +180,7 @@ export function AiDraftPanel({ client }: { client: Client }) {
 function SoapRow({ label, body }: { label: string; body: string }) {
   return (
     <div>
-      <span className="mr-1.5 inline-grid h-5 w-5 place-items-center rounded bg-gold-400/15 stat-mono text-[10px] font-bold text-gold-300">
+      <span className="mr-1.5 inline-grid h-5 w-5 place-items-center rounded bg-gold-400/15 stat-mono text-micro font-bold text-gold-300">
         {label}
       </span>
       <span className="text-ink-300">{body}</span>

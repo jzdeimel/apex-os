@@ -24,7 +24,7 @@ import {
 } from "@/lib/assistant/myRecord";
 import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Button, Input, Badge } from "@/components/ui/primitives";
-import { SwitchView, FadeIn } from "@/components/motion";
+import { SwitchView, FadeIn } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -69,7 +69,7 @@ function CitationChip({ citation }: { citation: Citation }) {
   );
 
   const shell =
-    "inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-700 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-300";
+    "inline-flex max-w-full items-center gap-1.5 rounded-control border border-ink-700 bg-ink-900/60 px-2.5 py-1 text-micro text-ink-300";
 
   // Every chip points into the member's own portal. There is deliberately no
   // path here that can produce a staff route.
@@ -87,10 +87,10 @@ function AnswerBlock({ result }: { result: RecordAnswer }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[15px] leading-relaxed text-ink-100">{result.answer}</p>
+      <p className="text-body leading-relaxed text-ink-100">{result.answer}</p>
 
       {quoted.length > 0 && (
-        <blockquote className="border-l-2 border-gold-400/40 pl-3 text-sm italic leading-relaxed text-ink-300">
+        <blockquote className="border-l-2 border-gold-400/40 pl-3 text-detail italic leading-relaxed text-ink-300">
           &ldquo;{quoted[0].quote}&rdquo;
         </blockquote>
       )}
@@ -122,13 +122,13 @@ function Handoff({
 
   return (
     // Gold, not red. This is a routing decision, not a failure.
-    <div className="rounded-xl border border-gold-400/25 bg-gold-400/[0.05] p-4">
+    <div className="rounded-panel border border-gold-400/25 bg-gold-400/[0.05] p-4">
       <div className="flex gap-3">
         <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-relaxed text-ink-100">{refusal.reason}</p>
+          <p className="text-body leading-relaxed text-ink-100">{refusal.reason}</p>
 
-          <p className="mt-3 text-sm text-ink-300">
+          <p className="mt-3 text-detail text-ink-300">
             {refusal.handoffTo === "provider" ? "Your provider" : "Your coach"},{" "}
             <span className="font-medium text-ink-100">{refusal.handoffName}</span>, can answer this
             properly.
@@ -179,8 +179,8 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
         <div className="flex items-start gap-3">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" aria-hidden />
           <div className="min-w-0">
-            <h3 className="font-display text-base font-semibold text-ink-50">Ask your record</h3>
-            <p className="mt-1 text-sm leading-relaxed text-ink-400">
+            <h3 className="font-display text-body font-semibold text-ink-50">Ask your record</h3>
+            <p className="mt-1 text-detail leading-relaxed text-ink-400">
               Your labs, your plan, your orders, your visits. Answers come with a link to the exact
               thing they came from.
             </p>
@@ -217,7 +217,7 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
                 key={s}
                 type="button"
                 onClick={() => ask(s)}
-                className="focus-ring rounded-lg border border-ink-700 bg-ink-900/40 px-3 py-2 text-left text-xs text-ink-300 transition-colors hover:border-gold-400/40 hover:text-ink-100"
+                className="focus-ring rounded-control border border-ink-700 bg-ink-900/40 px-3 py-2 text-left text-micro text-ink-300 transition-colors hover:border-gold-400/40 hover:text-ink-100"
               >
                 {s}
               </button>
@@ -229,7 +229,7 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
           <SwitchView k={result.question}>
             <FadeIn>
               <div className="space-y-3 border-t border-ink-700/70 pt-4">
-                <p className="text-sm font-medium text-ink-200">
+                <p className="text-detail font-medium text-ink-200">
                   <span className="text-ink-500">You asked:</span> {result.question}
                 </p>
                 {result.refused ? (
@@ -243,7 +243,7 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
         )}
 
         {/* Permanent, quiet, never dismissible. */}
-        <p className="flex items-start gap-2 border-t border-ink-700/70 pt-4 text-[11px] leading-relaxed text-ink-500">
+        <p className="flex items-start gap-2 border-t border-ink-700/70 pt-4 text-micro leading-relaxed text-ink-500">
           <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
           <span>{SCOPE_NOTICE}</span>
         </p>

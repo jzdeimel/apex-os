@@ -80,7 +80,7 @@ function FlagCard({ flag, index }: { flag: SafetyFlag; index: number }) {
           >
             {meta.icon}
           </span>
-          <h3 className="font-display text-base font-semibold leading-snug text-ink-50">{flag.title}</h3>
+          <h3 className="font-display text-heading font-semibold leading-snug text-ink-50">{flag.title}</h3>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <Badge tone={meta.tone}>{meta.label}</Badge>
@@ -91,7 +91,7 @@ function FlagCard({ flag, index }: { flag: SafetyFlag; index: number }) {
         </div>
       </header>
 
-      <p className="mt-3 text-sm leading-relaxed text-ink-200">{flag.why}</p>
+      <p className="mt-3 text-body leading-relaxed text-ink-200">{flag.why}</p>
 
       {/* Evidence inline. A flag without its numbers in view is an assertion. */}
       <div className="mt-4">
@@ -100,12 +100,12 @@ function FlagCard({ flag, index }: { flag: SafetyFlag; index: number }) {
           {flag.evidence.map((e, i) => (
             <li key={`${flag.id}-ev-${i}`} className="rounded-xl border border-ink-700/60 bg-ink-950/40 p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-xs font-medium uppercase tracking-wide text-ink-400">{e.label}</span>
-                <span className="stat-mono text-sm text-ink-50">{e.value}</span>
+                <span className="text-detail font-medium uppercase tracking-wide text-ink-400">{e.label}</span>
+                <span className="stat-mono text-body text-ink-50">{e.value}</span>
               </div>
-              {e.range && <p className="mt-1 stat-mono text-[11px] text-ink-500">{e.range}</p>}
+              {e.range && <p className="mt-1 stat-mono text-micro text-ink-500">{e.range}</p>}
               {e.trend && (
-                <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-400">
+                <p className="mt-1 flex items-center gap-1.5 text-micro text-ink-400">
                   <TrendingUp className="h-3 w-3 shrink-0" />
                   <span className="stat-mono">{e.trend}</span>
                 </p>
@@ -117,10 +117,10 @@ function FlagCard({ flag, index }: { flag: SafetyFlag; index: number }) {
 
       <div className="mt-4 rounded-xl border border-ink-700/60 bg-ink-900/50 p-3">
         <p className="label-eyebrow text-ink-400">Monitoring expectation</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-300">{flag.monitoringExpectation}</p>
+        <p className="mt-1.5 text-body leading-relaxed text-ink-300">{flag.monitoringExpectation}</p>
       </div>
 
-      <footer className="mt-3 flex items-center gap-2 text-xs text-ink-400">
+      <footer className="mt-3 flex items-center gap-2 text-detail text-ink-400">
         <Stethoscope className="h-3.5 w-3.5 shrink-0 text-gold-300" />
         <span>Surfaced by Apex. A licensed provider decides what happens next.</span>
       </footer>
@@ -138,7 +138,7 @@ function SeverityGroup({ severity, flags, offset }: { severity: SafetySeverity; 
           {meta.icon}
         </span>
         <h4 className="label-eyebrow text-ink-300">{meta.label}</h4>
-        <span className="stat-mono text-xs text-ink-500">{flags.length}</span>
+        <span className="stat-mono text-detail text-ink-500">{flags.length}</span>
       </div>
       <div className="mt-2 grid grid-cols-1 gap-3">
         {flags.map((f, i) => (
@@ -173,7 +173,7 @@ export default function SafetyWatch({ clientId }: { clientId?: string }) {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <CardTitle>Safety watch</CardTitle>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-400">
+          <p className="mt-1 max-w-2xl text-body leading-relaxed text-ink-400">
             Testosterone-therapy monitoring: haematocrit, fertility, estradiol at both extremes, prostate, sleep-disordered
             breathing and cardiovascular markers.
           </p>
@@ -195,7 +195,7 @@ export default function SafetyWatch({ clientId }: { clientId?: string }) {
         {/* Permanent, top of board — never a footnote. */}
         <div className="flex items-start gap-2.5 rounded-xl border border-gold-400/25 bg-gold-400/[0.06] p-3">
           <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" />
-          <p className="text-sm leading-relaxed text-ink-200">{SAFETY_DISCLAIMER}</p>
+          <p className="text-body leading-relaxed text-ink-200">{SAFETY_DISCLAIMER}</p>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
@@ -207,14 +207,14 @@ export default function SafetyWatch({ clientId }: { clientId?: string }) {
                 s === "urgent" && counts.urgent > 0 ? "border-high/50 bg-high/[0.07]" : "border-ink-700/60 bg-ink-900/40",
               )}
             >
-              <p className="stat-mono text-xl text-ink-50">{counts[s]}</p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-400">{SEVERITY_META[s].label}</p>
+              <p className="stat-mono text-title text-ink-50">{counts[s]}</p>
+              <p className="mt-0.5 text-micro uppercase tracking-wide text-ink-400">{SEVERITY_META[s].label}</p>
             </div>
           ))}
         </div>
 
         {client && (
-          <p className="mt-3 text-xs text-ink-500">
+          <p className="mt-3 text-detail text-ink-500">
             {clientName(client)} · <span className="stat-mono">{client.age}</span> ·{" "}
             {client.programs.length ? client.programs.map((p) => p.name).join(", ") : "No active program"}
           </p>
@@ -236,7 +236,7 @@ export default function SafetyWatch({ clientId }: { clientId?: string }) {
           )}
         </div>
 
-        <p className="mt-5 border-t border-ink-700/60 pt-4 text-xs leading-relaxed text-ink-500">
+        <p className="mt-5 border-t border-ink-700/60 pt-4 text-detail leading-relaxed text-ink-500">
           This board never recommends starting, stopping or changing a dose. It reports findings, the evidence behind them
           and what monitoring they imply. Member-visible flags are marked; everything else stays clinician-only by default.
         </p>

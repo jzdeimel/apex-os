@@ -20,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import { statusTone } from "@/lib/orders/lifecycle";
 import {
@@ -70,18 +69,17 @@ export default function DailyOrderReportPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
       {/* Header ------------------------------------------------------------ */}
-      <FadeIn>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="label-eyebrow print:text-black">OPERATIONS</p>
-            <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50 print:text-black">
+            <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50 print:text-black">
               Daily order report
             </h1>
-            <p className="mt-1 text-sm text-ink-400 print:text-black">
+            <p className="mt-1 text-body text-ink-400 print:text-black">
               Every order the clinic touched in the last {report.windowHours} hours, grouped by
               coach, with anything that did not land pulled to the top.
             </p>
-            <p className="stat-mono mt-1 text-xs text-ink-500 print:text-black">
+            <p className="stat-mono mt-1 text-detail text-ink-500 print:text-black">
               {formatDateTime(report.windowStart)} → {formatDateTime(report.generatedAt)}
             </p>
           </div>
@@ -97,7 +95,6 @@ export default function DailyOrderReportPage() {
             </Button>
           </div>
         </div>
-      </FadeIn>
 
       {/* Failures — first, loud, unmissable -------------------------------- */}
       <section className="mt-6">
@@ -106,10 +103,10 @@ export default function DailyOrderReportPage() {
             <CardContent className="flex items-start gap-3 p-5">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-optimal" />
               <div>
-                <p className="font-display text-base font-semibold text-ink-50 print:text-black">
+                <p className="font-display text-heading font-semibold text-ink-50 print:text-black">
                   No failures in this window
                 </p>
-                <p className="mt-1 text-sm text-ink-400 print:text-black">
+                <p className="mt-1 text-body text-ink-400 print:text-black">
                   Every order reached MedSource and every one is inside its service window.
                 </p>
               </div>
@@ -155,7 +152,7 @@ export default function DailyOrderReportPage() {
               </div>
 
               {report.carriedForwardCount > 0 && (
-                <p className="text-xs text-ink-400 print:text-black">
+                <p className="text-detail text-ink-400 print:text-black">
                   <span className="stat-mono text-ink-200">{report.carriedForwardCount}</span> of
                   these are carried forward from earlier days. An open failure does not age out of
                   this report — it gets more urgent, not less.
@@ -175,7 +172,7 @@ export default function DailyOrderReportPage() {
 
       {/* By coach ---------------------------------------------------------- */}
       <section className="mt-8 space-y-6">
-        <h2 className="font-display text-lg font-semibold text-ink-50 print:text-black">
+        <h2 className="font-display text-heading font-semibold text-ink-50 print:text-black">
           By coach
         </h2>
 
@@ -190,7 +187,7 @@ export default function DailyOrderReportPage() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-3 text-xs text-ink-400 print:text-black">
+              <div className="flex items-center gap-3 text-detail text-ink-400 print:text-black">
                 <span className="stat-mono">{g.orders.length} orders</span>
                 <span className="stat-mono text-ink-200">{currency(g.totalCents / 100)}</span>
               </div>
@@ -204,7 +201,7 @@ export default function DailyOrderReportPage() {
         ))}
       </section>
 
-      <p className="mt-8 text-xs text-ink-500 print:text-black">
+      <p className="mt-8 text-detail text-ink-500 print:text-black">
         Derived from order records, never from audit-log text. Every order that exists appears on
         this report; there is no filter that can silently drop one.
       </p>
@@ -239,15 +236,15 @@ function FailureTile({
     >
       <div
         className={cn(
-          "flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide",
+          "flex items-center gap-1.5 text-micro font-medium uppercase tracking-wide",
           tone === "high" ? "text-high" : "text-watch",
         )}
       >
         {icon}
         {label}
       </div>
-      <p className="stat-mono mt-1 text-2xl font-semibold text-ink-50 print:text-black">{count}</p>
-      <p className="mt-0.5 text-[11px] leading-snug text-ink-400 print:text-black">{hint}</p>
+      <p className="stat-mono mt-1 text-title font-semibold text-ink-50 print:text-black">{count}</p>
+      <p className="mt-0.5 text-micro leading-snug text-ink-400 print:text-black">{hint}</p>
     </div>
   );
 }
@@ -257,7 +254,7 @@ function TotalTile({ label, value }: { label: string; value: string }) {
     <Card>
       <CardContent className="p-4">
         <p className="label-eyebrow print:text-black">{label}</p>
-        <p className="stat-mono mt-1 text-2xl font-semibold text-ink-50 print:text-black">
+        <p className="stat-mono mt-1 text-title font-semibold text-ink-50 print:text-black">
           {value}
         </p>
       </CardContent>
@@ -281,7 +278,7 @@ function FlaggedRow({ order }: { order: ReportOrder }) {
         >
           {order.clientName}
         </Link>
-        <span className="stat-mono text-[11px] text-ink-500">{order.id}</span>
+        <span className="stat-mono text-micro text-ink-500">{order.id}</span>
         <Badge tone={statusTone(order.status)}>{order.status}</Badge>
         {order.flags.map((f) => (
           <FlagChip key={f.kind} flag={f} />
@@ -289,11 +286,11 @@ function FlaggedRow({ order }: { order: ReportOrder }) {
         {order.carriedForward && <Badge tone="neutral">carried forward</Badge>}
       </div>
       {order.flags.map((f) => (
-        <p key={f.kind} className="mt-1.5 text-xs text-ink-300 print:text-black">
+        <p key={f.kind} className="mt-1.5 text-detail text-ink-300 print:text-black">
           {f.detail}
         </p>
       ))}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-500 print:text-black">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-ink-500 print:text-black">
         <span className="stat-mono">{order.hoursInStatus}h in status</span>
         <span>{order.locationLabel}</span>
         <span className="stat-mono">{order.medsourceRef ?? "no partner ref"}</span>
@@ -322,12 +319,12 @@ function OrderBlock({ order }: { order: ReportOrder }) {
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href={`/clients/${order.clientId}`}
-          className="focus-ring rounded text-sm font-medium text-ink-50 hover:text-gold-200 print:text-black"
+          className="focus-ring rounded text-body font-medium text-ink-50 hover:text-gold-200 print:text-black"
         >
           {order.clientName}
         </Link>
-        <span className="stat-mono text-[11px] text-ink-500">{order.mrn}</span>
-        <span className="stat-mono text-[11px] text-ink-500">{order.id}</span>
+        <span className="stat-mono text-micro text-ink-500">{order.mrn}</span>
+        <span className="stat-mono text-micro text-ink-500">{order.id}</span>
         <Badge tone={statusTone(order.status)}>{order.status}</Badge>
         {order.flags.map((f) => (
           <FlagChip key={f.kind} flag={f} />
@@ -337,7 +334,7 @@ function OrderBlock({ order }: { order: ReportOrder }) {
       {/* Line items. Overflow scrolls inside its own container so the page
           body never scrolls horizontally on a phone. */}
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[22rem] text-left text-xs">
+        <table className="w-full min-w-[22rem] text-left text-detail">
           <thead>
             <tr className="text-ink-500 print:text-black">
               <th className="py-1 pr-3 font-medium">Item</th>
@@ -351,9 +348,9 @@ function OrderBlock({ order }: { order: ReportOrder }) {
               <tr key={l.sku} className="border-t border-ink-700/50">
                 <td className="py-1 pr-3 text-ink-200 print:text-black">
                   {l.name}
-                  {l.isAddon && <span className="ml-1.5 text-[10px] text-ink-500">add-on</span>}
+                  {l.isAddon && <span className="ml-1.5 text-micro text-ink-500">add-on</span>}
                   {l.lotRef && (
-                    <span className="stat-mono ml-1.5 text-[10px] text-ink-500">
+                    <span className="stat-mono ml-1.5 text-micro text-ink-500">
                       lot {l.lotRef}
                     </span>
                   )}
@@ -371,7 +368,7 @@ function OrderBlock({ order }: { order: ReportOrder }) {
         </table>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-ink-500 print:text-black">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-micro text-ink-500 print:text-black">
         <span>
           {order.locationLabel} · placed {formatDateTime(order.placedAt)}
           {order.tracking && <span className="stat-mono"> · {order.tracking}</span>}

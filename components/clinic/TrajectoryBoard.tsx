@@ -77,7 +77,7 @@ export function TrajectoryBoard({
           <CardTitle className="flex items-center gap-2">
             <LineChart className="h-4 w-4 text-gold-400" /> Trajectories, and when they cross
           </CardTitle>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-500">
+          <p className="mt-1 max-w-2xl text-detail leading-relaxed text-ink-500">
             Least-squares fit over each member&apos;s own repeat draws, projected forward with a 95%
             prediction band. The band widens with distance because that is what the arithmetic
             says — a year out from {MIN_POINTS}–5 blood draws is genuinely that uncertain.
@@ -114,10 +114,10 @@ export function TrajectoryBoard({
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-ink-100">{r.name}</span>
+                      <span className="truncate text-body font-medium text-ink-100">{r.name}</span>
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1 text-[11px]",
+                          "inline-flex shrink-0 items-center gap-1 text-micro",
                           rising ? "text-high" : "text-low",
                         )}
                       >
@@ -129,10 +129,10 @@ export function TrajectoryBoard({
                         {r.days < 0 ? "already outside" : `${r.days}d`}
                       </span>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-ink-400">
+                    <p className="mt-0.5 truncate text-detail text-ink-400">
                       {r.v.markerName} · {r.v.headline}
                     </p>
-                    <p className="mt-0.5 truncate text-[11px] text-ink-600">
+                    <p className="mt-0.5 truncate text-micro text-ink-600">
                       {r.v.crossing?.alreadyOutside
                         ? `Past the reference ${r.v.crossing.edge} of ${r.v.crossing.boundary} ${r.v.unit}`
                         : r.v.crossing?.on
@@ -150,7 +150,7 @@ export function TrajectoryBoard({
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <Link
                       href={`/clients/${active.clientId}`}
-                      className="truncate text-sm font-medium text-ink-100 hover:text-gold-300"
+                      className="truncate text-body font-medium text-ink-100 hover:text-gold-300"
                     >
                       {active.name}
                     </Link>

@@ -23,7 +23,7 @@ import {
   Progress,
   Select,
 } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem, SwitchView } from "@/components/motion";
+import { SwitchView } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import { coaches, staffName } from "@/lib/mock/staff";
 import { appendLedger } from "@/lib/trace/ledger";
@@ -109,14 +109,13 @@ export default function CoachTrainingPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="label-eyebrow">COACH DEVELOPMENT</p>
-            <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink-50">
+            <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
               Training &amp; certification
             </h1>
-            <p className="mt-1 text-sm text-ink-400">
+            <p className="mt-1 text-body text-ink-400">
               What an Alpha Health coach has to know — and the line, tested honestly, between
               coaching and practising medicine.
             </p>
@@ -138,7 +137,6 @@ export default function CoachTrainingPage() {
             </Select>
           </div>
         </div>
-      </FadeIn>
 
       <SwitchView k={mode.kind + ("quizId" in mode ? mode.quizId : "")} className="mt-6">
         {mode.kind === "overview" && (
@@ -189,7 +187,7 @@ function Overview({
             <CertRing percent={status.completionPercent} compliant={status.compliant} />
             <div className="min-w-0">
               <p className="label-eyebrow">Certifications</p>
-              <p className="stat-mono mt-1 text-lg font-semibold text-ink-50">
+              <p className="stat-mono mt-1 text-heading font-semibold text-ink-50">
                 {status.certifiedCount} / {status.totalQuizzes}
               </p>
               <Badge tone={status.compliant ? "optimal" : "high"} className="mt-1.5">
@@ -206,7 +204,7 @@ function Overview({
           </CardHeader>
           <CardContent>
             {status.expiringSoon.length === 0 ? (
-              <p className="text-sm text-ink-400">
+              <p className="text-body text-ink-400">
                 Nothing lapses in the next 45 days. Certifications run for a year — the field
                 moves faster than that, which is why they expire at all.
               </p>
@@ -217,8 +215,8 @@ function Overview({
                     key={c.quizId}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-watch/25 bg-watch/5 px-3 py-2"
                   >
-                    <span className="text-sm text-ink-100">{quizMap[c.quizId].title}</span>
-                    <span className="stat-mono text-xs text-watch">
+                    <span className="text-body text-ink-100">{quizMap[c.quizId].title}</span>
+                    <span className="stat-mono text-detail text-watch">
                       {c.daysUntilExpiry}d · expires {formatDate(c.expiresOn)}
                     </span>
                   </li>
@@ -231,7 +229,7 @@ function Overview({
                 <p className="label-eyebrow">Outstanding</p>
                 <ul className="mt-2 space-y-1.5">
                   {status.outstanding.map((c) => (
-                    <li key={c.quizId} className="flex flex-wrap items-center gap-2 text-sm">
+                    <li key={c.quizId} className="flex flex-wrap items-center gap-2 text-body">
                       <CircleAlert className="h-3.5 w-3.5 shrink-0 text-high" />
                       <span className="text-ink-200">{quizMap[c.quizId].title}</span>
                       <Badge tone={stateTone(c.state)}>{stateLabel(c.state)}</Badge>
@@ -247,17 +245,17 @@ function Overview({
 
       {/* Modules ---------------------------------------------------------- */}
       <div>
-        <h2 className="font-display text-lg font-semibold text-ink-50">Modules</h2>
-        <Stagger className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <h2 className="font-display text-heading font-semibold text-ink-50">Modules</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {quizzes.map((q) => {
             const cert = status.certifications.find((c) => c.quizId === q.id)!;
             return (
-              <StaggerItem key={q.id}>
+              <div key={q.id}>
                 <ModuleCard quiz={q} cert={cert} onOpen={() => onOpen(q.id)} />
-              </StaggerItem>
+              </div>
             );
           })}
-        </Stagger>
+        </div>
       </div>
     </div>
   );
@@ -292,22 +290,22 @@ function ModuleCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={stateTone(cert.state)}>{stateLabel(cert.state)}</Badge>
-          <span className="text-[11px] text-ink-500">{quiz.category}</span>
-          <span className="stat-mono text-[11px] text-ink-500">
+          <span className="text-micro text-ink-500">{quiz.category}</span>
+          <span className="stat-mono text-micro text-ink-500">
             {quiz.questions.length} questions · ~{quiz.estimatedMinutes} min
           </span>
         </div>
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col">
-        <p className="text-sm text-ink-300">{quiz.summary}</p>
-        <p className="mt-2 text-xs text-ink-500">
+        <p className="text-body text-ink-300">{quiz.summary}</p>
+        <p className="mt-2 text-detail text-ink-500">
           <span className="text-ink-400">Why it matters. </span>
           {quiz.whyItMatters}
         </p>
 
         {cert.score !== undefined && (
-          <p className="stat-mono mt-3 text-xs text-ink-400">
+          <p className="stat-mono mt-3 text-detail text-ink-400">
             Last score {Math.round(cert.score * 100)}%
             {cert.expiresOn && ` · valid to ${formatDate(cert.expiresOn)}`}
           </p>
@@ -377,7 +375,7 @@ function QuizRunner({
           <ArrowLeft className="h-3.5 w-3.5" />
           All modules
         </Button>
-        <span className="stat-mono text-xs text-ink-500">
+        <span className="stat-mono text-detail text-ink-500">
           {index + 1} / {quiz.questions.length}
         </span>
       </div>
@@ -392,7 +390,7 @@ function QuizRunner({
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-base text-ink-100">{question.prompt}</p>
+          <p className="text-body text-ink-100">{question.prompt}</p>
 
           <div className="mt-4 space-y-2">
             {question.options.map((o) => {
@@ -404,7 +402,7 @@ function QuizRunner({
                   onClick={() => choose(o.id)}
                   disabled={answered}
                   className={cn(
-                    "focus-ring flex w-full items-start gap-3 rounded-xl border p-3 text-left text-sm transition-colors",
+                    "focus-ring flex w-full items-start gap-3 rounded-xl border p-3 text-left text-body transition-colors",
                     !answered && "border-ink-700 bg-ink-900/40 hover:border-ink-600",
                     answered && isAnswer && "border-optimal/50 bg-optimal/10",
                     answered && isChosen && !isAnswer && "border-high/50 bg-high/10",
@@ -413,7 +411,7 @@ function QuizRunner({
                 >
                   <span
                     className={cn(
-                      "stat-mono mt-0.5 shrink-0 text-xs",
+                      "stat-mono mt-0.5 shrink-0 text-detail",
                       answered && isAnswer
                         ? "text-optimal"
                         : answered && isChosen
@@ -445,13 +443,13 @@ function QuizRunner({
             >
               <p
                 className={cn(
-                  "text-xs font-medium uppercase tracking-wide",
+                  "text-detail font-medium uppercase tracking-wide",
                   isCorrect ? "text-optimal" : "text-watch",
                 )}
               >
                 {isCorrect ? "Correct" : "Not quite"}
               </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-200">
+              <p className="mt-1.5 text-body leading-relaxed text-ink-200">
                 {question.explanation}
               </p>
             </div>
@@ -492,14 +490,14 @@ function ResultPanel({
           <CertRing percent={pct} compliant={attempt.passed} />
           <div className="min-w-0">
             <p className="label-eyebrow">{quiz.title}</p>
-            <h2 className="mt-1 font-display text-xl font-semibold text-ink-50">
+            <h2 className="mt-1 font-display text-title font-semibold text-ink-50">
               {attempt.passed ? "Certified" : "Below the pass mark"}
             </h2>
-            <p className="stat-mono mt-1 text-sm text-ink-300">
+            <p className="stat-mono mt-1 text-body text-ink-300">
               {attempt.correct} / {attempt.total} · {pct}% · pass mark{" "}
               {Math.round(PASS_THRESHOLD * 100)}%
             </p>
-            <p className="mt-2 max-w-xl text-sm text-ink-400">
+            <p className="mt-2 max-w-xl text-body text-ink-400">
               {attempt.passed ? (
                 <>
                   Valid for one year. A ledger row was written recording what you completed and
@@ -562,7 +560,7 @@ function CertRing({ percent, compliant }: { percent: number; compliant: boolean 
           strokeDasharray={`${dash} ${circ - dash}`}
         />
       </svg>
-      <span className="stat-mono absolute text-lg font-bold text-ink-50">{percent}%</span>
+      <span className="stat-mono absolute text-heading font-bold text-ink-50">{percent}%</span>
     </div>
   );
 }

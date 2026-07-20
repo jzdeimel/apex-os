@@ -271,15 +271,15 @@ const p2 = (n: number) => String(n).padStart(2, "0");
  */
 function localIso(d: Date): string {
   return (
-    `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` +
-    `T${p2(d.getHours())}:${p2(d.getMinutes())}:00`
+    `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}` +
+    `T${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:00`
   );
 }
 
 function isoDaysAgo(days: number, hour: number): string {
   const d = absolute(NOW);
-  d.setDate(d.getDate() - days);
-  d.setHours(hour, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - days);
+  d.setUTCHours(hour, 0, 0, 0);
   return localIso(d);
 }
 
@@ -594,8 +594,8 @@ const MEETUP_SEEDS: MeetupSeed[] = [
 
 function isoDaysAhead(days: number, hour: number): string {
   const d = absolute(NOW);
-  d.setDate(d.getDate() + days);
-  d.setHours(hour, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  d.setUTCHours(hour, 0, 0, 0);
   return localIso(d);
 }
 

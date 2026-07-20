@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ArrowDownRight, ArrowUpRight, Minus, CalendarRange } from "lucide-react";
+import { ArrowRight, ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { weeklyReview, type Movement } from "@/lib/member/weeklyReview";
 import { Card, CardContent } from "@/components/ui/primitives";
@@ -35,17 +35,23 @@ const ARROW: Record<Movement["direction"], { icon: typeof Minus; className: stri
   flat: { icon: Minus, className: "text-ink-500" },
 };
 
+/**
+ * A row, not a card. These were bordered, filled, rounded boxes stacked inside
+ * a bordered card — and the direction arrow is doing the only job the box was
+ * pretending to do. The arrow keeps its colour because direction is exactly the
+ * kind of thing colour should carry.
+ */
 function MovementRow({ m }: { m: Movement }) {
   const { icon: Icon, className } = ARROW[m.direction];
   return (
-    <div className="hairline flex items-start gap-3 rounded-2xl bg-ink-900/50 p-4">
+    <div className="flex items-start gap-3 py-3">
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", className)} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="text-[10px] uppercase tracking-wide text-ink-500">{m.label}</p>
-          <p className="text-[15px] font-medium leading-snug text-ink-50">{m.headline}</p>
+          <p className="text-micro uppercase text-ink-500">{m.label}</p>
+          <p className="text-body font-medium leading-snug text-ink-50">{m.headline}</p>
         </div>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{m.detail}</p>
+        <p className="mt-1 text-detail leading-relaxed text-ink-400">{m.detail}</p>
       </div>
     </div>
   );
@@ -58,23 +64,27 @@ export function WeeklyReview({ client }: { client: Client }) {
     <Card>
       <CardContent className="p-5 sm:p-6">
         {/* Header ------------------------------------------------------------ */}
-        <div className="flex flex-wrap items-center gap-2">
-          <CalendarRange className="h-5 w-5 shrink-0 text-ink-400" />
-          <p className="label-eyebrow">
-            Your week · {formatDateShort(review.weekStart)} &ndash; {formatDateShort(review.weekEnd)}
-          </p>
-        </div>
-        <h2 className="mt-2 max-w-prose font-display text-xl font-semibold leading-snug text-ink-50 sm:text-2xl">
+        {/* The calendar glyph is gone. It sat next to the words "Your week" and
+            told the member nothing the words did not. */}
+        <p className="label-eyebrow">
+          Your week · {formatDateShort(review.weekStart)} &ndash; {formatDateShort(review.weekEnd)}
+        </p>
+        <h2 className="mt-2 max-w-prose font-display text-title leading-snug text-ink-50">
           {review.headline}
         </h2>
 
         {/* Adherence, in meaning rather than in points ----------------------- */}
-        <div className="mt-5 rounded-2xl border border-ink-700/60 bg-ink-950/30 p-4">
+        {/* Unboxed. This is the substance of the card, and it was sitting in a
+            bordered, tinted panel *inside* the card — which made the most
+            important content on screen look like an aside. It now separates
+            from the headline with a rule and a generous gap, and the count is
+            allowed to be genuinely large. */}
+        <div className="mt-6 border-t border-ink-800/60 pt-5">
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <span className="stat-mono text-2xl font-semibold text-ink-50">
+            <span className="stat-mono text-display text-ink-50">
               {review.adherence.daysClosed}
             </span>
-            <span className="text-[13px] text-ink-400">
+            <span className="text-detail text-ink-400">
               of {review.adherence.daysTotal} days came together fully
             </span>
           </div>
@@ -94,22 +104,22 @@ export function WeeklyReview({ client }: { client: Client }) {
                     d.closed ? "bg-optimal" : d.held ? "bg-ink-500" : "bg-ink-700",
                   )}
                 />
-                <span className="mt-1.5 block text-center text-[10px] uppercase tracking-wide text-ink-600">
+                <span className="mt-1.5 block text-center text-micro uppercase tracking-wide text-ink-600">
                   {d.weekday}
                 </span>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[13px] leading-relaxed text-ink-300">
+          <p className="mt-3 text-detail leading-relaxed text-ink-300">
             {review.adherence.meaning}
           </p>
         </div>
 
         {/* What moved -------------------------------------------------------- */}
         {review.moved.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-8">
             <p className="label-eyebrow">What moved</p>
-            <div className="mt-2.5 grid grid-cols-1 gap-2">
+            <div className="mt-1 divide-y divide-ink-800/60">
               {review.moved.map((m) => (
                 <MovementRow key={m.id} m={m} />
               ))}
@@ -119,9 +129,9 @@ export function WeeklyReview({ client }: { client: Client }) {
 
         {/* What didn't — same weight, never hidden --------------------------- */}
         {review.didNotMove.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-8">
             <p className="label-eyebrow">What didn&rsquo;t</p>
-            <div className="mt-2.5 grid grid-cols-1 gap-2">
+            <div className="mt-1 divide-y divide-ink-800/60">
               {review.didNotMove.map((m) => (
                 <MovementRow key={m.id} m={m} />
               ))}
@@ -130,18 +140,20 @@ export function WeeklyReview({ client }: { client: Client }) {
         )}
 
         {/* The one next action ---------------------------------------------- */}
-        <div className="mt-5 rounded-2xl border border-optimal/25 bg-optimal/8 p-4 sm:p-5">
+        {/* Kept as the single accented thing in the card, but as a rule and a
+            coloured link rather than a filled, bordered, tinted panel. The
+            green box was competing with the adherence figure above it for the
+            role of "most important thing here", and there can only be one. */}
+        <div className="mt-8 border-t border-ink-800/60 pt-5">
           <p className="label-eyebrow">The one thing worth doing</p>
-          <p className="mt-1.5 text-[15px] font-medium leading-snug text-ink-50">
-            {review.next.label}
-          </p>
-          <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-300">
+          <p className="mt-1.5 text-heading text-ink-50">{review.next.label}</p>
+          <p className="mt-1.5 max-w-prose text-detail leading-relaxed text-ink-400">
             {review.next.why}
           </p>
           {review.next.href && (
             <Link
               href={review.next.href}
-              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-optimal hover:underline"
+              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-control text-detail font-medium text-optimal hover:underline"
             >
               Take me there
               <ArrowRight className="h-3.5 w-3.5" />
@@ -149,7 +161,7 @@ export function WeeklyReview({ client }: { client: Client }) {
           )}
         </div>
 
-        <p className="mt-4 text-[12px] leading-relaxed text-ink-500">{review.footnote}</p>
+        <p className="mt-6 text-micro leading-relaxed text-ink-500">{review.footnote}</p>
       </CardContent>
     </Card>
   );

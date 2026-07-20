@@ -147,10 +147,10 @@ export function RingCloseBurst({
 
       {count && (
         <div className="mt-2 text-center">
-          <p className="stat-mono text-2xl font-semibold leading-none" style={{ color: hex }}>
+          <p className="stat-mono text-title font-semibold leading-none" style={{ color: hex }}>
             {display}
           </p>
-          {label && <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-500">{label}</p>}
+          {label && <p className="mt-1 text-micro uppercase tracking-wide text-ink-500">{label}</p>}
         </div>
       )}
     </div>

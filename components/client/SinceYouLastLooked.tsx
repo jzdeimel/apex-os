@@ -25,7 +25,6 @@ import {
 import { getClient } from "@/lib/mock/clients";
 import { staffName } from "@/lib/mock/staff";
 import { Badge, Button } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
 
 /**
@@ -74,7 +73,7 @@ function ChangeRow({ item }: { item: ChangeItem }) {
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <p
             className={cn(
-              "text-sm font-medium",
+              "text-body font-medium",
               high ? "text-ink-50" : "text-ink-200",
             )}
           >
@@ -84,8 +83,8 @@ function ChangeRow({ item }: { item: ChangeItem }) {
         </div>
         {/* line-clamp keeps a long message body from turning the banner into
             the message itself — the banner points, the tab reads. */}
-        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-400">{item.detail}</p>
-        <p className="stat-mono mt-1 text-[11px] text-ink-500">{formatDateTime(item.at)}</p>
+        <p className="mt-1 line-clamp-2 text-detail leading-relaxed text-ink-400">{item.detail}</p>
+        <p className="stat-mono mt-1 text-micro text-ink-500">{formatDateTime(item.at)}</p>
       </div>
     </>
   );
@@ -138,15 +137,14 @@ export function SinceYouLastLooked({
   // ---------------------------------------------------------------------
   if (!since) {
     return (
-      <FadeIn>
         <div className="card flex flex-col gap-3 border-gold-400/25 bg-gold-400/[0.05] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             <Eye className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" aria-hidden />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink-50">
+              <p className="text-body font-medium text-ink-50">
                 First time you&rsquo;ve opened this chart
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-400">
+              <p className="mt-1 text-detail leading-relaxed text-ink-400">
                 {staffName(staffId)} has no prior view of {client.firstName}&rsquo;s record, so
                 there is no &ldquo;since last time&rdquo; to compare against. Member since{" "}
                 {formatDate(client.joinedOn)}.
@@ -163,7 +161,6 @@ export function SinceYouLastLooked({
             <X className="h-4 w-4" />
           </Button>
         </div>
-      </FadeIn>
     );
   }
 
@@ -172,11 +169,10 @@ export function SinceYouLastLooked({
   // ---------------------------------------------------------------------
   if (!items.length) {
     return (
-      <FadeIn>
         <div className="card flex items-center justify-between gap-3 p-4">
           <div className="flex min-w-0 gap-3">
             <Eye className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" aria-hidden />
-            <p className="text-sm text-ink-300">
+            <p className="text-body text-ink-300">
               Nothing has changed since you last opened this chart{" "}
               <span className="text-ink-400">{elapsedPhrase(since, NOW)}</span>.
             </p>
@@ -185,12 +181,10 @@ export function SinceYouLastLooked({
             <X className="h-4 w-4" />
           </Button>
         </div>
-      </FadeIn>
     );
   }
 
   return (
-    <FadeIn>
       <div
         className={cn(
           "card overflow-hidden",
@@ -204,7 +198,7 @@ export function SinceYouLastLooked({
           />
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-ink-50">
+            <p className="text-body font-medium text-ink-50">
               <span className="stat-mono">{items.length}</span>{" "}
               {items.length === 1 ? "thing" : "things"} changed since you last opened this chart,{" "}
               {elapsedPhrase(since, NOW)}.
@@ -220,7 +214,7 @@ export function SinceYouLastLooked({
               {/* The timestamp is stated outright rather than only implied by
                   "3 weeks ago" — a clinician deciding whether to trust the list
                   wants the actual instant it is measured from. */}
-              <span className="text-[11px] text-ink-500">
+              <span className="text-micro text-ink-500">
                 Measured from your view on{" "}
                 <span className="stat-mono">{formatDateTime(since)}</span>
               </span>
@@ -230,7 +224,7 @@ export function SinceYouLastLooked({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
-              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-medium text-gold-300 hover:text-gold-400"
+              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-lg text-detail font-medium text-gold-300 hover:text-gold-400"
             >
               {open ? "Hide" : "Show what changed"}
               {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -260,7 +254,7 @@ export function SinceYouLastLooked({
               </section>
             ))}
 
-            <p className="text-[11px] leading-relaxed text-ink-500">
+            <p className="text-micro leading-relaxed text-ink-500">
               This list is personal to you. It is built from the access log &mdash; Apex records
               chart <em>reads</em>, not just writes, which is what makes &ldquo;since{" "}
               <em>you</em> last looked&rdquo; answerable at all. Dismissing it changes nothing on
@@ -269,7 +263,6 @@ export function SinceYouLastLooked({
           </div>
         )}
       </div>
-    </FadeIn>
   );
 }
 

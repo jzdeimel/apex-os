@@ -55,10 +55,10 @@ export function PKCurve({
   if (!pk.characterised || pk.halfLifeHours === null || pk.typicalIntervalHours === null) {
     return (
       <div className={cn("rounded-lg border border-ink-700/70 bg-ink-900/40 px-3 py-3", className)}>
-        <p className="text-xs text-ink-300">
+        <p className="text-detail text-ink-300">
           No concentration curve for this compound — {pk.display.toLowerCase()}.
         </p>
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">{pk.basis}</p>
+        <p className="mt-1 text-micro leading-relaxed text-ink-500">{pk.basis}</p>
       </div>
     );
   }
@@ -170,14 +170,14 @@ export function PKCurve({
         </text>
       </svg>
 
-      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] sm:grid-cols-3">
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-micro sm:grid-cols-3">
         <Fact label="Half-life" value={pk.display} />
         <Fact label="To steady state" value={humanDuration(ss)} />
         <Fact label="Accumulation" value={`${accum.toFixed(1)}× first dose`} />
       </div>
 
       {allowMissedDose && (
-        <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+        <p className="mt-2 text-micro leading-relaxed text-ink-500">
           {missed === null ? (
             <>Tap a dose marker to see what skipping it does to the level.</>
           ) : (
@@ -197,7 +197,7 @@ export function PKCurve({
         </p>
       )}
 
-      <p className="mt-1.5 text-[11px] leading-relaxed text-ink-600">
+      <p className="mt-1.5 text-micro leading-relaxed text-ink-600">
         Relative to a single first dose. Interval shown is how the compound is studied, not a
         recommendation — your own schedule is on your signed plan.
       </p>

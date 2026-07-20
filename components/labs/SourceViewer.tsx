@@ -88,7 +88,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 p-4">
         <div className="min-w-0">
           <p className="label-eyebrow">Source view</p>
-          <h3 className="font-display text-base font-semibold text-ink-50">
+          <h3 className="font-display text-body font-semibold text-ink-50">
             Where this value came from
           </h3>
         </div>
@@ -139,7 +139,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
                     type="button"
                     onClick={() => onSelect(m.key)}
                     className={cn(
-                      "absolute truncate rounded px-1 text-left text-[8px] leading-none transition-colors sm:text-[10px] focus-ring",
+                      "absolute truncate rounded px-1 text-left text-micro leading-none transition-colors sm:text-micro focus-ring",
                       isSelected ? "text-gold-300" : "text-ink-400 hover:text-ink-200",
                     )}
                     style={{
@@ -159,7 +159,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
                     onClick={() => onSelect(m.key)}
                     aria-label={`${m.name}: ${m.sourceText}, page ${m.page}, ${confidencePct(m.confidence)} confidence`}
                     className={cn(
-                      "absolute flex items-center justify-center rounded-[2px] border text-[8px] leading-none transition-colors sm:text-[10px] focus-ring",
+                      "absolute flex items-center justify-center rounded-[2px] border text-micro leading-none transition-colors sm:text-micro focus-ring",
                       isSelected
                         ? "z-10 border-gold-400 bg-gold-500/25 text-ink-50"
                         : m.needsReview
@@ -195,13 +195,13 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
               );
             })}
 
-            <p className="pointer-events-none absolute inset-x-0 bottom-0 px-[6%] pb-[2%] text-center text-[8px] leading-tight text-ink-600 sm:text-[10px]">
+            <p className="pointer-events-none absolute inset-x-0 bottom-0 px-[6%] pb-[2%] text-center text-micro leading-tight text-ink-600 sm:text-micro">
               Page {page} of {result.pageCount} · diagrammatic source view — positions are the
               extractor&rsquo;s reported bounding regions, not a page image
             </p>
           </div>
 
-          <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-ink-500">
+          <p className="mt-2 flex items-start gap-1.5 text-micro leading-snug text-ink-500">
             <Info className="mt-px h-3 w-3 shrink-0" />
             No document was read in this build. Boxes are drawn from the coordinates the
             extraction contract returns, so the geometry is exactly what a real analysis would
@@ -216,8 +216,8 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
           {!selected ? (
             <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-ink-700 p-6 text-center">
               <Crosshair className="mb-2 h-5 w-5 text-ink-600" />
-              <p className="text-sm font-medium text-ink-300">Select a value</p>
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="text-body font-medium text-ink-300">Select a value</p>
+              <p className="mt-1 text-detail text-ink-500">
                 Click any extracted number, here or in the review table, to see its source.
               </p>
             </div>
@@ -225,14 +225,14 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
             <div className="space-y-3">
               <div>
                 <p className="label-eyebrow">Extracted value</p>
-                <p className="font-display text-2xl font-semibold text-ink-50">
+                <p className="font-display text-title font-semibold text-ink-50">
                   <span className="stat-mono">{selected.value}</span>{" "}
-                  <span className="text-sm text-ink-400">{selected.unit}</span>
+                  <span className="text-body text-ink-400">{selected.unit}</span>
                 </p>
-                <p className="mt-0.5 text-xs text-ink-400">{selected.name}</p>
+                <p className="mt-0.5 text-detail text-ink-400">{selected.name}</p>
               </div>
 
-              <dl className="space-y-2 rounded-lg border border-ink-800 bg-ink-900/50 p-3 text-xs">
+              <dl className="space-y-2 rounded-lg border border-ink-800 bg-ink-900/50 p-3 text-detail">
                 <Row label="Raw OCR text" value={`"${selected.sourceText}"`} mono />
                 <Row label="Report label" value={selected.extractedName} />
                 <Row
@@ -253,7 +253,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
               </dl>
 
               <div>
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-detail">
                   <span className="text-ink-400">Extractor confidence</span>
                   <span className="stat-mono text-ink-100">{confidencePct(selected.confidence)}</span>
                 </div>
@@ -266,7 +266,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
                     style={{ width: `${Math.max(2, Math.min(100, selected.confidence * 100))}%` }}
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-ink-500">
+                <p className="mt-1 text-micro text-ink-500">
                   Review floor {confidencePct(REVIEW_REQUIRED_BELOW)}. A high score is not a
                   guarantee — a confidently wrong read looks identical here, which is why the
                   box above matters more than the bar.
@@ -274,7 +274,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
               </div>
 
               {selected.needsReview && (
-                <p className="flex items-start gap-1.5 rounded-lg border border-high/30 bg-high/10 p-2 text-[11px] leading-snug text-high">
+                <p className="flex items-start gap-1.5 rounded-lg border border-high/30 bg-high/10 p-2 text-micro leading-snug text-high">
                   <AlertTriangle className="mt-px h-3 w-3 shrink-0" />
                   Below the review floor. Blocked from charting until a human confirms it against
                   this source.
@@ -282,7 +282,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
               )}
 
               {selected.unitMismatch && (
-                <p className="flex items-start gap-1.5 rounded-lg border border-watch/30 bg-watch/10 p-2 text-[11px] leading-snug text-watch">
+                <p className="flex items-start gap-1.5 rounded-lg border border-watch/30 bg-watch/10 p-2 text-micro leading-snug text-watch">
                   <AlertTriangle className="mt-px h-3 w-3 shrink-0" />
                   {selected.unitMismatch}
                 </p>
@@ -297,7 +297,7 @@ export function SourceViewer({ result, selectedKey, onSelect, className }: Sourc
                         type="button"
                         onClick={() => onSelect(n.key)}
                         className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-[11px] transition-colors focus-ring",
+                          "flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-micro transition-colors focus-ring",
                           n.key === selected.key
                             ? "bg-gold-500/15 text-ink-50"
                             : "text-ink-400 hover:bg-ink-800 hover:text-ink-200",

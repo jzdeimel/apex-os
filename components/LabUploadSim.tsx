@@ -72,7 +72,7 @@ export function LabUploadSim({
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 p-5 shadow-glow animate-fade-up">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-base font-semibold text-ink-50">Import lab results (PDF)</h3>
+              <h3 className="font-display text-body font-semibold text-ink-50">Import lab results (PDF)</h3>
               <button onClick={close} className="text-ink-500 hover:text-ink-200"><X className="h-4 w-4" /></button>
             </div>
 
@@ -83,8 +83,8 @@ export function LabUploadSim({
                   className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-ink-600 bg-ink-900/40 px-6 py-10 text-center transition-colors hover:border-gold-400/50 hover:bg-ink-900/70"
                 >
                   <Upload className="h-7 w-7 text-ink-500" />
-                  <span className="text-sm font-medium text-ink-200">Drop a lab PDF or click to select</span>
-                  <span className="text-[11px] text-ink-500">LabCorp · Quest · Health Gorilla (simulated parser)</span>
+                  <span className="text-body font-medium text-ink-200">Drop a lab PDF or click to select</span>
+                  <span className="text-micro text-ink-500">LabCorp · Quest · Health Gorilla (simulated parser)</span>
                 </button>
                 <input
                   ref={inputRef}
@@ -101,13 +101,13 @@ export function LabUploadSim({
               <div>
                 <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                   <FileText className="h-4 w-4 text-gold-400" />
-                  <span className="truncate text-sm text-ink-200">{fileName}</span>
+                  <span className="truncate text-body text-ink-200">{fileName}</span>
                 </div>
                 <div className="space-y-2.5">
                   {STEPS.map((s, i) => {
                     const state = i < step ? "done" : i === step ? "active" : "pending";
                     return (
-                      <div key={s} className="flex items-center gap-2.5 text-sm">
+                      <div key={s} className="flex items-center gap-2.5 text-body">
                         {state === "done" ? (
                           <Check className="h-4 w-4 text-optimal" />
                         ) : state === "active" ? (
@@ -123,7 +123,7 @@ export function LabUploadSim({
                   })}
                 </div>
                 {done && (
-                  <div className="mt-4 animate-fade-in rounded-lg border border-optimal/25 bg-optimal/[0.06] px-3 py-2.5 text-sm text-optimal">
+                  <div className="mt-4 animate-fade-in rounded-lg border border-optimal/25 bg-optimal/[0.06] px-3 py-2.5 text-body text-optimal">
                     ✓ Parsed {markerCount} biomarkers. Mapped to Alpha Base Panel — provider review required.
                   </div>
                 )}

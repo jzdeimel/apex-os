@@ -44,17 +44,17 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
    */
   if (!why || why.unexplained) {
     return (
-      <div className="rounded-2xl border border-watch/25 bg-watch/5 p-4">
+      <div className="rounded-panel border border-watch/25 bg-watch/5 p-4">
         <div className="flex items-start gap-3">
           <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-watch" />
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-ink-100">No reason on file</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-300">
+            <p className="text-detail font-medium text-ink-100">No reason on file</p>
+            <p className="mt-1.5 text-detail leading-relaxed text-ink-300">
               {why?.gap ?? NO_RECORDED_REASON}
             </p>
             <Link
               href="/portal/messages"
-              className="focus-ring mt-3 inline-flex rounded-md text-[13px] font-medium text-watch hover:underline"
+              className="focus-ring mt-3 inline-flex rounded-control text-detail font-medium text-watch hover:underline"
             >
               Ask your coach about this
             </Link>
@@ -72,7 +72,7 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
           <p className="label-eyebrow">Why this is on your plan</p>
           <ul className="mt-2.5 space-y-2">
             {why.reasons.map((r, i) => (
-              <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed text-ink-300">
+              <li key={i} className="flex gap-2.5 text-detail leading-relaxed text-ink-300">
                 <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-optimal" />
                 <span className="min-w-0">{r}</span>
               </li>
@@ -91,18 +91,18 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
               three. */}
           <div className="mt-2.5 grid grid-cols-1 gap-2">
             {why.labs.map((l) => (
-              <div key={l.markerKey} className="hairline rounded-xl bg-ink-950/40 p-3.5">
+              <div key={l.markerKey} className="hairline rounded-panel bg-ink-950/40 p-3.5">
                 <div className="flex items-start gap-2.5">
                   <FlaskConical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-ink-100">
+                    <p className="text-detail font-medium text-ink-100">
                       {l.markerName}{" "}
                       <span className="stat-mono text-ink-200">
                         {l.value}
-                        <span className="ml-0.5 text-[11px] font-normal text-ink-500">{l.unit}</span>
+                        <span className="ml-0.5 text-micro font-normal text-ink-500">{l.unit}</span>
                       </span>
                     </p>
-                    <p className="mt-1 text-[12px] leading-relaxed text-ink-500">
+                    <p className="mt-1 text-micro leading-relaxed text-ink-500">
                       Off your {l.panelName}. Blood taken {formatDate(l.collectedOn)}, result back{" "}
                       {formatDate(l.resultedOn)}.
                     </p>
@@ -112,21 +112,21 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
             ))}
 
             {why.consults.map((c) => (
-              <div key={c.consultId} className="hairline rounded-xl bg-ink-950/40 p-3.5">
+              <div key={c.consultId} className="hairline rounded-panel bg-ink-950/40 p-3.5">
                 <div className="flex items-start gap-2.5">
                   <MessagesSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-ink-100">
+                    <p className="text-detail font-medium text-ink-100">
                       You raised {c.matchedOn.toLowerCase()} with {c.authorName}
                     </p>
-                    <p className="mt-1 text-[12px] leading-relaxed text-ink-500">
+                    <p className="mt-1 text-micro leading-relaxed text-ink-500">
                       {c.what} · {c.channel.toLowerCase()} · {formatDate(c.at)}
                     </p>
                     {/* The member's own words, as the consult recorded them.
                         Shown verbatim rather than paraphrased — the whole point
                         is that they can recognise it. */}
                     {c.quote && (
-                      <p className="mt-2 border-l-2 border-ink-700 pl-2.5 text-[12px] italic leading-relaxed text-ink-400">
+                      <p className="mt-2 border-l-2 border-ink-700 pl-2.5 text-micro italic leading-relaxed text-ink-400">
                         {c.quote}
                       </p>
                     )}
@@ -139,7 +139,7 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
           {why.labs.length > 0 && (
             <Link
               href="/portal/labs"
-              className="focus-ring mt-2 inline-flex rounded-md text-[12px] text-ink-500 hover:text-ink-200"
+              className="focus-ring mt-2 inline-flex rounded-control text-micro text-ink-500 hover:text-ink-200"
             >
               See these results with their ranges
             </Link>
@@ -149,12 +149,12 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
 
       {/* The rule ----------------------------------------------------------- */}
       {why.rule && (
-        <div className="hairline rounded-xl bg-ink-950/40 p-3.5">
+        <div className="hairline rounded-panel bg-ink-950/40 p-3.5">
           <div className="flex items-start gap-2.5">
             <ScanSearch className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-ink-100">{why.rule.name}</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-ink-500">
+              <p className="text-detail font-medium text-ink-100">{why.rule.name}</p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-500">
                 {/* `triggerSummary` is written for the rules editor, so it is
                     terse but it is not clinical shorthand — showing it verbatim
                     is more honest than paraphrasing a rule into prose that no
@@ -172,7 +172,7 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
         <ShieldCheck className="h-4 w-4 shrink-0 text-ink-500" />
         <div className="min-w-0 flex-1">
           {why.signoff.state === "signed-off" && (
-            <p className="text-[12px] leading-relaxed text-ink-400">
+            <p className="text-micro leading-relaxed text-ink-400">
               <span className="text-ink-200">{why.signoff.who}</span> has approved this.{" "}
               {why.signoff.at ? (
                 <>Signed {formatDate(why.signoff.at)}.</>
@@ -189,19 +189,19 @@ export function WhyThisPanel({ why }: { why?: WhyThis }) {
             </p>
           )}
           {why.signoff.state === "with-provider" && (
-            <p className="text-[12px] leading-relaxed text-ink-400">
+            <p className="text-micro leading-relaxed text-ink-400">
               Proposed, not confirmed. <span className="text-ink-200">{why.signoff.who}</span> decides
               whether this is right for you and sets the amount — nothing happens until they do.
             </p>
           )}
           {why.signoff.state === "coach-led" && (
-            <p className="text-[12px] leading-relaxed text-ink-400">
+            <p className="text-micro leading-relaxed text-ink-400">
               Set with <span className="text-ink-200">{why.signoff.who}</span>. This one is coaching,
               not a prescription — it is yours to negotiate.
             </p>
           )}
           {why.signoff.state === "not-going-ahead" && (
-            <p className="text-[12px] leading-relaxed text-ink-400">
+            <p className="text-micro leading-relaxed text-ink-400">
               <span className="text-ink-200">{why.signoff.who}</span> looked at this and decided
               against it. Ask them why at your next visit — a no is a clinical decision and it has a
               reason behind it.

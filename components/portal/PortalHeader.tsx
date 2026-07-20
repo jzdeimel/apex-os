@@ -50,12 +50,14 @@ export function PortalPageHeader({
   return (
     <header className="pt-1">
       <p className="label-eyebrow">{eyebrow}</p>
-      <h1 className="mt-2 font-display text-[1.75rem] font-semibold leading-[1.1] tracking-tight text-ink-50 sm:text-4xl">
+      <h1 className="mt-2 font-display text-display leading-[1.05] tracking-tight text-ink-50">
         {title}
       </h1>
       {/* max-w-prose rather than full-bleed: long measure is the fastest way to
-          make a phone screen feel like paperwork. */}
-      <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-400">{subtitle}</p>
+          make a phone screen feel like paperwork.
+          mt-4, not mt-3: the title owns the screen, and the gap under it is the
+          main thing that says so. */}
+      <p className="mt-4 max-w-prose text-body leading-relaxed text-ink-400">{subtitle}</p>
     </header>
   );
 }

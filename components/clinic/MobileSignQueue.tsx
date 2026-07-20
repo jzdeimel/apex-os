@@ -162,7 +162,7 @@ function ContraindicationList({ rec }: { rec: Recommendation }) {
   return (
     <div className="space-y-2">
       {failed.length > 0 && (
-        <p className="rounded-lg border border-high/30 bg-high/10 px-2.5 py-1.5 text-xs font-medium text-high">
+        <p className="rounded-lg border border-high/30 bg-high/10 px-2.5 py-1.5 text-detail font-medium text-high">
           {failed.length} check{failed.length === 1 ? "" : "s"} did not pass. Read before signing.
         </p>
       )}
@@ -175,10 +175,10 @@ function ContraindicationList({ rec }: { rec: Recommendation }) {
               <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-high" />
             )}
             <div className="min-w-0">
-              <p className={cn("text-xs font-medium", c.passed ? "text-ink-200" : "text-high")}>
+              <p className={cn("text-detail font-medium", c.passed ? "text-ink-200" : "text-high")}>
                 {c.label}
               </p>
-              {c.note && <p className="text-[11px] leading-snug text-ink-500">{c.note}</p>}
+              {c.note && <p className="text-micro leading-snug text-ink-500">{c.note}</p>}
             </div>
           </li>
         ))}
@@ -192,7 +192,7 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
   return (
     <div className="space-y-3">
       <EvidenceSection icon={<Sparkles className="h-3.5 w-3.5" />} title="WHY THIS FIRED">
-        <p className="text-sm leading-relaxed text-ink-200">{rec.rationale}</p>
+        <p className="text-body leading-relaxed text-ink-200">{rec.rationale}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {rec.triggeredBy.map((t) => (
             <Badge key={t} tone="neutral">
@@ -204,7 +204,7 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
 
       <EvidenceSection icon={<FlaskConical className="h-3.5 w-3.5" />} title="SUPPORTING LABS">
         {labs.length === 0 ? (
-          <p className="text-xs text-ink-500">
+          <p className="text-detail text-ink-500">
             No biomarker supports this recommendation. It fired on goals and symptoms alone.
           </p>
         ) : (
@@ -214,9 +214,9 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
                 key={l.name}
                 className="flex items-center justify-between gap-3 rounded-lg bg-ink-850/70 px-2.5 py-2"
               >
-                <span className="min-w-0 truncate text-xs text-ink-300">{l.name}</span>
+                <span className="min-w-0 truncate text-detail text-ink-300">{l.name}</span>
                 <span className="flex items-center gap-2">
-                  <span className="stat-mono text-sm text-ink-50">{l.value}</span>
+                  <span className="stat-mono text-body text-ink-50">{l.value}</span>
                   <Badge
                     tone={
                       l.status === "optimal"
@@ -250,7 +250,7 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
             </Badge>
           ))}
           {client.goals.length === 0 && client.symptoms.length === 0 && (
-            <p className="text-xs text-ink-500">Nothing recorded at intake.</p>
+            <p className="text-detail text-ink-500">Nothing recorded at intake.</p>
           )}
         </div>
       </EvidenceSection>
@@ -262,7 +262,7 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
       <EvidenceSection icon={<FileText className="h-3.5 w-3.5" />} title="CANDIDATES & NEXT STEP">
         <ul className="mb-2 space-y-1.5">
           {rec.candidates.map((c) => (
-            <li key={c.name} className="flex items-center justify-between gap-3 text-xs">
+            <li key={c.name} className="flex items-center justify-between gap-3 text-detail">
               <span className="min-w-0 truncate text-ink-200">{c.name}</span>
               <Badge
                 tone={
@@ -284,7 +284,7 @@ function RecommendationEvidence({ rec, client }: { rec: Recommendation; client: 
         </ul>
         {/* Category-level only. No dose, no schedule, no route — those are the
             provider's to write after this signature, never the engine's. */}
-        <p className="text-xs leading-relaxed text-ink-400">{rec.suggestedNextStep}</p>
+        <p className="text-detail leading-relaxed text-ink-400">{rec.suggestedNextStep}</p>
       </EvidenceSection>
     </div>
   );
@@ -295,11 +295,11 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
   return (
     <div className="space-y-3">
       <EvidenceSection icon={<Sparkles className="h-3.5 w-3.5" />} title="AI SUMMARY — AWAITING REVIEW">
-        <p className="text-sm leading-relaxed text-ink-100">
+        <p className="text-body leading-relaxed text-ink-100">
           {summary?.headline ?? "No summary produced."}
         </p>
         {consult.aiProvenance && (
-          <p className="mt-2 text-[11px] text-ink-500">
+          <p className="mt-2 text-micro text-ink-500">
             {consult.aiProvenance.engine} v{consult.aiProvenance.engineVersion} ·{" "}
             <span className="stat-mono">{shortHash(consult.aiProvenance.inputHash)}</span>
           </p>
@@ -310,7 +310,7 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
         <EvidenceSection icon={<Activity className="h-3.5 w-3.5" />} title="MEMBER REPORTED">
           <ul className="space-y-1.5">
             {summary.subjective.map((s, i) => (
-              <li key={i} className="text-xs leading-relaxed text-ink-200">
+              <li key={i} className="text-detail leading-relaxed text-ink-200">
                 • {s}
               </li>
             ))}
@@ -322,7 +322,7 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
         <EvidenceSection icon={<FlaskConical className="h-3.5 w-3.5" />} title="COACH OBSERVED">
           <ul className="space-y-1.5">
             {summary.objective.map((s, i) => (
-              <li key={i} className="text-xs leading-relaxed text-ink-200">
+              <li key={i} className="text-detail leading-relaxed text-ink-200">
                 • {s}
               </li>
             ))}
@@ -335,8 +335,8 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
           <ul className="space-y-2">
             {summary.escalations.map((e, i) => (
               <li key={i} className="rounded-lg border border-high/30 bg-high/10 p-2.5">
-                <p className="text-xs font-medium text-high">{e.value}</p>
-                <p className="mt-1 text-[11px] italic leading-snug text-ink-400">
+                <p className="text-detail font-medium text-high">{e.value}</p>
+                <p className="mt-1 text-micro italic leading-snug text-ink-400">
                   “{e.sourceQuote}”
                 </p>
               </li>
@@ -349,7 +349,7 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
           rewritten, so it is the layer that settles a disagreement about what
           was actually said. It belongs on the signing screen, not one tap away. */}
       <EvidenceSection icon={<FileText className="h-3.5 w-3.5" />} title="COACH'S RAW NOTES (VERBATIM)">
-        <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-ink-400">
+        <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-sans text-micro leading-relaxed text-ink-400">
           {consult.rawNotes}
         </pre>
       </EvidenceSection>
@@ -439,10 +439,10 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
       {/* Progress — a queue with no visible end encourages skimming to finish. */}
       <div className="sticky top-0 z-20 -mx-1 bg-ink-950/90 px-1 pb-3 pt-1 backdrop-blur">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="stat-mono text-sm text-ink-100">
+          <p className="stat-mono text-body text-ink-100">
             {index + 1} of {queue.length}
           </p>
-          <p className="text-xs text-ink-500">
+          <p className="text-detail text-ink-500">
             {remaining} left · {provider?.name ?? staffName(providerId)}
           </p>
         </div>
@@ -466,10 +466,10 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
           <header className="flex items-start gap-3">
             <Monogram client={item.client} />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-base font-semibold text-ink-50">
+              <p className="truncate font-display text-heading font-semibold text-ink-50">
                 {clientName(item.client)}
               </p>
-              <p className="truncate text-xs text-ink-400">
+              <p className="truncate text-detail text-ink-400">
                 {item.client.age}
                 {item.client.sex === "male" ? "M" : "F"} · MRN {item.client.mrn} ·{" "}
                 {locationName(item.client.locationId)}
@@ -505,7 +505,7 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
             )}
           </div>
 
-          <h2 className="mt-3 font-display text-lg font-semibold leading-snug text-ink-50">
+          <h2 className="mt-3 font-display text-heading font-semibold leading-snug text-ink-50">
             {item.kind === "recommendation"
               ? item.rec.title
               : `Consult note by ${staffName(item.consult.authorId)}`}
@@ -535,11 +535,11 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
               ) : (
                 <X className="h-4 w-4 shrink-0 text-high" />
               )}
-              <p className="text-sm font-medium text-ink-50">
+              <p className="text-body font-medium text-ink-50">
                 {decided.outcome === "signed" ? "Signed" : "Declined"} — recorded
               </p>
             </div>
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-400">
+            <p className="mt-1.5 flex items-center gap-1.5 text-detail text-ink-400">
               <Hash className="h-3 w-3 shrink-0" />
               <span className="stat-mono">{decided.ledgerId}</span>
               <span className="text-ink-600">·</span>
@@ -551,7 +551,7 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
             <Button
               variant="danger"
               onClick={() => decide("declined")}
-              className="h-12 w-full text-sm"
+              className="h-12 w-full text-body"
             >
               <X className="h-4 w-4" />
               Decline
@@ -559,7 +559,7 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
             <Button
               variant="primary"
               onClick={() => decide("signed")}
-              className="h-12 w-full text-sm"
+              className="h-12 w-full text-body"
             >
               <PenLine className="h-4 w-4" />
               {item.kind === "consult" ? "Sign note" : "Approve"}
@@ -572,7 +572,7 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
             variant="ghost"
             onClick={() => go(-1)}
             disabled={index === 0}
-            className="h-11 w-full text-xs"
+            className="h-11 w-full text-detail"
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -581,14 +581,14 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
             variant="ghost"
             onClick={() => go(1)}
             disabled={index === queue.length - 1}
-            className="h-11 w-full text-xs"
+            className="h-11 w-full text-detail"
           >
             Skip for now
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <p className="mt-2 text-center text-[11px] text-ink-500">
+        <p className="mt-2 text-center text-micro text-ink-500">
           Swipe to move between items. Skipping is recorded as nothing — only a decision writes.
         </p>
       </div>

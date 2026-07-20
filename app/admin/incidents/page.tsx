@@ -21,7 +21,6 @@ import {
   Select,
   Textarea,
 } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { locations, locationName } from "@/lib/mock/locations";
@@ -155,17 +154,15 @@ export default function IncidentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <p className="label-eyebrow">Compliance</p>
-        <h1 className="font-display text-2xl font-semibold text-ink-50">
+        <h1 className="font-display text-title font-semibold text-ink-50">
           Incidents &amp; coach readiness
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-ink-400">
+        <p className="mt-1 max-w-2xl text-body text-ink-400">
           Nothing here is edited in place. Every state change, action and
           severity reclassification appends a hash-chained ledger row carrying
           the before and the after.
         </p>
-      </FadeIn>
 
       <div className="mt-5">
         <Tabs
@@ -259,13 +256,13 @@ export default function IncidentsPage() {
             />
           )}
 
-          <Stagger className="mt-4 flex flex-col gap-3">
+          <div className="mt-4 flex flex-col gap-3">
             {rows.map((inc) => (
-              <StaggerItem key={inc.id}>
+              <div key={inc.id}>
                 <IncidentRow inc={inc} onMove={move} onAct={act} />
-              </StaggerItem>
+              </div>
             ))}
-          </Stagger>
+          </div>
 
           <div className="mt-5 rounded-2xl border border-ink-700/70 bg-ink-850/60 p-4">
             <p className="label-eyebrow">Severity definitions</p>
@@ -273,7 +270,7 @@ export default function IncidentsPage() {
               {SEVERITY_ORDER.map((s) => (
                 <div key={s} className="flex items-start gap-2.5">
                   <Badge tone={SEVERITY_TONE[s]}>{s}</Badge>
-                  <p className="text-xs leading-relaxed text-ink-400">
+                  <p className="text-detail leading-relaxed text-ink-400">
                     {SEVERITY_DEFINITION[s]} Target resolution:{" "}
                     <span className="stat-mono text-ink-300">
                       {RESOLUTION_TARGET_DAYS[s]}d
@@ -283,7 +280,7 @@ export default function IncidentsPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">
+            <p className="mt-3 text-detail leading-relaxed text-ink-500">
               Severity is assigned by a person, not computed from the incident
               type — a missed appointment is trivial unless the member had an
               out-of-range panel, and only a human knows which one this is.
@@ -318,15 +315,15 @@ export default function IncidentsPage() {
             />
           </div>
 
-          <Stagger className="mt-4 flex flex-col gap-3">
+          <div className="mt-4 flex flex-col gap-3">
             {team.map((c) => (
-              <StaggerItem key={c.coachId}>
+              <div key={c.coachId}>
                 <CoachCard coach={c} onAttest={attest} />
-              </StaggerItem>
+              </div>
             ))}
-          </Stagger>
+          </div>
 
-          <p className="mt-4 text-xs leading-relaxed text-ink-500">
+          <p className="mt-4 text-detail leading-relaxed text-ink-500">
             Certification steps cannot be ticked. They are derived from a passed,
             unexpired quiz attempt, and they reopen on their own when the annual
             certification lapses — a checklist where completion is permanent will
@@ -361,8 +358,8 @@ function Stat({
   return (
     <div className="card p-4">
       <p className="label-eyebrow">{label}</p>
-      <p className={cn("stat-mono mt-1 text-2xl", toneClass)}>{value}</p>
-      <p className="mt-1 text-[11px] leading-snug text-ink-500">{hint}</p>
+      <p className={cn("stat-mono mt-1 text-title", toneClass)}>{value}</p>
+      <p className="mt-1 text-micro leading-snug text-ink-500">{hint}</p>
     </div>
   );
 }
@@ -387,7 +384,7 @@ function IncidentRow({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="stat-mono text-xs text-ink-500">{inc.id}</span>
+              <span className="stat-mono text-detail text-ink-500">{inc.id}</span>
               <Badge tone={SEVERITY_TONE[inc.severity]}>{inc.severity}</Badge>
               <Badge tone="neutral">{inc.kind}</Badge>
               <Badge tone={inc.status === "Resolved" ? "optimal" : "info"}>{inc.status}</Badge>
@@ -397,8 +394,8 @@ function IncidentRow({
                 </Badge>
               )}
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-ink-100">{inc.summary}</p>
-            <p className="mt-1.5 text-xs text-ink-500">
+            <p className="mt-2 text-body leading-relaxed text-ink-100">{inc.summary}</p>
+            <p className="mt-1.5 text-detail text-ink-500">
               Occurred {formatDateTime(inc.at)} · filed {formatDateTime(inc.reportedAt)}
               {lag > 0 && (
                 <span className={cn("ml-1", lag > 1 ? "text-watch" : "text-ink-500")}>
@@ -444,13 +441,13 @@ function IncidentRow({
         {open && (
           <div className="mt-3 border-t border-ink-700/60 pt-3">
             {inc.actions.length === 0 ? (
-              <p className="text-xs text-ink-500">
+              <p className="text-detail text-ink-500">
                 No actions recorded. &ldquo;We addressed it&rdquo; is not a record.
               </p>
             ) : (
               <ul className="space-y-2">
                 {inc.actions.map((a) => (
-                  <li key={a.id} className="flex items-start gap-2.5 text-xs">
+                  <li key={a.id} className="flex items-start gap-2.5 text-detail">
                     <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-600" />
                     <span className="text-ink-300">
                       <span className="stat-mono text-ink-500">{formatDate(a.at)}</span> ·{" "}
@@ -461,7 +458,7 @@ function IncidentRow({
               </ul>
             )}
             {inc.resolvedAt && (
-              <p className="mt-2 text-xs text-optimal">
+              <p className="mt-2 text-detail text-optimal">
                 Resolved {formatDateTime(inc.resolvedAt)}.
               </p>
             )}
@@ -527,7 +524,7 @@ function FileIncidentForm({ onDone }: { onDone: (msg: string) => void }) {
             ))}
           </Select>
         </div>
-        <p className="text-xs text-ink-400">{SEVERITY_DEFINITION[severity]}</p>
+        <p className="text-detail text-ink-400">{SEVERITY_DEFINITION[severity]}</p>
         <Textarea
           rows={3}
           placeholder="What happened. Facts only — this record is read years later by people who were not there."
@@ -539,7 +536,7 @@ function FileIncidentForm({ onDone }: { onDone: (msg: string) => void }) {
             <ShieldAlert className="h-3.5 w-3.5" />
             File
           </Button>
-          <span className="text-xs text-ink-500">
+          <span className="text-detail text-ink-500">
             Filing stamps the occurrence time as now. Backdating is not offered.
           </span>
         </div>
@@ -564,7 +561,7 @@ function CoachCard({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <GraduationCap className="h-4 w-4 text-ink-500" />
-              <span className="font-display text-sm font-semibold text-ink-50">
+              <span className="font-display text-body font-semibold text-ink-50">
                 {coach.coachName}
               </span>
               <Badge tone={coach.readyForCaseload ? "optimal" : "high"}>
@@ -574,21 +571,21 @@ function CoachCard({
                 <Badge tone="watch">{coach.overdue.length} overdue</Badge>
               )}
             </div>
-            <p className="mt-1.5 text-xs text-ink-500">
+            <p className="mt-1.5 text-detail text-ink-500">
               Started {formatDate(coach.startedOn)} ·{" "}
               <span className="stat-mono">{coach.daysSinceStart}</span> days ·{" "}
               <span className="stat-mono">{coach.completeCount}</span>/
               <span className="stat-mono">{coach.totalCount}</span> steps complete
             </p>
             {!coach.readyForCaseload && (
-              <p className="mt-1.5 text-xs text-high">
+              <p className="mt-1.5 text-detail text-high">
                 Blocking:{" "}
                 {coach.blockingOutstanding.map((s) => s.step.title).join(", ")}
               </p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <span className="stat-mono text-lg text-ink-200">{coach.percent}%</span>
+            <span className="stat-mono text-heading text-ink-200">{coach.percent}%</span>
             <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
               {open ? "Hide" : "Checklist"}
             </Button>
@@ -604,7 +601,7 @@ function CoachCard({
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-ink-100">{s.step.title}</span>
+                    <span className="text-body text-ink-100">{s.step.title}</span>
                     <Badge
                       tone={
                         s.state === "complete"
@@ -619,12 +616,12 @@ function CoachCard({
                     {s.step.blocksCaseload && <Badge tone="watch">Blocks caseload</Badge>}
                     <Badge tone="info">{s.step.kind}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-ink-500">{s.step.definitionOfDone}</p>
+                  <p className="mt-1 text-detail text-ink-500">{s.step.definitionOfDone}</p>
                   {s.evidence && (
-                    <p className="mt-1 text-xs text-ink-400">{s.evidence}</p>
+                    <p className="mt-1 text-detail text-ink-400">{s.evidence}</p>
                   )}
                   {s.daysOverdue > 0 && s.state !== "complete" && (
-                    <p className="mt-1 text-xs text-watch">
+                    <p className="mt-1 text-detail text-watch">
                       <span className="stat-mono">{s.daysOverdue}</span> days past the
                       day-{s.step.dueByDay} target.
                     </p>

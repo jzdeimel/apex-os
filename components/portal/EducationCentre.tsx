@@ -37,7 +37,7 @@ import {
 } from "@/lib/education/library";
 import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Badge, Button, Input, EmptyState } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, SwitchView, FadeIn } from "@/components/motion";
+import { Stagger, StaggerItem, SwitchView, FadeIn } from "@/components/portal/still";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -55,7 +55,7 @@ import {
 /** Reading time appears on every card and at the top of every article. */
 function ReadTime({ a }: { a: Article }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-500">
+    <span className="inline-flex items-center gap-1.5 text-micro text-ink-500">
       {a.format === "video" ? (
         <PlayCircle aria-hidden className="h-3.5 w-3.5" />
       ) : (
@@ -82,7 +82,7 @@ function ArticleCard({
       type="button"
       onClick={() => onOpen(a)}
       className={cn(
-        "focus-ring group flex h-full w-full flex-col rounded-2xl border border-ink-700/70 bg-ink-850/60 p-4 text-left transition-colors hover:border-ink-600 hover:bg-ink-850 sm:p-5",
+        "focus-ring group flex h-full w-full flex-col rounded-panel border border-ink-700/70 bg-ink-850/60 p-4 text-left transition-colors hover:border-ink-600 hover:bg-ink-850 sm:p-5",
         reason && "border-gold-400/25",
       )}
     >
@@ -91,17 +91,17 @@ function ArticleCard({
           {a.format === "video" ? "Video" : a.topic}
         </Badge>
         {a.format === "video" && (
-          <span className="text-[11px] text-ink-500">{a.topic}</span>
+          <span className="text-micro text-ink-500">{a.topic}</span>
         )}
       </div>
 
-      <h3 className="mt-3 font-display text-[15px] font-semibold leading-snug text-ink-50 group-hover:text-white sm:text-base">
+      <h3 className="mt-3 font-display text-body font-semibold leading-snug text-ink-50 group-hover:text-white sm:text-body">
         {a.title}
       </h3>
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-400">{a.summary}</p>
+      <p className="mt-2 text-detail leading-relaxed text-ink-400">{a.summary}</p>
 
       {reason && (
-        <p className="mt-3 flex items-start gap-2 rounded-xl bg-gold-400/8 px-3 py-2.5 text-[12px] leading-relaxed text-gold-200">
+        <p className="mt-3 flex items-start gap-2 rounded-panel bg-gold-400/8 px-3 py-2.5 text-micro leading-relaxed text-gold-200">
           <Sparkles aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{reason}</span>
         </p>
@@ -109,7 +109,7 @@ function ArticleCard({
 
       <div className="mt-4 flex items-center justify-between gap-2 pt-1">
         <ReadTime a={a} />
-        <span className="text-[12px] font-medium text-ink-500 group-hover:text-gold-300">
+        <span className="text-micro font-medium text-ink-500 group-hover:text-gold-300">
           Read <span aria-hidden>→</span>
         </span>
       </div>
@@ -131,7 +131,7 @@ function Reader({ a, onBack }: { a: Article; onBack: () => void }) {
 
       <article className="max-w-prose">
         <p className="label-eyebrow">{a.topic}</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tight text-ink-50 sm:text-3xl">
+        <h2 className="mt-2 font-display text-title font-semibold leading-tight tracking-tight text-ink-50 sm:text-display">
           {a.title}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -141,12 +141,12 @@ function Reader({ a, onBack }: { a: Article; onBack: () => void }) {
           )}
         </div>
 
-        <p className="mt-5 text-[15px] font-medium leading-relaxed text-ink-200">{a.summary}</p>
+        <p className="mt-5 text-body font-medium leading-relaxed text-ink-200">{a.summary}</p>
 
         {/* Video entries reference the clinic's channel. Nothing third-party is
             embedded on a surface that also renders a member's health data. */}
         {a.format === "video" && a.videoNote && (
-          <p className="mt-5 flex items-start gap-2.5 rounded-2xl border border-ink-700/70 bg-ink-850/60 px-4 py-3.5 text-[13px] leading-relaxed text-ink-300">
+          <p className="mt-5 flex items-start gap-2.5 rounded-panel border border-ink-700/70 bg-ink-850/60 px-4 py-3.5 text-detail leading-relaxed text-ink-300">
             <Youtube aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" />
             <span>{a.videoNote}</span>
           </p>
@@ -154,7 +154,7 @@ function Reader({ a, onBack }: { a: Article; onBack: () => void }) {
 
         <div className="mt-6 space-y-4">
           {a.body.map((p, i) => (
-            <p key={i} className="text-[15px] leading-[1.75] text-ink-300">
+            <p key={i} className="text-body leading-[1.75] text-ink-300">
               {p}
             </p>
           ))}
@@ -162,7 +162,7 @@ function Reader({ a, onBack }: { a: Article; onBack: () => void }) {
 
         {/* Standing disclaimer. Education is not advice, and the member's own
             provider is the one holding their full picture. */}
-        <p className="mt-8 border-t border-ink-700/70 pt-5 text-[12px] leading-relaxed text-ink-500">
+        <p className="mt-8 border-t border-ink-700/70 pt-5 text-micro leading-relaxed text-ink-500">
           This is general education, not medical advice, and it cannot account for your history,
           medications or results. Anything here that sounds like it applies to you is a good question
           for your next visit — your provider and coach are reading your full picture.
@@ -246,8 +246,8 @@ export function EducationCentre({ clientId }: { clientId: string }) {
       {searching ? (
         <SwitchView k="search" className="space-y-4">
           <div className="flex items-baseline gap-2">
-            <h2 className="font-display text-lg font-semibold text-ink-50">Results</h2>
-            <span className="stat-mono text-sm text-ink-500">{results.length}</span>
+            <h2 className="font-display text-heading font-semibold text-ink-50">Results</h2>
+            <span className="stat-mono text-detail text-ink-500">{results.length}</span>
           </div>
           {results.length === 0 ? (
             <EmptyState
@@ -272,10 +272,10 @@ export function EducationCentre({ clientId }: { clientId: string }) {
             <section className="space-y-4">
               <div>
                 <p className="label-eyebrow">Picked for you</p>
-                <h2 className="mt-2 font-display text-xl font-semibold text-ink-50 sm:text-2xl">
+                <h2 className="mt-2 font-display text-title font-semibold text-ink-50 sm:text-title">
                   Start here
                 </h2>
-                <p className="mt-2 max-w-prose text-[14px] leading-relaxed text-ink-400">
+                <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
                   Chosen from your own results, the symptoms you told us about, your goals and where
                   you are in the process. Each one says why.
                 </p>
@@ -296,10 +296,10 @@ export function EducationCentre({ clientId }: { clientId: string }) {
           {/* Browse by topic ------------------------------------------------ */}
           <section className="space-y-4">
             <div>
-              <h2 className="font-display text-xl font-semibold text-ink-50 sm:text-2xl">
+              <h2 className="font-display text-title font-semibold text-ink-50 sm:text-title">
                 Browse by topic
               </h2>
-              <p className="mt-2 max-w-prose text-[14px] leading-relaxed text-ink-400">
+              <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">
                 The same topics the clinic teaches, plus the foundations that sit underneath every
                 plan. Videos are on the clinic&rsquo;s channel,{" "}
                 <span className="text-ink-300">{YOUTUBE_HANDLE}</span>.
@@ -339,7 +339,7 @@ export function EducationCentre({ clientId }: { clientId: string }) {
             {/* Only meaningful on the unfiltered view — the shelf items are
                 already in `browse` above, this just names the overlap honestly. */}
             {topic === "all" && shelfIds.size > 0 && (
-              <p className="text-[12px] leading-relaxed text-ink-500">
+              <p className="text-micro leading-relaxed text-ink-500">
                 <span className="stat-mono">{shelfIds.size}</span> of these are also on your
                 picked-for-you shelf above.
               </p>
@@ -368,14 +368,14 @@ function TopicChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
+        "focus-ring inline-flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-detail font-medium transition-colors",
         active
           ? "border-gold-400/40 bg-gold-400/15 text-gold-200"
           : "border-ink-700 bg-ink-850/60 text-ink-300 hover:border-ink-600 hover:text-ink-100",
       )}
     >
       {label}
-      <span className={cn("stat-mono text-[11px]", active ? "text-gold-300" : "text-ink-500")}>
+      <span className={cn("stat-mono text-micro", active ? "text-gold-300" : "text-ink-500")}>
         {count}
       </span>
     </button>

@@ -80,17 +80,17 @@ function ReasonLine({
       />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <span className={cn("text-xs font-medium", dim ? "text-ink-400" : "text-ink-100")}>
+          <span className={cn("text-detail font-medium", dim ? "text-ink-400" : "text-ink-100")}>
             {reason.label}
           </span>
-          <span className="text-[10px] uppercase tracking-wide text-ink-600">
+          <span className="text-micro uppercase tracking-wide text-ink-600">
             {SIGNAL_LABEL[reason.signal]}
           </span>
           {/* The contribution, so the ranking is arithmetic a coach can follow
               rather than a black box that merely asserts an order. */}
-          <span className="stat-mono text-[10px] text-ink-700">+{reason.points}</span>
+          <span className="stat-mono text-micro text-ink-700">+{reason.points}</span>
         </div>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">{reason.detail}</p>
+        <p className="mt-0.5 text-micro leading-relaxed text-ink-500">{reason.detail}</p>
         {isSourced(reason.source) && (
           <div className="mt-1">
             <SourceChip source={reason.source} />
@@ -112,7 +112,7 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
     <div className={cn("card border-l-2 px-3 py-2.5", meta.rule)}>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
-          <span className="stat-mono mt-1 w-4 shrink-0 text-right text-[11px] text-ink-700">
+          <span className="stat-mono mt-1 w-4 shrink-0 text-right text-micro text-ink-700">
             {rank}
           </span>
           <Monogram client={row.client} size="sm" />
@@ -121,12 +121,12 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Link
                 href={`/clients/${row.client.id}`}
-                className="focus-ring truncate rounded text-[13px] font-medium text-ink-50 hover:text-gold-300"
+                className="focus-ring truncate rounded text-detail font-medium text-ink-50 hover:text-gold-300"
               >
                 {row.name}
               </Link>
               <Badge tone={meta.tone}>{row.band === "high" ? "High risk" : row.band === "medium" ? "Watch" : "Low"}</Badge>
-              <span className="stat-mono text-[10px] text-ink-700" title="Sort key only — not a measurement of the member">
+              <span className="stat-mono text-micro text-ink-700" title="Sort key only — not a measurement of the member">
                 rank {row.score}
               </span>
             </div>
@@ -157,7 +157,7 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
                 </p>
                 <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                   {row.checked.map((c) => (
-                    <li key={c} className="text-[10px] text-ink-600">
+                    <li key={c} className="text-micro text-ink-600">
                       {c}
                     </li>
                   ))}
@@ -169,7 +169,7 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded text-[10px] font-medium text-ink-500 transition-colors hover:text-ink-200"
+                className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded text-micro font-medium text-ink-500 transition-colors hover:text-ink-200"
               >
                 {open ? (
                   <>
@@ -226,7 +226,7 @@ export function AdherenceWorklist({ coachId }: { coachId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           <div className="min-w-0">
             <p className="label-eyebrow">Adherence risk · ranked</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-0.5 text-micro leading-relaxed text-ink-500">
               Ranked by signals in the record, each shown with its contribution.{" "}
               {summary.dominant && (
                 <>
@@ -238,12 +238,12 @@ export function AdherenceWorklist({ coachId }: { coachId: string }) {
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-baseline gap-1.5">
-              <span className="stat-mono text-base font-semibold text-high">{summary.high}</span>
-              <span className="text-[11px] text-ink-500">high</span>
+              <span className="stat-mono text-heading font-semibold text-high">{summary.high}</span>
+              <span className="text-micro text-ink-500">high</span>
             </span>
             <span className="flex items-baseline gap-1.5">
-              <span className="stat-mono text-base font-semibold text-ink-50">{summary.total}</span>
-              <span className="text-[11px] text-ink-500">on the list</span>
+              <span className="stat-mono text-heading font-semibold text-ink-50">{summary.total}</span>
+              <span className="text-micro text-ink-500">on the list</span>
             </span>
           </div>
         </div>
@@ -259,7 +259,7 @@ export function AdherenceWorklist({ coachId }: { coachId: string }) {
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="focus-ring w-full rounded-lg border border-ink-700 py-1.5 text-[11px] font-medium text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100"
+          className="focus-ring w-full rounded-lg border border-ink-700 py-1.5 text-micro font-medium text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100"
         >
           {showAll ? "Show top 5" : `Show all ${rows.length}`}
         </button>

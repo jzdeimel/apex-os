@@ -52,7 +52,7 @@ import { travelFor } from "@/lib/account/travel";
 import { locationMap, locationName } from "@/lib/mock/locations";
 import type { LocationId } from "@/lib/types";
 import { Badge, Button, Card, CardContent } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem, SwitchView } from "@/components/motion";
+import { FadeIn, Stagger, StaggerItem, SwitchView } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { me, ME } from "@/components/portal/PortalHeader";
 import { shortHash } from "@/lib/trace/hash";
@@ -198,7 +198,7 @@ export function BookVisit() {
                 disabled={i > stepIndex}
                 onClick={() => setStep(s.id)}
                 className={cn(
-                  "rounded-xl border px-3 py-2 text-left transition-colors focus-ring disabled:cursor-default",
+                  "rounded-panel border px-3 py-2 text-left transition-colors focus-ring disabled:cursor-default",
                   i === stepIndex
                     ? "border-gold-400/40 bg-gold-400/10"
                     : i < stepIndex
@@ -206,10 +206,10 @@ export function BookVisit() {
                       : "border-ink-800 bg-ink-900/40",
                 )}
               >
-                <span className="label-eyebrow block text-[10px]">Step {i + 1}</span>
+                <span className="label-eyebrow block text-micro">Step {i + 1}</span>
                 <span
                   className={cn(
-                    "mt-0.5 block truncate text-[13px] font-medium",
+                    "mt-0.5 block truncate text-detail font-medium",
                     i <= stepIndex ? "text-ink-50" : "text-ink-500",
                   )}
                 >
@@ -243,13 +243,13 @@ export function BookVisit() {
                     className="card w-full p-4 text-left transition-colors hover:border-gold-400/40 focus-ring"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="font-display text-[15px] font-semibold text-ink-50">{t.label}</p>
+                      <p className="font-display text-body font-semibold text-ink-50">{t.label}</p>
                       <Badge tone="neutral" className="shrink-0">
                         <Clock className="h-3 w-3" />
                         <span className="stat-mono">{t.durationMin}</span> min
                       </Badge>
                     </div>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">{t.blurb}</p>
+                    <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{t.blurb}</p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {t.inPerson && (
                         <Badge tone="info">
@@ -294,12 +294,12 @@ export function BookVisit() {
                         ) : (
                           <MapPin className="h-4 w-4 text-ink-400" />
                         )}
-                        <p className="font-display text-[15px] font-semibold text-ink-50">{loc.short}</p>
+                        <p className="font-display text-body font-semibold text-ink-50">{loc.short}</p>
                       </div>
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">
+                      <p className="mt-1.5 text-detail leading-relaxed text-ink-400">
                         {virtual ? "From wherever you are, on any device." : loc.address}
                       </p>
-                      {loc.phone && <p className="mt-1 text-xs text-ink-500 stat-mono">{loc.phone}</p>}
+                      {loc.phone && <p className="mt-1 text-micro text-ink-500 stat-mono">{loc.phone}</p>}
                     </button>
                   );
                 })}
@@ -337,9 +337,9 @@ export function BookVisit() {
                 >
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-gold-300" />
-                    <p className="font-display text-[15px] font-semibold text-ink-50">Anyone available</p>
+                    <p className="font-display text-body font-semibold text-ink-50">Anyone available</p>
                   </div>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">
+                  <p className="mt-1.5 text-detail leading-relaxed text-ink-400">
                     The fastest way to be seen. Everyone here has your chart in front of them.
                   </p>
                 </button>
@@ -356,15 +356,15 @@ export function BookVisit() {
                     className="card w-full p-4 text-left transition-colors hover:border-gold-400/40 focus-ring"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-display text-[15px] font-semibold text-ink-50">{p.name}</p>
+                      <p className="font-display text-body font-semibold text-ink-50">{p.name}</p>
                       {p.onCareTeam && <Badge tone="gold">Your team</Badge>}
                     </div>
-                    <p className="mt-1 text-[13px] text-ink-400">
+                    <p className="mt-1 text-detail text-ink-400">
                       {p.role}
                       {p.credentials ? ` · ${p.credentials}` : ""}
                     </p>
                     {venue === "telehealth" && (
-                      <p className="mt-2 text-xs text-ink-500">
+                      <p className="mt-2 text-micro text-ink-500">
                         Licensed in <span className="stat-mono">{p.licences.join(", ")}</span>
                       </p>
                     )}
@@ -374,8 +374,8 @@ export function BookVisit() {
                 {!people.length && (
                   <Card className="sm:col-span-2">
                     <CardContent className="pt-5">
-                      <p className="text-sm text-ink-200">Nobody is available for this combination.</p>
-                      <p className="mt-1 text-[13px] text-ink-400">
+                      <p className="text-detail text-ink-200">Nobody is available for this combination.</p>
+                      <p className="mt-1 text-detail text-ink-400">
                         {venue === "telehealth"
                           ? `We don't currently have a clinician licensed in ${memberState} for this visit type. Call us on 833-549-9993 and we'll sort it out properly rather than book you into something that isn't legal.`
                           : "Try another location, or a different visit type."}
@@ -409,20 +409,20 @@ export function BookVisit() {
                       setChosen(null);
                     }}
                     className={cn(
-                      "min-w-[68px] shrink-0 rounded-xl border px-2.5 py-2 text-center transition-colors focus-ring",
+                      "min-w-[68px] shrink-0 rounded-panel border px-2.5 py-2 text-center transition-colors focus-ring",
                       i === dateIdx
                         ? "border-gold-400/50 bg-gold-400/10"
                         : "border-ink-700 bg-ink-850/60 hover:border-ink-600",
                     )}
                   >
-                    <span className="block text-[11px] uppercase tracking-wide text-ink-400">{d.label}</span>
-                    <span className="stat-mono mt-0.5 block text-sm text-ink-50">{d.date.slice(8)}</span>
+                    <span className="block text-micro uppercase tracking-wide text-ink-400">{d.label}</span>
+                    <span className="stat-mono mt-0.5 block text-detail text-ink-50">{d.date.slice(8)}</span>
                     {/* Distinct start times, not raw slot rows — "78 open" for
                         a day with 26 bookable moments is a number the member
                         cannot reconcile with the list underneath it. */}
                     <span
                       className={cn(
-                        "mt-1 block text-[10px]",
+                        "mt-1 block text-micro",
                         d.slots.length ? "text-optimal" : "text-ink-500",
                       )}
                     >
@@ -445,14 +445,14 @@ export function BookVisit() {
                         type="button"
                         onClick={() => setChosen(s)}
                         className={cn(
-                          "rounded-xl border px-3 py-2.5 text-left transition-colors focus-ring",
+                          "rounded-panel border px-3 py-2.5 text-left transition-colors focus-ring",
                           chosen?.id === s.id
                             ? "border-gold-400/60 bg-gold-400/10"
                             : "border-ink-700 bg-ink-850/60 hover:border-ink-600",
                         )}
                       >
-                        <span className="stat-mono block text-sm text-ink-50">{s.time}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-ink-400">{s.staffName}</span>
+                        <span className="stat-mono block text-detail text-ink-50">{s.time}</span>
+                        <span className="mt-0.5 block truncate text-micro text-ink-400">{s.staffName}</span>
                       </button>
                     ))}
                   </div>
@@ -484,11 +484,11 @@ export function BookVisit() {
                   <Card className="border-gold-400/30">
                     <CardContent className="pt-5">
                       <p className="label-eyebrow">Confirm</p>
-                      <p className="mt-2 font-display text-lg font-semibold leading-tight text-ink-50">
+                      <p className="mt-2 font-display text-heading font-semibold leading-tight text-ink-50">
                         {visitTypeMap[chosen.visitType].label} · {formatDate(chosen.startIso)} at{" "}
                         <span className="stat-mono">{chosen.time}</span>
                       </p>
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">
+                      <p className="mt-1.5 text-detail leading-relaxed text-ink-400">
                         With {chosen.staffName}
                         {chosen.staffCredentials ? `, ${chosen.staffCredentials}` : ""} ·{" "}
                         {locationName(chosen.locationId)} · <span className="stat-mono">{chosen.durationMin}</span> min
@@ -516,26 +516,26 @@ export function BookVisit() {
                   <Badge tone="optimal">
                     <Check className="h-3 w-3" /> Booked
                   </Badge>
-                  <h3 className="mt-3 font-display text-xl font-semibold leading-tight text-ink-50">
+                  <h3 className="mt-3 font-display text-title font-semibold leading-tight text-ink-50">
                     {visitTypeMap[booked.slot.visitType].label} on {formatDate(booked.slot.startIso)} at{" "}
                     <span className="stat-mono">{booked.slot.time}</span>
                   </h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-ink-400">
+                  <p className="mt-2 text-body leading-relaxed text-ink-400">
                     With {booked.slot.staffName} · {locationName(booked.slot.locationId)}. It's on your home screen and
                     we'll remind you the day before.
                   </p>
 
                   {booked.slot.locationId === "telehealth" && (
-                    <p className="mt-3 text-[13px] text-ink-300">
+                    <p className="mt-3 text-detail text-ink-300">
                       Your room opens 10 minutes early so you can run the camera and mic check before anyone joins.
                     </p>
                   )}
 
                   {/* The ledger row. Shown to the member, not just written for
                       staff — "who did what to my record" includes what I did. */}
-                  <div className="mt-4 rounded-xl border border-ink-700 bg-ink-900/50 p-3">
+                  <div className="mt-4 rounded-panel border border-ink-700 bg-ink-900/50 p-3">
                     <p className="label-eyebrow">Recorded</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-ink-400">
+                    <p className="mt-1 text-detail leading-relaxed text-ink-400">
                       This booking was written to your record's audit chain as{" "}
                       <span className="stat-mono text-ink-200">{booked.ledgerId}</span>, hash{" "}
                       <span className="stat-mono text-ink-200">{shortHash(booked.hash)}</span>. You can see it on
@@ -565,7 +565,7 @@ function BackTo({ onClick, label }: { onClick: () => void; label: string }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 text-[13px] text-ink-400 transition-colors hover:text-ink-100 focus-ring rounded-lg"
+      className="inline-flex items-center gap-1.5 text-detail text-ink-400 transition-colors hover:text-ink-100 focus-ring rounded-control"
     >
       <ChevronLeft className="h-3.5 w-3.5" />
       <span className="truncate">{label}</span>
@@ -597,18 +597,18 @@ function LicensureNotice({
       <CardContent className="flex gap-3 pt-5">
         <ShieldCheck className={cn("mt-0.5 h-4 w-4 shrink-0", away ? "text-watch" : "text-ink-400")} />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-ink-100">
+          <p className="text-detail font-medium text-ink-100">
             {away
               ? `You'll be in ${memberState}${destination ? ` (${destination})` : ""} — so we're only showing clinicians licensed there.`
               : `Showing clinicians licensed in ${homeState}.`}
           </p>
-          <p className="mt-1 text-[13px] leading-relaxed text-ink-400">
+          <p className="mt-1 text-detail leading-relaxed text-ink-400">
             A telehealth visit legally happens where <em>you</em> are sitting, not where your provider is. Seeing you
             across a state line without a licence there isn't a technicality — it's practising medicine without one. So
             the list is filtered rather than apologetic.
           </p>
           {blocked.length > 0 && (
-            <p className="mt-2 text-[13px] text-ink-500">
+            <p className="mt-2 text-detail text-ink-500">
               Not shown for {memberState}: {blocked.map((b) => b.name).join(", ")}.
             </p>
           )}
@@ -639,14 +639,14 @@ function WaitlistPanel({
           <div className="flex items-start gap-3">
             <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-watch" />
             <div className="min-w-0 flex-1">
-              <p className="font-display text-[15px] font-semibold text-ink-50">
+              <p className="font-display text-body font-semibold text-ink-50">
                 {unstaffed ? "We're not open for this on " : "Fully booked on "}
                 {formatDate(day)}
               </p>
 
               {!entry ? (
                 <>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">
+                  <p className="mt-1.5 text-detail leading-relaxed text-ink-400">
                     Cancellations happen most weeks. Join the waitlist and we'll offer you the first opening in this
                     window — you keep the appointment you already have until you accept a new one.
                   </p>
@@ -665,11 +665,11 @@ function WaitlistPanel({
                     </Badge>
                     <Badge tone={entry.status === "Offered" ? "optimal" : "neutral"}>{entry.status}</Badge>
                   </div>
-                  <p className="mt-2 text-[13px] leading-relaxed text-ink-400">{entry.outlook}</p>
+                  <p className="mt-2 text-detail leading-relaxed text-ink-400">{entry.outlook}</p>
 
                   <ul className="mt-3 space-y-1.5">
                     {waitlistTerms(entry).map((t) => (
-                      <li key={t} className="flex gap-2 text-[13px] leading-relaxed text-ink-300">
+                      <li key={t} className="flex gap-2 text-detail leading-relaxed text-ink-300">
                         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
                         <span>{t}</span>
                       </li>
@@ -677,9 +677,9 @@ function WaitlistPanel({
                   </ul>
 
                   {entry.offer && (
-                    <div className="mt-3 rounded-xl border border-optimal/30 bg-optimal/5 p-3">
-                      <p className="text-[13px] leading-relaxed text-ink-100">{entry.offer.message}</p>
-                      <p className="mt-1 text-xs text-ink-500">
+                    <div className="mt-3 rounded-panel border border-optimal/30 bg-optimal/5 p-3">
+                      <p className="text-detail leading-relaxed text-ink-100">{entry.offer.message}</p>
+                      <p className="mt-1 text-micro text-ink-500">
                         Held for you until <span className="stat-mono">{entry.offer.holdsUntil.slice(11, 16)}</span>.
                         Nobody else can take it before then.
                       </p>

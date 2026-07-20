@@ -47,12 +47,12 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
             </span>
             <div className="min-w-0 flex-1 pt-1">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-                <p className="text-sm font-medium text-ink-100">{e.type}</p>
-                <time className="stat-mono text-[11px] text-ink-500">{formatDateTime(e.at)}</time>
+                <p className="text-body font-medium text-ink-100">{e.type}</p>
+                <time className="stat-mono text-micro text-ink-500">{formatDateTime(e.at)}</time>
               </div>
-              <p className="text-xs text-ink-400">{e.detail}</p>
+              <p className="text-detail text-ink-400">{e.detail}</p>
               {e.actorId && (
-                <p className="mt-0.5 text-[11px] text-ink-600">by {staffName(e.actorId)}</p>
+                <p className="mt-0.5 text-micro text-ink-600">by {staffName(e.actorId)}</p>
               )}
             </div>
           </li>

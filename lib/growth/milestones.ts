@@ -49,7 +49,7 @@ function monthsBetween(fromIso: string, toIso: string): number {
 /** ISO date exactly `months` after `fromIso`, for dating the anniversary itself. */
 function monthsAfter(fromIso: string, months: number): string {
   const d = absolute(fromIso.slice(0, 10) + "T00:00:00");
-  d.setMonth(d.getMonth() + months);
+  d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
 

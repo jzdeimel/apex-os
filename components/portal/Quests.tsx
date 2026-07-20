@@ -76,7 +76,7 @@ export function Quests({
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <SectionTitle>This week</SectionTitle>
-          <p className="mt-1 text-sm text-ink-400">
+          <p className="mt-1 text-detail text-ink-400">
             Three things, all of them yours to do. They reset Monday.
           </p>
         </div>
@@ -99,7 +99,7 @@ export function Quests({
       </div>
 
       {cleared === quests.length && (
-        <p className="text-sm text-optimal">
+        <p className="text-detail text-optimal">
           All three. That&rsquo;s the week — nothing else is owed.
         </p>
       )}
@@ -146,7 +146,7 @@ function QuestCard({
                 {quest.complete ? (
                   <Check className="h-5 w-5" style={{ color: quest.hex }} strokeWidth={2.5} />
                 ) : (
-                  <span className="stat-mono text-sm font-semibold text-ink-100">
+                  <span className="stat-mono text-detail font-semibold text-ink-100">
                     {quest.done}
                     <span className="text-ink-600">/{quest.target}</span>
                   </span>
@@ -156,26 +156,26 @@ function QuestCard({
           </RingCloseBurst>
 
           <div className="min-w-0 flex-1">
-            <p className="font-display text-sm font-semibold leading-snug text-ink-50">
+            <p className="font-display text-detail font-semibold leading-snug text-ink-50">
               {quest.title}
             </p>
-            <p className="mt-1 text-xs leading-snug text-ink-400">{quest.detail}</p>
+            <p className="mt-1 text-micro leading-snug text-ink-400">{quest.detail}</p>
           </div>
         </div>
 
         {/* Every quest can answer "why is this on my board?" with the member's
             own record — never with what anyone else is doing. */}
-        <p className="text-[11px] leading-snug text-ink-500">{quest.because}</p>
+        <p className="text-micro leading-snug text-ink-500">{quest.because}</p>
 
         {quest.holdsHarmless && !quest.complete && (
-          <p className="flex items-start gap-1.5 text-[11px] leading-snug text-ink-600">
+          <p className="flex items-start gap-1.5 text-micro leading-snug text-ink-600">
             <Shield className="mt-px h-3 w-3 shrink-0" />
             Days your provider paused you still count toward this.
           </p>
         )}
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="stat-mono text-[11px] text-gold-300">+{quest.xp} pts</span>
+          <span className="stat-mono text-micro text-gold-300">+{quest.xp} pts</span>
           {quest.complete ? (
             <Badge tone="optimal">
               <Check className="h-3 w-3" /> Done

@@ -13,7 +13,6 @@ import {
   Textarea,
   Input,
 } from "@/components/ui/primitives";
-import { FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import {
   EXCLUSION_LABEL,
@@ -93,14 +92,12 @@ export default function BroadcastPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-      <FadeIn>
         <p className="label-eyebrow">Operations</p>
-        <h1 className="font-display text-2xl font-semibold text-ink-50">Broadcast</h1>
-        <p className="mt-1 max-w-2xl text-sm text-ink-400">
+        <h1 className="font-display text-title font-semibold text-ink-50">Broadcast</h1>
+        <p className="mt-1 max-w-2xl text-body text-ink-400">
           Consent is evaluated before anything is composed. The number that keeps
           this clinic compliant is the excluded count, not the reach.
         </p>
-      </FadeIn>
 
       <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         {/* ---------------------------------------------------------------- */}
@@ -132,7 +129,7 @@ export default function BroadcastPage() {
                   ))}
                 </Select>
                 {segment && (
-                  <p className="mt-1.5 text-xs text-ink-400">
+                  <p className="mt-1.5 text-detail text-ink-400">
                     {segment.description} Natural scope:{" "}
                     <span className="text-ink-200">{SCOPE_LABEL[segment.naturalScope]}</span>.
                   </p>
@@ -181,9 +178,9 @@ export default function BroadcastPage() {
                   </Select>
                 </div>
               </div>
-              <p className="text-xs text-ink-500">{SCOPE_DESCRIPTION[scope]}</p>
+              <p className="text-detail text-ink-500">{SCOPE_DESCRIPTION[scope]}</p>
 
-              <div className="rounded-xl border border-ink-700/60 bg-ink-900/40 p-3 text-xs text-ink-400">
+              <div className="rounded-xl border border-ink-700/60 bg-ink-900/40 p-3 text-detail text-ink-400">
                 Clinic-wide, <span className="stat-mono text-ink-200">{reach.reachable}</span> of{" "}
                 <span className="stat-mono text-ink-200">{reach.total}</span> members
                 ({Math.round(reach.share * 100)}%) hold live {scope} consent on {channel}.
@@ -220,7 +217,7 @@ export default function BroadcastPage() {
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-ink-500">
+                <p className="mt-1.5 text-detail text-ink-500">
                   <span className="stat-mono">{body.length}</span> characters. Under
                   the clinical scope this may contain PHI; under operational or
                   marketing it must not.
@@ -237,18 +234,18 @@ export default function BroadcastPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="card p-4">
               <p className="label-eyebrow">Matched</p>
-              <p className="stat-mono mt-1 text-2xl text-ink-200">{preview.matched}</p>
-              <p className="mt-1 text-[11px] text-ink-500">Before any guard ran.</p>
+              <p className="stat-mono mt-1 text-title text-ink-200">{preview.matched}</p>
+              <p className="mt-1 text-micro text-ink-500">Before any guard ran.</p>
             </div>
             <div className="card border-optimal/30 p-4">
               <p className="label-eyebrow">Will receive</p>
-              <p className="stat-mono mt-1 text-2xl text-optimal">{preview.eligible.length}</p>
-              <p className="mt-1 text-[11px] text-ink-500">Consent verified per member.</p>
+              <p className="stat-mono mt-1 text-title text-optimal">{preview.eligible.length}</p>
+              <p className="mt-1 text-micro text-ink-500">Consent verified per member.</p>
             </div>
             <div className="card border-high/30 p-4">
               <p className="label-eyebrow">Excluded</p>
-              <p className="stat-mono mt-1 text-2xl text-high">{preview.excluded.length}</p>
-              <p className="mt-1 text-[11px] text-ink-500">
+              <p className="stat-mono mt-1 text-title text-high">{preview.excluded.length}</p>
+              <p className="mt-1 text-micro text-ink-500">
                 The number that keeps you compliant.
               </p>
             </div>
@@ -258,8 +255,8 @@ export default function BroadcastPage() {
             <div className="flex items-start gap-3 rounded-2xl border border-high/50 bg-high/[0.09] p-4">
               <Ban className="mt-0.5 h-5 w-5 shrink-0 text-high" />
               <div>
-                <p className="text-sm font-medium text-ink-50">Send blocked — scope mismatch</p>
-                <p className="mt-1 text-sm leading-relaxed text-ink-300">
+                <p className="text-body font-medium text-ink-50">Send blocked — scope mismatch</p>
+                <p className="mt-1 text-body leading-relaxed text-ink-300">
                   {preview.scopeMismatchDetail}
                 </p>
               </div>
@@ -273,7 +270,7 @@ export default function BroadcastPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {preview.exclusionBreakdown.length === 0 ? (
-                <p className="text-sm text-ink-400">
+                <p className="text-body text-ink-400">
                   Nobody in this segment is excluded on this channel and scope.
                 </p>
               ) : (
@@ -290,17 +287,17 @@ export default function BroadcastPage() {
                       className="focus-ring flex w-full items-center justify-between gap-3 rounded-xl p-3.5 text-left"
                     >
                       <span className="min-w-0">
-                        <span className="block text-sm text-ink-100">
+                        <span className="block text-body text-ink-100">
                           {EXCLUSION_LABEL[b.reason]}
                         </span>
-                        <span className="mt-0.5 block text-xs leading-relaxed text-ink-500">
+                        <span className="mt-0.5 block text-detail leading-relaxed text-ink-500">
                           {EXCLUSION_WHY[b.reason]}
                         </span>
                       </span>
-                      <span className="stat-mono shrink-0 text-lg text-high">{b.count}</span>
+                      <span className="stat-mono shrink-0 text-heading text-high">{b.count}</span>
                     </button>
                     {openReason === b.reason && (
-                      <ul className="max-h-56 overflow-y-auto border-t border-ink-700/60 px-3.5 py-2 text-xs">
+                      <ul className="max-h-56 overflow-y-auto border-t border-ink-700/60 px-3.5 py-2 text-detail">
                         {b.members.slice(0, 60).map((m) => (
                           <li
                             key={m.clientId}
@@ -325,7 +322,7 @@ export default function BroadcastPage() {
 
           <Card>
             <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 text-sm text-ink-400">
+              <div className="flex items-center gap-2 text-body text-ink-400">
                 <Users className="h-4 w-4 text-ink-500" />
                 {preview.canSend ? (
                   <span>
@@ -352,7 +349,7 @@ export default function BroadcastPage() {
           {result && (
             <div className="flex items-start gap-3 rounded-2xl border border-optimal/30 bg-optimal/[0.07] p-4">
               <Check className="mt-0.5 h-5 w-5 shrink-0 text-optimal" />
-              <div className="text-sm leading-relaxed text-ink-300">
+              <div className="text-body leading-relaxed text-ink-300">
                 <p className="font-medium text-ink-50">
                   Queued <span className="stat-mono">{result.sent}</span> messages.
                 </p>
@@ -376,7 +373,7 @@ export default function BroadcastPage() {
             </div>
           )}
 
-          <p className="text-xs leading-relaxed text-ink-500">
+          <p className="text-detail leading-relaxed text-ink-500">
             Nothing transmits in this build. Every message still goes through the
             single guarded send path individually, each with its own idempotency
             key, so a double-clicked send is a no-op rather than a double send.
@@ -392,12 +389,12 @@ export default function BroadcastPage() {
           {SEGMENTS.map((s) => (
             <div key={s.id} className="rounded-xl border border-ink-700/70 bg-ink-850/60 p-4">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium text-ink-100">{s.name}</p>
+                <p className="text-body font-medium text-ink-100">{s.name}</p>
                 <Badge tone={s.naturalScope === "marketing" ? "high" : "neutral"}>
                   {SCOPE_LABEL[s.naturalScope]}
                 </Badge>
               </div>
-              <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{s.description}</p>
+              <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{s.description}</p>
             </div>
           ))}
         </div>

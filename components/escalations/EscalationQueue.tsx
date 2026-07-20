@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { AlarmClock, AlertTriangle, CheckCircle2, Inbox, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import type { Escalation } from "@/lib/escalations/types";
 import { escalations as seedEscalations } from "@/lib/mock/escalations";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/lib/escalations/queue";
 import { staffName } from "@/lib/mock/staff";
 import { EscalationCard } from "@/components/escalations/EscalationCard";
-import { Stagger, StaggerItem, SwitchView } from "@/components/motion";
+import { SwitchView } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,30 +41,38 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: "answered", label: "Answered" },
 ];
 
+/**
+ * One figure in the SLA strip.
+ *
+ * Colour is spent only where it means risk. "Overdue" and "Urgent" carry it;
+ * "Open" is a workload number and "Answered" is good news, so both render in
+ * plain ink. Four coloured numbers side by side is four things shouting, which
+ * is the same as none of them shouting.
+ *
+ * The icons that used to sit beside each label are gone. They repeated what the
+ * word already said and put four unrelated glyphs on a strip that exists to be
+ * read as one row of numbers.
+ */
 function Tile({
   label,
   value,
   tone,
-  icon: Icon,
 }: {
   label: string;
   value: number;
-  tone: "neutral" | "high" | "watch" | "optimal";
-  icon: React.ElementType;
+  tone: "neutral" | "high" | "watch";
 }) {
   const tones = {
     neutral: "text-ink-100",
     high: "text-high",
     watch: "text-watch",
-    optimal: "text-optimal",
   } as const;
   return (
-    <div className="card p-3.5">
-      <div className="flex items-center gap-1.5">
-        <Icon className={cn("h-3.5 w-3.5", tones[tone])} />
-        <p className="label-eyebrow">{label}</p>
-      </div>
-      <p className={cn("stat-mono mt-1.5 text-2xl font-semibold", tones[tone])}>{value}</p>
+    <div className="min-w-0 px-3 py-2.5 sm:px-4">
+      <p className="label-eyebrow truncate">{label}</p>
+      <p className={cn("stat-mono mt-1 text-title font-semibold leading-none", tones[tone])}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -109,46 +117,59 @@ export function EscalationQueue() {
 
   return (
     <div className="space-y-5">
-      {/* ── Tiles ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="OPEN" value={open.length} tone="neutral" icon={Inbox} />
-        <Tile label="OVERDUE" value={overdue.length} tone="high" icon={AlertTriangle} />
-        <Tile label="URGENT" value={urgent.length} tone="watch" icon={AlarmClock} />
-        <Tile
-          label="ANSWERED / 7D"
-          value={weekAnswered.length}
-          tone="optimal"
-          icon={CheckCircle2}
-        />
+      {/* ── SLA strip ─────────────────────────────────────────────────────
+          One card divided into four, not four cards. Four separate bordered
+          boxes for four related numbers reads as a grid of equal things; a
+          single strip reads as one measurement with four parts. */}
+      <div className="card grid grid-cols-2 divide-x divide-y divide-ink-800/60 sm:grid-cols-4 sm:divide-y-0">
+        <Tile label="OPEN" value={open.length} tone="neutral" />
+        <Tile label="OVERDUE" value={overdue.length} tone="high" />
+        <Tile label="URGENT" value={urgent.length} tone="watch" />
+        <Tile label="ANSWERED / 7D" value={weekAnswered.length} tone="neutral" />
       </div>
 
-      {/* ── Filters ───────────────────────────────────────────────────────── */}
-      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-        {FILTERS.map((f) => {
-          const active = filter === f.id;
-          return (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                "relative shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-ring",
-                active ? "text-ink-950" : "text-ink-400 hover:text-ink-100",
-              )}
-            >
-              {active && (
-                <motion.span
-                  layoutId="escalation-filter"
-                  className="absolute inset-0 rounded-full bg-gold-500"
-                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                />
-              )}
-              <span className="relative z-10">
-                {f.label}
-                <span className="stat-mono ml-1.5 opacity-70">{counts[f.id]}</span>
-              </span>
-            </button>
-          );
-        })}
+      {/* ── Filters ─────────────────────────────────────────────────────────
+          The row scrolls at 390px, where five chips cannot fit. It always did —
+          but it clipped flush at the viewport edge with no cue, so the last chip
+          ended mid-word and nothing suggested there was more to reach. The
+          fade on the right edge is the affordance: it says the row continues.
+          It is masked out at `sm` and up, where every chip already fits and a
+          gradient over the last one would be a lie. */}
+      <div className="relative">
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map((f) => {
+            const active = filter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  // `rounded-control`, not `rounded-full` — these are things a
+                  // finger acts on, and the house rule reserves the capsule for
+                  // avatars and status dots.
+                  "relative shrink-0 rounded-control px-3 py-1.5 text-detail font-medium transition-colors focus-ring",
+                  active ? "text-ink-950" : "text-ink-400 hover:text-ink-100",
+                )}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="escalation-filter"
+                    className="absolute inset-0 rounded-control bg-gold-500"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">
+                  {f.label}
+                  <span className="stat-mono ml-1.5 opacity-70">{counts[f.id]}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-ink-950 to-transparent sm:hidden"
+        />
       </div>
 
       {/* ── The queue ─────────────────────────────────────────────────────── */}
@@ -156,13 +177,13 @@ export function EscalationQueue() {
         {visible.length === 0 ? (
           <EmptyQueue filter={filter} />
         ) : (
-          <Stagger className="space-y-3">
+          <div className="space-y-3">
             {visible.map((e) => (
-              <StaggerItem key={e.id}>
+              <div key={e.id}>
                 <EscalationCard escalation={e} onChange={update} />
-              </StaggerItem>
+              </div>
             ))}
-          </Stagger>
+          </div>
         )}
       </SwitchView>
     </div>
@@ -202,8 +223,8 @@ function EmptyQueue({ filter }: { filter: FilterId }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-optimal/25 bg-optimal/[0.04] px-6 py-12 text-center">
       <ShieldCheck className="mb-3 h-6 w-6 text-optimal" />
-      <p className="text-sm font-medium text-ink-100">{title}</p>
-      <p className="mt-1 max-w-md text-xs text-ink-500">{hint}</p>
+      <p className="text-body font-medium text-ink-100">{title}</p>
+      <p className="mt-1 max-w-md text-detail text-ink-500">{hint}</p>
     </div>
   );
 }

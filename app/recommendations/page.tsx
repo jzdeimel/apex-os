@@ -293,10 +293,10 @@ export default function RecommendationsPage() {
     <div className="space-y-5">
       <div>
         <p className="label-eyebrow">Review queue · licensed provider signature required</p>
-        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-50">
+        <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50 sm:text-display">
           Recommendations
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-ink-400">
+        <p className="mt-1 max-w-2xl text-body text-ink-400">
           Every row below is a rule firing on this patient&apos;s labs, symptoms and goals. Nothing
           here is a prescription and nothing carries a dose — a provider decides what happens next,
           and that decision is written to the ledger.
@@ -339,7 +339,7 @@ export default function RecommendationsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-700 px-3 py-1.5 text-xs text-ink-300">
+          <label className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-700 px-3 py-1.5 text-detail text-ink-300">
             <input
               type="checkbox"
               checked={flaggedOnly}
@@ -358,8 +358,8 @@ export default function RecommendationsPage() {
       <div className="rounded-2xl border border-ink-700/70 bg-ink-900/40 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-100">Batch signature</p>
-            <p className="mt-0.5 text-xs text-ink-500">
+            <p className="text-body font-medium text-ink-100">Batch signature</p>
+            <p className="mt-0.5 text-detail text-ink-500">
               Signing ten things at once should not be easier than signing one. This requires an
               explicit attestation.
             </p>
@@ -388,7 +388,7 @@ export default function RecommendationsPage() {
 
         {bulkOpen && (
           <div className="mt-4 animate-fade-in space-y-3 rounded-xl border border-gold-400/25 bg-gold-400/[0.05] p-4">
-            <p className="text-sm text-ink-100">
+            <p className="text-body text-ink-100">
               You are about to sign{" "}
               <span className="stat-mono font-semibold text-gold-300">{bulkTargets.length}</span>{" "}
               recommendations across{" "}
@@ -397,7 +397,7 @@ export default function RecommendationsPage() {
             </p>
 
             {bulkExcluded.length > 0 && (
-              <div className="rounded-lg border border-high/30 bg-high/10 px-3 py-2 text-xs leading-relaxed text-high">
+              <div className="rounded-lg border border-high/30 bg-high/10 px-3 py-2 text-detail leading-relaxed text-high">
                 <span className="stat-mono font-semibold">{bulkExcluded.length}</span> more in this
                 filter carry a blocking interaction or contraindication finding and have been left
                 OUT of this batch. Those must be acknowledged individually — a batch tick cannot
@@ -409,7 +409,7 @@ export default function RecommendationsPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-xs",
+                  "rounded-lg border px-3 py-2 text-detail",
                   bulkFlagged.length > 0
                     ? "border-high/30 bg-high/10 text-high"
                     : "border-ink-700 bg-ink-900/50 text-ink-400",
@@ -418,7 +418,7 @@ export default function RecommendationsPage() {
                 <span className="stat-mono font-semibold">{bulkFlagged.length}</span> in this batch
                 have a FAILED contraindication check
               </div>
-              <div className="rounded-lg border border-ink-700 bg-ink-900/50 px-3 py-2 text-xs text-ink-400">
+              <div className="rounded-lg border border-ink-700 bg-ink-900/50 px-3 py-2 text-detail text-ink-400">
                 <span className="stat-mono font-semibold text-watch">{bulkHighRisk.length}</span> are
                 moderate or high risk
               </div>
@@ -431,7 +431,7 @@ export default function RecommendationsPage() {
                   {bulkFlagged.slice(0, 6).map((r) => {
                     const c = getClient(r.clientId);
                     return (
-                      <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 text-detail">
                         <Link
                           href={c ? `/clients/${c.id}` : "#"}
                           className="font-medium text-ink-100 hover:text-gold-300"
@@ -445,13 +445,13 @@ export default function RecommendationsPage() {
                     );
                   })}
                   {bulkFlagged.length > 6 && (
-                    <li className="text-xs text-ink-500">+{bulkFlagged.length - 6} more</li>
+                    <li className="text-detail text-ink-500">+{bulkFlagged.length - 6} more</li>
                   )}
                 </ul>
               </div>
             )}
 
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-ink-200">
+            <label className="flex cursor-pointer items-start gap-2.5 text-body text-ink-200">
               <input
                 type="checkbox"
                 checked={bulkAck}
@@ -478,7 +478,7 @@ export default function RecommendationsPage() {
       </div>
 
       {role !== "Medical" && (
-        <p className="text-xs text-ink-500">
+        <p className="text-detail text-ink-500">
           You are viewing as <span className="text-ink-300">{role}</span>. Approval is restricted to
           the <span className="text-gold-300">Medical</span> role (top bar). You may still decline
           and annotate.
@@ -507,7 +507,7 @@ export default function RecommendationsPage() {
         </div>
       )}
 
-      <p className="text-[11px] text-ink-600">
+      <p className="text-micro text-ink-600">
         Queue spans {locations.length} locations. Every recommendation is AI-assisted, category-level
         only, and requires review and approval by a licensed provider before any clinical action.
       </p>
@@ -550,10 +550,10 @@ function QueueStat({
           {icon}
         </span>
       </div>
-      <span className="stat-mono mt-3 font-display text-2xl font-bold text-ink-50 sm:text-3xl">
+      <span className="stat-mono mt-3 font-display text-title font-bold text-ink-50">
         {value}
       </span>
-      <span className="mt-1 text-xs text-ink-500">{hint}</span>
+      <span className="mt-1 text-detail text-ink-500">{hint}</span>
     </div>
   );
 }
@@ -635,16 +635,16 @@ function DecisionCard({
           {client && (
             <Link
               href={`/clients/${client.id}`}
-              className="mt-2 block truncate font-display text-base font-semibold text-ink-50 hover:text-gold-300"
+              className="mt-2 block truncate font-display text-heading font-semibold text-ink-50 hover:text-gold-300"
             >
               {clientName(client)}
-              <span className="ml-2 text-xs font-normal text-ink-400">
+              <span className="ml-2 text-detail font-normal text-ink-400">
                 {client.age}
                 {client.sex === "male" ? "M" : "F"} · {client.mrn}
               </span>
             </Link>
           )}
-          <p className="mt-0.5 text-[11px] text-ink-500">
+          <p className="mt-0.5 text-micro text-ink-500">
             Generated {formatDate(rec.generatedOn)} · {rule ? rule.id : "rule unresolved"}
           </p>
         </div>
@@ -661,7 +661,7 @@ function DecisionCard({
             <span className="label-eyebrow">Evidence on file</span>
             <WhyButton onClick={() => setWhy(true)} label="Provenance" />
           </div>
-          <div className="mt-2 space-y-2 rounded-xl border border-ink-800 bg-ink-900/40 p-3 text-xs">
+          <div className="mt-2 space-y-2 rounded-xl border border-ink-800 bg-ink-900/40 p-3 text-detail">
             {rec.supporting.labs.length > 0 && (
               <div className="flex items-start gap-2">
                 <FlaskConical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-watch" />
@@ -710,7 +710,7 @@ function DecisionCard({
             ))}
           </div>
           {rule && (
-            <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+            <p className="mt-2 text-micro leading-relaxed text-ink-500">
               <span className="text-ink-400">Rule:</span> {rule.triggerSummary}
             </p>
           )}
@@ -719,13 +719,13 @@ function DecisionCard({
         {/* -------- 2. THE PROPOSAL -------------------------------------- */}
         <section className="rounded-xl border border-ink-800 bg-ink-900/40 p-3">
           <span className="label-eyebrow">Proposal</span>
-          <h3 className="mt-1.5 font-display text-sm font-semibold text-ink-50">{rec.title}</h3>
-          <p className="mt-1 text-xs leading-relaxed text-ink-300">{rec.rationale}</p>
+          <h3 className="mt-1.5 font-display text-body font-semibold text-ink-50">{rec.title}</h3>
+          <p className="mt-1 text-detail leading-relaxed text-ink-300">{rec.rationale}</p>
 
           <div className="mt-3 space-y-1.5">
             <span className="label-eyebrow">Candidate options (no dosing)</span>
             {rec.candidates.map((c) => (
-              <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+              <div key={c.name} className="flex items-center justify-between gap-2 text-detail">
                 <span className="flex min-w-0 items-center gap-2 text-ink-200">
                   <PeptideIcon name={c.name} size="xs" />
                   <span className="truncate">{c.name}</span>
@@ -745,7 +745,7 @@ function DecisionCard({
             ))}
           </div>
 
-          <p className="mt-3 text-xs text-ink-400">
+          <p className="mt-3 text-detail text-ink-400">
             <span className="font-medium text-ink-200">Suggested next step: </span>
             {rec.suggestedNextStep}
           </p>
@@ -766,7 +766,7 @@ function DecisionCard({
           </div>
           <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {rec.contraindicationChecks.map((c) => (
-              <div key={c.label} className="flex items-start gap-2 text-xs">
+              <div key={c.label} className="flex items-start gap-2 text-detail">
                 {c.passed ? (
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-optimal" />
                 ) : (
@@ -779,7 +779,7 @@ function DecisionCard({
             ))}
           </div>
           {failed.length > 0 && (
-            <p className="mt-2 text-[11px] font-medium text-high">
+            <p className="mt-2 text-micro font-medium text-high">
               {failed.length} check(s) failed. Approving overrides them and that override is recorded
               against your name.
             </p>
@@ -805,7 +805,7 @@ function DecisionCard({
         <section className="rounded-xl border border-ink-800 bg-ink-900/40 p-3">
           <div className="flex items-baseline justify-between">
             <span className="label-eyebrow">Confidence</span>
-            <span className="stat-mono text-sm font-semibold text-ink-100">{confidencePct}%</span>
+            <span className="stat-mono text-body font-semibold text-ink-100">{confidencePct}%</span>
           </div>
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-ink-700">
             <div
@@ -818,7 +818,7 @@ function DecisionCard({
           </div>
           <ul className="mt-2 space-y-1">
             {basis.map((b, i) => (
-              <li key={i} className="flex gap-2 text-[11px] text-ink-400">
+              <li key={i} className="flex gap-2 text-micro text-ink-400">
                 <span className="text-ink-600">·</span>
                 <span>{b}</span>
               </li>
@@ -834,7 +834,7 @@ function DecisionCard({
             onChange={(e) => setReason(e.target.value)}
             rows={2}
             placeholder="Reason (optional on approve, recommended on decline) — written to the ledger row."
-            className="mt-2 text-xs"
+            className="mt-2 text-detail"
           />
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <Button
@@ -899,7 +899,7 @@ function DecisionCard({
             </Button>
           </div>
           {decided && (
-            <p className="mt-2 text-[11px] text-ink-500">
+            <p className="mt-2 text-micro text-ink-500">
               A decision is recorded for this row. Changing it appends a new ledger entry; it does
               not rewrite the old one.
             </p>

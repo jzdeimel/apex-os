@@ -68,7 +68,7 @@ export default function SchedulePage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="label-eyebrow">Team schedule · week of Jun 8–14, 2026</p>
-          <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
+          <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
               <CalendarDays className="h-5 w-5" />
             </span>
@@ -92,9 +92,9 @@ export default function SchedulePage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[760px] text-body">
               <thead>
-                <tr className="border-b border-ink-800 text-[11px] uppercase tracking-wider text-ink-500">
+                <tr className="border-b border-ink-800 text-micro uppercase tracking-wider text-ink-500">
                   <th className="px-4 py-2.5 text-left font-medium">Staff</th>
                   {WEEK_DATES.map((d, i) => (
                     <th
@@ -102,7 +102,7 @@ export default function SchedulePage() {
                       className={cn("px-2 py-2.5 text-center font-medium", d === TODAY && "text-gold-300")}
                     >
                       {WEEK_LABELS[i]}
-                      <span className="block text-[10px] font-normal text-ink-600">{d.slice(8)}</span>
+                      <span className="block text-micro font-normal text-ink-600">{d.slice(8)}</span>
                     </th>
                   ))}
                 </tr>
@@ -116,9 +116,9 @@ export default function SchedulePage() {
                     <tr key={s.id} className="hover:bg-ink-850/50">
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2.5">
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-800 text-[11px] font-semibold text-ink-200">{s.avatarInitials}</span>
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-800 text-micro font-semibold text-ink-200">{s.avatarInitials}</span>
                           <div className="min-w-0">
-                            <span className="block truncate text-xs font-medium text-ink-100">{s.name}</span>
+                            <span className="block truncate text-detail font-medium text-ink-100">{s.name}</span>
                             <Badge tone={ROLE_TONE[s.role]}>{s.role}</Badge>
                           </div>
                         </div>
@@ -127,8 +127,8 @@ export default function SchedulePage() {
                         <td key={i} className={cn("px-2 py-2.5 text-center", WEEK_DATES[i] === TODAY && "bg-gold-400/[0.04]")}>
                           {sh ? (
                             <div className="mx-auto w-fit rounded-md border border-ink-700 bg-ink-900/60 px-2 py-1">
-                              <span className="block stat-mono text-[11px] text-ink-100">{sh.start}–{sh.end}</span>
-                              <span className="block text-[9px] text-ink-500">{locationName(sh.locationId)}</span>
+                              <span className="block stat-mono text-micro text-ink-100">{sh.start}–{sh.end}</span>
+                              <span className="block text-micro text-ink-500">{locationName(sh.locationId)}</span>
                             </div>
                           ) : (
                             <span className="text-ink-700">·</span>
@@ -147,15 +147,19 @@ export default function SchedulePage() {
       {/* Day detail + coverage */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex items-center justify-between">
+          {/* The day switcher shares this row with the title only once there is
+              room for both. At 390px seven labels and a heading cannot fit on
+              one line, so the header stacks and the switcher gets the full
+              width; it stays scrollable below that as a floor. */}
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Day detail</CardTitle>
-            <div className="flex gap-1">
+            <div className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {WEEK_DATES.map((d, i) => (
                 <button
                   key={d}
                   onClick={() => setSelectedDate(d)}
                   className={cn(
-                    "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                    "shrink-0 rounded-control px-2 py-1 text-detail font-medium transition-colors",
                     selectedDate === d ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
                   )}
                 >
@@ -173,11 +177,11 @@ export default function SchedulePage() {
                   const member = staffMap[sh.staffId];
                   return (
                     <div key={sh.id} className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
-                      <span className="w-24 shrink-0 stat-mono text-xs text-ink-300">{sh.start}–{sh.end}</span>
+                      <span className="w-24 shrink-0 stat-mono text-detail text-ink-300">{sh.start}–{sh.end}</span>
                       <span className="h-8 w-px bg-ink-800" />
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-ink-100">{member?.name}</span>
-                        <span className="text-[11px] text-ink-500">{member?.role}{member?.credentials ? ` · ${member.credentials}` : ""}</span>
+                        <span className="block truncate text-body font-medium text-ink-100">{member?.name}</span>
+                        <span className="text-micro text-ink-500">{member?.role}{member?.credentials ? ` · ${member.credentials}` : ""}</span>
                       </div>
                       <Badge tone="neutral"><MapPin className="h-3 w-3" /> {locationName(sh.locationId)}</Badge>
                     </div>
@@ -201,21 +205,21 @@ export default function SchedulePage() {
               return (
                 <div key={l.id} className="rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-ink-100">{l.short}</span>
+                    <span className="text-body font-medium text-ink-100">{l.short}</span>
                     {covered ? (
                       <Badge tone="optimal"><CheckCircle2 className="h-3 w-3" /> Covered</Badge>
                     ) : (
                       <Badge tone="high"><AlertTriangle className="h-3 w-3" /> Gap</Badge>
                     )}
                   </div>
-                  <p className="mt-0.5 text-[11px] text-ink-500">
+                  <p className="mt-0.5 text-micro text-ink-500">
                     {onShift.length} on shift ({provs} provider) · {apptCount} appt(s)
                   </p>
                 </div>
               );
             })}
             {gaps.length > 0 && (
-              <p className="text-[11px] text-high">
+              <p className="text-micro text-high">
                 {gaps.length} appointment(s) at a location with no provider on shift — review staffing.
               </p>
             )}
@@ -223,7 +227,7 @@ export default function SchedulePage() {
         </Card>
       </div>
 
-      <p className="text-[11px] text-ink-600">
+      <p className="text-micro text-ink-600">
         Demo schedule. Apex owns staff calendars natively — there is no external calendar to reconcile against. Times shown in clinic-local time.
       </p>
     </div>

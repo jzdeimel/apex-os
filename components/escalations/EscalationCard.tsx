@@ -157,7 +157,7 @@ export function EscalationCard({
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/clients/${client.id}`}
-              className="truncate rounded text-sm font-medium text-ink-50 hover:text-gold-300 focus-ring"
+              className="truncate rounded text-body font-medium text-ink-50 hover:text-gold-300 focus-ring"
             >
               {clientName(client)}
             </Link>
@@ -180,7 +180,7 @@ export function EscalationCard({
             )}
           </div>
 
-          <p className="mt-1 text-[11px] text-ink-500">
+          <p className="mt-1 text-micro text-ink-500">
             Raised by {staffName(escalation.raisedByStaffId)} ·{" "}
             <span className="stat-mono">{formatDateTime(escalation.raisedAt)}</span> ·{" "}
             <span className="stat-mono">{relativeDays(escalation.raisedAt)}</span>
@@ -201,10 +201,10 @@ export function EscalationCard({
         >
           <ClockIcon className={["h-4 w-4", style.text].join(" ")} />
           <div className="leading-tight">
-            <p className={["stat-mono text-sm font-semibold", style.text].join(" ")}>
+            <p className={["stat-mono text-body font-semibold", style.text].join(" ")}>
               {formatSla(escalation, NOW)}
             </p>
-            <p className="text-[10px] text-ink-500">
+            <p className="text-micro text-ink-500">
               {resolved ? (
                 <>by {staffName(escalation.answeredByStaffId)}</>
               ) : (
@@ -216,17 +216,17 @@ export function EscalationCard({
       </div>
 
       {/* ── The coach's question ──────────────────────────────────────────── */}
-      <p className="mt-3 text-sm leading-relaxed text-ink-200">{escalation.question}</p>
+      <p className="mt-3 text-body leading-relaxed text-ink-200">{escalation.question}</p>
 
       {/* ── The source it came from ───────────────────────────────────────── */}
       <figure className="mt-3 rounded-lg border-l-2 border-gold-400/50 bg-ink-900/50 px-3 py-2">
         <div className="flex items-start gap-2">
           <Quote className="mt-0.5 h-3 w-3 shrink-0 text-gold-400/70" />
-          <blockquote className="min-w-0 text-[13px] italic leading-relaxed text-ink-300">
+          <blockquote className="min-w-0 text-detail italic leading-relaxed text-ink-300">
             &ldquo;{escalation.sourceQuote}&rdquo;
           </blockquote>
         </div>
-        <figcaption className="mt-1.5 pl-5 text-[10px] text-ink-500">
+        <figcaption className="mt-1.5 pl-5 text-micro text-ink-500">
           Member&rsquo;s own words, from consult{" "}
           <span className="stat-mono">{escalation.sourceConsultId ?? "—"}</span>
         </figcaption>
@@ -237,17 +237,17 @@ export function EscalationCard({
         <div className="mt-3 rounded-lg border border-optimal/25 bg-optimal/[0.06] p-3">
           <div className="flex items-center gap-2">
             <Stethoscope className="h-3.5 w-3.5 text-optimal" />
-            <p className="text-[11px] font-medium text-optimal">
+            <p className="text-micro font-medium text-optimal">
               {staffName(escalation.answeredByStaffId)}
               {staffMap[escalation.answeredByStaffId ?? ""]?.credentials
                 ? `, ${staffMap[escalation.answeredByStaffId ?? ""].credentials}`
                 : ""}
             </p>
-            <span className="stat-mono text-[10px] text-ink-500">
+            <span className="stat-mono text-micro text-ink-500">
               {formatDateTime(escalation.answeredAt)}
             </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-200">{escalation.answer}</p>
+          <p className="mt-1.5 text-body leading-relaxed text-ink-200">{escalation.answer}</p>
         </div>
       )}
 
@@ -295,7 +295,7 @@ export function EscalationCard({
                 <Stethoscope className="h-3.5 w-3.5" />
                 Answer
               </Button>
-              <span className="text-[10px] text-ink-500">
+              <span className="text-micro text-ink-500">
                 Assigned to {staffName(escalation.assignedToStaffId)}
               </span>
             </div>

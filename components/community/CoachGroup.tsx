@@ -193,14 +193,14 @@ export function CoachGroup({
       {/* ── Host ───────────────────────────────────────────────────────── */}
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-400/15 font-display text-sm font-semibold text-gold-200">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-400/15 font-display text-body font-semibold text-gold-200">
             {coach?.avatarInitials ?? "AH"}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-lg font-semibold tracking-tight text-ink-50">
+            <h3 className="font-display text-heading font-semibold tracking-tight text-ink-50">
               {group.name}
             </h3>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-400">
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink-400">
               <span>
                 Hosted by {coach?.name ?? staffName(group.coachId)}
                 {coach?.credentials ? `, ${coach.credentials}` : ""}
@@ -210,10 +210,10 @@ export function CoachGroup({
                 Moderator
               </Badge>
             </p>
-            <p className="mt-2.5 max-w-prose text-sm leading-relaxed text-ink-400">
+            <p className="mt-2.5 max-w-prose text-body leading-relaxed text-ink-400">
               {group.charter}
             </p>
-            <p className="mt-2 text-[11px] text-ink-500">
+            <p className="mt-2 text-micro text-ink-500">
               <span className="stat-mono">{group.memberCount}</span> members · you post as{" "}
               <span className="text-ink-300">{myHandle}</span>
             </p>
@@ -238,7 +238,7 @@ export function CoachGroup({
           />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-[11px] text-ink-500">
+            <p className="flex items-center gap-1.5 text-micro text-ink-500">
               <Shield className="h-3 w-3" />
               Medication and lab questions get routed to your provider, not posted.
             </p>
@@ -254,36 +254,36 @@ export function CoachGroup({
           {blocked && preview && (
             <FadeIn y={6}>
               <div className="rounded-xl border border-watch/35 bg-watch/[0.07] p-4">
-                <p className="flex items-center gap-2 text-sm font-medium text-watch">
+                <p className="flex items-center gap-2 text-body font-medium text-watch">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   Let&apos;s get this to the right person
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-ink-300">{blocked.reason}</p>
+                <p className="mt-2 text-body leading-relaxed text-ink-300">{blocked.reason}</p>
 
                 {blocked.matched && blocked.matched.length > 0 && (
                   // Shown, not hidden. Opacity here just teaches people to
                   // guess at the filter and word around it.
-                  <p className="mt-2 text-[11px] text-ink-500">
+                  <p className="mt-2 text-micro text-ink-500">
                     Flagged: {blocked.matched.join(" · ")}
                   </p>
                 )}
 
                 <div className="mt-3 rounded-lg bg-ink-900/70 p-3">
                   <p className="label-eyebrow">Send instead to</p>
-                  <p className="mt-1 text-sm text-ink-100">
+                  <p className="mt-1 text-body text-ink-100">
                     {staffName(me.providerId)} · {blocked.suggestedEscalation?.kind}
                   </p>
-                  <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-400">
+                  <p className="mt-1.5 flex items-center gap-1.5 text-micro text-ink-400">
                     <Clock className="h-3 w-3" />
                     <span className="stat-mono">{preview.priority}</span>
                     <span aria-hidden>·</span>
                     answer due within{" "}
                     <span className="stat-mono">{SLA_HOURS[preview.priority]}h</span>
                   </p>
-                  <p className="mt-2 border-l-2 border-ink-700 pl-2.5 text-xs italic leading-relaxed text-ink-400">
+                  <p className="mt-2 border-l-2 border-ink-700 pl-2.5 text-detail italic leading-relaxed text-ink-400">
                     &ldquo;{draft.trim()}&rdquo;
                   </p>
-                  <p className="mt-2 text-[11px] text-ink-500">
+                  <p className="mt-2 text-micro text-ink-500">
                     Sent exactly as you wrote it. Nothing gets posted to the group.
                   </p>
                 </div>
@@ -304,7 +304,7 @@ export function CoachGroup({
             <FadeIn y={6}>
               <div className="flex items-start gap-2.5 rounded-xl border border-optimal/30 bg-optimal/[0.07] p-3.5">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
-                <p className="text-sm leading-relaxed text-ink-200">
+                <p className="text-body leading-relaxed text-ink-200">
                   On {staffName(me.providerId)}&apos;s desk with a clock on it —{" "}
                   <span className="stat-mono">{routed}</span>. You&apos;ll get the answer in
                   Messages.
@@ -335,7 +335,7 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
         <div className="flex items-start gap-3">
           <span
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-xs font-semibold",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-detail font-semibold",
               isCoach ? "bg-gold-400/20 text-gold-200" : "bg-ink-700/70 text-ink-200",
             )}
           >
@@ -343,7 +343,7 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-ink-100">{post.handle}</span>
+              <span className="text-body font-medium text-ink-100">{post.handle}</span>
               {isCoach && (
                 <Badge tone="gold">
                   <ShieldCheck className="h-3 w-3" />
@@ -351,9 +351,9 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
                 </Badge>
               )}
               {post.handle === myHandle && !isCoach && <Badge tone="neutral">You</Badge>}
-              <span className="text-[11px] text-ink-500">{formatDateTime(post.postedAt)}</span>
+              <span className="text-micro text-ink-500">{formatDateTime(post.postedAt)}</span>
             </p>
-            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-300">
+            <p className="mt-2 whitespace-pre-line text-body leading-relaxed text-ink-300">
               {post.body}
             </p>
 
@@ -361,7 +361,7 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
               onClick={() => setCheered((c) => !c)}
               aria-pressed={cheered}
               className={cn(
-                "mt-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors focus-ring",
+                "mt-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-micro transition-colors focus-ring",
                 cheered
                   ? "border-optimal/30 bg-optimal/12 text-optimal"
                   : "border-ink-700 text-ink-400 hover:text-ink-100",
@@ -376,18 +376,18 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
                 {post.replies.map((r) => (
                   <div key={r.id}>
                     <p className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium text-ink-200">{r.handle}</span>
+                      <span className="text-detail font-medium text-ink-200">{r.handle}</span>
                       {r.author === "coach" && (
                         <Badge tone="gold">
                           <ShieldCheck className="h-3 w-3" />
                           Coach
                         </Badge>
                       )}
-                      <span className="text-[11px] text-ink-500">
+                      <span className="text-micro text-ink-500">
                         {formatDateTime(r.postedAt)}
                       </span>
                     </p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-400">{r.body}</p>
+                    <p className="mt-1 text-body leading-relaxed text-ink-400">{r.body}</p>
                   </div>
                 ))}
               </div>

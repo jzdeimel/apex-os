@@ -50,10 +50,10 @@ export function Term({
       label={`What ${entry.term} means`}
       content={
         <div className="space-y-2">
-          <p className="font-display text-sm font-semibold text-ink-50">
+          <p className="font-display text-body font-semibold text-ink-50">
             {entry.term}
             {entry.unit && (
-              <span className="ml-1.5 stat-mono text-[11px] font-normal text-ink-500">
+              <span className="ml-1.5 stat-mono text-micro font-normal text-ink-500">
                 {entry.unit}
               </span>
             )}

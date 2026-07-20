@@ -18,7 +18,7 @@ import * as React from "react";
 import { Check, Copy, Gift, Link2, Share2 } from "lucide-react";
 
 import { Card, CardContent, Badge, Button, Progress, EmptyState } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
+import { Stagger, StaggerItem, FadeIn } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { cn, currency, formatDate } from "@/lib/utils";
 import { ME } from "@/components/portal/PortalHeader";
@@ -93,12 +93,12 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
       {/* The code. One job, big, first.                                   */}
       {/* ---------------------------------------------------------------- */}
       <FadeIn>
-        <div className="relative overflow-hidden rounded-3xl border border-gold-400/25 bg-gradient-to-br from-gold-500/12 via-gold-500/[0.04] to-transparent px-5 py-7 sm:px-8 sm:py-9">
+        <div className="relative overflow-hidden rounded-panel border border-gold-400/25 bg-gradient-to-br from-gold-500/12 via-gold-500/[0.04] to-transparent px-5 py-7 sm:px-8 sm:py-9">
           <p className="label-eyebrow">Your code</p>
-          <p className="stat-mono mt-3 break-all text-3xl font-semibold tracking-tight text-ink-50 sm:text-4xl">
+          <p className="stat-mono mt-3 break-all text-display font-semibold tracking-tight text-ink-50 sm:text-display">
             {code}
           </p>
-          <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">
+          <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">
             Give it to anyone you think we could actually help. They get{" "}
             <span className="stat-mono text-ink-100">{dollars(REFEREE_REWARD_CENTS)}</span> off their
             first visit, you get{" "}
@@ -117,7 +117,7 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
             </Button>
             <Button variant="ghost" size="md" onClick={() => copy("link")}>
               <Link2 className="h-4 w-4" />
-              <span className="stat-mono text-xs">{link}</span>
+              <span className="stat-mono text-micro">{link}</span>
             </Button>
           </div>
         </div>
@@ -130,19 +130,19 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
         <Card className="lg:col-span-1">
           <CardContent className="p-5 sm:p-6">
             <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold-400/15 text-gold-300">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-panel bg-gold-400/15 text-gold-300">
                 <Gift className="h-4 w-4" />
               </span>
-              <h2 className="font-display text-lg font-semibold text-ink-50">Your credit</h2>
+              <h2 className="font-display text-heading font-semibold text-ink-50">Your credit</h2>
             </div>
 
-            <p className="stat-mono mt-4 text-3xl font-semibold text-ink-50">
+            <p className="stat-mono mt-4 text-display font-semibold text-ink-50">
               {dollars(earnings.earnedCents)}
             </p>
-            <p className="mt-1 text-sm text-ink-400">applied to your account</p>
+            <p className="mt-1 text-detail text-ink-400">applied to your account</p>
 
             {earnings.pendingCents > 0 && (
-              <p className="mt-3 rounded-xl border border-gold-400/20 bg-gold-400/[0.06] p-3 text-[13px] leading-relaxed text-ink-300">
+              <p className="mt-3 rounded-panel border border-gold-400/20 bg-gold-400/[0.06] p-3 text-detail leading-relaxed text-ink-300">
                 <span className="stat-mono text-gold-300">{dollars(earnings.pendingCents)}</span> more
                 is on its way — someone you invited has joined and we&rsquo;re applying it at your next
                 bill. You don&rsquo;t need to do anything.
@@ -153,7 +153,7 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
               <p className="label-eyebrow">How it works</p>
               <ul className="space-y-1.5">
                 {REWARD_RULES.map((rule) => (
-                  <li key={rule} className="flex gap-2 text-[13px] leading-relaxed text-ink-400">
+                  <li key={rule} className="flex gap-2 text-detail leading-relaxed text-ink-400">
                     <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-ink-600" />
                     <span>{rule}</span>
                   </li>
@@ -165,8 +165,8 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
 
         <Card className="lg:col-span-2">
           <CardContent className="p-5 sm:p-6">
-            <h2 className="font-display text-lg font-semibold text-ink-50">Where your invites got to</h2>
-            <p className="mt-1 text-sm text-ink-400">
+            <h2 className="font-display text-heading font-semibold text-ink-50">Where your invites got to</h2>
+            <p className="mt-1 text-detail text-ink-400">
               {sent === 0
                 ? "Nothing sent yet — this fills in on its own once you share your code."
                 : "Yours only. We don't show you anything about their care, and we never will."}
@@ -176,8 +176,8 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
               {funnel.map((stage) => (
                 <div key={stage.stage}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm text-ink-300">{stage.label}</span>
-                    <span className="stat-mono text-sm text-ink-100">{stage.count}</span>
+                    <span className="text-detail text-ink-300">{stage.label}</span>
+                    <span className="stat-mono text-detail text-ink-100">{stage.count}</span>
                   </div>
                   <Progress
                     className="mt-1.5"
@@ -195,7 +195,7 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
       {/* The rows                                                          */}
       {/* ---------------------------------------------------------------- */}
       <section className="space-y-3">
-        <h2 className="font-display text-lg font-semibold text-ink-50">Everyone you&rsquo;ve invited</h2>
+        <h2 className="font-display text-heading font-semibold text-ink-50">Everyone you&rsquo;ve invited</h2>
 
         {rows.length === 0 ? (
           <EmptyState
@@ -214,18 +214,18 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           {/* refereeLabel is the only path to a name. */}
-                          <p className="truncate text-sm font-medium text-ink-50">{refereeLabel(r)}</p>
+                          <p className="truncate text-detail font-medium text-ink-50">{refereeLabel(r)}</p>
                           <Badge tone={joined ? "optimal" : "neutral"}>{r.status}</Badge>
                         </div>
-                        <p className="mt-1 text-[13px] leading-relaxed text-ink-400">
+                        <p className="mt-1 text-detail leading-relaxed text-ink-400">
                           {referralStatusLine(r)}
                         </p>
                       </div>
                       <div className="shrink-0 text-left sm:text-right">
-                        <p className="stat-mono text-sm text-ink-100">
+                        <p className="stat-mono text-detail text-ink-100">
                           {r.rewardCents ? dollars(r.rewardCents) : "—"}
                         </p>
-                        <p className="stat-mono text-[11px] text-ink-500">
+                        <p className="stat-mono text-micro text-ink-500">
                           shared {formatDate(r.sharedAt.slice(0, 10))}
                         </p>
                       </div>
@@ -237,7 +237,7 @@ export function ReferAFriend({ clientId = ME }: { clientId?: string }) {
           </Stagger>
         )}
 
-        <p className="max-w-prose text-[12px] leading-relaxed text-ink-500">
+        <p className="max-w-prose text-micro leading-relaxed text-ink-500">
           Some of these say &ldquo;someone you invited&rdquo; rather than a name. That&rsquo;s because
           they asked us not to say — whether a person is a patient here is theirs to tell, not ours.
           Your credit isn&rsquo;t affected either way.

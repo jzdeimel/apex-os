@@ -29,12 +29,12 @@ import { membershipForClient } from "@/lib/mock/memberships";
 import { appointmentsForClient } from "@/lib/mock/appointments";
 import { JOURNEY, journeyStepFor } from "@/lib/brand";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
-import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
 import { TodayDoses } from "@/components/portal/TodayDoses";
+import { CheckIn } from "@/components/portal/CheckIn";
 import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
 import { SeasonArc } from "@/components/portal/SeasonArc";
@@ -42,14 +42,7 @@ import { Quests } from "@/components/portal/Quests";
 import { LevelCard } from "@/components/portal/LevelCard";
 import { RefillRunway } from "@/components/portal/RefillRunway";
 import { AskMyRecord } from "@/components/portal/AskMyRecord";
-import {
-  ArrowRight,
-  Check,
-  MapPin,
-  MessageSquare,
-  Truck,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, MessageSquare, ShieldCheck } from "lucide-react";
 
 /**
  * The pinned demo clock. Every "now" in the portal comes from here — never
@@ -108,45 +101,68 @@ export default function PortalHomePage() {
   const orderStage = ORDER_STAGES[CURRENT_STAGE];
 
   return (
-    <div className="space-y-8">
+    /**
+     * Spacing carries the outline.
+     *
+     * This page used to be a single `space-y-8` stack: twelve cards, every gap
+     * identical, so the eye got no help telling "today" from "admin" and the
+     * whole screen read as one undifferentiated list. Now the four groups are
+     * 48px apart and the cards inside a group are 16px apart. The contrast is
+     * the point — uniform gaps are what make a layout look generated rather
+     * than composed.
+     */
+    <div className="space-y-12">
       {/* ------------------------------------------------------------------ */}
       {/* 1 · Greeting — one line, no metrics. The rings below are the data.  */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn>
-        <div
-          className={cn(
-            "relative overflow-hidden rounded-3xl border border-ink-700/70 bg-ink-850 px-5 py-7 sm:px-7 sm:py-9",
-            "bg-gradient-to-br",
-            portal.accent.gradient,
+      {/* No entry animation. This is the first thing on the screen and it is
+          static content — fading it in delays the one element the member came
+          for and is the most recognisable tell of a generated interface.
+          Motion on this page is reserved for the rings, where it carries
+          meaning. */}
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-panel border border-ink-700/70 bg-ink-850 px-5 py-8 sm:px-8 sm:py-10",
+          "bg-gradient-to-br",
+          portal.accent.gradient,
+        )}
+      >
+        <p className="label-eyebrow">{formatDate(NOW)}</p>
+        <h1 className="mt-3 font-display text-display leading-[1.05] tracking-tight text-ink-50">
+          Good morning,
+          <br />
+          {client.firstName}.
+        </h1>
+        <p className="mt-4 max-w-prose text-body leading-relaxed text-ink-300">
+          You&rsquo;re <span className="stat-mono text-ink-100">{Math.min(weeksIn, plan.durationWeeks)}</span>{" "}
+          weeks into a <span className="stat-mono text-ink-100">{plan.durationWeeks}</span>-week block. Close
+          your three rings and the day counts — that&rsquo;s the whole job.
+        </p>
+
+        {/* One accent, not three. These three facts previously arrived as a
+            green badge, a gold badge and a bordered chip with a pin icon in
+            it, which reads as decoration rather than information. Membership
+            tier is the only one that is genuinely a status, so it keeps the
+            accent; the programme and the location are plain text, which is
+            what they always were. */}
+        <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-detail text-ink-400">
+          {membership && <Badge tone="gold">{membership.tier}</Badge>}
+          {activeProgram && (
+            <span>
+              {activeProgram.name} · since {formatDate(activeProgram.startedOn)}
+            </span>
           )}
-        >
-          <p className="label-eyebrow">{formatDate(NOW)}</p>
-          <h1 className="mt-2 font-display text-[2rem] font-semibold leading-[1.05] tracking-tight text-ink-50 sm:text-5xl">
-            Good morning,
-            <br />
-            {client.firstName}.
-          </h1>
-          <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-ink-300">
-            You&rsquo;re <span className="stat-mono text-ink-100">{Math.min(weeksIn, plan.durationWeeks)}</span>{" "}
-            weeks into a <span className="stat-mono text-ink-100">{plan.durationWeeks}</span>-week block. Close
-            your three rings and the day counts — that&rsquo;s the whole job.
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            {activeProgram && (
-              <Badge tone="optimal">
-                {activeProgram.name} · since {formatDate(activeProgram.startedOn)}
-              </Badge>
-            )}
-            {membership && <Badge tone="gold">{membership.tier}</Badge>}
-            <Badge tone="neutral">
-              <MapPin className="h-3 w-3" />
-              {locationName(client.locationId)}
-            </Badge>
-          </div>
+          <span aria-hidden className="text-ink-600">
+            ·
+          </span>
+          <span>{locationName(client.locationId)}</span>
         </div>
-      </FadeIn>
+      </div>
 
+      {/* ================================================================== */}
+      {/* GROUP · TODAY — the rings and the thing with a needle in it.        */}
+      {/* ================================================================== */}
+      <div className="space-y-4">
       {/* ------------------------------------------------------------------ */}
       {/* 2 · Today. The centrepiece — everything else orbits it.             */}
       {/* ------------------------------------------------------------------ */}
@@ -166,6 +182,22 @@ export default function PortalHomePage() {
         <h2 className="mb-3 text-title text-ink-50">Today&apos;s doses</h2>
         <TodayDoses clientId={ME} iso={NOW} />
       </section>
+      </div>
+
+      {/* ================================================================== */}
+      {/* GROUP · THE WEEK AND THE HABIT LAYER.                               */}
+      {/* ================================================================== */}
+      <div className="space-y-4">
+      {/* ------------------------------------------------------------------ */}
+      {/* 2·6 · The check-in.                                                 */}
+      {/*                                                                     */}
+      {/* Under the doses because taking the dose is the obligation and this   */}
+      {/* is the ask. Four taps, and the last screen says where the answers    */}
+      {/* land — a member who watches their input arrive somewhere will do it  */}
+      {/* again, which is a more durable mechanic than a streak they are being */}
+      {/* punished for breaking.                                               */}
+      {/* ------------------------------------------------------------------ */}
+      <CheckIn />
 
       {/* ------------------------------------------------------------------ */}
       {/* 2a · The week.                                                      */}
@@ -198,251 +230,266 @@ export default function PortalHomePage() {
         <Quests clientId={ME} />
         <LevelCard clientId={ME} />
       </div>
+      </div>
 
       {/* Ask-your-record last on this screen: it answers a question the member
           already has, so it belongs after the things that might answer it
-          first. */}
+          first. Standalone: it is a different kind of thing from either the
+          habit cards above or the logistics below. */}
       <AskMyRecord clientId={ME} />
 
+      {/* ================================================================== */}
+      {/* GROUP · WHERE THINGS STAND — journey, visit, order, people.         */}
+      {/* ================================================================== */}
+      <div className="space-y-4">
       {/* ------------------------------------------------------------------ */}
       {/* 3 · Where I am — the clinic's four steps, not our state machine.    */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <p className="label-eyebrow">Where you are</p>
-            <h2 className="mt-2 font-display text-xl font-semibold text-ink-50">
-              Step <span className="stat-mono">{journeyNow.step}</span> of{" "}
-              <span className="stat-mono">{JOURNEY.length}</span> — {journeyNow.title}
-            </h2>
-            <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-400">{journeyNow.detail}</p>
+      <Card>
+        <CardContent className="p-5 sm:p-6">
+          <p className="label-eyebrow">Where you are</p>
+          <h2 className="mt-2 font-display text-title text-ink-50">
+            Step <span className="stat-mono">{journeyNow.step}</span> of{" "}
+            <span className="stat-mono">{JOURNEY.length}</span> — {journeyNow.title}
+          </h2>
+          <p className="mt-2 max-w-prose text-detail leading-relaxed text-ink-400">{journeyNow.detail}</p>
 
-            {/* Segment rail. Four short bars read as progress on a 390px
-                screen where four labelled nodes would wrap into mush; the
-                labels sit underneath in a single row of small caps. */}
-            <ol className="mt-5 flex gap-1.5" aria-label="Your progress through Alpha Health's four steps">
-              {JOURNEY.map((j) => {
-                const done = j.step < journeyNow.step;
-                const current = j.step === journeyNow.step;
-                return (
-                  <li key={j.step} className="min-w-0 flex-1">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "block h-1.5 rounded-full",
-                        done && "bg-optimal/60",
-                        current && "bg-optimal",
-                        !done && !current && "bg-ink-700",
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "mt-2 block truncate text-[10px] uppercase tracking-wide",
-                        done || current ? "text-ink-300" : "text-ink-600",
-                      )}
-                    >
-                      {/* First word only — "Free", "Testing", "Clinician-led",
-                          "Coaching" — so nothing wraps at 390px. */}
-                      {j.title.split(" ")[0]}
-                      {done && <Check className="ml-1 inline h-3 w-3 text-optimal" />}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </CardContent>
-        </Card>
-      </FadeIn>
+          {/* Segment rail. Four short bars read as progress on a 390px
+              screen where four labelled nodes would wrap into mush; the
+              labels sit underneath in a single row of small caps. */}
+          <ol className="mt-6 flex gap-1.5" aria-label="Your progress through Alpha Health's four steps">
+            {JOURNEY.map((j) => {
+              const done = j.step < journeyNow.step;
+              const current = j.step === journeyNow.step;
+              return (
+                <li key={j.step} className="min-w-0 flex-1">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "block h-1.5 rounded-full",
+                      done && "bg-optimal/60",
+                      current && "bg-optimal",
+                      !done && !current && "bg-ink-700",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "mt-2 block truncate text-micro uppercase",
+                      done || current ? "text-ink-300" : "text-ink-600",
+                    )}
+                  >
+                    {/* First word only — "Free", "Testing", "Clinician-led",
+                        "Coaching" — so nothing wraps at 390px. The tick is
+                        dropped: the filled bar above already says "done", and
+                        repeating it in a second colour is decoration. */}
+                    {j.title.split(" ")[0]}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </CardContent>
+      </Card>
 
       {/* ------------------------------------------------------------------ */}
       {/* 4 · What's next — the visit, then the checkpoints.                  */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <p className="label-eyebrow">Your next visit</p>
-            {nextAppt ? (
-              <>
-                <p className="mt-2 font-display text-2xl font-semibold leading-tight text-ink-50 sm:text-3xl">
-                  {formatDate(nextAppt.start)}
-                  <span className="stat-mono ml-2 text-lg text-ink-300 sm:text-xl">
-                    {formatTime(nextAppt.start)}
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-ink-400">
-                  {nextAppt.type} with {staffMap[nextAppt.staffId]?.name} ·{" "}
-                  <span className="stat-mono">{nextAppt.durationMin}</span> min ·{" "}
-                  {locationName(nextAppt.locationId)}
-                </p>
-                <div className="mt-3">
-                  <Badge tone="optimal">{relativeDays(nextAppt.start)}</Badge>
-                </div>
-                <p className="mt-4 text-[13px] leading-relaxed text-ink-500">
-                  You mentioned sleep on the 10th. It&rsquo;s already attached to this visit, so you won&rsquo;t
-                  have to bring it up cold.
-                </p>
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-ink-400">
-                Nothing on the calendar yet. Message your coach and they&rsquo;ll book it.
+      <Card>
+        <CardContent className="p-5 sm:p-6">
+          <p className="label-eyebrow">Your next visit</p>
+          {nextAppt ? (
+            <>
+              {/* The date is the one dominant thing in this card. It was
+                  competing with a green badge repeating the same fact in
+                  words; the badge is now plain text on the detail line, so
+                  the date carries the card on its own. */}
+              <p className="mt-2 font-display text-display leading-none text-ink-50">
+                {formatDate(nextAppt.start)}
               </p>
-            )}
+              <p className="stat-mono mt-2 text-title text-ink-300">{formatTime(nextAppt.start)}</p>
+              <p className="mt-4 text-detail text-ink-400">
+                {nextAppt.type} with {staffMap[nextAppt.staffId]?.name} ·{" "}
+                <span className="stat-mono">{nextAppt.durationMin}</span> min ·{" "}
+                {locationName(nextAppt.locationId)} · {relativeDays(nextAppt.start)}
+              </p>
+              <p className="mt-3 max-w-prose text-detail leading-relaxed text-ink-500">
+                You mentioned sleep on the 10th. It&rsquo;s already attached to this visit, so you won&rsquo;t
+                have to bring it up cold.
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-detail text-ink-400">
+              Nothing on the calendar yet. Message your coach and they&rsquo;ll book it.
+            </p>
+          )}
 
-            {upcoming.length > 0 && (
-              <div className="mt-6 border-t border-ink-800 pt-5">
-                <p className="label-eyebrow">Then</p>
-                <Stagger className="mt-3 space-y-2">
-                  {upcoming.map((m) => (
-                    <StaggerItem key={m.week}>
-                      <div className="hairline flex items-start gap-3 rounded-xl bg-ink-900/50 p-3.5">
-                        <span className="stat-mono mt-0.5 shrink-0 rounded-md border border-ink-700 bg-ink-850 px-2 py-1 text-[11px] text-ink-300">
-                          wk {m.week}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-ink-50">{m.label}</p>
-                          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{m.detail}</p>
-                        </div>
-                        {/* Owner is the anxiety-reducer: "you" vs "us" answers
-                            "is someone waiting on me?" without being asked. */}
-                        <Badge tone={m.owner === "Member" ? "optimal" : "neutral"}>
-                          {m.owner === "Member" ? "You" : m.owner === "Coach" ? "Coach" : "Provider"}
-                        </Badge>
-                      </div>
-                    </StaggerItem>
-                  ))}
-                </Stagger>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </FadeIn>
+          {upcoming.length > 0 && (
+            /* mt-8: a real gap between "the next visit" and "everything after
+               it", rather than the uniform mt-6 that made the two groups read
+               as one list. */
+            <div className="mt-8 border-t border-ink-800/60 pt-6">
+              <p className="label-eyebrow">Then</p>
+              {/* Hairline rows, not cards. These used to be rounded, filled,
+                  bordered boxes sitting inside a bordered card inside a
+                  bordered card — three levels of box for a three-line list.
+                  A rule between rows separates them just as well. */}
+              <ul className="mt-3 divide-y divide-ink-800/60">
+                {upcoming.map((m) => (
+                  <li key={m.week} className="flex items-baseline gap-3 py-3">
+                    <span className="stat-mono w-10 shrink-0 text-micro uppercase text-ink-500">
+                      wk {m.week}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-detail font-medium text-ink-50">{m.label}</p>
+                      <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{m.detail}</p>
+                    </div>
+                    {/* Owner is the anxiety-reducer: "you" vs "us" answers
+                        "is someone waiting on me?" without being asked. Only
+                        the member's own rows are accented — those are the ones
+                        that need an action. */}
+                    <span
+                      className={cn(
+                        "shrink-0 text-micro uppercase",
+                        m.owner === "Member" ? "text-optimal" : "text-ink-500",
+                      )}
+                    >
+                      {m.owner === "Member" ? "You" : m.owner === "Coach" ? "Coach" : "Provider"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ------------------------------------------------------------------ */}
       {/* 5 · Your order — one line and a rail. Details on demand.            */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-optimal/12 text-optimal">
-                <Truck className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-medium text-ink-50">Your refill arrives today</p>
-                <p className="mt-0.5 text-[13px] text-ink-400">
-                  <span className="stat-mono">2</span> items · out for delivery since{" "}
-                  <span className="stat-mono">{formatTime(orderStage.at)}</span>
-                </p>
-              </div>
-            </div>
+      <Card>
+        <CardContent className="p-5 sm:p-6">
+          {/* The coloured icon tile is gone. A green rounded square with a
+              lorry in it is decoration — the sentence already says a refill is
+              arriving, and the segment rail below already carries the status
+              colour. */}
+          <p className="text-heading text-ink-50">Your refill arrives today</p>
+          <p className="mt-1 text-detail text-ink-400">
+            <span className="stat-mono">2</span> items · out for delivery since{" "}
+            <span className="stat-mono">{formatTime(orderStage.at)}</span>
+          </p>
 
-            {/* Five segments, one per lifecycle stage. The labels are in the
-                title attribute and the summary line rather than printed five
-                times across a 390px viewport. */}
-            <ol className="mt-4 flex gap-1.5">
+          {/* Five segments, one per lifecycle stage. The labels are in the
+              title attribute and the summary line rather than printed five
+              times across a 390px viewport. */}
+          <ol className="mt-5 flex gap-1.5">
+            {ORDER_STAGES.map((stage, i) => (
+              <li key={stage.key} className="min-w-0 flex-1">
+                <span
+                  title={stage.at ? `${stage.label} · ${formatDateTime(stage.at)}` : `${stage.label} · expected today`}
+                  className={cn(
+                    "block h-1.5 rounded-full",
+                    i < CURRENT_STAGE && "bg-optimal/60",
+                    i === CURRENT_STAGE && "bg-optimal",
+                    i > CURRENT_STAGE && "bg-ink-700",
+                  )}
+                />
+              </li>
+            ))}
+          </ol>
+
+          <details className="group mt-5">
+            <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-control text-detail text-ink-400 hover:text-ink-100">
+              Full tracking
+              <ArrowRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-4 divide-y divide-ink-800/60 border-t border-ink-800/60">
               {ORDER_STAGES.map((stage, i) => (
-                <li key={stage.key} className="min-w-0 flex-1">
-                  <span
-                    title={stage.at ? `${stage.label} · ${formatDateTime(stage.at)}` : `${stage.label} · expected today`}
-                    className={cn(
-                      "block h-1.5 rounded-full",
-                      i < CURRENT_STAGE && "bg-optimal/60",
-                      i === CURRENT_STAGE && "bg-optimal",
-                      i > CURRENT_STAGE && "bg-ink-700",
-                    )}
-                  />
-                </li>
+                <div key={stage.key} className="flex items-baseline justify-between gap-3 py-2 text-detail">
+                  <span className={i <= CURRENT_STAGE ? "text-ink-200" : "text-ink-600"}>{stage.label}</span>
+                  <span className="stat-mono shrink-0 text-micro text-ink-500">
+                    {stage.at ? formatDateTime(stage.at) : "Expected today"}
+                  </span>
+                </div>
               ))}
-            </ol>
-
-            <details className="group mt-4">
-              <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-md text-[13px] text-ink-400 hover:text-ink-100">
-                Full tracking
-                <ArrowRight className="h-3 w-3 transition-transform group-open:rotate-90" />
-              </summary>
-              <div className="mt-3 space-y-2">
-                {ORDER_STAGES.map((stage, i) => (
-                  <div key={stage.key} className="flex items-baseline justify-between gap-3 text-[13px]">
-                    <span className={i <= CURRENT_STAGE ? "text-ink-200" : "text-ink-600"}>{stage.label}</span>
-                    <span className="stat-mono shrink-0 text-xs text-ink-500">
-                      {stage.at ? formatDateTime(stage.at) : "Expected today"}
-                    </span>
-                  </div>
-                ))}
-                <p className="stat-mono pt-1 text-xs text-ink-500">1Z999AA10123456784</p>
-                <p className="text-[12px] leading-relaxed text-ink-500">
-                  This updates itself from the carrier. Nobody at the clinic has to look it up and text it to
-                  you.
-                </p>
-              </div>
-            </details>
-          </CardContent>
-        </Card>
-      </FadeIn>
+            </div>
+            <p className="stat-mono mt-3 text-micro text-ink-500">1Z999AA10123456784</p>
+            <p className="mt-1 max-w-prose text-micro leading-relaxed text-ink-500">
+              This updates itself from the carrier. Nobody at the clinic has to look it up and text it to
+              you.
+            </p>
+          </details>
+        </CardContent>
+      </Card>
 
       {/* ------------------------------------------------------------------ */}
       {/* 6 · My people. Named humans, one tap to reach them.                 */}
       {/* ------------------------------------------------------------------ */}
-      <FadeIn>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <p className="label-eyebrow">Your people</p>
-            <h2 className="mt-2 font-display text-xl font-semibold text-ink-50">
-              Two humans, and they both know your name
-            </h2>
+      <Card>
+        <CardContent className="p-5 sm:p-6">
+          <p className="label-eyebrow">Your people</p>
+          <h2 className="mt-2 font-display text-title text-ink-50">
+            Two humans, and they both know your name
+          </h2>
 
-            <div className="mt-4 space-y-2.5">
-              {[
-                { s: coach, what: "Your coach", blurb: "Day to day — food, training, check-ins." },
-                { s: provider, what: "Your provider", blurb: "Sets and signs anything medical." },
-              ].map(({ s, what, blurb }) => (
-                <div key={what} className="hairline flex items-start gap-3.5 rounded-2xl bg-ink-900/50 p-4">
-                  <span
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-sm font-semibold text-ink-950"
-                    style={{ background: portal.accent.hex }}
-                  >
-                    {s?.avatarInitials}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-medium text-ink-50">{s?.name}</p>
-                    <p className="text-[11px] uppercase tracking-wide text-ink-500">
-                      {what} · {s?.credentials}
-                    </p>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-400">{blurb}</p>
-                  </div>
+          {/* Two hairline rows instead of two filled, bordered, rounded cards
+              nested inside this one. The avatar is the only filled shape here,
+              which is what makes it read as a person rather than a tile. */}
+          <div className="mt-5 divide-y divide-ink-800/60 border-y border-ink-800/60">
+            {[
+              { s: coach, what: "Your coach", blurb: "Day to day — food, training, check-ins." },
+              { s: provider, what: "Your provider", blurb: "Sets and signs anything medical." },
+            ].map(({ s, what, blurb }) => (
+              <div key={what} className="flex items-start gap-4 py-4">
+                <span
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-detail font-semibold text-ink-950"
+                  style={{ background: portal.accent.hex }}
+                >
+                  {s?.avatarInitials}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-body font-medium text-ink-50">{s?.name}</p>
+                  <p className="text-micro uppercase text-ink-500">
+                    {what} · {s?.credentials}
+                  </p>
+                  <p className="mt-1.5 text-detail leading-relaxed text-ink-400">{blurb}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
 
-            <Link
-              href="/portal/messages"
-              className="focus-ring mt-4 flex items-center gap-3 rounded-2xl border border-optimal/25 bg-optimal/10 p-4 hover:bg-optimal/15"
-            >
-              <MessageSquare className="h-5 w-5 shrink-0 text-optimal" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-ink-100">Message your team</span>
-                {latestMessage && (
-                  <span className="mt-0.5 line-clamp-1 block text-[13px] text-ink-400">
-                    {latestMessage.who === "me" ? "You" : latestMessage.from}: {latestMessage.body}
-                  </span>
-                )}
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-optimal" />
-            </Link>
+          {/* The one call to action on this card, and now the only accented
+              thing on it. It was previously a green-tinted, green-bordered
+              panel with a green icon and a green arrow — four accents for one
+              link. */}
+          <Link
+            href="/portal/messages"
+            className="focus-ring mt-6 flex items-center gap-3 rounded-control border border-ink-700/70 bg-ink-900/50 p-4 transition-colors hover:border-ink-600"
+          >
+            <MessageSquare className="h-5 w-5 shrink-0 text-optimal" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-detail font-medium text-ink-100">Message your team</span>
+              {latestMessage && (
+                <span className="mt-0.5 line-clamp-1 block text-detail text-ink-400">
+                  {latestMessage.who === "me" ? "You" : latestMessage.from}: {latestMessage.body}
+                </span>
+              )}
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-ink-500" />
+          </Link>
 
-            <Link
-              href="/portal/access"
-              className="focus-ring mt-2 flex items-center gap-2 rounded-xl p-2 text-[13px] text-ink-500 hover:text-ink-200"
-            >
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span>Every look at your chart is logged — name, time and reason.</span>
-              <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0" />
-            </Link>
-          </CardContent>
-        </Card>
-      </FadeIn>
+          <Link
+            href="/portal/access"
+            className="focus-ring mt-3 flex items-center gap-2 rounded-control py-1 text-detail text-ink-500 hover:text-ink-200"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="min-w-0">Every look at your chart is logged — name, time and reason.</span>
+            <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0" />
+          </Link>
+        </CardContent>
+      </Card>
+      </div>
 
-      <p className="pb-2 text-center text-[11px] text-ink-600">Demonstration data.</p>
+      <p className="pb-2 text-center text-micro text-ink-600">Demonstration data.</p>
     </div>
   );
 }

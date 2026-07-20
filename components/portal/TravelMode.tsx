@@ -25,7 +25,7 @@ import { Flame, Package, PlaneTakeoff, Bell, BellOff, Check, ShieldCheck, Undo2 
 import { planTravel, startTravel, endTravel, travelFor } from "@/lib/account/travel";
 import { locationMap } from "@/lib/mock/locations";
 import { Badge, Button, Card, CardContent, Input } from "@/components/ui/primitives";
-import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
+import { FadeIn, Stagger, StaggerItem } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
 import { me, ME } from "@/components/portal/PortalHeader";
 import { cn, formatDate } from "@/lib/utils";
@@ -73,8 +73,8 @@ export function TravelMode() {
             <div className="flex items-start gap-3">
               <PlaneTakeoff className="mt-0.5 h-5 w-5 shrink-0 text-gold-300" />
               <div>
-                <p className="font-display text-lg font-semibold leading-tight text-ink-50">Travel mode</p>
-                <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-ink-400">
+                <p className="font-display text-heading font-semibold leading-tight text-ink-50">Travel mode</p>
+                <p className="mt-1 max-w-prose text-detail leading-relaxed text-ink-400">
                   Going away? Tell us when and we'll stop pinging you in a timezone you're not in, hold anything that
                   was due to ship, and protect your streak while you're gone.
                 </p>
@@ -133,7 +133,7 @@ export function TravelMode() {
 
           {/* We ask for the state for a specific reason and we say what it is.
               An unexplained field on a travel form reads as data collection. */}
-          <p className="mt-2 text-xs leading-relaxed text-ink-500">
+          <p className="mt-2 text-micro leading-relaxed text-ink-500">
             We ask for the state because a telehealth visit legally happens where you are. If you need to be seen while
             you're away, we'll only offer you clinicians licensed in {state.trim() || homeState}.
           </p>
@@ -141,14 +141,14 @@ export function TravelMode() {
           {impact && (
             <FadeIn>
               {/* ── The promise, loud ─────────────────────────────────────── */}
-              <div className="mt-5 rounded-2xl border border-optimal/30 bg-optimal/5 p-4">
+              <div className="mt-5 rounded-panel border border-optimal/30 bg-optimal/5 p-4">
                 <div className="flex items-start gap-3">
                   <Flame className="mt-0.5 h-5 w-5 shrink-0 text-optimal" />
                   <div>
-                    <p className="font-display text-[15px] font-semibold text-ink-50">
+                    <p className="font-display text-body font-semibold text-ink-50">
                       Your streak is safe. All <span className="stat-mono">{impact.days}</span> days.
                     </p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-ink-300">
+                    <p className="mt-1 text-detail leading-relaxed text-ink-300">
                       Every day away is recorded as &ldquo;{impact.protectedReason}&rdquo; and counted as held, not
                       missed. Your number does not reset and it does not go backwards. You come home to the same streak
                       you left with.
@@ -166,9 +166,9 @@ export function TravelMode() {
                   <Stagger className="mt-2.5 grid grid-cols-1 gap-2">
                     {impact.pauses.map((p) => (
                       <StaggerItem key={p.label}>
-                        <div className="rounded-xl border border-ink-700 bg-ink-900/40 p-3">
-                          <p className="text-[13px] font-medium text-ink-100">{p.label}</p>
-                          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{p.detail}</p>
+                        <div className="rounded-panel border border-ink-700 bg-ink-900/40 p-3">
+                          <p className="text-detail font-medium text-ink-100">{p.label}</p>
+                          <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{p.detail}</p>
                         </div>
                       </StaggerItem>
                     ))}
@@ -182,12 +182,12 @@ export function TravelMode() {
                   <Stagger className="mt-2.5 grid grid-cols-1 gap-2">
                     {impact.continues.map((c) => (
                       <StaggerItem key={c.label}>
-                        <div className="rounded-xl border border-ink-700 bg-ink-900/40 p-3">
-                          <p className="flex items-center gap-1.5 text-[13px] font-medium text-ink-100">
+                        <div className="rounded-panel border border-ink-700 bg-ink-900/40 p-3">
+                          <p className="flex items-center gap-1.5 text-detail font-medium text-ink-100">
                             <Check className="h-3 w-3 text-optimal" />
                             {c.label}
                           </p>
-                          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{c.detail}</p>
+                          <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{c.detail}</p>
                         </div>
                       </StaggerItem>
                     ))}
@@ -203,12 +203,12 @@ export function TravelMode() {
                   </p>
                   <div className="mt-2.5 grid grid-cols-1 gap-2">
                     {impact.heldShipments.map((s) => (
-                      <div key={s.id} className="rounded-xl border border-ink-700 bg-ink-900/40 p-3">
+                      <div key={s.id} className="rounded-panel border border-ink-700 bg-ink-900/40 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-[13px] font-medium text-ink-100">{s.label}</p>
-                          <span className="stat-mono text-xs text-ink-500">{s.id}</span>
+                          <p className="text-detail font-medium text-ink-100">{s.label}</p>
+                          <span className="stat-mono text-micro text-ink-500">{s.id}</span>
                         </div>
-                        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-400">{s.detail}</p>
+                        <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{s.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -217,16 +217,16 @@ export function TravelMode() {
 
               {/* ── Telehealth + the clinical boundary ────────────────────── */}
               <div className="mt-4 space-y-2">
-                <p className="flex gap-2 text-[13px] leading-relaxed text-ink-300">
+                <p className="flex gap-2 text-detail leading-relaxed text-ink-300">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-500" />
                   <span>{impact.telehealthNote}</span>
                 </p>
-                <p className="rounded-xl border border-ink-700 bg-ink-900/50 p-3 text-[13px] leading-relaxed text-ink-300">
+                <p className="rounded-panel border border-ink-700 bg-ink-900/50 p-3 text-detail leading-relaxed text-ink-300">
                   {impact.clinicalBoundary}
                 </p>
               </div>
 
-              <p className="mt-3 text-xs text-ink-500">
+              <p className="mt-3 text-micro text-ink-500">
                 Everything goes back to normal on <span className="stat-mono">{formatDate(impact.resumesOn)}</span>. You
                 can turn this off early any time.
               </p>
@@ -246,7 +246,7 @@ export function TravelMode() {
           )}
 
           {!valid && (
-            <p className="mt-4 text-[13px] text-watch">
+            <p className="mt-4 text-detail text-watch">
               Check the dates and use a two-letter state — we need both to work out what to pause.
             </p>
           )}

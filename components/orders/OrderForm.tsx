@@ -296,7 +296,7 @@ export function OrderForm() {
                   </option>
                 ))}
               </Select>
-              <p className="mt-2 text-xs text-ink-500">
+              <p className="mt-2 text-detail text-ink-500">
                 The catalog below is filtered to what this location may sell.
               </p>
             </div>
@@ -316,7 +316,7 @@ export function OrderForm() {
                   label="Clinic pickup"
                 />
               </div>
-              <p className="mt-2 text-xs text-ink-500">
+              <p className="mt-2 text-detail text-ink-500">
                 {shipping === "ship"
                   ? "In-clinic services cannot ship and will flag below."
                   : `Held for pickup at ${locationMap[locationId]?.short ?? "the clinic"}.`}
@@ -409,7 +409,7 @@ export function OrderForm() {
                 onChange={(e) => setDiscountReason(e.target.value)}
               />
             </div>
-            <p className="text-xs text-ink-500">
+            <p className="text-detail text-ink-500">
               Applied after the membership credit. The reason is recorded on the ledger row.
             </p>
           </CardContent>
@@ -479,8 +479,8 @@ function MemberPicker({
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3">
             <Monogram client={client} size="md" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink-50">{clientName(client)}</p>
-              <p className="stat-mono truncate text-xs text-ink-500">
+              <p className="truncate text-body font-medium text-ink-50">{clientName(client)}</p>
+              <p className="stat-mono truncate text-detail text-ink-500">
                 {client.mrn} · {locationMap[client.locationId]?.short}
               </p>
             </div>
@@ -512,8 +512,8 @@ function MemberPicker({
                   >
                     <Monogram client={c} size="sm" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-ink-100">{clientName(c)}</span>
-                      <span className="stat-mono block truncate text-[11px] text-ink-500">
+                      <span className="block truncate text-body text-ink-100">{clientName(c)}</span>
+                      <span className="stat-mono block truncate text-micro text-ink-500">
                         {c.mrn} · {locationMap[c.locationId]?.short}
                       </span>
                     </span>
@@ -521,7 +521,7 @@ function MemberPicker({
                 ))}
               </div>
             )}
-            <p className="mt-2 text-xs text-ink-500">
+            <p className="mt-2 text-detail text-ink-500">
               Selecting a member fills in their location, coach, provider and plan.
             </p>
           </div>
@@ -559,7 +559,7 @@ function CatalogPicker({
       <CardContent className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="label-eyebrow">CATALOG</p>
-          <span className="stat-mono text-xs text-ink-500">{items.length} items</span>
+          <span className="stat-mono text-detail text-ink-500">{items.length} items</span>
         </div>
 
         <div className="relative mt-3">
@@ -626,8 +626,8 @@ function CatalogRow({
           className="min-w-0 flex-1 text-left focus-ring rounded-lg"
           aria-label={`Add ${item.name}`}
         >
-          <p className="truncate text-sm font-medium text-ink-50">{item.name}</p>
-          <p className="stat-mono mt-0.5 truncate text-[11px] text-ink-500">
+          <p className="truncate text-body font-medium text-ink-50">{item.name}</p>
+          <p className="stat-mono mt-0.5 truncate text-micro text-ink-500">
             {item.sku}
             {item.packSize ? ` · ${item.packSize}` : ""}
           </p>
@@ -644,7 +644,7 @@ function CatalogRow({
         </button>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <span className="stat-mono text-sm text-ink-100">{centsToDollars(item.unitPriceCents)}</span>
+          <span className="stat-mono text-body text-ink-100">{centsToDollars(item.unitPriceCents)}</span>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
@@ -656,7 +656,7 @@ function CatalogRow({
             >
               <Minus className="h-3.5 w-3.5" />
             </Button>
-            <span className="stat-mono w-6 text-center text-sm text-ink-100">{qty}</span>
+            <span className="stat-mono w-6 text-center text-body text-ink-100">{qty}</span>
             <Button
               variant="outline"
               size="icon"
@@ -686,7 +686,7 @@ function Chip({
     <button
       onClick={onClick}
       className={cn(
-        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition-colors focus-ring",
+        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-detail transition-colors focus-ring",
         active
           ? "border-gold-500/50 bg-gold-500/15 text-gold-300"
           : "border-ink-700 text-ink-300 hover:border-ink-600 hover:text-ink-100",
@@ -719,7 +719,7 @@ function SummaryPanel({
         </div>
 
         {pricing.lines.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-500">
+          <p className="mt-3 text-body text-ink-500">
             Nothing added yet. Tap a catalog row to add it.
           </p>
         ) : (
@@ -734,12 +734,12 @@ function SummaryPanel({
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-ink-100">{l.name}</span>
-                  <span className="stat-mono block text-[11px] text-ink-500">
+                  <span className="block truncate text-body text-ink-100">{l.name}</span>
+                  <span className="stat-mono block text-micro text-ink-500">
                     {l.qty} × {centsToDollars(l.unitPriceCents)}
                   </span>
                 </span>
-                <span className="stat-mono shrink-0 text-sm text-ink-100">
+                <span className="stat-mono shrink-0 text-body text-ink-100">
                   {centsToDollars(l.extendedCents)}
                 </span>
               </li>
@@ -762,14 +762,14 @@ function SummaryPanel({
             tone={pricing.discountCents > 0 ? "watch" : "muted"}
           />
           <div className="flex items-baseline justify-between gap-3 border-t border-ink-700 pt-3">
-            <span className="text-sm font-medium text-ink-100">Total due</span>
-            <span className="stat-mono text-xl font-semibold text-ink-50">
+            <span className="text-body font-medium text-ink-100">Total due</span>
+            <span className="stat-mono text-heading font-semibold text-ink-50">
               {centsToDollars(pricing.totalCents)}
             </span>
           </div>
           {/* The read-aloud line. A coach should never have to guess why an
               order costs what it costs. */}
-          <p className="text-[11px] leading-relaxed text-ink-500">{pricing.basis.total}</p>
+          <p className="text-micro leading-relaxed text-ink-500">{pricing.basis.total}</p>
         </div>
       </CardContent>
     </Card>
@@ -792,12 +792,12 @@ function MoneyRow({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs text-ink-400">{label}</span>
-        <span className={cn("stat-mono text-sm", color)}>
+        <span className="text-detail text-ink-400">{label}</span>
+        <span className={cn("stat-mono text-body", color)}>
           {cents === 0 ? centsToDollars(0) : centsToDollars(cents)}
         </span>
       </div>
-      <p className="mt-0.5 text-[11px] leading-relaxed text-ink-600">{basis}</p>
+      <p className="mt-0.5 text-micro leading-relaxed text-ink-600">{basis}</p>
     </div>
   );
 }
@@ -817,7 +817,7 @@ function ValidationPanel({
     return (
       <div className="flex items-start gap-2 rounded-xl border border-optimal/25 bg-optimal/[0.06] p-3">
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-optimal" />
-        <p className="text-xs text-ink-300">Nothing blocking. This order is ready to place.</p>
+        <p className="text-detail text-ink-300">Nothing blocking. This order is ready to place.</p>
       </div>
     );
   }
@@ -849,8 +849,8 @@ function ProblemRow({ problem }: { problem: OrderProblem }) {
     >
       <Icon className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", isError ? "text-high" : "text-watch")} />
       <div className="min-w-0">
-        <p className="text-xs text-ink-100">{problem.message}</p>
-        <p className="mt-0.5 text-[11px] text-ink-500">{problem.fix}</p>
+        <p className="text-detail text-ink-100">{problem.message}</p>
+        <p className="mt-0.5 text-micro text-ink-500">{problem.fix}</p>
       </div>
     </div>
   );
@@ -877,15 +877,15 @@ function PlacedPanel({
             <Badge tone="optimal">{order.status}</Badge>
           </div>
 
-          <p className="stat-mono text-lg font-semibold text-ink-50">{order.id}</p>
+          <p className="stat-mono text-heading font-semibold text-ink-50">{order.id}</p>
 
           <ul className="space-y-1">
             {order.lines.map((l) => (
               <li key={l.id} className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-xs text-ink-300">
+                <span className="min-w-0 truncate text-detail text-ink-300">
                   {l.qty} × {l.name}
                 </span>
-                <span className="stat-mono shrink-0 text-xs text-ink-400">
+                <span className="stat-mono shrink-0 text-detail text-ink-400">
                   {centsToDollars(l.unitPriceCents * l.qty)}
                 </span>
               </li>
@@ -893,16 +893,16 @@ function PlacedPanel({
           </ul>
 
           <div className="flex items-baseline justify-between gap-3 border-t border-ink-700 pt-3">
-            <span className="text-xs text-ink-400">Charged</span>
-            <span className="stat-mono text-sm text-ink-50">{centsToDollars(totalCents)}</span>
+            <span className="text-detail text-ink-400">Charged</span>
+            <span className="stat-mono text-body text-ink-50">{centsToDollars(totalCents)}</span>
           </div>
 
           {/* The committed ledger row id, shown rather than hidden. This is the
               receipt: the order and the record of it are the same event. */}
-          <p className="stat-mono text-[11px] text-ink-500">
+          <p className="stat-mono text-micro text-ink-500">
             Ledger {row.id} · {shortHash(row.hash)}
           </p>
-          <p className="text-[11px] leading-relaxed text-ink-600">
+          <p className="text-micro leading-relaxed text-ink-600">
             Submitted to fulfillment and now visible in the member&apos;s portal. The MedSource
             hand-off is demo-only — nothing left this browser.
           </p>
@@ -931,7 +931,7 @@ function ToggleHalf({
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors focus-ring",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-detail transition-colors focus-ring",
         active ? "bg-gold-500 text-white" : "text-ink-300 hover:text-ink-100",
       )}
     >
