@@ -120,10 +120,24 @@ const config: Config = {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
-        // Ends on the visible frame, always. See the `page-in` animation note.
+        /**
+         * Ends on the visible frame, always. See the `page-in` animation note.
+         *
+         * The final keyframe is `transform: none`, NOT `translateY(0)`, and the
+         * difference is not cosmetic. With `fill-mode: both` the last keyframe
+         * keeps applying forever, and an element with ANY transform becomes the
+         * containing block for its `position: fixed` descendants. Ending on
+         * translateY(0) therefore left every modal, overlay and toast inside the
+         * page scoped to the page rather than the viewport — one measured at
+         * 7580px tall, centring its content three thousand pixels below the fold
+         * where nobody would ever see it.
+         *
+         * `transform: none` produces the same visual result and creates no
+         * containing block.
+         */
         "page-in": {
           "0%": { opacity: "0", transform: "translateY(8px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "1", transform: "none" },
         },
         "pulse-soft": {
           "0%, 100%": { opacity: "1" },
@@ -148,7 +162,23 @@ const config: Config = {
          * and it ends on the visible frame. The transition only ever moves the
          * element TOWARDS visible, never away from it.
          */
-        "page-in": "page-in 0.34s cubic-bezier(0.22,1,0.36,1) both",
+        /*
+         * NOTE the absent `both`. Fill-mode is deliberately left at `none`.
+         *
+         * With a fill mode, the final keyframe keeps applying after the
+         * animation ends — and even `transform: none` interpolates to an
+         * IDENTITY MATRIX, which still makes the element a containing block for
+         * its `position: fixed` descendants. That silently scoped every overlay
+         * in the app to the page instead of the viewport: one measured 7580px
+         * tall and centred its dialog 3,800px below the fold.
+         *
+         * Without a fill mode the element returns to its base style once the
+         * 0.34s is up, leaving no transform and no containing block. It also
+         * fails open, which is the rule for this animation: the resting style is
+         * already visible, so if the animation never runs the content still
+         * shows.
+         */
+        "page-in": "page-in 0.34s cubic-bezier(0.22,1,0.36,1)",
       },
     },
   },
