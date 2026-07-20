@@ -58,7 +58,12 @@ export default function PortalMessagesPage() {
   const coach = staffMap[client.coachId];
   const provider = staffMap[client.providerId];
 
-  const [sent, setSent] = useState<PortalMessage[]>([]);
+  // Sent messages are tracked PER THREAD. The previous version kept a single
+  // `sent` array and always routed a send to the coach, so a message composed on
+  // the provider thread was posted to the coach and never appeared where it was
+  // typed — the member watched their clinical question vanish. Keying by thread
+  // id means each thread shows exactly what was said in it.
+  const [sentByThread, setSentByThread] = useState<Record<string, PortalMessage[]>>({});
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [activeId, setActiveId] = useState("t-coach");
@@ -71,17 +76,17 @@ export default function PortalMessagesPage() {
         staffId: client.coachId,
         title: coach?.name ?? "Your coach",
         subtitle: "Your coach · usually replies same day",
-        messages: [...threadFor(client), ...sent],
+        messages: [...threadFor(client), ...(sentByThread["t-coach"] ?? [])],
       },
       {
         id: "t-provider",
         staffId: client.providerId,
         title: provider?.name ?? "Your provider",
         subtitle: "Your provider · clinical questions",
-        messages: [],
+        messages: [...(sentByThread["t-provider"] ?? [])],
       },
     ],
-    [client, client.coachId, client.providerId, coach?.name, provider?.name, sent],
+    [client, client.coachId, client.providerId, coach?.name, provider?.name, sentByThread],
   );
 
   const active = threads.find((t) => t.id === activeId) ?? threads[0];
@@ -113,16 +118,21 @@ export default function PortalMessagesPage() {
     if (!body || sending) return;
     setSending(true);
 
+    // Route to WHOEVER this thread is with — the coach or the provider — not
+    // always the coach. The active thread's staff id is the recipient.
+    const threadId = active.id;
+    const recipientId = active.staffId ?? coach?.id ?? "unknown";
+
     const result = await sendMessage({
       clientId: meId,
-      staffId: coach?.id ?? "unknown",
+      staffId: recipientId,
       channel: "Portal message",
       // A member writing to their care team is clinical, never marketing.
       // Stating the scope at the call site means it cannot be inferred wrongly.
       scope: "clinical",
       body,
       to: client.email,
-      idempotencyKey: `portal-${meId}-${body.length}-${body.slice(0, 24)}`,
+      idempotencyKey: `portal-${meId}-${threadId}-${body.length}-${body.slice(0, 24)}`,
     });
 
     if (!result.ok) {
@@ -133,18 +143,21 @@ export default function PortalMessagesPage() {
 
     const row = appendLedger(result.ledgerEvent);
     seq.current += 1;
-    setSent((s) => [
-      ...s,
-      {
-        // Deterministic id and timestamp — the pinned demo clock, never Date.now().
-        id: `msg-local-${seq.current}`,
-        at: "2026-06-12T09:00:00",
-        who: "me",
-        from: client.firstName,
-        body,
-        channel: "Portal",
-      },
-    ]);
+    setSentByThread((prev) => ({
+      ...prev,
+      [threadId]: [
+        ...(prev[threadId] ?? []),
+        {
+          // Deterministic id and timestamp — the pinned demo clock, never Date.now().
+          id: `msg-local-${seq.current}`,
+          at: "2026-06-12T09:00:00",
+          who: "me",
+          from: client.firstName,
+          body,
+          channel: "Portal",
+        },
+      ],
+    }));
     setDraft("");
     toast("Message sent", {
       desc: `Written to your record as ${row.id} · ${shortHash(row.hash)}`,
