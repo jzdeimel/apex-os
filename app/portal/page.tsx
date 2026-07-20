@@ -33,8 +33,8 @@ import { usePortal } from "@/lib/portalStore";
 import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
-import { TodayDoses } from "@/components/portal/TodayDoses";
-import { CheckIn } from "@/components/portal/CheckIn";
+import { TodayBlock } from "@/components/portal/TodayBlock";
+import { MemberLogProvider } from "@/lib/member/logStore";
 import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
 import { SeasonArc } from "@/components/portal/SeasonArc";
@@ -111,6 +111,7 @@ export default function PortalHomePage() {
      * the point — uniform gaps are what make a layout look generated rather
      * than composed.
      */
+    <MemberLogProvider clientId={ME} nowIso={NOW}>
     <div className="space-y-12">
       {/* ------------------------------------------------------------------ */}
       {/* 1 · Greeting — one line, no metrics. The rings below are the data.  */}
@@ -160,44 +161,23 @@ export default function PortalHomePage() {
       </div>
 
       {/* ================================================================== */}
-      {/* GROUP · TODAY — the rings and the thing with a needle in it.        */}
-      {/* ================================================================== */}
-      <div className="space-y-4">
-      {/* ------------------------------------------------------------------ */}
-      {/* 2 · Today. The centrepiece — everything else orbits it.             */}
-      {/* ------------------------------------------------------------------ */}
-      <DailyRings clientId={ME} />
-
-      {/* ------------------------------------------------------------------ */}
-      {/* 2·5 · What to take today.                                           */}
+      {/* GROUP · TODAY — the doing, then the reporting.                      */}
       {/*                                                                     */}
-      {/* Immediately under the rings, because this is the single most         */}
-      {/* operationally useful thing on the page: a member standing in the     */}
-      {/* kitchen with a vial wants the mark on the syringe, and every second  */}
-      {/* they spend scrolling for it is a second spent doing the arithmetic   */}
-      {/* themselves. Above the week for the same reason — reflection can wait */}
-      {/* behind the thing with a needle in it.                                */}
-      {/* ------------------------------------------------------------------ */}
-      <section>
-        <h2 className="mb-3 text-title text-ink-50">Today&apos;s doses</h2>
-        <TodayDoses clientId={ME} iso={NOW} />
-      </section>
-      </div>
+      {/* Logging comes FIRST. The dashboard used to open with seventeen cards */}
+      {/* of read-only status while the actual logging lived on four other     */}
+      {/* routes — and marking a dose as taken existed nowhere in the app at   */}
+      {/* all, so the protocol ring was a picture of adherence rather than a   */}
+      {/* record of one. What you have to do now sits above everything that    */}
+      {/* reports on what you did.                                             */}
+      {/* ================================================================== */}
+      <TodayBlock clientId={ME} iso={NOW} />
+
+      <DailyRings clientId={ME} />
 
       {/* ================================================================== */}
       {/* GROUP · THE WEEK AND THE HABIT LAYER.                               */}
       {/* ================================================================== */}
       <div className="space-y-4">
-      {/* ------------------------------------------------------------------ */}
-      {/* 2·6 · The check-in.                                                 */}
-      {/*                                                                     */}
-      {/* Under the doses because taking the dose is the obligation and this   */}
-      {/* is the ask. Four taps, and the last screen says where the answers    */}
-      {/* land — a member who watches their input arrive somewhere will do it  */}
-      {/* again, which is a more durable mechanic than a streak they are being */}
-      {/* punished for breaking.                                               */}
-      {/* ------------------------------------------------------------------ */}
-      <CheckIn />
 
       {/* ------------------------------------------------------------------ */}
       {/* 2a · The week.                                                      */}
@@ -219,17 +199,28 @@ export default function PortalHomePage() {
       {/* single most common reason a protocol lapses, and a member should    */}
       {/* never discover it from an empty drawer.                             */}
       {/* ------------------------------------------------------------------ */}
+      {/* One compact row, not four competing cards. Streak and level are
+          motivation, not the job; refill runway is here because running out is
+          the commonest reason a protocol lapses and a member should never learn
+          it from an empty drawer. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StreakCard clientId={ME} />
         <RefillRunway client={client} />
       </div>
 
-      <SeasonArc clientId={ME} />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Quests clientId={ME} />
-        <LevelCard clientId={ME} />
-      </div>
+      <details className="group rounded-panel border border-ink-800 bg-ink-900/30">
+        <summary className="focus-ring cursor-pointer list-none px-4 py-3 text-detail text-ink-400 transition-colors hover:text-ink-100">
+          Season, quests and level
+          <span className="float-right text-ink-600 transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="space-y-4 px-4 pb-4">
+          <SeasonArc clientId={ME} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Quests clientId={ME} />
+            <LevelCard clientId={ME} />
+          </div>
+        </div>
+      </details>
       </div>
 
       {/* Ask-your-record last on this screen: it answers a question the member
@@ -491,5 +482,6 @@ export default function PortalHomePage() {
 
       <p className="pb-2 text-center text-micro text-ink-600">Demonstration data.</p>
     </div>
+    </MemberLogProvider>
   );
 }
