@@ -1,0 +1,85 @@
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "@/lib/db/schema";
+
+/**
+ * The database connection.
+ *
+ * SERVER ONLY. Importing this from a client component would ship the driver —
+ * and, far worse, the connection string — to the browser. Next will refuse at
+ * build time, but the guard below fails faster and says why.
+ *
+ * CONFIGURED OR ABSENT, NEVER FAKED
+ * ---------------------------------
+ * `DATABASE_URL` is supplied at runtime as a Container App secret; it is never
+ * in the repo, never in an image layer, and never in a commit. When it is
+ * missing, `db` is null and every repository call throws a named error.
+ *
+ * That refusal is deliberate and it is the lesson of the audit
+ * (docs/audit/GAP_ANALYSIS.md). This codebase was full of controls that
+ * asserted an outcome and performed none — a reorder button that created no
+ * order, a toast claiming "Written to the ledger" with no write. A database
+ * layer that silently degraded to in-memory would be the most damaging version
+ * of that pattern: writes that appear to succeed, an audit trail that looks
+ * populated, and nobody discovering the truth until someone asks the ledger a
+ * question it cannot answer.
+ *
+ * A loud failure is recoverable. A quiet fake is not.
+ *
+ * CONNECTION POOLING
+ * ------------------
+ * Container Apps scales to multiple replicas and a Burstable Postgres has a low
+ * connection ceiling, so the pool is deliberately small. `max: 5` per replica
+ * against `Standard_B1ms` leaves headroom for migrations and an admin session.
+ * Raise the SKU before raising this number.
+ */
+
+const url = process.env.DATABASE_URL;
+
+/**
+ * Azure Postgres Flexible Server requires TLS. `sslmode=require` in the URL
+ * covers it, but a connection string edited by hand is exactly the kind of
+ * thing that loses a query parameter, so it is asserted here too.
+ */
+function connect(connectionString: string) {
+  return postgres(connectionString, {
+    max: 5,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    ssl: "require",
+    // Prepared statements are disabled because Azure's connection pooling in
+    // transaction mode does not support them. Named statements would work
+    // against a direct connection and fail the moment pooling is turned on,
+    // which is a bug that only appears under load.
+    prepare: false,
+    onnotice: () => {},
+  });
+}
+
+export const sql = url ? connect(url) : null;
+
+export const db = sql ? drizzle(sql, { schema }) : null;
+
+export const isConfigured = db !== null;
+
+/**
+ * Get the database, or throw a message that names the fix.
+ *
+ * Every repository function calls this rather than touching `db` directly, so
+ * there is exactly one place that can decide what "no database" means — and it
+ * decides "stop", not "pretend".
+ */
+export function requireDb() {
+  if (!db) {
+    throw new Error(
+      "DATABASE_URL is not set. Apex refuses to run write paths against no database — " +
+        "a write that silently does nothing is worse than one that fails. " +
+        "Set it as a Container App secret: az containerapp secret set -g apex-prod -n ca-apex " +
+        '--secrets "database-url=postgresql://..." and bind it with --set-env-vars ' +
+        "DATABASE_URL=secretref:database-url",
+    );
+  }
+  return db;
+}
+
+export { schema };
