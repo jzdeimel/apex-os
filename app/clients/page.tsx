@@ -3,7 +3,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { usePortal } from "@/lib/portalStore";
-import { visibleClientsForPortal } from "@/lib/access/clientScope";
+import { visibleClientsForPortal, staffIdForPortal } from "@/lib/access/clientScope";
+import { scopeFor } from "@/lib/frontdesk/scope";
+import { ShieldAlert } from "lucide-react";
 import { clients, clientName } from "@/lib/mock/clients";
 import { coaches } from "@/lib/mock/staff";
 import { alphaScore } from "@/lib/alphaScore";
@@ -71,6 +73,14 @@ export default function ClientsPage() {
   // it. "all" means "all locations I may see", never the whole clinic. See
   // lib/access/clientScope.ts.
   const visible = useMemo(() => visibleClientsForPortal(portal.id), [portal.id]);
+
+  // A viewer with no client scope at all — the patient persona, or a staff
+  // account with no location assigned — must be REFUSED here, not shown an empty
+  // roster. An empty list on a directory reads as a broken page; "you do not
+  // have access" is the honest state. A staff member whose location simply has
+  // no clients is different (real scope, empty result) and still sees the page.
+  const clientScope = useMemo(() => scopeFor(staffIdForPortal(portal.id)), [portal.id]);
+  const noAccess = !clientScope.unrestricted && clientScope.allowed.length === 0;
   const base = useMemo(
     () => visible.filter((c) => locationFilter === "all" || c.locationId === locationFilter),
     [visible, locationFilter],
@@ -119,6 +129,19 @@ export default function ClientsPage() {
   }, [base]);
 
   const counts = useMemo(() => STATUSES.map((s) => ({ s, n: base.filter((c) => c.status === s).length })), [base]);
+
+  if (noAccess) {
+    return (
+      <div className="mx-auto max-w-md rounded-panel border border-ink-800 bg-ink-900/40 px-6 py-10 text-center">
+        <ShieldAlert className="mx-auto h-8 w-8 text-watch" aria-hidden />
+        <h1 className="mt-3 text-heading text-ink-50">Staff directory</h1>
+        <p className="mt-2 text-detail leading-relaxed text-ink-400">
+          This is the clinic&apos;s patient directory, for staff. Your own health record is in your
+          portal.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
