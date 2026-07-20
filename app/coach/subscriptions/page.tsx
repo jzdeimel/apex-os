@@ -216,10 +216,11 @@ export default function CoachSubscriptionsPage() {
 
       {/* Explicit base grid-cols-1 — an implicit column sizes to content and
           overflows at 390px. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Refill revenue this month" value={centsToDollars(revenueCents)} tone="gold" />
+      {/* Money — refill revenue, run-rate — is an owner metric and lives on the
+          exec console, not here. A coach's refill screen is operational: what is
+          due, what is stuck, and who might run out. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Stat label="Active subscriptions" value={String(activeCount)} />
-        <Stat label="Monthly run-rate" value={centsToDollars(runRateCents)} />
         <Stat
           label="Needs attention"
           value={String(due.length + held.length)}
@@ -240,7 +241,7 @@ export default function CoachSubscriptionsPage() {
 
       <Section
         title="Held"
-        hint="Due, but blocked. This is revenue standing still — and a member who may run out."
+        hint="Due, but blocked — and a member who may run out. Clear the block before they do."
         count={held.length}
         empty="Nothing on hold."
       >

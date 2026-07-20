@@ -38,7 +38,9 @@ import { RiskBadge } from "@/components/RiskBadge";
 import { Monogram } from "@/components/Monogram";
 import { Disclaimer } from "@/components/Disclaimer";
 import { WhyButton, ProvenanceDrawer } from "@/components/trace/ProvenanceDrawer";
-import { RevenueBars, ServiceDonut, DONUT_COLORS, CountBars, DonutCount } from "@/components/charts";
+// Revenue, service-mix and lifecycle charts were removed from the clinic
+// dashboard: money is an owner's view and now lives only on the exec console and
+// /analytics. A clinician's morning screen is clinical, not financial.
 import { Stagger, StaggerItem } from "@/components/motion";
 import type { Client, LocationId } from "@/lib/types";
 import {
@@ -135,7 +137,6 @@ function labFlags(clientId: string) {
 export default function DashboardPage() {
   const { locationFilter, role, recStatus, activeStaffId } = useStore();
   const { portal } = usePortal();
-  const [showPractice, setShowPractice] = useState(false);
   const [whyClient, setWhyClient] = useState<Client | null>(null);
 
   /**
@@ -782,127 +783,6 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* PRACTICE VOLUME — the owner's screen, folded away                 */}
-      {/* ---------------------------------------------------------------- */}
-      <div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowPractice((s) => !s)}
-          aria-expanded={showPractice}
-        >
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showPractice && "rotate-180")} />
-          {showPractice ? "Hide" : "Show"} practice volume &amp; business metrics
-        </Button>
-        <p className="mt-1.5 text-micro text-ink-600">
-          Revenue, service mix and lifecycle are an owner&apos;s view. They are here, not on top.
-        </p>
-
-        {showPractice && (
-          <div className="mt-4 space-y-6 animate-fade-in">
-            {/* The counts below are real; the movement beside them is not. See
-                trendFor(). Placed above the grid at body-adjacent size rather
-                than under it in text-micro, because a percentage in green next
-                to a number is read as a measurement in about half a second. */}
-            <p className="max-w-prose text-detail leading-relaxed text-ink-400">
-              <span className="font-medium text-ink-100">Percentages and sparklines here are
-              illustrative.</span>{" "}
-              The counts are live against the current filter, but Apex keeps no prior-period history
-              for them — every delta and trend line is a seeded shape, not a measured change.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-              <div className="h-full">
-                <DashboardCard label="Active clients" countTo={data.active} spark={data.trends.active.spark} icon={<Users className="h-4 w-4" />} delta={data.trends.active.delta} deltaTone={data.trends.active.tone} hint={`${data.total} total in view`} />
-              </div>
-              <div className="h-full">
-                <DashboardCard label="New consults" countTo={data.newConsults} spark={data.trends.consults.spark} icon={<CalendarPlus className="h-4 w-4" />} delta={data.trends.consults.delta} deltaTone={data.trends.consults.tone} />
-              </div>
-              <div className="h-full">
-                <DashboardCard label="Results ready" countTo={data.resultsReady} spark={data.trends.results.spark} icon={<FlaskConical className="h-4 w-4" />} hint="Awaiting review" />
-              </div>
-              <div className="h-full">
-                <DashboardCard label="Inventory alerts" countTo={data.invAlerts} spark={data.trends.inv.spark} sparkColor="#f87171" icon={<PackageX className="h-4 w-4" />} delta={data.trends.inv.delta} deltaTone={data.trends.inv.tone} />
-              </div>
-              <div className="h-full">
-                <DashboardCard label="Overdue follow-ups" countTo={data.overdueFollowUp} spark={data.trends.overdue.spark} sparkColor="#f87171" icon={<Clock className="h-4 w-4" />} delta={data.trends.overdue.delta} deltaTone={data.trends.overdue.tone} />
-              </div>
-              <div className="h-full">
-                {role === "Coach" ? (
-                  <DashboardCard label="Avg Alpha Score" countTo={data.avgScore} spark={[data.avgScore - 8, data.avgScore - 5, data.avgScore - 6, data.avgScore - 3, data.avgScore - 2, data.avgScore - 1, data.avgScore]} sparkColor="#34d399" icon={<Gauge className="h-4 w-4" />} delta="+4" deltaTone="up" hint="Across your clients" />
-                ) : role === "Admin" ? (
-                  <DashboardCard label="On-hand inventory" countTo={Math.round(data.inventoryValue / 1000)} countPrefix="$" countSuffix="k" spark={data.trends.invValue.spark} icon={<Boxes className="h-4 w-4" />} delta={data.trends.invValue.delta} deltaTone={data.trends.invValue.tone} />
-                ) : (
-                  <DashboardCard label="Proj. monthly rev" countTo={Math.round(data.monthlyRevenue / 1000)} countPrefix="$" countSuffix="k" spark={data.trends.rev.spark} icon={<TrendingUp className="h-4 w-4" />} delta={data.trends.rev.delta} deltaTone={data.trends.rev.tone} />
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>{role === "Coach" ? "Client Alpha Score spread" : "Revenue by location"}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {role === "Coach" ? (
-                    <CountBars data={data.scoreDist} height={240} label="Clients" />
-                  ) : (
-                    <RevenueBars data={data.revByLoc} />
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Service mix</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ServiceDonut data={data.serviceMix} />
-                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                    {data.serviceMix.map((s, i) => (
-                      <div key={s.name} className="flex items-center gap-2 text-detail">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                        <span className="truncate text-ink-300">{s.name}</span>
-                        <span className="ml-auto stat-mono text-ink-500">{s.value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <CardHeader className="flex items-center justify-between">
-                  <CardTitle>Visits this week</CardTitle>
-                  <Badge tone="optimal">+8% vs last wk</Badge>
-                </CardHeader>
-                <CardContent>
-                  <CountBars data={data.weeklyVisits} height={220} label="Visits" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle>Lifecycle mix</CardTitle></CardHeader>
-                <CardContent>
-                  <DonutCount data={data.statusMix} height={180} centerValue={data.total} centerLabel="clients" />
-                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                    {data.statusMix.slice(0, 6).map((s) => (
-                      <div key={s.name} className="flex items-center gap-2 text-micro">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
-                        <span className="truncate text-ink-300">{s.name}</span>
-                        <span className="ml-auto stat-mono text-ink-500">{s.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-      </div>
 
       <Disclaimer />
 

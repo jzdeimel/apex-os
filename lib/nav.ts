@@ -127,6 +127,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       items: [
         { href: "/clinic", label: "Today", icon: LayoutDashboard },
         { href: "/clinic/escalations", label: "Escalations", icon: Siren, spotlight: true },
+        { href: "/clinic/population", label: "Risk radar", icon: Activity },
         { href: "/clinic/sign", label: "Sign queue", icon: FileSignature, spotlight: true },
         { href: "/clients", label: "Patients", icon: Users },
         { href: "/recommendations", label: "Awaiting sign-off", icon: Sparkles },
@@ -181,7 +182,8 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/insights", label: "What we're seeing", icon: Brain },
         { href: "/coach/winback", label: "Lapsed members", icon: Repeat },
         { href: "/automations", label: "Automations", icon: Workflow },
-        { href: "/analytics", label: "Analytics", icon: BarChart3 },
+        // Analytics (revenue/MRR) is an owner surface — it lives on the exec
+        // console only, not here. A coach's growth work is members, not money.
       ],
     },
     {
@@ -270,6 +272,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       items: [
         { href: "/exec", label: "Morning", icon: Gauge, spotlight: true },
         { href: "/exec/capacity", label: "Capacity & load", icon: Activity },
+        { href: "/clinic/population", label: "Clinical risk radar", icon: ShieldAlert },
         { href: "/exec/pipeline", label: "Lead pipeline", icon: Workflow },
       ],
     },
