@@ -24,6 +24,7 @@ import {
   Network,
   Package,
   PenLine,
+  Pill,
   PhoneCall,
   PlusCircle,
   Receipt,
@@ -145,6 +146,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Governance",
       items: [
         { href: "/clinic/ledger", label: "Audit trail", icon: History, spotlight: true },
+        { href: "/clinic/controlled", label: "Controlled substances", icon: Pill, spotlight: true },
         { href: "/admin/roster", label: "Roster health", icon: Rows3 },
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
         { href: "/settings", label: "Settings", icon: Settings },
@@ -277,6 +279,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/admin/daily-report", label: "Daily order report", icon: Receipt },
         { href: "/analytics", label: "Analytics", icon: BarChart3 },
         { href: "/clinic/ledger", label: "Audit trail", icon: History },
+        { href: "/clinic/controlled", label: "Controlled substances", icon: Pill },
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
       ],
     },

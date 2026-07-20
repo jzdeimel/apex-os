@@ -148,6 +148,7 @@ const heroClients: Client[] = [
     symptoms: ["Weight gain", "Brain fog", "Low energy"],
     programs: [
       { name: "GLP Weight Management", category: "Metabolic / weight management", startedOn: "2026-02-20", status: "Active" },
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-03-18", status: "Active" },
     ],
     joinedOn: "2025-12-11",
     latestLabDate: "2026-05-22",
@@ -202,6 +203,7 @@ const heroClients: Client[] = [
     symptoms: ["Slow recovery", "Poor sleep"],
     programs: [
       { name: "Recovery Track", category: "Recovery / tissue support", startedOn: "2026-04-01", status: "Active" },
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-04-10", status: "Active" },
     ],
     joinedOn: "2026-02-28",
     latestLabDate: "2026-05-26",
@@ -356,6 +358,7 @@ const heroClients: Client[] = [
     symptoms: ["Weight gain", "Joint pain", "Slow recovery"],
     programs: [
       { name: "Recovery Track", category: "Recovery / tissue support", startedOn: "2026-03-22", status: "Active" },
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-02-14", status: "Active" },
     ],
     joinedOn: "2026-01-25",
     latestLabDate: "2026-05-15",
@@ -565,6 +568,7 @@ const heroClients: Client[] = [
     symptoms: ["Weight gain", "Joint pain", "Slow recovery"],
     programs: [
       { name: "Metabolic Reset", category: "Metabolic / weight management", startedOn: "2026-03-18", status: "Active" },
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-04-02", status: "Active" },
     ],
     joinedOn: "2026-02-05",
     latestLabDate: "2026-05-25",

@@ -259,12 +259,35 @@ export const prescriptions: Prescription[] = clients.flatMap((c) => {
   if (eligible.length === 0) return [];
 
   const rand = seededRandom(c.id + "rx");
-  const count = Math.min(1 + Math.floor(rand() * 2), eligible.length);
-  const start = Math.floor(rand() * eligible.length);
+
+  // ANCHOR THE PRIMARY HORMONE, THEN THE DICE FOR ADJUNCTS.
+  //
+  // A member enrolled in Hormone Optimization IS on their hormone — testosterone
+  // for a man, estradiol for a woman — and leaving that to a random draw meant an
+  // enrolled patient could end up with only an adjunct peptide and no hormone
+  // script at all, which is neither realistic nor useful. So the hormone template
+  // (the one whose eligibility is the Hormone Optimization enrolment) is taken
+  // first, and the remaining slots are filled from the rest.
+  //
+  // This does NOT weaken the sex guard: `eligible` was already filtered by sex
+  // above, so for a woman the only Hormone-Optimization template in scope is the
+  // female estradiol entry, never the male testosterone one. The anchor can only
+  // ever be a template this patient was already allowed to receive.
+  const anchor = eligible.find((t) => t.programs.includes("Hormone Optimization"));
+  const rest = eligible.filter((t) => t !== anchor);
+  const extraCount = Math.min(Math.floor(rand() * 2), rest.length); // 0 or 1 adjunct
+  const start = rest.length ? Math.floor(rand() * rest.length) : 0;
+  const picked = [
+    ...(anchor ? [anchor] : []),
+    ...Array.from({ length: extraCount }, (_, i) => rest[(start + i) % rest.length]),
+  ];
+  // No anchor (a member on a non-hormone programme) keeps the original behaviour.
+  const chosen = picked.length
+    ? picked
+    : Array.from({ length: Math.min(1 + Math.floor(rand() * 2), eligible.length) }, (_, i) => eligible[(Math.floor(rand() * eligible.length) + i) % eligible.length]);
   const signer = providerId();
 
-  return Array.from({ length: count }, (_, i) => {
-    const t = eligible[(start + i) % eligible.length];
+  return chosen.map((t, i) => {
     // Signed some weeks back, so "time on therapy" is meaningful in the demo.
     const signedDaysAgo = 14 + Math.floor(rand() * 90);
     const signedAt = absolute(
