@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart, TrendingUp, Syringe, FlaskConical, MessageSquare } from "lucide-react";
 import { LayoutDashboard, Users, Brain, ListChecks, Bot } from "lucide-react";
+import { DoorOpen, PhoneCall, CalendarDays } from "lucide-react";
+import { Gauge, Activity, Workflow, Receipt } from "lucide-react";
 import { usePortal } from "@/lib/portalStore";
 import type { PortalId } from "@/lib/portals";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,33 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
     { href: "/clients", label: "Patients", icon: Users },
     { href: "/insights", label: "Seeing", icon: Brain },
     { href: "/agent", label: "Ask Apex", icon: Bot },
+  ],
+  /**
+   * The desk's five are its whole job, and on the tablet at the counter this
+   * bar IS the navigation — the sidebar is behind a menu button. So the two
+   * things done hundreds of times a day (the board, and booking the caller on
+   * hold) sit at the two easiest thumb positions rather than being ordered to
+   * match the sidebar.
+   */
+  desk: [
+    { href: "/desk", label: "Today", icon: ListChecks },
+    { href: "/desk/book", label: "Book", icon: PhoneCall },
+    { href: "/desk/rooms", label: "Rooms", icon: DoorOpen },
+    { href: "/clients", label: "Members", icon: Users },
+    { href: "/schedule", label: "Staff", icon: CalendarDays },
+  ],
+  /**
+   * The owner reads this on a phone, standing up, before the drive in — which
+   * is why /exec is built to answer its three questions in one scroll rather
+   * than splitting them across tabs. These five are escape hatches from that
+   * screen, not a substitute for it, so Morning stays first.
+   */
+  exec: [
+    { href: "/exec", label: "Morning", icon: Gauge },
+    { href: "/exec/capacity", label: "Capacity", icon: Activity },
+    { href: "/exec/pipeline", label: "Pipeline", icon: Workflow },
+    { href: "/admin/daily-report", label: "Orders", icon: Receipt },
+    { href: "/clients", label: "Members", icon: Users },
   ],
 };
 

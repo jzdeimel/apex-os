@@ -54,6 +54,14 @@ USER node
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
+# Migrations are READ FROM DISK at runtime by a path string, so Next's
+# dependency tracer never sees them and `standalone` does not carry them. The
+# symptom is not a missing file error at build time — it is a container that
+# boots happily and then reports
+#   [apex] migration failed: Can't find meta/_journal.json file
+# on the first database call, which is a long way from the cause.
+COPY --from=builder --chown=node:node /app/lib/db/migrations ./lib/db/migrations
+
 EXPOSE 3000
 
 CMD ["node", "server.js"]

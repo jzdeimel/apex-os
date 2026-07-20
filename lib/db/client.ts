@@ -69,7 +69,33 @@ export const isConfigured = db !== null;
  * there is exactly one place that can decide what "no database" means — and it
  * decides "stop", not "pretend".
  */
+let migrationsKicked = false;
+
+/**
+ * Kick migrations once, on first database use.
+ *
+ * This replaced a Next `instrumentation.ts` boot hook. That hook is evaluated
+ * for the Edge runtime as well as Node, so it pulled the Postgres driver into
+ * an Edge bundle that has no TCP stack and broke the build outright — and the
+ * `NEXT_RUNTIME` guard inside it could not prevent that, because the problem is
+ * static analysis rather than execution.
+ *
+ * Lazy is arguably better anyway: a process that never touches the database
+ * never pays for a migration check, and the first write is a perfectly good
+ * moment to insist the schema exists.
+ *
+ * Deliberately fire-and-forget. Blocking the first write behind a schema
+ * migration would make a cold start look like a hang; the write proceeds and
+ * fails loudly if the schema genuinely is not there, which is the honest signal.
+ */
+function kickMigrations() {
+  if (migrationsKicked) return;
+  migrationsKicked = true;
+  void import("@/lib/db/migrate").then((m) => m.runMigrations());
+}
+
 export function requireDb() {
+  kickMigrations();
   if (!db) {
     throw new Error(
       "DATABASE_URL is not set. Apex refuses to run write paths against no database — " +

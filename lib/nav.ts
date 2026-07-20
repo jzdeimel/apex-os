@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ClipboardList,
   Compass,
+  DoorOpen,
   Eye,
   FileSignature,
   FileText,
@@ -23,6 +24,7 @@ import {
   Network,
   Package,
   PenLine,
+  PhoneCall,
   PlusCircle,
   Receipt,
   Repeat,
@@ -188,6 +190,90 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/coach/handoff", label: "Handoff packet", icon: Rows3 },
         { href: "/schedule", label: "Team calendar", icon: CalendarDays },
         { href: "/swarm", label: "Background agents", icon: Network },
+        { href: "/settings", label: "Settings", icon: Settings },
+      ],
+    },
+  ],
+
+  /**
+   * The front desk is the SHORTEST nav in the product, and that is the design.
+   *
+   * The operator portals above are broad because coaches and clinicians live in
+   * them all day and shallow nav costs them clicks all day. A desk is the
+   * opposite: it does four things, repeatedly, at speed, while somebody is
+   * standing there. Every extra destination is one more thing to scan past on
+   * the way to the two that matter, so the two that matter are first.
+   *
+   * `/clients`, `/tasks`, `/schedule` and `/supply-chain` are unowned operator
+   * routes — see the `prefixes` note in lib/portals.ts — so they render with
+   * desk chrome rather than needing a desk-specific copy of each page.
+   */
+  desk: [
+    {
+      section: "The counter",
+      items: [
+        { href: "/desk", label: "Today", icon: ListChecks, spotlight: true },
+        { href: "/desk/book", label: "Book a caller", icon: PhoneCall, spotlight: true },
+        { href: "/desk/rooms", label: "Rooms", icon: DoorOpen },
+        { href: "/schedule", label: "Who's on today", icon: CalendarDays },
+      ],
+    },
+    {
+      section: "Look someone up",
+      items: [
+        { href: "/clients", label: "Members", icon: Users },
+        { href: "/tasks", label: "Tasks", icon: ClipboardList },
+      ],
+    },
+    {
+      section: "Site",
+      items: [
+        { href: "/supply-chain", label: "Stock", icon: Boxes },
+        { href: "/settings", label: "Settings", icon: Settings },
+      ],
+    },
+  ],
+
+  /**
+   * The owner. Short, like the desk, for the opposite reason.
+   *
+   * A coach's nav is broad because they work a queue all day. An owner opens
+   * the app, answers three questions and closes it. Everything that matters is
+   * on `/exec` itself; the two sub-routes exist because capacity and pipeline
+   * each need more room than a morning screen can spare, not because they are
+   * daily destinations.
+   *
+   * "Daily order report" is listed here and NOWHERE ELSE in any nav tree. The
+   * audit found app/admin/daily-report — 383 lines of genuinely computed,
+   * genuinely useful work — reachable only by typing the URL. It is an ops
+   * document rather than an owner one, so it is not promoted onto the morning
+   * screen; but the owner is the person who notices it has stopped being read,
+   * which makes this the right place to put the only link to it.
+   */
+  exec: [
+    {
+      section: "Ownership",
+      items: [
+        { href: "/exec", label: "Morning", icon: Gauge, spotlight: true },
+        { href: "/exec/capacity", label: "Capacity & load", icon: Activity },
+        { href: "/exec/pipeline", label: "Lead pipeline", icon: Workflow },
+      ],
+    },
+    {
+      section: "Look deeper",
+      items: [
+        { href: "/admin/daily-report", label: "Daily order report", icon: Receipt },
+        { href: "/analytics", label: "Analytics", icon: BarChart3 },
+        { href: "/clinic/ledger", label: "Audit trail", icon: History },
+        { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
+      ],
+    },
+    {
+      section: "The clinic",
+      items: [
+        { href: "/clients", label: "Members", icon: Users },
+        { href: "/schedule", label: "Team calendar", icon: CalendarDays },
+        { href: "/supply-chain", label: "Stock & vendors", icon: Boxes },
         { href: "/settings", label: "Settings", icon: Settings },
       ],
     },

@@ -9,12 +9,14 @@ import { AmbientField } from "@/components/entry/AmbientField";
 import { usePortal } from "@/lib/portalStore";
 import {
   ArrowRight,
+  ConciergeBell,
   ShieldCheck,
   Fingerprint,
   Stethoscope,
   HeartPulse,
   Sparkles,
   Lock,
+  Gauge,
 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -23,6 +25,8 @@ const PORTAL_ICON = {
   patient: HeartPulse,
   clinic: Stethoscope,
   coach: Sparkles,
+  desk: ConciergeBell,
+  exec: Gauge,
 } as const;
 
 /** Ledger-style proof points shown under the wordmark. */
@@ -121,7 +125,9 @@ export default function EntryPage() {
             </h1>
 
             <p className="mt-5 max-w-xl text-body leading-relaxed text-ink-400">
-              Three portals over one system of record. Every recommendation carries
+              {/* Count-free on purpose. This read "Three portals" and went
+                  stale the day a fourth was added, then again on the fifth. */}
+              A portal per person, over one system of record. Every recommendation carries
               the rule that produced it, every chart view is logged, and any record
               can be replayed exactly as it looked on any past date.
             </p>
@@ -144,7 +150,15 @@ export default function EntryPage() {
           </motion.div>
 
           {/* ── Portal cards ───────────────────────────────────────── */}
-          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Two-up then five-up. Was `sm:grid-cols-3`, which left the fourth
+              portal orphaned on its own row the moment the front desk was
+              added; two columns on a tablet is a better read than three
+              narrow ones anyway. Bumped 4 → 5 when the owner console landed,
+              for the same reason: at `lg:grid-cols-4` the fifth card sat alone
+              on a second row, which reads as an afterthought rather than as a
+              peer of the other four. The track is still ~260px at the 1400px
+              container, which these cards carry. */}
+          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {PORTAL_LIST.map((p, i) => {
               const Icon = PORTAL_ICON[p.id];
               const isLeaving = entering !== null && entering !== p.id;

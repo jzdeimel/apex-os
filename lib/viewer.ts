@@ -51,7 +51,7 @@ export interface Persona {
 }
 
 /**
- * The three seats the owner can sit in.
+ * The four seats the owner can sit in.
  *
  * Each names a real record in the demo dataset so the surfaces render populated
  * — an owner previewing "Coach" with nobody's roster attached would learn
@@ -84,6 +84,49 @@ export const PERSONAS: Persona[] = [
     asName: "Dr. Marcus Vale",
     asDetail: "Medical director · MD",
     home: "/clinic",
+  },
+  /**
+   * The front desk.
+   *
+   * Rendered as Hannah Whitfield — the Admin actually rostered at Raleigh in
+   * lib/mock/staff.ts, which is also who `deskStaffFor("raleigh")` resolves to,
+   * so the person in the seat and the actor on every ledger row the desk writes
+   * are the same human. Apex has no `Front Desk` staff role to name (GAP_ANALYSIS,
+   * OWNERSHIP/ADMIN, "Staff roles" — three roles for a job that needs nine), so
+   * the detail line says Admin, because that is what the record says.
+   */
+  {
+    id: "desk",
+    label: "Front Desk",
+    who: "What reception sees",
+    asId: "st-009",
+    asName: "Hannah Whitfield",
+    asDetail: "Patient experience, Raleigh · Admin",
+    home: "/desk",
+  },
+  /**
+   * The owner — and the one entry in this list that is not a disguise.
+   *
+   * Every other seat here answers "what does someone else see", and the switcher
+   * exists so the owner can check that those surfaces work. This one renders the
+   * owner as himself: `asId` is VIEWER.id, so the account in the seat and the
+   * account signed in are the same record, and nothing is being assumed.
+   *
+   * It is listed anyway rather than left out. `personaFor()` falls back to
+   * PERSONAS[2] — Medical — for any portal with no entry, so omitting this would
+   * have left the topbar reading "viewing as Medical" while the owner console was
+   * on screen. A false identity label on the one console that renders clinic-wide
+   * financials is exactly the class of small, plausible untruth this whole audit
+   * was about.
+   */
+  {
+    id: "exec",
+    label: "Owner",
+    who: "Your own seat — not a persona",
+    asId: VIEWER.id,
+    asName: VIEWER.name,
+    asDetail: "Ownership · all locations",
+    home: "/exec",
   },
 ];
 

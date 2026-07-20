@@ -20,9 +20,20 @@ const nextConfig = {
    * simply never executes. That is how migrations "ran" against a configured
    * database and left it empty while /api/health reported ok.
    */
-  experimental: {
-    instrumentationHook: true,
-  },
+  /**
+   * `postgres` is required at runtime from node_modules, never bundled.
+   *
+   * A native TCP driver cannot be compiled into an Edge bundle — there is no
+   * `net` and no `crypto` there. This also documents why instrumentation.ts was
+   * removed: Next evaluates that file for BOTH runtimes, so the import chain
+   * instrumentation -> migrate -> client -> postgres dragged the driver into the
+   * Edge build and failed with "Module not found: Can't resolve 'crypto'". The
+   * NEXT_RUNTIME guard inside the file is a runtime check and does not stop
+   * static analysis, so no amount of dynamic-importing fixed it.
+   *
+   * Migrations now run lazily on first database use instead. See lib/db/client.ts.
+   */
+  serverExternalPackages: ["postgres"],
 
   /**
    * Build output directory.

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isConfigured } from "@/lib/db/client";
-import { migrationState } from "@/lib/db/migrate";
+import { migrationState, runMigrations } from "@/lib/db/migrate";
 
 /**
  * Health and readiness.
@@ -18,6 +18,17 @@ import { migrationState } from "@/lib/db/migrate";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  /**
+   * Health is also the migration trigger.
+   *
+   * Migrations run lazily on first database use (see lib/db/client.ts), and
+   * right now no UI writes to the database — so without this they would never
+   * run at all. A readiness probe is a good place for it: it is called on every
+   * deploy, it is idempotent because Drizzle records applied migrations and
+   * takes an advisory lock, and it means the schema is in place before the first
+   * real write rather than racing it.
+   */
+  await runMigrations();
   const migration = migrationState();
   /**
    * `pending` counts as degraded, not ok.

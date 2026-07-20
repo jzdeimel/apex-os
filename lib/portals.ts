@@ -1,5 +1,5 @@
 /**
- * Apex runs three distinct portals over one system of record.
+ * Apex runs four distinct portals over one system of record.
  *
  * Each portal is a full experience with its own identity class, navigation,
  * accent and home route — not a role flag on a single console. The accent is
@@ -10,7 +10,7 @@
  * accent must never be confused with an `optimal | watch | low | high` reading.
  */
 
-export type PortalId = "patient" | "clinic" | "coach";
+export type PortalId = "patient" | "clinic" | "coach" | "desk" | "exec";
 
 /** Who signs in, and how. Mirrors the production identity plan. */
 export interface PortalIdentity {
@@ -101,7 +101,10 @@ export const PORTALS: Record<PortalId, PortalDef> = {
   coach: {
     id: "coach",
     label: "Coach Console",
-    persona: "Health coaches & front desk",
+    // Was "Health coaches & front desk". It never was the front desk: nothing
+    // in the coach portal could check anybody in, and folding two jobs into one
+    // persona label is most of why the desk went unbuilt for so long.
+    persona: "Health coaches",
     tagline: "Your roster, today's queue, and the next best action for every member.",
     home: "/coach",
     prefixes: ["/coach"],
@@ -118,9 +121,90 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       gradient: "from-watch/20 via-watch/5 to-transparent",
     },
   },
+  /**
+   * The front desk.
+   *
+   * A separate portal rather than a tab inside the coach console, because it is
+   * a separate JOB done by a separate person on separate hardware — a desk
+   * monitor and a tablet at the counter, all day, with a member standing in
+   * front of them. Its whole surface area is the encounter: who is here, how
+   * long have they been here, which room, and book the person on the phone.
+   * None of that is coaching, and none of it belongs behind a coach's queue.
+   *
+   * The accent is the calm blue rather than another warm tone. The coach and
+   * clinic consoles are urgent surfaces and look it; a desk that also shouts
+   * gives the person at the counter nowhere to rest their eyes for eight hours.
+   */
+  desk: {
+    id: "desk",
+    label: "Front Desk",
+    persona: "Reception & patient experience",
+    tagline: "Who is here, how long they have waited, which room — and book the caller on hold.",
+    home: "/desk",
+    prefixes: ["/desk"],
+    identity: {
+      method: "Shared workstation · badge tap",
+      // Deliberately NOT "auto-locks at the counter". No idle lock exists
+      // anywhere in Apex (GAP_ANALYSIS, COMPLIANCE, "Session timeout" — P0) and
+      // a shared reception terminal is the single worst place to imply one.
+      session: "Shift-length · shared terminal",
+    },
+    accent: {
+      hex: "#60a5fa",
+      text: "text-low",
+      bg: "bg-low",
+      border: "border-low/30",
+      soft: "bg-low/12",
+      gradient: "from-low/20 via-low/5 to-transparent",
+    },
+  },
+  /**
+   * The owner.
+   *
+   * A separate portal rather than an "Analytics" item inside the coach console,
+   * because the question it answers is not an operator's. A coach console is
+   * organised around a queue of people; this is organised around whether the
+   * business is healthy, and the two have almost no surface in common.
+   *
+   * It is also the one portal that is NOT a persona to be assumed. The other
+   * four answer "what does a member / clinician / coach / receptionist see";
+   * this one is simply where the signed-in owner lives, which is why it names a
+   * real account (lib/viewer.ts, VIEWER) rather than a seeded stand-in.
+   *
+   * THE ACCENT IS DELIBERATELY ACHROMATIC. Every colour in this system already
+   * carries a meaning — gold is the brand and the clinic, and optimal / watch /
+   * low are clinical status readings that the other portals have now spent.
+   * Taking a fifth hue would either collide with a lab result's semantics or
+   * invent a sixth colour for a design system whose whole argument is restraint.
+   * Platinum reads as executive, competes with nothing, and leaves the console's
+   * only saturated elements to be the figures that are actually urgent.
+   */
+  exec: {
+    id: "exec",
+    label: "Owner Console",
+    persona: "Ownership",
+    tagline: "What happened yesterday, what needs you today, and where every number came from.",
+    home: "/exec",
+    prefixes: ["/exec"],
+    identity: {
+      method: "Entra ID · MFA required",
+      // No claim of an idle lock: none exists anywhere in Apex (GAP_ANALYSIS,
+      // COMPLIANCE, "Session timeout" — P0), and this console renders
+      // clinic-wide financials.
+      session: "8-hour · owner account",
+    },
+    accent: {
+      hex: "#c9ced4",
+      text: "text-ink-200",
+      bg: "bg-ink-200",
+      border: "border-ink-400/30",
+      soft: "bg-ink-200/12",
+      gradient: "from-ink-200/15 via-ink-200/5 to-transparent",
+    },
+  },
 };
 
-export const PORTAL_ORDER: PortalId[] = ["patient", "clinic", "coach"];
+export const PORTAL_ORDER: PortalId[] = ["patient", "clinic", "coach", "desk", "exec"];
 
 /** Ordered list for rendering the picker. */
 export const PORTAL_LIST: PortalDef[] = PORTAL_ORDER.map((id) => PORTALS[id]);
