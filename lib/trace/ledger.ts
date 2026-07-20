@@ -1,7 +1,7 @@
 import { sha256, canonicalJson } from "@/lib/trace/hash";
 import { clients, clientName } from "@/lib/mock/clients";
 import { staff, staffName } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 import type { LocationId } from "@/lib/types";
 
 /**
@@ -127,7 +127,7 @@ export function verifyChain(rows: LedgerRow[]): ChainVerdict {
 // Demo event generation
 // ---------------------------------------------------------------------------
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 const VIEW_REASONS = [
   "Scheduled visit prep",
@@ -247,7 +247,7 @@ function generate(count: number): LedgerPayload[] {
 
     const payload: LedgerPayload = {
       seq: i + 1,
-      at: new Date(cursor).toISOString(),
+      at: absolute(cursor).toISOString(),
       actorId: actor.id,
       actorName: actor.name,
       actorRole: actor.role,

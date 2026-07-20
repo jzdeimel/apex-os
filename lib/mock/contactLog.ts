@@ -1,6 +1,6 @@
 import { clients, getClient } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 import { sha256 } from "@/lib/trace/hash";
 import { hasConsent } from "@/lib/comms/consent";
 import type {
@@ -29,7 +29,7 @@ import type {
  *  exactly, as `dispositionRank` + `bestTouchPerDay`.
  */
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 // ---------------------------------------------------------------------------
 // Disposition ranking
@@ -230,7 +230,7 @@ function buildLog(clientId: string): ContactEntry[] {
     const machineSent = tpl.channel === "SMS" || tpl.channel === "Email" || tpl.channel === "Portal message";
 
     // Business hours, 8:00–19:00 — quiet hours are enforced, so nothing at 2am.
-    const day = new Date(cursor);
+    const day = absolute(cursor);
     day.setHours(8 + Math.floor(rand() * 11), Math.floor(rand() * 60), 0, 0);
 
     // Consent is evaluated AS OF the message date, not as of today. The
@@ -273,7 +273,7 @@ function buildLog(clientId: string): ContactEntry[] {
         Math.floor(rand() * (pool.length > 0 ? pool.length : INBOUND_REPLIES.length))
       ];
       // Replies land minutes to hours later, never before the message.
-      const replyAt = new Date(day.getTime() + Math.floor((6 + rand() * 400) * 60_000));
+      const replyAt = absolute(day.getTime() + Math.floor((6 + rand() * 400) * 60_000));
       if (replyAt.getTime() <= NOW.getTime()) {
         n += 1;
         const rid = entryId(clientId, n);

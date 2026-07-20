@@ -2,7 +2,7 @@ import type { LocationId } from "@/lib/types";
 import { clientMap, clientName } from "@/lib/mock/clients";
 import { staffMap, staffName } from "@/lib/mock/staff";
 import { labResults } from "@/lib/mock/labs";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * LAB TURNAROUND — draw → resulted → REVIEWED.
@@ -39,7 +39,7 @@ import { seededRandom } from "@/lib/utils";
  */
 
 /** Pinned clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 /**
@@ -118,11 +118,11 @@ export interface LabTimeline {
 }
 
 function hoursBetween(a: string, b: string): number {
-  return (new Date(b).getTime() - new Date(a).getTime()) / 3_600_000;
+  return (absolute(b).getTime() - absolute(a).getTime()) / 3_600_000;
 }
 
 function isoPlusHours(dateIso: string, hours: number): string {
-  const d = new Date(new Date(dateIso).getTime() + hours * 3_600_000);
+  const d = absolute(absolute(dateIso).getTime() + hours * 3_600_000);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
 }
@@ -141,7 +141,7 @@ function buildTimelines(): LabTimeline[] {
     const drawToResultHours = (lo + rand() * (hi - lo)) * 24;
     const resultedAt = isoPlusHours(collectedAt, drawToResultHours);
 
-    const resultedMs = new Date(resultedAt).getTime();
+    const resultedMs = absolute(resultedAt).getTime();
     const ageHours = (NOW.getTime() - resultedMs) / 3_600_000;
 
     // Still with the lab.
@@ -404,7 +404,7 @@ export function turnaroundWindow() {
     to: "2026-06-12",
     panels: labTimelines.length,
     days: dates.length
-      ? Math.round((NOW.getTime() - new Date(dates[0]).getTime()) / DAY_MS)
+      ? Math.round((NOW.getTime() - absolute(dates[0]).getTime()) / DAY_MS)
       : 0,
   };
 }

@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 // =============================================================================
 // Apex — AI Insights engine (deterministic, mock-data only)
 // Next-Best-Action, attention triage scoring, churn/retention risk, cohorts.
@@ -9,15 +10,15 @@ import { clients } from "@/lib/mock/clients";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { recommendationsForClient } from "@/lib/mock/recommendations";
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 function daysSince(iso?: string): number | null {
   if (!iso) return null;
-  return Math.round((NOW.getTime() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+  return Math.round((NOW.getTime() - absolute(iso).getTime()) / (1000 * 60 * 60 * 24));
 }
 function daysUntil(iso?: string): number | null {
   if (!iso) return null;
-  return Math.round((new Date(iso).getTime() - NOW.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.round((absolute(iso).getTime() - NOW.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 const riskWeight: Record<RiskLevel, number> = { none: 0, low: 8, moderate: 18, high: 30 };

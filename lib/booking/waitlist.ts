@@ -4,7 +4,7 @@ import { slotsFor, visitTypeMap } from "@/lib/booking/availability";
 import { locationName } from "@/lib/mock/locations";
 import { staffName } from "@/lib/mock/staff";
 import { appendLedger } from "@/lib/trace/ledger";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * The waitlist — what happens when the answer is "nothing that week".
@@ -133,7 +133,7 @@ function outlookFor(ahead: number, windowDays: number, req: WaitlistRequest): st
 }
 
 function daysBetween(a: string, b: string): number {
-  return Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86_400_000) + 1;
+  return Math.round((absolute(`${b}T12:00:00`).getTime() - absolute(`${a}T12:00:00`).getTime()) / 86_400_000) + 1;
 }
 
 /**
@@ -235,7 +235,7 @@ export function simulateRelease(entry: WaitlistEntry): WaitlistOffer | null {
   const slot = candidates[0];
   if (!slot) return null;
 
-  const holdsUntil = new Date(new Date(NOW).getTime() + OFFER_HOLD_MINUTES * 60_000)
+  const holdsUntil = absolute(absolute(NOW).getTime() + OFFER_HOLD_MINUTES * 60_000)
     .toISOString()
     .slice(0, 19);
 

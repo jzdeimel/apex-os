@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Biomarker, Client } from "@/lib/types";
 import type { PlanOfCare } from "@/lib/planOfCare/types";
 import { clients, getClient } from "@/lib/mock/clients";
@@ -34,7 +35,7 @@ import { buildPlanOfCare, allPlanItems } from "@/lib/planOfCare/engine";
  */
 
 /** Pinned clock. Nothing in Apex reads the wall clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 /**
@@ -112,7 +113,7 @@ function daysBetween(fromIso: string, to: Date = NOW): number {
 }
 
 function addWeeks(iso: string, weeks: number): string {
-  const d = new Date(Date.parse(iso) + weeks * 7 * DAY_MS);
+  const d = absolute(Date.parse(iso) + weeks * 7 * DAY_MS);
   return d.toISOString().slice(0, 10);
 }
 

@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Biomarker, Client } from "@/lib/types";
 import { clients } from "@/lib/mock/clients";
 import { getLabsForClient } from "@/lib/mock/labs";
@@ -55,7 +56,7 @@ import { getLabsForClient } from "@/lib/mock/labs";
  */
 
 /** Pinned clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 /**
@@ -189,7 +190,7 @@ function changesFor(
 
     const last = series[series.length - 1];
     const observationDays = Math.round(
-      (new Date(last.date).getTime() - new Date(base.date).getTime()) / DAY_MS,
+      (absolute(last.date).getTime() - absolute(base.date).getTime()) / DAY_MS,
     );
     if (observationDays < MIN_OBSERVATION_DAYS) continue;
 
@@ -378,7 +379,7 @@ function analyseProtocol(protocol: string): ProtocolResult {
   const daysOn = cohort
     .map((c) => {
       const program = c.programs.find((p) => p.name === protocol)!;
-      return Math.round((NOW.getTime() - new Date(program.startedOn).getTime()) / DAY_MS);
+      return Math.round((NOW.getTime() - absolute(program.startedOn).getTime()) / DAY_MS);
     })
     .sort((a, b) => a - b);
 

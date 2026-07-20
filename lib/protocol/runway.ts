@@ -2,7 +2,7 @@ import type { Subscription } from "@/lib/subscriptions/types";
 import { subscriptionsForClient } from "@/lib/mock/subscriptions";
 import { addDays, dayOf, daysBetween, refillTiming } from "@/lib/subscriptions/engine";
 import { catalogItem } from "@/lib/catalog/catalog";
-import { formatDate } from "@/lib/utils";
+import { formatDate, absolute } from "@/lib/utils";
 
 /**
  * REFILL RUNWAY — the member-facing half of the subscription engine.
@@ -43,7 +43,7 @@ export const SHIP_TRANSIT_DAYS = 3;
  * Format a DATE-ONLY string for display.
  *
  * `formatDate` from lib/utils takes the string straight to `new Date`, and
- * `new Date("2026-06-12")` is parsed as UTC midnight — which renders as 11 June
+ * `absolute("2026-06-12")` is parsed as UTC midnight — which renders as 11 June
  * for anyone west of Greenwich. Every date in this module is date-only, so
  * anchoring to midday makes the displayed day match the stored day in every
  * timezone the clinic operates in.
@@ -172,7 +172,7 @@ export function runwayFor(clientId: string, nowIso: string = NOW): Runway {
   const lines: RunwayLine[] = subscriptionsForClient(clientId)
     .filter((s) => s.status === "Active")
     .map((sub) => {
-      const item = catalogItem(sub.catalogItemId);
+      const item = catalogItem(sub.sku);
       const daysLeft = daysOfSupply(sub, nowIso);
       const status = statusFor(sub, daysLeft);
       const arrivesOn =
@@ -184,8 +184,8 @@ export function runwayFor(clientId: string, nowIso: string = NOW): Runway {
         subscriptionId: sub.id,
         // A SKU the catalog no longer knows is a real failure, not a blank
         // cell — say so rather than rendering an empty name.
-        itemName: item?.name ?? `${sub.catalogItemId} — ask your coach about this one`,
-        sku: sub.catalogItemId,
+        itemName: item?.name ?? `${sub.sku} — ask your coach about this one`,
+        sku: sub.sku,
         daysLeft,
         status,
         memberLine: memberLineFor(daysLeft),

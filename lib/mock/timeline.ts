@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { TimelineEvent, TimelineEventType, ClientStatus } from "@/lib/types";
 import { clients } from "@/lib/mock/clients";
 
@@ -40,7 +41,7 @@ const DETAIL: Record<TimelineEventType, string> = {
 };
 
 function addDays(iso: string, days: number): string {
-  const d = new Date(iso);
+  const d = absolute(iso);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 19);
 }

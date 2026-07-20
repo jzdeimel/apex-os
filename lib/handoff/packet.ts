@@ -12,7 +12,7 @@ import { triageScore, churnRisk, nextBestAction } from "@/lib/aiInsights";
 import { lastTouchFor, daysSinceTouch } from "@/lib/mock/contactLog";
 import { membershipForClient } from "@/lib/mock/memberships";
 import { appendLedger, type LedgerRow } from "@/lib/trace/ledger";
-import { formatDate } from "@/lib/utils";
+import { formatDate, absolute } from "@/lib/utils";
 
 /**
  * Coach handoff packets.
@@ -55,7 +55,7 @@ const DAY_MS = 86_400_000;
 export const COVER_WINDOW_DAYS = 14;
 
 function daysBetween(fromIso: string, toIso: string): number {
-  return Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / DAY_MS);
+  return Math.round((absolute(toIso).getTime() - absolute(fromIso).getTime()) / DAY_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,19 +239,19 @@ function dueItemsFor(c: Client, nowIso: string, windowDays: number): DueItem[] {
 
   for (const s of subscriptionsForClient(c.id)) {
     if (s.status !== "Active") continue;
-    const name = catalogItem(s.catalogItemId)?.name ?? s.catalogItemId;
+    const name = catalogItem(s.sku)?.name ?? s.sku;
     push("Refill", `${name} refill due`, s.nextRefillOn);
   }
 
   for (const e of escalationsForClient(c.id)) {
     if (isResolved(e)) continue;
-    const due = new Date(new Date(e.raisedAt).getTime()).toISOString();
+    const due = absolute(absolute(e.raisedAt).getTime()).toISOString();
     // The SLA text already carries the clock; the date here just orders it.
     push("Escalation SLA", `${e.priority} escalation answer owed (${formatSla(e, nowIso)})`, due);
   }
 
   if (c.latestLabDate) {
-    const recheck = new Date(new Date(c.latestLabDate).getTime() + 90 * DAY_MS).toISOString();
+    const recheck = absolute(absolute(c.latestLabDate).getTime() + 90 * DAY_MS).toISOString();
     if (c.status === "Active Protocol") push("Lab recheck", "90-day lab recheck window opens", recheck);
   }
 
@@ -390,7 +390,7 @@ export function buildPacket(coachId: string, nowIso: string = NOW): HandoffPacke
     coachName: staffName(coachId),
     generatedAt: nowIso,
     coverFrom: nowIso,
-    coverTo: new Date(new Date(nowIso).getTime() + COVER_WINDOW_DAYS * DAY_MS).toISOString(),
+    coverTo: absolute(absolute(nowIso).getTime() + COVER_WINDOW_DAYS * DAY_MS).toISOString(),
     briefs,
     totals: {
       clients: briefs.length,

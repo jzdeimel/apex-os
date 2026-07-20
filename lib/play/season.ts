@@ -4,7 +4,7 @@ import { getScanForClient } from "@/lib/mock/bodyscans";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { behaviourFor } from "@/lib/mock/play";
 import { streakFor } from "@/lib/play/streak";
-import { clamp } from "@/lib/utils";
+import { clamp, absolute } from "@/lib/utils";
 
 /**
  * The season arc — the long structure underneath the daily loop.
@@ -165,11 +165,16 @@ function meaningFor(week: number, detail: string): string {
  * different markup for startedOn, endsOn and every chapter date, which React
  * reports as a hydration mismatch.
  */
+/**
+ * Format a pinned timestamp as YYYY-MM-DD, identically in every environment.
+ *
+ * Both obvious approaches are wrong here: `toISOString()` on a locally-parsed
+ * midnight shifts the day under any non-UTC offset, and local getters shift it
+ * the other way. The fix is to make the instant absolute in the first place —
+ * see lib/utils#absolute.
+ */
 function isoDay(ms: number): string {
-  const d = new Date(ms);
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
+  return absolute(ms).toISOString().slice(0, 10);
 }
 
 /**
@@ -184,8 +189,10 @@ export function seasonFor(clientId: string, nowIso: string = NOW): Season | null
   const client = getClient(clientId);
   if (!client) return null;
 
-  const nowMs = new Date(nowIso).getTime();
-  const joinedMs = new Date(client.joinedOn + "T00:00:00").getTime();
+  const nowMs = absolute(nowIso).getTime();
+  // Absolute: a locally-parsed midnight is a different instant in every zone,
+  // which is what made every chapter date drift between server and client.
+  const joinedMs = absolute(client.joinedOn + "T00:00:00").getTime();
   const daysEnrolled = Math.max(0, Math.floor((nowMs - joinedMs) / DAY_MS));
 
   const number = Math.floor(daysEnrolled / SEASON_DAYS) + 1;
@@ -295,14 +302,14 @@ export function seasonRecap(clientId: string, nowIso: string = NOW): SeasonRecap
   const streak = streakFor(client.id, nowIso);
   const plan = buildPlanOfCare(client);
 
-  const startMs = new Date(season.startedOn + "T00:00:00").getTime();
+  const startMs = absolute(season.startedOn + "T00:00:00").getTime();
 
   const changes: RecapChange[] = [];
   if (scan?.history && scan.history.length > 1) {
     // Only scans taken inside this block count toward this block's recap. If a
     // member has no in-block baseline, fall back to their first scan and the
     // note says so rather than the label quietly lying about the window.
-    const inSeason = scan.history.filter((h) => new Date(h.date + "T00:00:00").getTime() >= startMs);
+    const inSeason = scan.history.filter((h) => absolute(h.date + "T00:00:00").getTime() >= startMs);
     const baseline = inSeason.length > 1 ? inSeason[0] : scan.history[0];
     const latest = scan.history[scan.history.length - 1];
     const scoped = inSeason.length > 1;

@@ -1,5 +1,5 @@
 import { clients } from "@/lib/mock/clients";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 import type {
   ConsentGrant,
   ConsentScope,
@@ -26,7 +26,7 @@ import type {
  */
 
 /** Pinned clock. Nothing in Apex reads the wall clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 /** Channels a member can hold a grant on. Phone/in-person are consented at the door. */
 const CONSENTABLE: ContactChannel[] = ["SMS", "Email", "Portal message"];
@@ -39,11 +39,11 @@ const SOURCES: ConsentSource[] = [
 ];
 
 function isoDaysBefore(days: number): string {
-  return new Date(NOW.getTime() - days * 86_400_000).toISOString();
+  return absolute(NOW.getTime() - days * 86_400_000).toISOString();
 }
 
 function isoDaysAfter(days: number): string {
-  return new Date(NOW.getTime() + days * 86_400_000).toISOString();
+  return absolute(NOW.getTime() + days * 86_400_000).toISOString();
 }
 
 /**
@@ -237,13 +237,13 @@ export function consentSummary(clientId: string, at: Date = NOW): ConsentSummary
 
     let reason: string;
     if (live.length > 0) {
-      reason = `Granted ${new Date(live[0].grantedAt).toLocaleDateString("en-US", {
+      reason = `Granted ${absolute(live[0].grantedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       })} via ${live[0].grantedVia}.`;
     } else if (revoked) {
-      reason = `Revoked ${new Date(revoked.revokedAt as string).toLocaleDateString("en-US", {
+      reason = `Revoked ${absolute(revoked.revokedAt as string).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",

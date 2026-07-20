@@ -230,11 +230,11 @@ export function monthlyBreakdown(clientId: string, nowIso: string = NOW): Monthl
   const recurring: CostLine[] = subscriptionsForClient(clientId)
     .filter((s) => s.status === "Active")
     .map((sub) => {
-      const item = catalogItem(sub.catalogItemId);
+      const item = catalogItem(sub.sku);
       const monthly = monthlyEquivalentCents(sub.priceCents, sub.cadenceDays);
       return {
         id: `cost-sub-${sub.id}`,
-        label: item?.name ?? sub.catalogItemId,
+        label: item?.name ?? sub.sku,
         cents: monthly,
         kind: "recurring" as const,
         basis:
@@ -276,7 +276,7 @@ export function monthlyBreakdown(clientId: string, nowIso: string = NOW): Monthl
   const recurringSkus = new Set(
     subscriptionsForClient(clientId)
       .filter((s) => s.status === "Active")
-      .map((s) => s.catalogItemId),
+      .map((s) => s.sku),
   );
 
   const oneOffs: CostLine[] = billableOrders(clientId)
@@ -346,7 +346,7 @@ export function monthlyBreakdown(clientId: string, nowIso: string = NOW): Monthl
     .filter((s) => s.status === "Active" && !s.heldReason)
     .filter((s) => daysBetween(today, s.nextRefillOn) >= 0 && daysBetween(s.nextRefillOn, horizon) >= 0)
     .map((s) => ({
-      label: catalogItem(s.catalogItemId)?.name ?? s.catalogItemId,
+      label: catalogItem(s.sku)?.name ?? s.sku,
       cents: s.priceCents,
       on: s.nextRefillOn,
       basis: `Refill due ${formatDay(s.nextRefillOn)} at the price you enrolled at, ${dollars(s.priceCents)}.`,

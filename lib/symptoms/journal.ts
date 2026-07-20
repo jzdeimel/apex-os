@@ -4,7 +4,7 @@ import { getLabsForClient } from "@/lib/mock/labs";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { focusKindFor } from "@/lib/training/workouts";
-import { seededRandom, clamp } from "@/lib/utils";
+import { seededRandom, clamp, absolute } from "@/lib/utils";
 
 /**
  * SYMPTOM JOURNAL.
@@ -139,11 +139,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 function toDate(d: string): Date {
   // Midday avoids any DST edge shunting a date-only value into the day before.
-  return new Date(`${d}T12:00:00`);
+  return absolute(`${d}T12:00:00`);
 }
 
 export function addDays(date: string, n: number): string {
-  const d = new Date(toDate(date).getTime() + n * DAY_MS);
+  const d = absolute(toDate(date).getTime() + n * DAY_MS);
   const p = (x: number) => String(x).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

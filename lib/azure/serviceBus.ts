@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import { sha256 } from "@/lib/trace/hash";
 import type { OutboxEntry, OutboxKind } from "@/lib/orders/types";
 import { RETRY_POLICY, backoffMs, isDeadLettered } from "@/lib/orders/medsource";
@@ -168,17 +169,17 @@ export function peek(
   queueName: QueueName = "apex-outbox",
   at: string = AZURE_NOW,
 ): QueueMessage | undefined {
-  const now = new Date(at).getTime();
+  const now = absolute(at).getTime();
   return queue.find(
-    (m) => m.queue === queueName && m.state === "queued" && new Date(m.scheduledFor).getTime() <= now,
+    (m) => m.queue === queueName && m.state === "queued" && absolute(m.scheduledFor).getTime() <= now,
   );
 }
 
 /** Everything currently visible in a queue, oldest first. */
 export function peekAll(queueName: QueueName = "apex-outbox", at: string = AZURE_NOW): QueueMessage[] {
-  const now = new Date(at).getTime();
+  const now = absolute(at).getTime();
   return queue.filter(
-    (m) => m.queue === queueName && m.state === "queued" && new Date(m.scheduledFor).getTime() <= now,
+    (m) => m.queue === queueName && m.state === "queued" && absolute(m.scheduledFor).getTime() <= now,
   );
 }
 
@@ -224,7 +225,7 @@ export function abandon(
   }
 
   msg.state = "queued";
-  msg.scheduledFor = new Date(new Date(at).getTime() + backoffMs(msg.deliveryCount + 1)).toISOString();
+  msg.scheduledFor = absolute(absolute(at).getTime() + backoffMs(msg.deliveryCount + 1)).toISOString();
   return adapterOk(msg);
 }
 
@@ -279,9 +280,9 @@ export interface QueueDepth {
 export function queueDepth(queueName: QueueName = "apex-outbox", at: string = AZURE_NOW): QueueDepth {
   const rows = queue.filter((m) => m.queue === queueName);
   const undelivered = rows.filter((m) => m.state === "queued" || m.state === "in-flight");
-  const now = new Date(at).getTime();
+  const now = absolute(at).getTime();
   const oldest = undelivered.reduce((max, m) => {
-    const age = (now - new Date(m.enqueuedAt).getTime()) / 60000;
+    const age = (now - absolute(m.enqueuedAt).getTime()) / 60000;
     return age > max ? age : max;
   }, 0);
 

@@ -15,7 +15,7 @@ import {
   type WorkoutBlockItem,
 } from "@/lib/training/workouts";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
-import { cn } from "@/lib/utils";
+import { cn, absolute } from "@/lib/utils";
 
 /**
  * WORKOUT LIBRARY.
@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
  */
 
 /** Pinned NOW. Parsed at midday so the weekday cannot slip across a boundary. */
-const TODAY_INDEX = new Date("2026-06-12T12:00:00").getDay(); // 0 = Sunday
+const TODAY_INDEX = absolute("2026-06-12T12:00:00").getDay(); // 0 = Sunday
 const TODAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][TODAY_INDEX];
 
 function BlockRow({

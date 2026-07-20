@@ -11,10 +11,10 @@
 import type { Document, DocumentKind, DocumentSource } from "@/lib/documents/types";
 import { clients } from "@/lib/mock/clients";
 import { staff } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 import { sha256 } from "@/lib/trace/hash";
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 /** Only staff who plausibly touch documents. Coaches upload; providers release. */
 const UPLOADERS = staff.filter((s) => s.role !== "Admin");
@@ -156,8 +156,7 @@ function build(): Document[] {
       // Walk backwards so a member's documents are spread across their tenure
       // instead of all landing in the same afternoon.
       daysBack += 3 + Math.floor(rand() * 26);
-      const at = new Date(
-        NOW.getTime() - daysBack * 86_400_000 - Math.floor(rand() * 8) * 3_600_000,
+      const at = absolute(NOW.getTime() - daysBack * 86_400_000 - Math.floor(rand() * 8) * 3_600_000,
       ).toISOString();
 
       const [lo, hi] = t.kb;

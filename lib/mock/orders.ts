@@ -10,7 +10,7 @@ import type {
 import { HAPPY_PATH, isStuck, stuckReason } from "@/lib/orders/lifecycle";
 import { clients } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * Deterministic order book.
@@ -26,7 +26,7 @@ import { seededRandom } from "@/lib/utils";
  */
 
 const NOW = "2026-06-12T09:00:00";
-const NOW_MS = new Date(NOW).getTime();
+const NOW_MS = absolute(NOW).getTime();
 const HOUR = 1000 * 60 * 60;
 
 /**
@@ -45,12 +45,12 @@ function iso(d: Date): string {
 
 /** Timestamp `hours` before NOW. */
 function ago(hours: number): string {
-  return iso(new Date(NOW_MS - Math.round(hours) * HOUR));
+  return iso(absolute(NOW_MS - Math.round(hours) * HOUR));
 }
 
 /** Timestamp `hours` after NOW. */
 function ahead(hours: number): string {
-  return iso(new Date(NOW_MS + Math.round(hours) * HOUR));
+  return iso(absolute(NOW_MS + Math.round(hours) * HOUR));
 }
 
 function pick<T>(arr: T[], r: number): T {

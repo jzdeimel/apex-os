@@ -245,7 +245,7 @@ function prescribedFor(client: Client): PrescribedLine[] {
 
   for (const sub of subscriptionsForClient(client.id)) {
     if (sub.status !== "Active") continue;
-    const item = catalogItem(sub.catalogItemId);
+    const item = catalogItem(sub.sku);
     if (!item) continue;
     if (item.kind !== "compound" && item.kind !== "medication") continue;
 

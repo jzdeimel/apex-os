@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import { ledgerForSubject } from "@/lib/trace/ledger";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { consultsForClient } from "@/lib/mock/consults";
@@ -75,7 +76,7 @@ export interface ChangeItem {
 
 /** Parse once, compare numerically. */
 function ms(iso: string): number {
-  return new Date(iso).getTime();
+  return absolute(iso).getTime();
 }
 
 /**

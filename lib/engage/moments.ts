@@ -10,7 +10,7 @@ import { clientFacingStatus, clientFacingDetail } from "@/lib/orders/lifecycle";
 import { appointmentsForClient } from "@/lib/mock/appointments";
 import { tightestLine, REORDER_SOON_DAYS } from "@/lib/protocol/runway";
 import { buildDailyPlan } from "@/lib/daily/today";
-import { relativeDays } from "@/lib/utils";
+import { relativeDays, absolute } from "@/lib/utils";
 
 /**
  * DAILY MOMENTS — the handful of genuinely-new things in a member's day.
@@ -138,13 +138,13 @@ const RECENCY_WINDOW_DAYS = 7;
  * "tomorrow" is more urgent than "in six days".
  */
 function recencyBonus(atIso: string, nowIso: string): number {
-  const deltaDays = Math.abs(new Date(nowIso).getTime() - new Date(atIso).getTime()) / DAY_MS;
+  const deltaDays = Math.abs(absolute(nowIso).getTime() - absolute(atIso).getTime()) / DAY_MS;
   if (deltaDays >= RECENCY_WINDOW_DAYS) return 0;
   return Math.round(RECENCY_BONUS_MAX * (1 - deltaDays / RECENCY_WINDOW_DAYS));
 }
 
 function daysAgo(atIso: string, nowIso: string): number {
-  return (new Date(nowIso).getTime() - new Date(atIso).getTime()) / DAY_MS;
+  return (absolute(nowIso).getTime() - absolute(atIso).getTime()) / DAY_MS;
 }
 
 function personFor(staffId: string, role: string): MomentPerson | undefined {
@@ -403,10 +403,10 @@ function milestoneMoment(clientId: string, nowIso: string): Moment | undefined {
 }
 
 function visitMoment(clientId: string, nowIso: string): Moment | undefined {
-  const now = new Date(nowIso).getTime();
+  const now = absolute(nowIso).getTime();
   const next = appointmentsForClient(clientId).find((a) => {
     if (a.status === "Completed" || a.status === "No Show") return false;
-    const delta = (new Date(a.start).getTime() - now) / DAY_MS;
+    const delta = (absolute(a.start).getTime() - now) / DAY_MS;
     return delta >= 0 && delta <= WINDOWS.visitAhead;
   });
   if (!next) return undefined;
@@ -470,7 +470,7 @@ function quietDayMoment(client: Client, nowIso: string): Moment {
   const labDate = client.latestLabDate;
   const daysSinceLabs = labDate ? Math.floor(daysAgo(labDate, nowIso)) : undefined;
   const hasUpcoming = appointmentsForClient(client.id).some(
-    (a) => a.status === "Scheduled" && new Date(a.start).getTime() > new Date(nowIso).getTime(),
+    (a) => a.status === "Scheduled" && absolute(a.start).getTime() > absolute(nowIso).getTime(),
   );
 
   let detail: string;

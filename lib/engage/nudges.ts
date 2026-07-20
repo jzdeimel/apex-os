@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { getClient } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
@@ -205,11 +206,11 @@ export interface EngagementState {
  */
 export function engagementState(clientId: string, nowIso: string = NOW): EngagementState {
   const log = contactLogForClient(clientId); // newest first
-  const now = new Date(nowIso).getTime();
+  const now = absolute(nowIso).getTime();
   const today = nowIso.slice(0, 10);
 
   const lastInbound = log.find((e) => e.direction === "inbound");
-  const outbound = machineOutbound(clientId).filter((e) => new Date(e.at).getTime() <= now);
+  const outbound = machineOutbound(clientId).filter((e) => absolute(e.at).getTime() <= now);
 
   // Walk back from the newest send and count until we hit the member's last
   // reply. That count IS the ignore streak — no separate counter to maintain,
@@ -224,17 +225,17 @@ export function engagementState(clientId: string, nowIso: string = NOW): Engagem
     lastOutboundAt: outbound[0]?.at,
     lastInboundAt: lastInbound?.at,
     ignoredInARow: ignored,
-    outboundLast7: outbound.filter((e) => now - new Date(e.at).getTime() <= 7 * DAY_MS).length,
+    outboundLast7: outbound.filter((e) => now - absolute(e.at).getTime() <= 7 * DAY_MS).length,
     // Compare on the local calendar day. Contact rows are stored as UTC
     // instants, so this is a day-boundary comparison in the reader's zone,
     // which is the boundary a member experiences.
-    touchedToday: outbound.some((e) => new Date(e.at).toISOString().slice(0, 10) === today),
+    touchedToday: outbound.some((e) => absolute(e.at).toISOString().slice(0, 10) === today),
   };
 }
 
 /** True inside the do-not-disturb window. Handles the midnight wrap. */
 export function inQuietHours(nowIso: string = NOW): boolean {
-  const hour = new Date(nowIso).getHours();
+  const hour = absolute(nowIso).getHours();
   return hour >= NUDGE_QUIET_HOURS.startHour || hour < NUDGE_QUIET_HOURS.endHour;
 }
 
@@ -289,7 +290,7 @@ const LABS_DUE_DAYS = 100;
 
 function candidates(client: Client, nowIso: string): Nudge[] {
   const out: Nudge[] = [];
-  const hour = new Date(nowIso).getHours();
+  const hour = absolute(nowIso).getHours();
   const plan = buildDailyPlan(client, nowIso);
 
   // --- a person is waiting on them -----------------------------------------
@@ -301,7 +302,7 @@ function candidates(client: Client, nowIso: string): Nudge[] {
     newest &&
     newest.direction === "outbound" &&
     newest.channel === "Portal message" &&
-    (new Date(nowIso).getTime() - new Date(newest.at).getTime()) / DAY_MS >= 1
+    (absolute(nowIso).getTime() - absolute(newest.at).getTime()) / DAY_MS >= 1
   ) {
     const coach = staffMap[newest.staffId];
     const who = coach ? coach.name.replace(/^Dr\.\s+/, "").split(" ")[0] : "your coach";
@@ -351,7 +352,7 @@ function candidates(client: Client, nowIso: string): Nudge[] {
   // --- labs due -------------------------------------------------------------
   if (client.latestLabDate) {
     const since = Math.floor(
-      (new Date(nowIso).getTime() - new Date(client.latestLabDate).getTime()) / DAY_MS,
+      (absolute(nowIso).getTime() - absolute(client.latestLabDate).getTime()) / DAY_MS,
     );
     if (since >= LABS_DUE_DAYS) {
       out.push(
@@ -373,7 +374,7 @@ function candidates(client: Client, nowIso: string): Nudge[] {
 
   // --- follow-up unbooked ---------------------------------------------------
   const hasUpcoming = appointmentsForClient(client.id).some(
-    (a) => a.status === "Scheduled" && new Date(a.start).getTime() > new Date(nowIso).getTime(),
+    (a) => a.status === "Scheduled" && absolute(a.start).getTime() > absolute(nowIso).getTime(),
   );
   if (!hasUpcoming) {
     out.push(
@@ -511,7 +512,7 @@ export function nudgeDecision(clientId: string, nowIso: string = NOW): NudgeDeci
   //    about the member as a person rather than about volume.
   if (state.ignoredInARow >= IGNORED_LIMIT) {
     const since = state.lastOutboundAt
-      ? (new Date(nowIso).getTime() - new Date(state.lastOutboundAt).getTime()) / DAY_MS
+      ? (absolute(nowIso).getTime() - absolute(state.lastOutboundAt).getTime()) / DAY_MS
       : Infinity;
     if (since < BACKOFF_DAYS) {
       return no(
@@ -545,7 +546,7 @@ export function nudgeDecision(clientId: string, nowIso: string = NOW): NudgeDeci
 
   // 4. Minimum gap.
   if (state.lastOutboundAt) {
-    const gap = (new Date(nowIso).getTime() - new Date(state.lastOutboundAt).getTime()) / DAY_MS;
+    const gap = (absolute(nowIso).getTime() - absolute(state.lastOutboundAt).getTime()) / DAY_MS;
     if (gap < MIN_GAP_DAYS) {
       return no(
         clientId,

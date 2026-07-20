@@ -1,9 +1,10 @@
+import { absolute } from "@/lib/utils";
 import type { InventoryItem, InventoryStatus } from "@/lib/types";
 
 function statusOf(qty: number, reorder: number, exp: string): InventoryStatus {
   if (qty === 0) return "out of stock";
   const days = Math.round(
-    (new Date(exp).getTime() - new Date("2026-06-12").getTime()) /
+    (absolute(exp).getTime() - absolute("2026-06-12").getTime()) /
       (1000 * 60 * 60 * 24),
   );
   if (days <= 60 && days >= 0) return "expiring soon";
@@ -32,9 +33,9 @@ const seed: Seed[] = [
   { id: "inv-016", sku: "WL-TESO-500", name: "Tesofensine", category: "Medication", locationId: "southern-pines", quantity: 6, unit: "bottles", lotNumber: "TES-2603P", expirationDate: "2026-10-30", vendorId: "v-03", reorderPoint: 5, unitCost: 130 },
   { id: "inv-017", sku: "HRT-TCYP-200", name: "Testosterone cypionate placeholder", category: "Hormone", locationId: "raleigh", quantity: 15, unit: "vials", lotNumber: "TCY-2604Q", expirationDate: "2027-03-01", vendorId: "v-04", reorderPoint: 6, unitCost: 48 },
   { id: "inv-018", sku: "HRT-TCYP-200", name: "Testosterone cypionate placeholder", category: "Hormone", locationId: "myrtle-beach", quantity: 7, unit: "vials", lotNumber: "TCY-2603R", expirationDate: "2026-12-20", vendorId: "v-04", reorderPoint: 6, unitCost: 48 },
-  { id: "inv-019", sku: "LAB-BASE-KIT", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "raleigh", quantity: 22, unit: "kits", lotNumber: "LBK-2605S", expirationDate: "2027-05-01", vendorId: "v-05", reorderPoint: 15, unitCost: 34 },
-  { id: "inv-020", sku: "LAB-BASE-KIT", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "southern-pines", quantity: 9, unit: "kits", lotNumber: "LBK-2604T", expirationDate: "2027-04-12", vendorId: "v-05", reorderPoint: 15, unitCost: 34 },
-  { id: "inv-021", sku: "LAB-BASE-KIT", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "myrtle-beach", quantity: 13, unit: "kits", lotNumber: "LBK-2603U", expirationDate: "2027-03-28", vendorId: "v-07", reorderPoint: 15, unitCost: 34 },
+  { id: "inv-019", sku: "LAB-BASE", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "raleigh", quantity: 22, unit: "kits", lotNumber: "LBK-2605S", expirationDate: "2027-05-01", vendorId: "v-05", reorderPoint: 15, unitCost: 34 },
+  { id: "inv-020", sku: "LAB-BASE", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "southern-pines", quantity: 9, unit: "kits", lotNumber: "LBK-2604T", expirationDate: "2027-04-12", vendorId: "v-05", reorderPoint: 15, unitCost: 34 },
+  { id: "inv-021", sku: "LAB-BASE", name: "Alpha Base Panel lab kit", category: "Lab Kit", locationId: "myrtle-beach", quantity: 13, unit: "kits", lotNumber: "LBK-2603U", expirationDate: "2027-03-28", vendorId: "v-07", reorderPoint: 15, unitCost: 34 },
   { id: "inv-022", sku: "SUP-INJ-29G", name: "Injection supplies (29G kit)", category: "Injection Supply", locationId: "raleigh", quantity: 140, unit: "units", lotNumber: "INJ-2605V", expirationDate: "2028-01-01", vendorId: "v-06", reorderPoint: 100, unitCost: 0.9 },
   { id: "inv-023", sku: "SUP-INJ-29G", name: "Injection supplies (29G kit)", category: "Injection Supply", locationId: "southern-pines", quantity: 60, unit: "units", lotNumber: "INJ-2604W", expirationDate: "2028-01-01", vendorId: "v-06", reorderPoint: 100, unitCost: 0.9 },
   { id: "inv-024", sku: "SUP-IV-SET", name: "IV supplies (infusion set)", category: "IV Supply", locationId: "raleigh", quantity: 34, unit: "sets", lotNumber: "IVS-2605X", expirationDate: "2027-09-15", vendorId: "v-06", reorderPoint: 25, unitCost: 7.5 },

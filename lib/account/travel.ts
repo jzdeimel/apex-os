@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { PROTECTED_REASONS } from "@/lib/daily/today";
 import { ordersForClient } from "@/lib/mock/orders";
@@ -110,7 +111,7 @@ export function isTravellingOn(clientId: string, date: string): boolean {
 // ---------------------------------------------------------------------------
 
 function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T12:00:00`);
+  const d = absolute(`${date}T12:00:00`);
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
@@ -118,7 +119,7 @@ function addDays(date: string, n: number): string {
 function dayCount(from: string, to: string): number {
   return Math.max(
     1,
-    Math.round((new Date(`${to}T12:00:00`).getTime() - new Date(`${from}T12:00:00`).getTime()) / 86_400_000) + 1,
+    Math.round((absolute(`${to}T12:00:00`).getTime() - absolute(`${from}T12:00:00`).getTime()) / 86_400_000) + 1,
   );
 }
 

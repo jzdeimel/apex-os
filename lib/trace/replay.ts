@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { getClient } from "@/lib/mock/clients";
 import { getLabsForClient } from "@/lib/mock/labs";
@@ -61,7 +62,7 @@ export const NOW = "2026-06-12T09:00:00";
  * sub-day offset does not change which side of an event a scrub lands on.
  */
 function ms(iso: string): number {
-  return new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).getTime();
+  return absolute(iso.length === 10 ? `${iso}T00:00:00` : iso).getTime();
 }
 
 /** True when `iso` happened at or before the as-of instant. The only gate. */

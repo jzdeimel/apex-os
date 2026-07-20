@@ -31,7 +31,7 @@ import { JOURNEY, journeyStepFor } from "@/lib/brand";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { usePortal } from "@/lib/portalStore";
-import { cn, formatDate, formatDateTime, formatTime, relativeDays } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatTime, relativeDays, absolute } from "@/lib/utils";
 import { ME, me, MEMBER_THREAD } from "@/components/portal/PortalHeader";
 import { DailyRings } from "@/components/portal/DailyRings";
 import { StreakCard } from "@/components/portal/StreakCard";
@@ -94,7 +94,7 @@ export default function PortalHomePage() {
   // ones the member has not reached yet. Week 0 drops off on its own once the
   // plan is running, so it never needs special-casing.
   const weeksIn = Math.floor(
-    (new Date(NOW).getTime() - new Date(activeProgram?.startedOn ?? client.joinedOn).getTime()) /
+    (absolute(NOW).getTime() - absolute(activeProgram?.startedOn ?? client.joinedOn).getTime()) /
       (1000 * 60 * 60 * 24 * 7),
   );
   const upcoming = plan.monitoring.filter((m) => m.week > weeksIn).slice(0, 3);

@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type {
   Escalation,
   EscalationEvent,
@@ -58,8 +59,8 @@ export function isResolved(e: Escalation): boolean {
 
 /** When this escalation is owed an answer. */
 export function dueAt(e: Escalation): string {
-  const due = new Date(e.raisedAt).getTime() + SLA_HOURS[e.priority] * HOUR_MS;
-  return new Date(due).toISOString();
+  const due = absolute(e.raisedAt).getTime() + SLA_HOURS[e.priority] * HOUR_MS;
+  return absolute(due).toISOString();
 }
 
 /**
@@ -71,7 +72,7 @@ export function dueAt(e: Escalation): string {
  */
 export function hoursRemaining(e: Escalation, nowIso: string = NOW): number {
   const stopped = isResolved(e) ? (e.answeredAt ?? nowIso) : nowIso;
-  return (new Date(dueAt(e)).getTime() - new Date(stopped).getTime()) / HOUR_MS;
+  return (absolute(dueAt(e)).getTime() - absolute(stopped).getTime()) / HOUR_MS;
 }
 
 export function isOverdue(e: Escalation, nowIso: string = NOW): boolean {
@@ -282,7 +283,7 @@ export function sortQueue(list: Escalation[], nowIso: string = NOW): Escalation[
 
 /** Answered within the trailing 7 days — the "we are keeping up" number. */
 export function answeredThisWeek(list: Escalation[], nowIso: string = NOW): Escalation[] {
-  const cutoff = new Date(new Date(nowIso).getTime() - 7 * 24 * HOUR_MS).toISOString();
+  const cutoff = absolute(absolute(nowIso).getTime() - 7 * 24 * HOUR_MS).toISOString();
   return list.filter((e) => e.answeredAt && e.answeredAt >= cutoff);
 }
 
@@ -301,7 +302,7 @@ function span(hours: number): string {
 /** Turnaround: raised → answered. The number the clinic is actually judged on. */
 export function turnaroundHours(e: Escalation): number | undefined {
   if (!e.answeredAt) return undefined;
-  return (new Date(e.answeredAt).getTime() - new Date(e.raisedAt).getTime()) / HOUR_MS;
+  return (absolute(e.answeredAt).getTime() - absolute(e.raisedAt).getTime()) / HOUR_MS;
 }
 
 /**

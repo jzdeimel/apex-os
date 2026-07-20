@@ -37,7 +37,7 @@ export interface Subscription {
    * Catalog SKU, not a free-text product name. If the item is retired the
    * refill fails loudly at validation rather than shipping something else.
    */
-  catalogItemId: string;
+  sku: string;
   /** Days between refills. The member's actual protocol interval. */
   cadenceDays: number;
   /** ISO date the next refill is due. The claim key — see claimRefill. */

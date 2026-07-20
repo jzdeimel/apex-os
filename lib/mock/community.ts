@@ -11,7 +11,7 @@ import type {
 import { clients, getClient } from "@/lib/mock/clients";
 import { locationName } from "@/lib/mock/locations";
 import { staffName } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * Seeded community.
@@ -277,7 +277,7 @@ function localIso(d: Date): string {
 }
 
 function isoDaysAgo(days: number, hour: number): string {
-  const d = new Date(NOW);
+  const d = absolute(NOW);
   d.setDate(d.getDate() - days);
   d.setHours(hour, 0, 0, 0);
   return localIso(d);
@@ -593,7 +593,7 @@ const MEETUP_SEEDS: MeetupSeed[] = [
 ];
 
 function isoDaysAhead(days: number, hour: number): string {
-  const d = new Date(NOW);
+  const d = absolute(NOW);
   d.setDate(d.getDate() + days);
   d.setHours(hour, 0, 0, 0);
   return localIso(d);

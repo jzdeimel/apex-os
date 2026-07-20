@@ -26,7 +26,7 @@ import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives
 import { TrendLine, TrendArea } from "@/components/charts";
 import { Stagger, StaggerItem, FadeIn } from "@/components/motion";
 import { Tabs } from "@/components/ui/Tabs";
-import { formatDate, seededRandom, cn } from "@/lib/utils";
+import { formatDate, seededRandom, cn, absolute } from "@/lib/utils";
 import { ME, me, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { Flame, TrendingDown, TrendingUp, Trophy, LineChart as LineChartIcon } from "lucide-react";
 
@@ -34,7 +34,11 @@ const KG_TO_LB = 2.20462;
 const lb = (kg: number) => Math.round(kg * KG_TO_LB * 10) / 10;
 
 /** "2026-01-20" → "January". Deterministic: the ISO string is always supplied. */
-const monthOf = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long" });
+// timeZone pinned for the same reason as lib/utils: an unpinned formatter
+// renders differently on a UTC server than in the viewer's browser, which is a
+// hydration mismatch rather than a cosmetic difference.
+const monthOf = (iso: string) =>
+  absolute(iso).toLocaleDateString("en-US", { timeZone: "UTC", month: "long" });
 
 export default function PortalProgressPage() {
   const client = me();

@@ -2,7 +2,7 @@ import type { Client, LocationId } from "@/lib/types";
 import { clients, clientName } from "@/lib/mock/clients";
 import { membershipForClient } from "@/lib/mock/memberships";
 import { orders } from "@/lib/mock/orders";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * ROSTER HEALTH — data quality as an operational surface.
@@ -44,7 +44,7 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 
 function daysBetween(fromIso: string, toIso: string): number {
   return Math.floor(
-    (new Date(toIso).getTime() - new Date(fromIso).getTime()) / DAY_MS,
+    (absolute(toIso).getTime() - absolute(fromIso).getTime()) / DAY_MS,
   );
 }
 
@@ -240,7 +240,7 @@ function gapFor(client: Client): Gap {
 function staleAppointmentDate(client: Client, nowIso: string): string {
   const rand = seededRandom(`roster-appt:${client.id}`);
   const daysAgo = 3 + Math.floor(rand() * 70);
-  const d = new Date(new Date(nowIso).getTime() - daysAgo * DAY_MS);
+  const d = absolute(absolute(nowIso).getTime() - daysAgo * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   return (
     `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +

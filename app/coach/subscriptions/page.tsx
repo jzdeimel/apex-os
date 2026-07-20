@@ -277,7 +277,7 @@ export default function CoachSubscriptionsPage() {
 // ---------------------------------------------------------------------------
 
 function itemName(sub: Subscription): string {
-  return catalogItem(sub.catalogItemId)?.name ?? sub.catalogItemId;
+  return catalogItem(sub.sku)?.name ?? sub.sku;
 }
 
 function Stat({
@@ -339,7 +339,7 @@ function Row({
   onRelease: (s: Subscription) => void;
 }) {
   const client = getClient(sub.clientId);
-  const item = catalogItem(sub.catalogItemId);
+  const item = catalogItem(sub.sku);
   const timing = refillTiming(sub, NOW);
   const overdue = timing.includes("overdue");
   const isActive = sub.status === "Active";
@@ -365,7 +365,7 @@ function Row({
               )}
             </div>
 
-            <p className="mt-1 truncate text-sm text-ink-300">{item?.name ?? sub.catalogItemId}</p>
+            <p className="mt-1 truncate text-sm text-ink-300">{item?.name ?? sub.sku}</p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-500">
               <span className="stat-mono inline-flex items-center gap-1">

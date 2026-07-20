@@ -3,7 +3,7 @@ import { clients, clientMap, clientName } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
 import { locations } from "@/lib/mock/locations";
 import { appointments } from "@/lib/mock/appointments";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * ATTENDANCE — no-shows and late cancels, sliced hard enough to act on.
@@ -41,7 +41,7 @@ import { seededRandom } from "@/lib/utils";
  */
 
 /** Pinned clock. Nothing in Apex reads the wall clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const NOW_DATE = "2026-06-12";
 const DAY_MS = 86_400_000;
 
@@ -200,7 +200,7 @@ function generateVisits(): Visit[] {
 
     for (let i = 0; i < visitCount; i++) {
       const daysAgo = Math.floor(rand() * (HISTORY_WEEKS * 7));
-      const at = new Date(NOW.getTime() - daysAgo * DAY_MS);
+      const at = absolute(NOW.getTime() - daysAgo * DAY_MS);
       const weekday = at.getDay();
       if (weekday === 0) continue; // closed Sunday
 
@@ -364,7 +364,7 @@ export interface SlotCell extends AttendanceRate {
 export function attendanceBySlot(filter: AttendanceFilter = {}): SlotCell[] {
   const rows = applyFilter(visitHistory, filter);
   const grouped = groupBy(rows, (v) => {
-    const d = new Date(v.start);
+    const d = absolute(v.start);
     return `${d.getDay()}|${d.getHours()}`;
   });
 
@@ -492,7 +492,7 @@ export function worstSlots(filter: AttendanceFilter = {}, limit = 6): SlotVerdic
 /** Window description for the page header. Never fabricate the range. */
 export function attendanceWindow(): { from: string; to: string; weeks: number } {
   return {
-    from: dateOnly(new Date(NOW.getTime() - HISTORY_WEEKS * 7 * DAY_MS)),
+    from: dateOnly(absolute(NOW.getTime() - HISTORY_WEEKS * 7 * DAY_MS)),
     to: NOW_DATE,
     weeks: HISTORY_WEEKS,
   };

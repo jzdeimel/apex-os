@@ -25,7 +25,7 @@ import { Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { ClientRow } from "@/components/coach/ClientRow";
-import { cn, relativeDays } from "@/lib/utils";
+import { cn, relativeDays, absolute } from "@/lib/utils";
 
 // =============================================================================
 // The coach. One constant, one id — never a display-name string.
@@ -35,7 +35,7 @@ import { cn, relativeDays } from "@/lib/utils";
 export const ME_COACH = "st-005";
 
 /** Pinned clock. Nothing in Apex reads the wall clock — the demo must be identical every load. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 /** A touch is stale past this. Two weeks of silence is how a member quietly churns. */
@@ -66,7 +66,7 @@ export function lastTouchIso(client: Client): string {
 }
 
 export function daysSinceTouch(client: Client): number {
-  return Math.round((NOW.getTime() - new Date(lastTouchIso(client)).getTime()) / DAY_MS);
+  return Math.round((NOW.getTime() - absolute(lastTouchIso(client)).getTime()) / DAY_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ export function buildQueue(coachId: string): QueueItem[] {
     const client = mine.find((c) => c.id === consult.clientId);
     if (!client) continue;
     const findings = consult.aiSummary ? findingCount(consult.aiSummary) : 0;
-    const ageDays = Math.round((NOW.getTime() - new Date(consult.startedAt).getTime()) / DAY_MS);
+    const ageDays = Math.round((NOW.getTime() - absolute(consult.startedAt).getTime()) / DAY_MS);
     items.push({
       id: `sig-${consult.id}`,
       kind: "signature",

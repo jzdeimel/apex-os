@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import { sha256 } from "@/lib/trace/hash";
 import type { LedgerDraft } from "@/lib/trace/ledger";
 import { staffMap } from "@/lib/mock/staff";
@@ -56,7 +57,7 @@ export const QUIET_HOURS = { startHour: 21, endHour: 8 } as const;
 export const WEEKLY_CAP = 5;
 
 /** Pinned clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -215,7 +216,7 @@ export function inQuietHours(at: Date = NOW): boolean {
 /** Next permissible send time, for the "scheduled for 8:00am" affordance. */
 export function nextSendWindow(at: Date = NOW): Date {
   if (!inQuietHours(at)) return at;
-  const next = new Date(at);
+  const next = absolute(at);
   if (at.getHours() >= QUIET_HOURS.startHour) next.setDate(next.getDate() + 1);
   next.setHours(QUIET_HOURS.endHour, 0, 0, 0);
   return next;

@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type {
   Order,
   OrderStatus,
@@ -237,7 +238,7 @@ export function validateShipmentWebhook(
   if (!body.eventId) return "Missing eventId — cannot dedupe replays.";
   if (!body.apexOrderId) return "Missing apexOrderId — cannot correlate.";
   if (!body.signature) return "Missing signature.";
-  if (!body.occurredAt || Number.isNaN(new Date(body.occurredAt).getTime()))
+  if (!body.occurredAt || Number.isNaN(absolute(body.occurredAt).getTime()))
     return "Missing or unparseable occurredAt.";
   if (parseMedSourceStatus(body.status) === null)
     return `Unrecognized status "${String(body.status)}" — refusing to write an unknown value.`;
@@ -310,7 +311,7 @@ export function backoffMs(attempt: number): number {
 }
 
 export function nextAttemptAt(attempt: number, fromIso: string): string {
-  return new Date(new Date(fromIso).getTime() + backoffMs(attempt + 1)).toISOString();
+  return absolute(absolute(fromIso).getTime() + backoffMs(attempt + 1)).toISOString();
 }
 
 /** Exhausted entries are dead-lettered, not deleted. */

@@ -8,7 +8,7 @@ import {
 } from "@/lib/azure/communication";
 import { findAppointment } from "@/lib/booking/availability";
 import { staffMap } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * The telehealth room.
@@ -173,7 +173,7 @@ function preflightFor(apptId: string): PreflightCheck[] {
 // ---------------------------------------------------------------------------
 
 function shift(iso: string, minutes: number): string {
-  return new Date(new Date(iso).getTime() + minutes * 60_000).toISOString().slice(0, 19);
+  return absolute(absolute(iso).getTime() + minutes * 60_000).toISOString().slice(0, 19);
 }
 
 function joinStateFor(appt: Appointment, at: string): JoinState {

@@ -8,7 +8,7 @@ import { getScanForClient } from "@/lib/mock/bodyscans";
 import { alphaScore } from "@/lib/alphaScore";
 import { buildDailyPlan } from "@/lib/daily/today";
 import { staffName } from "@/lib/mock/staff";
-import { formatDate, relativeDays } from "@/lib/utils";
+import { formatDate, relativeDays, absolute } from "@/lib/utils";
 
 /**
  * Visit prep — the two minutes before a coach walks into the room.
@@ -72,7 +72,7 @@ const after = (iso: string | undefined, since: string | undefined) =>
   !!iso && (!since || iso > since);
 
 const daysBetween = (a: string, b: string) =>
-  Math.round((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+  Math.round((absolute(a).getTime() - absolute(b).getTime()) / 86_400_000);
 
 /** Trim a member quote to something a coach can read aloud without stumbling. */
 function quote(raw: string, max = 120): string {

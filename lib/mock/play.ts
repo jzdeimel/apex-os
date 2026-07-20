@@ -5,7 +5,7 @@ import { getLabsForClient } from "@/lib/mock/labs";
 import { consultsForClient } from "@/lib/mock/consults";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { ringHistory } from "@/lib/daily/today";
-import { seededRandom, clamp } from "@/lib/utils";
+import { seededRandom, clamp , absolute } from "@/lib/utils";
 
 /**
  * The behaviour ledger behind levels and quests.
@@ -41,7 +41,7 @@ import { seededRandom, clamp } from "@/lib/utils";
 
 /** Pinned demo clock. Never `new Date()` with no argument — it breaks SSR. */
 const NOW = "2026-06-12T09:00:00";
-const NOW_MS = new Date(NOW).getTime();
+const NOW_MS = absolute(NOW).getTime();
 const DAY_MS = 86_400_000;
 
 // ---------------------------------------------------------------------------
@@ -56,13 +56,24 @@ const DAY_MS = 86_400_000;
  * what makes a screenshot of the portal reproducible.
  */
 export function weekIsoFor(dateIso: string = NOW): string {
-  const d = new Date(dateIso.slice(0, 10) + "T00:00:00");
+  /**
+   * UTC throughout, deliberately.
+   *
+   * This used to parse a zoneless midnight — which `new Date()` reads as LOCAL
+   * — and then read `getDay()` and `getFullYear()` off it. A UTC server and an
+   * Eastern browser therefore landed on different ISO weeks, which reseeded the
+   * quest board, changed every derived progress value, and produced a genuine
+   * hydration mismatch on the member's home screen. It was invisible locally
+   * because the dev server and the browser shared a zone; it only appeared once
+   * the app ran on Azure.
+   */
+  const d = absolute(dateIso.slice(0, 10) + "T00:00:00");
   // Thursday of the current week determines the ISO year.
-  const day = (d.getDay() + 6) % 7; // Mon = 0
-  const thursday = new Date(d.getTime() + (3 - day) * DAY_MS);
-  const jan1 = new Date(`${thursday.getFullYear()}-01-01T00:00:00`);
+  const day = (d.getUTCDay() + 6) % 7; // Mon = 0
+  const thursday = absolute(d.getTime() + (3 - day) * DAY_MS);
+  const jan1 = absolute(`${thursday.getUTCFullYear()}-01-01T00:00:00`);
   const week = Math.floor((thursday.getTime() - jan1.getTime()) / (7 * DAY_MS)) + 1;
-  return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
+  return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 export const CURRENT_WEEK = weekIsoFor(NOW);
@@ -106,7 +117,7 @@ export function behaviourFor(clientId: string): BehaviourLog | null {
 function computeBehaviour(client: Client): BehaviourLog {
   const rand = seededRandom(`${client.id}-play-lifetime`);
 
-  const joined = new Date(client.joinedOn + "T00:00:00").getTime();
+  const joined = absolute(client.joinedOn + "T00:00:00").getTime();
   const daysEnrolled = Math.max(1, Math.round((NOW_MS - joined) / DAY_MS));
 
   // Observed 28-day rate, projected across the whole enrolment. Members who
@@ -213,7 +224,7 @@ export function weekBehaviourFor(
 
   const labDate = client.latestLabDate;
   const daysSinceLabs = labDate
-    ? Math.round((NOW_MS - new Date(labDate + "T00:00:00").getTime()) / DAY_MS)
+    ? Math.round((NOW_MS - absolute(labDate + "T00:00:00").getTime()) / DAY_MS)
     : 999;
 
   return {

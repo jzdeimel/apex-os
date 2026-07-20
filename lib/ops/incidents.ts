@@ -3,7 +3,7 @@ import { clients, clientMap, clientName } from "@/lib/mock/clients";
 import { staff, staffMap, staffName } from "@/lib/mock/staff";
 import { appendLedger, type LedgerRow } from "@/lib/trace/ledger";
 import { VIEWER } from "@/lib/viewer";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * INCIDENT & COMPLAINT LOG.
@@ -46,7 +46,7 @@ import { seededRandom } from "@/lib/utils";
 
 /** Pinned clock. */
 const NOW_ISO = "2026-06-12T09:00:00";
-const NOW = new Date(NOW_ISO);
+const NOW = absolute(NOW_ISO);
 const DAY_MS = 86_400_000;
 
 export type IncidentKind =
@@ -325,7 +325,7 @@ const LOCATION_IDS: LocationId[] = [
 ];
 
 function isoAt(daysAgo: number, hour: number, minute: number): string {
-  const d = new Date(NOW.getTime() - daysAgo * DAY_MS);
+  const d = absolute(NOW.getTime() - daysAgo * DAY_MS);
   d.setHours(hour, minute, 0, 0);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
@@ -418,14 +418,14 @@ export const incidents: Incident[] = generate();
 export function reportingLagDays(inc: Incident): number {
   return Math.max(
     0,
-    Math.round((new Date(inc.reportedAt).getTime() - new Date(inc.at).getTime()) / DAY_MS),
+    Math.round((absolute(inc.reportedAt).getTime() - absolute(inc.at).getTime()) / DAY_MS),
   );
 }
 
 /** Days open. Resolved incidents freeze at their resolution date. */
 export function ageDays(inc: Incident): number {
-  const end = inc.resolvedAt ? new Date(inc.resolvedAt).getTime() : NOW.getTime();
-  return Math.max(0, Math.round((end - new Date(inc.reportedAt).getTime()) / DAY_MS));
+  const end = inc.resolvedAt ? absolute(inc.resolvedAt).getTime() : NOW.getTime();
+  return Math.max(0, Math.round((end - absolute(inc.reportedAt).getTime()) / DAY_MS));
 }
 
 export function isOverdue(inc: Incident): boolean {

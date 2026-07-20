@@ -11,7 +11,7 @@ import {
 import { clientMap, clientName } from "@/lib/mock/clients";
 import { staffName } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
-import { currency, formatDateTime } from "@/lib/utils";
+import { currency, formatDateTime, absolute } from "@/lib/utils";
 
 /**
  * THE DAILY ORDER REPORT.
@@ -55,7 +55,7 @@ export const WINDOW_HOURS = 24;
 const HOUR_MS = 1000 * 60 * 60;
 
 function windowStart(nowIso: string, hours: number): string {
-  const d = new Date(new Date(nowIso).getTime() - hours * HOUR_MS);
+  const d = absolute(absolute(nowIso).getTime() - hours * HOUR_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   // Same naive local-wall-clock shape the order fixtures use — emitting UTC
   // here would reintroduce a timezone offset into every comparison below.

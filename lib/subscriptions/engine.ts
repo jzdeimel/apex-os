@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Membership } from "@/lib/types";
 import type { Order } from "@/lib/orders/types";
 import type { LedgerDraft } from "@/lib/trace/ledger";
@@ -38,7 +39,7 @@ function toUtcDay(day: string): number {
 }
 
 function fromUtcDay(ms: number): string {
-  const d = new Date(ms);
+  const d = absolute(ms);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
@@ -271,11 +272,11 @@ export function placeRefill(
     return { ok: false, reason: claim.reason ?? "Not claimable." };
   }
 
-  const item = catalogItem(sub.catalogItemId);
+  const item = catalogItem(sub.sku);
   if (!item) {
     return {
       ok: false,
-      reason: `${sub.catalogItemId} is no longer in the catalog. This refill needs a coach to choose a replacement — Apex will not guess.`,
+      reason: `${sub.sku} is no longer in the catalog. This refill needs a coach to choose a replacement — Apex will not guess.`,
     };
   }
 
@@ -289,7 +290,7 @@ export function placeRefill(
     // here would silently reprice every existing subscriber the moment the
     // catalog moved, and would split the books — the revenue tile sums
     // priceCents while the member is charged something else.
-    lines: [{ sku: sub.catalogItemId, qty: 1, priceOverrideCents: sub.priceCents }],
+    lines: [{ sku: sub.sku, qty: 1, priceOverrideCents: sub.priceCents }],
     shipping: sub.shipping,
     shipTo: ctx.shipTo,
     membership: ctx.membership,

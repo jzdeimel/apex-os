@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { appendLedger } from "@/lib/trace/ledger";
 
@@ -274,7 +275,7 @@ function fullName(c: Client): string {
 }
 
 function addDays(iso: string, n: number): string {
-  return new Date(new Date(iso).getTime() + n * 86_400_000).toISOString().slice(0, 19);
+  return absolute(absolute(iso).getTime() + n * 86_400_000).toISOString().slice(0, 19);
 }
 
 // ---------------------------------------------------------------------------

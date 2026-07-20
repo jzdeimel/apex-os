@@ -14,7 +14,7 @@
 import type { Client } from "@/lib/types";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { membershipForClient } from "@/lib/mock/memberships";
-import { formatDate } from "@/lib/utils";
+import { formatDate, absolute } from "@/lib/utils";
 
 const NOW = "2026-06-12T09:00:00";
 const KG_TO_LB = 2.20462;
@@ -48,7 +48,7 @@ function monthsBetween(fromIso: string, toIso: string): number {
 
 /** ISO date exactly `months` after `fromIso`, for dating the anniversary itself. */
 function monthsAfter(fromIso: string, months: number): string {
-  const d = new Date(fromIso.slice(0, 10) + "T00:00:00");
+  const d = absolute(fromIso.slice(0, 10) + "T00:00:00");
   d.setMonth(d.getMonth() + months);
   return d.toISOString().slice(0, 10);
 }

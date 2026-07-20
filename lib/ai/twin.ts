@@ -4,7 +4,7 @@ import { getScanForClient } from "@/lib/mock/bodyscans";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { alphaScore } from "@/lib/alphaScore";
 import { buildDailyPlan } from "@/lib/daily/today";
-import { seededRandom, clamp } from "@/lib/utils";
+import { seededRandom, clamp, absolute } from "@/lib/utils";
 
 /**
  * The what-if twin — a member modelling their own next twelve weeks.
@@ -518,7 +518,7 @@ function drift(scan: ReturnType<typeof getScanForClient>): number {
   const last = hist[hist.length - 1];
   const weeks = Math.max(
     1,
-    (new Date(last.date).getTime() - new Date(first.date).getTime()) / (86_400_000 * 7),
+    (absolute(last.date).getTime() - absolute(first.date).getTime()) / (86_400_000 * 7),
   );
   const perWeek = (last.bodyFatPct - first.bodyFatPct) / weeks;
   // Damped: past progress is evidence, not a guarantee it continues at pace.

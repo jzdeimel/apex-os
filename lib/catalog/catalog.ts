@@ -495,6 +495,56 @@ export const catalog: CatalogItem[] = [
     retiredOn: "2026-02-01",
     version: 4,
   },
+
+  // --- Stocked at a clinic but previously missing from the catalog ---------
+  // These three were carried in lib/mock/inventory.ts with no catalog row, so
+  // a lot on the shelf had no sellable item to bind to and the SKU vocabularies
+  // had quietly diverged. Adding them closes the loop: every stocked SKU now
+  // resolves, which is what makes a recall question answerable.
+  {
+    id: "cat-091",
+    sku: "PEP-VIP-NS",
+    name: "VIP nasal spray",
+    kind: "compound",
+    serviceLine: "Peptide Therapy",
+    unitPriceCents: 21_000,
+    fulfillment: "medsource",
+    requiresProviderApproval: true,
+    availableAt: EVERYWHERE,
+    packSize: "bottle",
+    active: true,
+    version: 1,
+  },
+  {
+    id: "cat-092",
+    sku: "WL-TESO-500",
+    name: "Tesofensine 500mcg",
+    kind: "compound",
+    serviceLine: "Metabolic & Weight Loss",
+    unitPriceCents: 28_500,
+    fulfillment: "medsource",
+    requiresProviderApproval: true,
+    availableAt: EVERYWHERE,
+    packSize: "bottle",
+    active: true,
+    version: 1,
+  },
+  {
+    // A consumable: dispensed as part of an infusion, never shipped and never
+    // needing a signature, so `in-clinic` and no provider approval.
+    id: "cat-093",
+    sku: "SUP-IV-SET",
+    name: "IV infusion set",
+    kind: "supply",
+    serviceLine: "Supplies",
+    unitPriceCents: 1_500,
+    fulfillment: "in-clinic",
+    requiresProviderApproval: false,
+    availableAt: CLINICS,
+    packSize: "set",
+    active: true,
+    version: 1,
+  },
 ];
 
 const bySku: Record<string, CatalogItem> = Object.fromEntries(

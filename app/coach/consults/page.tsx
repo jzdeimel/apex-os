@@ -21,7 +21,7 @@ import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
 import { ME_COACH } from "@/components/coach/TodayQueue";
-import { cn, formatDateTime, relativeDays } from "@/lib/utils";
+import { cn, formatDateTime, relativeDays, absolute } from "@/lib/utils";
 
 /**
  * Coach · Consults
@@ -37,11 +37,11 @@ import { cn, formatDateTime, relativeDays } from "@/lib/utils";
  */
 
 /** Pinned clock — nothing in Apex reads the wall clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 function daysWaiting(iso: string): number {
-  return Math.round((NOW.getTime() - new Date(iso).getTime()) / DAY_MS);
+  return Math.round((NOW.getTime() - absolute(iso).getTime()) / DAY_MS);
 }
 
 const CHANNEL_ICON: Record<ConsultChannel, React.ElementType> = {

@@ -9,7 +9,7 @@ import type {
   RecommendationCategory,
 } from "@/lib/types";
 import { staff } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom , absolute } from "@/lib/utils";
 
 // Monogram palette (gold + clinical accents)
 const C = {
@@ -738,12 +738,12 @@ function pickN<T>(arr: T[], n: number, rand: () => number): T[] {
   return out;
 }
 function addDays(base: string, days: number): string {
-  const d = new Date(base + "T00:00:00");
+  const d = absolute(base + "T00:00:00");
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
 function addDateTime(base: string, days: number, hour: number): string {
-  const d = new Date(base + "T00:00:00");
+  const d = absolute(base + "T00:00:00");
   d.setDate(d.getDate() + days);
   d.setHours(hour, 0, 0, 0);
   return d.toISOString().slice(0, 19);
@@ -796,7 +796,7 @@ function makeClient(loc: LocationId, n: number): Client {
     riskFlags.push({ ...preset, level: lr < 0.55 ? "low" : lr < 0.9 ? "moderate" : "high" });
   }
 
-  const tenureMonths = Math.max(1, Math.round((new Date("2026-06-12").getTime() - new Date(joinedOn).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+  const tenureMonths = Math.max(1, Math.round((absolute("2026-06-12").getTime() - absolute(joinedOn).getTime()) / (1000 * 60 * 60 * 24 * 30)));
   const ltvBase = status === "Inactive" ? 1 : status === "Lead" || status === "Consult Booked" ? 0.15 : 1;
   const lifetimeValue = Math.round((300 + tenureMonths * (120 + rand() * 240)) * ltvBase);
 

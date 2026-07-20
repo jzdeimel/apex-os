@@ -12,7 +12,7 @@ import {
 } from "@/lib/training/types";
 import { quizzes, quizMap } from "@/lib/training/quizzes";
 import { coaches } from "@/lib/mock/staff";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * Training history for the coaching team.
@@ -29,14 +29,14 @@ const NOW_DATE = "2026-06-12";
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 function addDays(iso: string, days: number): string {
-  const d = new Date(new Date(iso).getTime() + days * DAY_MS);
+  const d = absolute(absolute(iso).getTime() + days * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 function daysBetween(fromIso: string, toIso: string): number {
   return Math.round(
-    (new Date(toIso).getTime() - new Date(fromIso).getTime()) / DAY_MS,
+    (absolute(toIso).getTime() - absolute(fromIso).getTime()) / DAY_MS,
   );
 }
 

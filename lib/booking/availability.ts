@@ -5,7 +5,7 @@ import { locationMap } from "@/lib/mock/locations";
 import { appointments } from "@/lib/mock/appointments";
 import { shifts, WEEK_DATES, type Shift } from "@/lib/mock/shifts";
 import { appendLedger, type LedgerEntity } from "@/lib/trace/ledger";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * Self-booking availability.
@@ -238,13 +238,13 @@ function iso(date: string, minutes: number): string {
 
 /** Add whole days to a yyyy-mm-dd without touching the clock. */
 function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T12:00:00`);
+  const d = absolute(`${date}T12:00:00`);
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
 function weekdayOf(date: string): number {
-  return new Date(`${date}T12:00:00`).getDay();
+  return absolute(`${date}T12:00:00`).getDay();
 }
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

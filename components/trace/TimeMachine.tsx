@@ -17,7 +17,7 @@ import { getClient, clientName } from "@/lib/mock/clients";
 import { appendLedger } from "@/lib/trace/ledger";
 import { VIEWER } from "@/lib/viewer";
 import { Card, CardContent, Badge, Button, EmptyState } from "@/components/ui/primitives";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, absolute } from "@/lib/utils";
 
 /**
  * The Time Machine.
@@ -60,7 +60,7 @@ const DAY_MS = 86_400_000;
 
 /** Same mixed-regime parse as the engine. Kept local so this file stays pure UI. */
 function ms(iso: string): number {
-  return new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).getTime();
+  return absolute(iso.length === 10 ? `${iso}T00:00:00` : iso).getTime();
 }
 
 /** How long before NOW, in the words a clinician would use out loud. */

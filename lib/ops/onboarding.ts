@@ -4,7 +4,7 @@ import { trainingStatusFor } from "@/lib/mock/training";
 import { coaches, staffMap, staffName } from "@/lib/mock/staff";
 import { appendLedger } from "@/lib/trace/ledger";
 import { VIEWER } from "@/lib/viewer";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * NEW COACH ONBOARDING — the checklist, and who is actually through it.
@@ -246,7 +246,7 @@ function startDateFor(coachId: string): string {
   const rand = seededRandom(`apex-onboarding-start:${coachId}`);
   // A spread from a few days ago to a couple of years. Most staff are tenured.
   const daysAgo = rand() < 0.25 ? 3 + Math.floor(rand() * 40) : 120 + Math.floor(rand() * 620);
-  const d = new Date(new Date(`${NOW_DATE}T00:00:00`).getTime() - daysAgo * DAY_MS);
+  const d = absolute(absolute(`${NOW_DATE}T00:00:00`).getTime() - daysAgo * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
@@ -277,7 +277,7 @@ function completionDate(startedOn: string, dueByDay: number, coachId: string, st
   const rand = seededRandom(`apex-onboarding-date:${coachId}:${stepId}`);
   // Completed somewhere between half the target window and 1.6x it.
   const day = Math.round(dueByDay * (0.5 + rand() * 1.1));
-  const d = new Date(new Date(`${startedOn}T00:00:00`).getTime() + day * DAY_MS);
+  const d = absolute(absolute(`${startedOn}T00:00:00`).getTime() + day * DAY_MS);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
@@ -298,7 +298,7 @@ export function onboardingFor(
 ): CoachOnboarding {
   const startedOn = startDateFor(coachId);
   const daysSinceStart = Math.round(
-    (new Date(nowIso).getTime() - new Date(`${startedOn}T00:00:00`).getTime()) / DAY_MS,
+    (absolute(nowIso).getTime() - absolute(`${startedOn}T00:00:00`).getTime()) / DAY_MS,
   );
   const training = trainingStatusFor(coachId, [], nowIso);
 

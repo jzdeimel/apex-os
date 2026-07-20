@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type {
   Escalation,
   EscalationEvent,
@@ -276,7 +277,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * answered timestamp by the local zone.
  */
 function shift(iso: string, hours: number): string {
-  const d = new Date(new Date(iso).getTime() + hours * HOUR_MS);
+  const d = absolute(absolute(iso).getTime() + hours * HOUR_MS);
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
     `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`

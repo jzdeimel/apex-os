@@ -1,0 +1,19 @@
+# Keep the build context small and free of anything that should not travel.
+node_modules
+.next
+.git
+.gitignore
+
+# Local verification artefacts — never part of an image.
+.shots
+verify.mjs
+ovf.mjs
+shot.mjs
+
+# Env files must never be baked in. Container Apps supplies configuration at
+# runtime; an image that carries secrets is a secret you cannot rotate.
+.env
+.env.*
+
+npm-debug.log*
+README.md

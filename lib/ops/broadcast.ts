@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type { Client, LocationId } from "@/lib/types";
 import { clients, clientName } from "@/lib/mock/clients";
 import { hasConsent } from "@/lib/comms/consent";
@@ -38,7 +39,7 @@ import { VIEWER } from "@/lib/viewer";
  */
 
 /** Pinned clock. */
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 const DAY_MS = 86_400_000;
 
 export interface Segment {
@@ -53,7 +54,7 @@ export interface Segment {
 
 function daysSince(iso?: string): number {
   if (!iso) return Number.POSITIVE_INFINITY;
-  return Math.round((NOW.getTime() - new Date(iso).getTime()) / DAY_MS);
+  return Math.round((NOW.getTime() - absolute(iso).getTime()) / DAY_MS);
 }
 
 /**

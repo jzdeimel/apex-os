@@ -7,12 +7,12 @@
 import type { InventoryItem, Vendor } from "@/lib/types";
 import { inventory } from "@/lib/mock/inventory";
 import { vendors } from "@/lib/mock/vendors";
-import { seededRandom, clamp } from "@/lib/utils";
+import { seededRandom, clamp, absolute } from "@/lib/utils";
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 function daysUntil(iso: string) {
-  return Math.round((new Date(iso).getTime() - NOW.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.round((absolute(iso).getTime() - NOW.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 // Deterministic weekly burn rate per SKU (units/week), seeded by id.

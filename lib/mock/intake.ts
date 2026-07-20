@@ -20,7 +20,7 @@ import type { Goal, Symptom, LocationId } from "@/lib/types";
 import { makeIntakeToken } from "@/lib/intake/tokens";
 import { sha256 } from "@/lib/trace/hash";
 import { clients } from "@/lib/mock/clients";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /** Pinned demo clock. Nothing in this file may read the wall clock. */
 export const NOW = "2026-06-12T09:00:00";
@@ -187,8 +187,7 @@ export const intakeInvites: IntakeInvite[] = seeds.map((c, i) => {
   // elapsed rather than being asserted by the status field.
   const status = STATUS_CYCLE[i % STATUS_CYCLE.length];
   const hoursBack = status === "Expired" ? 96 + rand() * 200 : 1 + rand() * 60;
-  const createdAt = new Date(
-    new Date(NOW).getTime() - hoursBack * 3_600_000,
+  const createdAt = absolute(absolute(NOW).getTime() - hoursBack * 3_600_000,
   ).toISOString();
 
   const t = makeIntakeToken(c.id, createdAt);
@@ -204,8 +203,7 @@ export const intakeInvites: IntakeInvite[] = seeds.map((c, i) => {
     expiresAt: t.expiresAt,
     ...(status === "Submitted"
       ? {
-          usedAt: new Date(
-            new Date(createdAt).getTime() + 40 * 60_000,
+          usedAt: absolute(absolute(createdAt).getTime() + 40 * 60_000,
           ).toISOString(),
         }
       : {}),

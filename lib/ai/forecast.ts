@@ -23,11 +23,11 @@ import { clientMap } from "@/lib/mock/clients";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { alphaScore } from "@/lib/alphaScore";
 import { ringHistory } from "@/lib/daily/today";
-import { clamp } from "@/lib/utils";
+import { clamp, absolute } from "@/lib/utils";
 
 /** Pinned clock. Nothing in this file may read the wall clock. */
 const NOW = "2026-06-12T09:00:00";
-const NOW_MS = new Date(NOW).getTime();
+const NOW_MS = absolute(NOW).getTime();
 const WEEK_MS = 7 * 86_400_000;
 
 export type ForecastMetric = "bodyFat" | "weight" | "leanMass" | "alphaScore";
@@ -114,8 +114,8 @@ function adherenceLabelFor(adherence: number): ForecastResult["adherenceLabel"] 
 
 /** Ordinary least squares on (weeks-since-first, value). Returns weekly rate and residual spread. */
 function fit(series: { date: string; value: number }[]): { ratePerWeek: number; residualSd: number } {
-  const t0 = new Date(series[0].date).getTime();
-  const xs = series.map((p) => (new Date(p.date).getTime() - t0) / WEEK_MS);
+  const t0 = absolute(series[0].date).getTime();
+  const xs = series.map((p) => (absolute(p.date).getTime() - t0) / WEEK_MS);
   const ys = series.map((p) => p.value);
   const n = xs.length;
   const mx = xs.reduce((s, v) => s + v, 0) / n;
@@ -198,7 +198,7 @@ export function forecast(clientId: string, metric: ForecastMetric, weeks = 12): 
     const hi = metric === "alphaScore" ? clamp(median + halfWidth, 0, 100) : median + halfWidth;
     points.push({
       week: w,
-      date: new Date(NOW_MS + w * WEEK_MS).toISOString().slice(0, 10),
+      date: absolute(NOW_MS + w * WEEK_MS).toISOString().slice(0, 10),
       median: round(metric === "alphaScore" ? clamp(median, 0, 100) : Math.max(0, median), meta.decimals),
       low: round(lo, meta.decimals),
       high: round(hi, meta.decimals),

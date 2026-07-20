@@ -1,7 +1,7 @@
 import type { Referral, ReferralStatus } from "@/lib/growth/referrals";
 import { referralCodeFor, REFERRER_REWARD_CENTS } from "@/lib/growth/referrals";
 import { clients } from "@/lib/mock/clients";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * The referral book.
@@ -23,7 +23,7 @@ import { seededRandom } from "@/lib/utils";
  * write because the foreign key isn't there.
  */
 
-const NOW = new Date("2026-06-12T09:00:00");
+const NOW = absolute("2026-06-12T09:00:00");
 
 const REFEREE_FIRST = [
   "Dan", "Rob", "Marcus", "Ty", "Kev", "Nate", "Jordan", "Ellie", "Sam",
@@ -49,7 +49,7 @@ function outcomeFor(r: number): ReferralStatus {
 }
 
 function isoDaysAgo(days: number): string {
-  return new Date(NOW.getTime() - days * 86_400_000).toISOString();
+  return absolute(NOW.getTime() - days * 86_400_000).toISOString();
 }
 
 /**

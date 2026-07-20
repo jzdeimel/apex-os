@@ -43,7 +43,7 @@ import type { Client, Goal } from "@/lib/types";
 import { clients, getClient } from "@/lib/mock/clients";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { alphaScore } from "@/lib/alphaScore";
-import { clamp } from "@/lib/utils";
+import { clamp, absolute } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -299,8 +299,8 @@ function profileOf(client: Client): StartingProfile | null {
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 function weeksSince(iso: string): number {
-  const then = new Date(iso).getTime();
-  const now = new Date(NOW_ISO).getTime();
+  const then = absolute(iso).getTime();
+  const now = absolute(NOW_ISO).getTime();
   return Math.max(0, Math.round((now - then) / MS_PER_WEEK));
 }
 
@@ -311,7 +311,7 @@ function tenureWeeks(client: Client): number {
 
 /** ISO date `weeks` after `iso`. Used to put the cohort axis on the member's own calendar. */
 export function dateAtWeek(iso: string, weeks: number): string {
-  const d = new Date(new Date(iso).getTime() + weeks * MS_PER_WEEK);
+  const d = absolute(absolute(iso).getTime() + weeks * MS_PER_WEEK);
   return d.toISOString().slice(0, 10);
 }
 

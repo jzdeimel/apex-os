@@ -1,3 +1,4 @@
+import { absolute } from "@/lib/utils";
 import type {
   Order,
   OrderStatus,
@@ -106,7 +107,7 @@ export const SLA_HOURS: Record<OrderStatus, number | null> = {
 const HOUR_MS = 1000 * 60 * 60;
 
 function hoursBetween(fromIso: string, toIso: string): number {
-  return (new Date(toIso).getTime() - new Date(fromIso).getTime()) / HOUR_MS;
+  return (absolute(toIso).getTime() - absolute(fromIso).getTime()) / HOUR_MS;
 }
 
 /** The timestamp we measure an SLA from: last movement, else placement. */

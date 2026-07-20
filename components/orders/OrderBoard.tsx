@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { OrderCard } from "@/components/orders/OrderCard";
 import { ME_COACH } from "@/components/coach/TodayQueue";
-import { cn } from "@/lib/utils";
+import { cn, absolute } from "@/lib/utils";
 
 /**
  * THE ORDER BOARD.
@@ -98,7 +98,7 @@ function matchesFilter(order: Order, filter: FilterKey): boolean {
 function deliveredThisWeek(order: Order): boolean {
   if (order.status !== "Delivered") return false;
   const hours =
-    (new Date(NOW).getTime() - new Date(lastMovementAt(order)).getTime()) / HOUR_MS;
+    (absolute(NOW).getTime() - absolute(lastMovementAt(order)).getTime()) / HOUR_MS;
   return hours >= 0 && hours <= 24 * 7;
 }
 

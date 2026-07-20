@@ -1,7 +1,7 @@
 import type { Consult, ConsultKind, ConsultChannel } from "@/lib/consult/types";
 import { summarizeConsult, stampFor } from "@/lib/consult/summarize";
 import { clients } from "@/lib/mock/clients";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 
 /**
  * Seeded consult history.
@@ -99,7 +99,7 @@ next scan in 3 weeks`,
   },
 ];
 
-const NOW_MS = new Date("2026-06-12T09:00:00").getTime();
+const NOW_MS = absolute("2026-06-12T09:00:00").getTime();
 
 function buildConsult(
   clientId: string,
@@ -109,7 +109,7 @@ function buildConsult(
   daysAgo: number,
   signed: boolean,
 ): Consult {
-  const startedAt = new Date(NOW_MS - daysAgo * 86_400_000).toISOString();
+  const startedAt = absolute(NOW_MS - daysAgo * 86_400_000).toISOString();
   const summary = summarizeConsult(template.notes);
   const provenance = stampFor(template.notes, startedAt);
 

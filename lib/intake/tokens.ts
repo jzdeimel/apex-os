@@ -43,7 +43,7 @@
 // on every render and every build) and catastrophic in production. The real
 // implementation swaps the generator and nothing else.
 
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absolute } from "@/lib/utils";
 import { sha256 } from "@/lib/trace/hash";
 
 /**
@@ -94,7 +94,7 @@ function draw(rand: () => number, length: number): string {
 }
 
 function addHours(iso: string, hours: number): string {
-  return new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString();
+  return absolute(absolute(iso).getTime() + hours * 3_600_000).toISOString();
 }
 
 /**
@@ -143,7 +143,7 @@ export function checkToken(
 ): TokenVerdict {
   if (!candidate) return "unknown";
   if (candidate.usedAt) return "used";
-  if (new Date(candidate.expiresAt).getTime() <= new Date(nowIso).getTime()) {
+  if (absolute(candidate.expiresAt).getTime() <= absolute(nowIso).getTime()) {
     return "expired";
   }
   return "ok";

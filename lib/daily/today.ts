@@ -1,7 +1,7 @@
 import type { Client } from "@/lib/types";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { getScanForClient } from "@/lib/mock/bodyscans";
-import { seededRandom } from "@/lib/utils";
+import { seededRandom, absDay, absHour, absolute } from "@/lib/utils";
 
 /**
  * The member's daily loop — the reason to open Apex every morning.
@@ -31,7 +31,8 @@ import { seededRandom } from "@/lib/utils";
  */
 
 const NOW = "2026-06-12T09:00:00";
-const NOW_MS = new Date(NOW).getTime();
+// Absolute so the 28-day window lands on the same days everywhere.
+const NOW_MS = absolute(NOW).getTime();
 
 export type RingId = "protocol" | "fuel" | "train";
 
@@ -187,9 +188,11 @@ export function hasDose(route: string): boolean {
 
 export function buildDailyPlan(client: Client, dateIso: string = NOW): DailyPlan {
   const rand = seededRandom(`${client.id}-daily-${dateIso.slice(0, 10)}`);
-  const date = new Date(dateIso);
-  const dayIndex = date.getDay();
-  const hour = date.getHours();
+  // Absolute, not local. See lib/utils#absolute — reading these off a local
+  // Date made the day's protocol items and the greeting differ between a UTC
+  // server and the viewer's browser.
+  const dayIndex = absDay(dateIso);
+  const hour = absHour(dateIso);
 
   const plan = buildPlanOfCare(client);
   const macros = plan.macros!;
@@ -343,7 +346,7 @@ export function ringHistory(
 ): { date: string; closed: boolean; protectedDay: boolean }[] {
   const rand = seededRandom(`${client.id}-ringhistory`);
   return Array.from({ length: days }, (_, i) => {
-    const d = new Date(NOW_MS - (days - 1 - i) * 86_400_000);
+    const d = absolute(NOW_MS - (days - 1 - i) * 86_400_000);
     const roll = rand();
     return {
       date: d.toISOString().slice(0, 10),

@@ -85,7 +85,7 @@ function build(): Subscription[] {
     const sub: Subscription = {
       id: `sub-${String(i + 1).padStart(3, "0")}`,
       clientId: c.id,
-      catalogItemId: item.sku,
+      sku: item.sku,
       cadenceDays,
       nextRefillOn,
       status,
@@ -116,7 +116,7 @@ const HERO_SUBS: Subscription[] = [
      */
     id: "sub-900",
     clientId: "c-001",
-    catalogItemId: "GLP-RETA-10",
+    sku: "GLP-RETA-10",
     cadenceDays: 28,
     nextRefillOn: TODAY,
     status: "Active",
@@ -139,7 +139,7 @@ const HERO_SUBS: Subscription[] = [
      */
     id: "sub-901",
     clientId: "c-002",
-    catalogItemId: "HRT-TCYP-200",
+    sku: "HRT-TCYP-200",
     cadenceDays: 28,
     nextRefillOn: addDays(TODAY, -11),
     status: "Active",
@@ -160,7 +160,7 @@ const HERO_SUBS: Subscription[] = [
      */
     id: "sub-902",
     clientId: "c-003",
-    catalogItemId: "GLP-SEMA-2.5",
+    sku: "GLP-SEMA-2.5",
     cadenceDays: 30,
     nextRefillOn: addDays(TODAY, -6),
     status: "Active",
