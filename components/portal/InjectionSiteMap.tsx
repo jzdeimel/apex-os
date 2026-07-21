@@ -78,8 +78,12 @@ export function InjectionSiteMap({ clientId, iso }: { clientId: string; iso: str
   const { history, today, hydrated } = useMemberLog();
 
   // Only render for a member who actually rotates sites on something.
+  // NOTE: computed here but NOT returned on yet — the early return has to come
+  // after every hook below, or React sees a different hook count between the
+  // render where this is false and the one where it is true, and throws
+  // "Rendered fewer hooks than expected". (react-hooks/rules-of-hooks, which
+  // CI was masking.)
   const rotates = prescriptionsForClient(clientId).some((rx) => rx.rotateSites);
-  if (!rotates) return null;
 
   const nowMs = absolute(iso).getTime();
 
@@ -113,6 +117,9 @@ export function InjectionSiteMap({ clientId, iso }: { clientId: string; iso: str
   }, [history, today, nowMs]);
 
   const overused = INJECTION_SITES.filter((s) => stateOf(stats[s]) === "overused");
+
+  // Every hook has now run, so returning here is safe.
+  if (!rotates) return null;
 
   return (
     <section className="rounded-panel border border-ink-700/70 bg-ink-850/60">

@@ -52,19 +52,18 @@ export function PKCurve({
 
   // Withheld rather than faked: without a characterised half-life there is no
   // honest curve to draw, and a plausible-looking one would be a lie.
-  if (!pk.characterised || pk.halfLifeHours === null || pk.typicalIntervalHours === null) {
-    return (
-      <div className={cn("rounded-lg border border-ink-700/70 bg-ink-900/40 px-3 py-3", className)}>
-        <p className="text-detail text-ink-300">
-          No concentration curve for this compound — {pk.display.toLowerCase()}.
-        </p>
-        <p className="mt-1 text-micro leading-relaxed text-ink-500">{pk.basis}</p>
-      </div>
-    );
-  }
+  //
+  // The RETURN for that case lives below every hook — a useMemo after an early
+  // return changes the hook count between renders and throws "Rendered fewer
+  // hooks than expected" the moment a compound's profile changes under the
+  // component. (react-hooks/rules-of-hooks, which CI was masking.)
+  const uncharacterised =
+    !pk.characterised || pk.halfLifeHours === null || pk.typicalIntervalHours === null;
 
-  const half = pk.halfLifeHours;
-  const interval = pk.typicalIntervalHours;
+  // Safe placeholders so the memo below can run unconditionally; its output is
+  // discarded when `uncharacterised`.
+  const half = pk.halfLifeHours ?? 24;
+  const interval = pk.typicalIntervalHours ?? 24;
 
   const { full, skipped, maxLevel, ss, accum } = useMemo(() => {
     const full = concentrationCurve({ halfLifeHours: half, intervalHours: interval, doses });
@@ -86,6 +85,18 @@ export function PKCurve({
       accum: accumulationRatio(half, interval),
     };
   }, [half, interval, doses, missed]);
+
+  // Every hook has run; the withheld case can now return safely.
+  if (uncharacterised) {
+    return (
+      <div className={cn("rounded-lg border border-ink-700/70 bg-ink-900/40 px-3 py-3", className)}>
+        <p className="text-detail text-ink-300">
+          No concentration curve for this compound — {pk.display.toLowerCase()}.
+        </p>
+        <p className="mt-1 text-micro leading-relaxed text-ink-500">{pk.basis}</p>
+      </div>
+    );
+  }
 
   const totalHours = full[full.length - 1]?.hour || 1;
   const x = (h: number) => PAD.l + (h / totalHours) * (W - PAD.l - PAD.r);
@@ -183,7 +194,7 @@ export function PKCurve({
           ) : (
             <>
               <span className="text-red-300">Dashed line</span> is the same schedule with dose{" "}
-              {missed + 1} skipped. It takes roughly {humanDuration(pk.halfLifeHours * 1.5)} to
+              {missed + 1} skipped. It takes roughly {humanDuration(half * 1.5)} to
               recover the difference.{" "}
               <button
                 type="button"

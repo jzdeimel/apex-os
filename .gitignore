@@ -69,7 +69,15 @@ icu.mjs
 bad14.txt
 .next-dev/
 next-stale-lock/
+# Screenshots and scratch images, but NOT shipped assets: public/ holds the
+# brand marks the app renders, and a blanket *.png meant `git ls-files public`
+# returned nothing. The image only had logos because `az acr build` uploads the
+# local working directory (gitignored files included) — a CI build or a fresh
+# clone would have shipped broken branding.
 *.png
+!public/**/*.png
+!public/**/*.svg
+!public/**/*.ico
 
 # Debug / ad-hoc verification artifacts (never ship to the repo)
 /.shots/

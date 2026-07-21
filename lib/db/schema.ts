@@ -1044,7 +1044,17 @@ export const staff = pgTable(
   },
   (t) => ({
     emailIdx: uniqueIndex("staff_email_idx").on(t.email),
-    oidIdx: index("staff_oid_idx").on(t.entraObjectId),
+    /**
+     * UNIQUE, not just indexed. A non-unique index allowed two staff rows to
+     * claim the same Entra object id, and `staffByObjectId` takes the first
+     * row it happens to get back — so which identity (and which role) a sign-in
+     * resolved to would depend on plan order. Authority must not be a race.
+     * Partial, because most rows have no objectId yet and NULLs must not
+     * collide.
+     */
+    oidIdx: uniqueIndex("staff_oid_idx")
+      .on(t.entraObjectId)
+      .where(sql`entra_object_id IS NOT NULL`),
   }),
 );
 

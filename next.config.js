@@ -44,7 +44,12 @@ const nextConfig = {
    * the real gate. CI still runs `next lint` so the backlog is visible and can
    * be burned down, just not on the critical path.
    */
-  eslint: { ignoreDuringBuilds: true },
+  eslint: {
+    // Was ignoreDuringBuilds: true, which meant a production build could not
+    // fail on a lint error even after CI started gating on one. The two gates
+    // now agree.
+    ignoreDuringBuilds: false,
+  },
 
   /**
    * Build output directory.

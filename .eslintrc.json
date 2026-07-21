@@ -1,4 +1,15 @@
 {
   "extends": "next/core-web-vitals",
-  "ignorePatterns": ["scripts/**", "hardload.mjs", ".next/**", "node_modules/**"]
+  "ignorePatterns": [
+    "scripts/**",
+    "hardload.mjs",
+    ".next/**",
+    "node_modules/**"
+  ],
+  "_comment": "no-unescaped-entities is demoted to a warning deliberately: an apostrophe in JSX text renders correctly and has no runtime effect, and 36 of them were the ONLY thing standing between this repo and a real lint gate. rules-of-hooks stays an error because it is a crash: three genuine violations were hiding behind `next lint || true` in CI, one of them on the client chart.",
+  "rules": {
+    "react/no-unescaped-entities": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn"
+  }
 }

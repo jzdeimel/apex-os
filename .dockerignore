@@ -17,3 +17,14 @@ shot.mjs
 
 npm-debug.log*
 README.md
+
+# Local QA detectors and audit scratch — not part of an image.
+hardload.mjs
+walkcheck.mjs
+mobile-audit.mjs
+polish-audit.mjs
+deadclick.mjs
+audit.json
+live-audit.json
+routes.txt
+docs

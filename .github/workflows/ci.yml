@@ -19,7 +19,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Matches the Dockerfile (node:22-alpine). A CI that builds on a
+          # different major than production is testing a different program.
+          node-version: 22
           cache: npm
 
       - name: Install
@@ -29,9 +31,23 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Lint
-        # Advisory for now — the codebase predates a lint gate, so a sea of
-        # pre-existing warnings should not block a deploy. Tighten once cleaned.
-        run: npx next lint || true
+        # GATING. This was `|| true`, and it was hiding three genuine
+        # react-hooks/rules-of-hooks violations — one on the client chart — each
+        # of which crashes React ("Rendered fewer hooks than expected") the
+        # moment its branch flips. Stylistic rules are demoted in .eslintrc.json
+        # so this gate stays meaningful rather than being switched off again.
+        run: npx next lint
+
+      - name: Shipped assets are actually committed
+        # public/ was covered by a blanket *.png ignore, so `git ls-files public`
+        # returned nothing while the Dockerfile COPYed it. The image only had
+        # logos because `az acr build` uploads the local working directory,
+        # gitignored files included — a CI build or a fresh clone would have
+        # shipped broken branding.
+        run: |
+          test -n "$(git ls-files public)" || { echo "public/ has no tracked files"; exit 1; }
+          for f in $(git ls-files 'public/brand/*'); do test -s "$f" || { echo "empty asset: $f"; exit 1; }; done
+          echo "ok  $(git ls-files public | wc -l) public assets tracked"
 
       - name: Build
         run: npm run build

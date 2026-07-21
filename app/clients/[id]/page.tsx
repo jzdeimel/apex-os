@@ -108,7 +108,10 @@ export default function ClientProfilePage() {
   // like Titration or Women's Health) — falls back to overview.
   const [tab, setTab] = useState(searchParams.get("tab") || "overview");
 
-  if (!client) return notFound();
+  // NOTE: the `!client` return happens AFTER useBreakGlass below — an early
+  // return above a hook changes the hook count between renders and throws
+  // "Rendered fewer hooks than expected". (react-hooks/rules-of-hooks, which CI
+  // was masking.) The hook only needs the route id, which is always present.
 
   // AUDIT: the chart rendered for any client id regardless of the viewer's
   // location. A boundary that filters lists but opens any chart by URL is a
@@ -126,6 +129,9 @@ export default function ClientProfilePage() {
   // below offers it; an open window lets the chart through with a banner.
   const CHART_NOW = "2026-06-12T09:00:00";
   const { open: glassOpen, breakTheGlass } = useBreakGlass(staffId, id, CHART_NOW);
+
+  // Every hook has run; an unknown id can now 404 safely.
+  if (!client) return notFound();
 
   // A patient reaching a staff chart is refused outright with no override —
   // break-glass is for STAFF whose care requires an out-of-location record, not

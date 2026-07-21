@@ -15,8 +15,12 @@
  * Requires DATABASE_URL. Skips (exit 0) without one, so CI without a database
  * stays green while a database-having environment gets the real check.
  *
- * It writes rows into a dedicated entityId namespace and deletes them again,
- * including on failure.
+ * IT DOES NOT CLEAN UP AFTER ITSELF, and that is deliberate. The ledger is
+ * append-only and now enforced as such by a database trigger, so nothing —
+ * including this test — can delete from it. That is the correct behaviour: a
+ * log you can tidy is not evidence. The rows it writes are honest audit
+ * entries (actor "system-verify") recording that a chain verification ran, and
+ * a verification IS an auditable event.
  */
 import { createHash } from "node:crypto";
 import postgres from "postgres";
@@ -59,10 +63,10 @@ const fail = (m) => { console.error(`LEDGER-VERIFY FAIL: ${m}`); failed = true; 
 try {
   // Two rows: one SPARSE (the shape that broke it) and one fully populated.
   const drafts = [
-    { actorId: "st-001", actorName: "Verify Bot", actorRole: "Medical",
-      action: "sign", entity: "note", entityId: MARK },
-    { actorId: "st-001", actorName: "Verify Bot", actorRole: "Medical",
-      action: "create", entity: "order", entityId: MARK,
+    { actorId: "system-verify", actorName: "Chain verification", actorRole: "System",
+      action: "view", entity: "chart", entityId: MARK },
+    { actorId: "system-verify", actorName: "Chain verification", actorRole: "System",
+      action: "view", entity: "chart", entityId: MARK,
       subjectId: "c-001", subjectName: "Test Subject", locationId: "raleigh",
       reason: "populated row", before: { status: "a" }, after: { status: "b" } },
   ];
@@ -122,7 +126,7 @@ try {
 } catch (err) {
   fail(err?.message ?? String(err));
 } finally {
-  try { await sql`DELETE FROM ledger WHERE entity_id = ${MARK}`; } catch {}
+  // No DELETE: the ledger is append-only and a trigger enforces it.
   await sql.end();
 }
 
