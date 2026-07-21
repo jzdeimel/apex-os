@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlphaMark, AlphaLogo } from "@/components/brand/AlphaLogo";
-import { Activity, ChevronsUpDown, X, Check } from "lucide-react";
+import { Activity, ChevronsUpDown, X, Check, LogOut } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePortal } from "@/lib/portalStore";
 import { PORTAL_LIST } from "@/lib/portals";
 import { PORTAL_NAV } from "@/lib/nav";
 import { SupportLink } from "@/components/SupportLink";
+import { signOut } from "@/lib/auth/session";
 
 export function Sidebar({
   mobileOpen,
@@ -211,6 +212,17 @@ export function Sidebar({
         <div className="mx-3 mb-3">
           <SupportLink />
         </div>
+
+        {/* Sign out clears any member data held in this browser before handing
+            off to EasyAuth logout — a shared clinic workstation must not leak
+            the last person's record to the next. */}
+        <button
+          type="button"
+          onClick={() => signOut()}
+          className="focus-ring mx-3 mb-3 flex items-center gap-2 rounded-lg border border-ink-800 px-3 py-2 text-detail text-ink-400 transition-colors hover:border-ink-700 hover:text-ink-100"
+        >
+          <LogOut className="h-4 w-4" /> Sign out
+        </button>
       </aside>
     </>
   );

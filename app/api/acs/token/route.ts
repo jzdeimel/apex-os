@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, createHmac } from "crypto";
+import { currentPrincipal } from "@/lib/auth/principal";
 
 /**
  * ACS identity token endpoint — zero-dependency.
@@ -26,6 +27,27 @@ export const dynamic = "force-dynamic";
 
 const API_VERSION = "2022-10-01";
 
+/**
+ * One ACS identity + token per signed-in staff member, cached in memory.
+ *
+ * Two reasons. Security: minting is now behind an explicit principal check, not
+ * only the EasyAuth path config — a single mis-set exclusion should not let the
+ * open internet mint VoIP tokens. Hygiene: the old handler created a BRAND-NEW
+ * ACS identity on every POST, so the resource would accumulate orphaned
+ * identities forever. Keying by the caller's stable Entra objectId and reusing
+ * the token until it is near expiry keeps one identity per staff member per
+ * replica and stops the churn. (Durable per-staff identities belong in the DB
+ * once the write path exists; this is the interim that does not leak.)
+ */
+interface CachedToken {
+  userId: string;
+  token: string;
+  expiresOn: string;
+}
+const tokenByPrincipal = new Map<string, CachedToken>();
+/** Reissue a little before expiry so a call never hands back a stale token. */
+const RENEW_BEFORE_MS = 5 * 60 * 1000;
+
 function parseConnectionString(cs: string): { endpoint: string; accessKey: string } | null {
   // Format: endpoint=https://…;accesskey=BASE64
   const parts = Object.fromEntries(
@@ -45,6 +67,19 @@ function parseConnectionString(cs: string): { endpoint: string; accessKey: strin
 }
 
 export async function POST() {
+  // Defense in depth: EasyAuth gates the path, but this handler mints a
+  // real credential, so it verifies the caller itself. No principal → no token.
+  const principal = currentPrincipal();
+  if (!principal) {
+    return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+  }
+
+  // Reuse this staff member's identity + token while it is still fresh.
+  const cached = tokenByPrincipal.get(principal.objectId);
+  if (cached && new Date(cached.expiresOn).getTime() - Date.now() > RENEW_BEFORE_MS) {
+    return NextResponse.json({ ok: true, ...cached });
+  }
+
   const cs = process.env.ACS_CONNECTION_STRING;
   if (!cs) {
     // Honest failure: no faked token.
@@ -99,12 +134,17 @@ export async function POST() {
       accessToken?: { token?: string; expiresOn?: string };
     };
 
-    return NextResponse.json({
-      ok: true,
-      userId: data.identity?.id ?? null,
-      token: data.accessToken?.token ?? null,
-      expiresOn: data.accessToken?.expiresOn ?? null,
-    });
+    const userId = data.identity?.id ?? null;
+    const token = data.accessToken?.token ?? null;
+    const expiresOn = data.accessToken?.expiresOn ?? null;
+
+    // Cache for this staff member so a later call in the same window reuses the
+    // identity instead of minting another.
+    if (userId && token && expiresOn) {
+      tokenByPrincipal.set(principal.objectId, { userId, token, expiresOn });
+    }
+
+    return NextResponse.json({ ok: true, userId, token, expiresOn });
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : "Failed to mint ACS token." },

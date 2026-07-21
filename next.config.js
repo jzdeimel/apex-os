@@ -44,6 +44,48 @@ const nextConfig = {
    * the real build fails with a missing server.js.
    */
   distDir: process.env.NEXT_DIST_DIR || ".next",
+
+  /**
+   * Security headers.
+   *
+   * Table stakes for a HIPAA-adjacent app behind Entra, and the first thing a
+   * client's security reviewer greps for. HSTS forces TLS; DENY framing blocks
+   * clickjacking; nosniff stops MIME confusion; a strict referrer policy keeps
+   * PHI-bearing URLs out of third-party referers. The CSP is intentionally
+   * report-only to start (it observes and reports violations without breaking
+   * anything) because the app inlines some styles/scripts that a strict
+   * enforcing policy would need to be tuned against first.
+   */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      // Next injects inline bootstrap scripts; 'unsafe-inline' stays until we
+      // move to nonces. Report-only, so this observes rather than blocks.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.communication.azure.com https://*.azurecomm.net",
+      "media-src 'self' blob:",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
+          { key: "Content-Security-Policy-Report-Only", value: csp },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

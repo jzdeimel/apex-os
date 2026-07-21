@@ -17,6 +17,8 @@
  */
 import { NextResponse } from "next/server";
 
+import { currentPrincipal } from "@/lib/auth/principal";
+import { can } from "@/lib/authz/capabilities";
 import { clients } from "@/lib/mock/clients";
 import { staff } from "@/lib/mock/staff";
 import { locations } from "@/lib/mock/locations";
@@ -185,6 +187,16 @@ function walk(node: unknown, module: string, path: string, seen: WeakSet<object>
 /* -------------------------------------------------------------------------- */
 
 export async function GET() {
+  // This route enumerates the entire data model — a development harness, not a
+  // product surface. It must not be reachable by anyone but an admin. EasyAuth
+  // gates the door; this gates the capability, so an authenticated non-admin
+  // (or an unauthenticated caller past a mis-set exclusion) gets nothing.
+  const p = currentPrincipal();
+  const actor = p && p.staffId && p.role ? { id: p.staffId, role: p.role } : null;
+  if (!actor || !can(actor as never, "admin:export").allowed) {
+    return NextResponse.json({ ok: false, error: "Admin only." }, { status: 403 });
+  }
+
   problems.length = 0;
 
   const modules: Record<string, unknown> = {

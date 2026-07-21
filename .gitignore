@@ -70,3 +70,14 @@ bad14.txt
 .next-dev/
 next-stale-lock/
 *.png
+
+# Debug / ad-hoc verification artifacts (never ship to the repo)
+/.shots/
+/shot*.mjs
+/opacity.*
+/walk.*
+/r3.log
+/repro*.json
+/confirm.js
+/dbgburst.mjs
+/*.log
