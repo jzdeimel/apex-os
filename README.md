@@ -1,165 +1,310 @@
-# Apex — Alpha Health Clinic Operating System (Demo)
+# Apex — the Alpha Health Clinic Operating System
 
-A polished, demo-ready operating system for **Alpha Health** — a hormone, peptide,
-medical weight loss, diagnostics, body composition, and wellness clinic group with
-locations in **Raleigh, Southern Pines, Myrtle Beach, and Telehealth**.
+Apex is a single operating system for running **Alpha Health**, a clinician-led
+hormone / TRT / peptide / medical-weight-loss and diagnostics group with four
+locations (Raleigh, Raleigh Boutique, Southern Pines, Myrtle Beach) plus
+Telehealth. One application serves five distinct audiences — the member, the
+coach, the prescribing provider, the front desk, and the owner — each behind the
+same authenticated, audited spine.
 
-Apex is a premium, dark-mode, mobile-friendly clinic dashboard that visualizes the
-full client lifecycle: CRM → labs → body composition → AI-assisted (provider-approved)
-recommendations → inventory/supply-chain → lifecycle automations → an AI coach copilot.
+It is being built to a production standard: **would we trust this with a real
+patient, a real employee, real medication, and real money?** Where the answer is
+yet "not proven," this README says so plainly. Nothing here claims to be
+integrated, persisted, signed, or sent unless it genuinely is.
 
-> ⚠️ **Demo only. Not medical advice.** All recommendations are AI-assisted and require
-> review and approval by a licensed provider. No real PHI, no real prescribing, no real
-> pharmacy fulfillment, no real Mindbody/EHR/lab integrations. Mindbody data is *simulated*.
+> **Data & safety.** No real PHI is loaded — every patient is synthetic and
+> deterministically generated. Apex does not prescribe or fulfil; clinical
+> suggestions are rule-based, category-level, and always require a licensed
+> provider's sign-off (never a dose). Apex is the **system of record** — it has
+> **zero** MindBody and **zero** GoHighLevel integration by design.
 
 ---
 
-## What Apex does
+## What is actually real vs. what is still seeded
 
-| Route | Purpose |
-| --- | --- |
-| `/` | **Dashboard** — KPIs (active clients, new consults, results ready, inventory alerts, overdue follow-ups, projected revenue), today's schedule, "Attention Needed" queue, revenue/service-mix charts, recent activity. Location filter. |
-| `/clients` | **Client CRM** — searchable/filterable list (location, status, coach, program) with status pills and risk flags. |
-| `/clients/[id]` | **Client 360** — tabs: Overview, Labs, Body Scan, Recommendations, Timeline, Tasks, Notes. |
-| `/recommendations` | **Global review queue** — every AI-assisted recommendation, filter by risk/location/provider/status, bulk-approve (provider role), human-approval-required. |
-| `/supply-chain` | **Inventory & supply chain** — multi-location stock, low/expiring/reorder/transfer suggestions, vendors, purchase-order mock flow. |
-| `/automations` | **Automation center** — 11 lifecycle automations with trigger/audience/channel/run info, toggleable, generic non-medical message previews. |
-| `/agent` | **Coach Copilot** — deterministic, mock-data chat with citations to internal records. No external LLM. |
-| `/website` | **Website / intake** — public landing preview + a working 3-step intake quiz that creates a mock lead in local state. |
-| `/settings` | Locations, staff/coaches/providers, service categories, **recommendation rules editor**, and integration placeholders. |
+Apex is deliberately honest about its own maturity. The **write paths that
+matter are real** — authenticated, authorized, persisted to Postgres, and
+audit-chained. Most **reads are still served from a deterministic seed** while
+the system of record fills in behind them. This table is the source of truth.
 
-### The recommendation engine
+| Capability | State | Where |
+| --- | --- | --- |
+| Staff identity & **clinical authority** | **Real** — DB is the authority | `staff` table; `mapToStaff` reads it DB-first. `UPDATE staff SET active=false` revokes a prescriber with no deploy. |
+| Audit ledger (tamper-evident) | **Real** — hash-chained, durable | `appendLedgerRow` — advisory-locked, transactional, verifiable chain in Postgres |
+| Consult co-sign | **Real** — gated durable write | `POST /api/consults/sign` (`sign:encounter`, Medical-only) |
+| Task completion | **Real** — gated durable write | `POST /api/tasks/complete` (`write:task`) |
+| Order placement (ledger record) | **Real** — gated durable write | `POST /api/orders/create` (`write:order`) |
+| Member self-log (dose / skip / retract / weight / check-in) | **Real** — durable, append-only | `POST /api/member/log` → `dose_log`, `member_day` |
+| In-app voice/video/SMS to patients | **Real tokens** | `POST /api/acs/token` — Azure Communication Services VoIP identity |
+| Everything else (rosters, labs, protocols, analytics, community, pipeline…) | **Seeded** | `lib/mock/*` deterministic data; those ledger writes are in-memory client-side |
+| Consult **draft** autosave | **Client-only (localStorage)** — next slice moves it server-side | `components/consult/ConsultComposer.tsx` |
 
-`lib/recommendationEngine.ts` exposes a deterministic, rule-based function:
+The split is intentional. Domain logic is written pure and portable, so moving a
+surface from "seeded read" to "Postgres read" is a transport change, not a
+rewrite.
 
-```ts
-generateRecommendations(client, labs, bodyScan, inventory, rules) => Recommendation[]
+---
+
+## The five consoles
+
+Apex chooses your workspace from an entry screen and keeps every surface for one
+audience together. **Revenue and money live only on the owner console** — a coach
+or a member never sees it.
+
+- **Member portal** (`/portal/*`) — the daily habit surface: protocol & injection
+  map, reconstitution/mixing calculator, "where your levels are" PK view, labs
+  with plain-language reads, symptom journal with lab correlation, women's-health
+  / menopause tracking, recovery readiness, community, secure messaging, costs &
+  membership, and a personal **access log** (who viewed my chart).
+- **Coach console** (`/coach/*`) — today's ranked queue, roster, consult authoring
+  with an AI prep brief, care-gaps, refills/subscriptions, win-back, handoff,
+  documents, training.
+- **Medical console** (`/clinic/*`) — the prescriber's cockpit: sign queue (durable
+  co-sign), controlled-substance dispense gate with lot recall, population risk
+  radar (HCT / E2 / overdue labs / credentials across sites), and the verifiable
+  audit ledger.
+- **Front desk** (`/desk/*`) — per-location day board, room board, and booking. Each
+  desk sees only its own location's day.
+- **Owner console** (`/exec/*`, `/admin/*`, `/analytics`) — everything across all
+  locations, focused on money: MRR & revenue by service line and site, capacity
+  & load, lead pipeline, retention/LTV, daily order report, quality/incidents.
+
+Plus the client chart (`/clients/[id]`) with sex-aware tabs (titration for men,
+women's-health/HRT for women, sexual health, labs, contact/ACS), a public
+front-door (`/book`), and a one-tap **Demo Guide** (`/demo`).
+
+---
+
+## Architecture
+
+```
+Browser (React 18 / Next 15 App Router, dark, mobile-first, framer-motion)
+   │  EasyAuth (Microsoft Entra, single-tenant) — every request carries a principal
+   ▼
+Azure Container App  ca-apex  (node:22-alpine, output: standalone)
+   │  Server components + Route Handlers
+   │    • currentPrincipal()  → decodes x-ms-client-principal
+   │    • guard(capability)   → can(actor, capability, subject)  [server-side]
+   │    • repo.ts             → the ONLY code that touches the database
+   ▼
+Azure Postgres Flexible Server  pg-apex-fcfde / db "apex"
+   • Drizzle ORM + drizzle-kit migrations (applied in-container at boot)
+   • hash-chained audit ledger, staff authority, member log, dispenses
+Azure Communication Services  acs-apex   → real VoIP/SMS identity tokens
+Azure Container Registry      acrapexfcfde
 ```
 
-It recommends **categories and discussion points — never dosing, never automatic
-prescribing**. Every recommendation card shows:
+**Stack:** Next.js 15.5 (App Router, standalone output) · React 18.3 · TypeScript ·
+Tailwind · framer-motion · recharts · lucide-react · Drizzle ORM + `postgres` ·
+Azure Container Apps / Postgres Flexible Server / Communication Services / Entra.
+~121k LOC across `app/`, `components/`, `lib/`.
 
-1. **Why** it was suggested (rationale)
-2. **What triggered it** (goals / labs / symptoms)
-3. **Contraindication / risk flags** (each check passed or flagged)
-4. **Confidence score**
-5. **Required provider-approval status** (`requiresProviderApproval: true`, always)
+### Why some choices look the way they do
 
-Candidate options reflect Alpha's publicly listed service categories (BPC-157, GHK-Cu,
-NAD+, PT-141, VIP nasal spray, MK-677, Semaglutide, Tirzepatide, Tesofensine, hormone/
-thyroid discussions, nutrition coaching, body-scan follow-up, aesthetics consult) and
-show live **inventory availability** — but **dosing is never generated** ("protocol
-details added by provider").
-
----
-
-## Mock data disclaimer
-
-All data in this app is **fabricated for demonstration**. It is stored in plain
-TypeScript files under [`lib/mock/`](lib/mock):
-
-- `clients.ts` — 24 clients across 4 locations, every status represented
-- `labs.ts` — deterministic **Alpha Base Panel** (30+ biomarkers) generated per client
-- `bodyscans.ts` — InBody-style body composition + progress history
-- `inventory.ts` — 25 SKUs across locations (peptides, meds, hormones, kits, supplies)
-- `vendors.ts` — vendors + purchase orders
-- `automations.ts` — 11 automations
-- `staff.ts` — 12 staff (providers/coaches/front desk/ops)
-- `timeline.ts` — 100+ lifecycle events generated from each client's journey
-- `notes.ts`, `tasks.ts`, `appointments.ts`, `mindbody.ts` — supporting records
-
-No real patients, no PHI, no real medical advice.
+- **Migrations run in the container, not from a laptop** — the production DB
+  credential never leaves the Container App secret store, and a replica's schema
+  is, by construction, the one shipped in its image.
+- **`output: "standalone"`** — `next start` does **not** serve a standalone build.
+  Local verification runs `node .next/standalone/server.js` after copying
+  `.next/static` and `public/` beside it (the Dockerfile and `scripts/smoke.mjs`
+  do the same).
+- **Hydration safety is a discipline, not an afterthought.** All date parsing goes
+  through `absolute()` (treats a zoneless ISO string as UTC) because the dev
+  server shares the browser timezone while Azure runs UTC — a class of bug that
+  is invisible locally. Client stores start empty and read `localStorage` in an
+  effect, never during render.
+- **Page transitions fail open.** Never wrap the App Router `children` slot in
+  `AnimatePresence`/`exit`; animations only ever move content *toward* visible.
 
 ---
 
-## How to run locally
+## Security, authorization & clinical safety
+
+Authorization is **server-enforced**, never a hidden button.
+
+- **Identity** comes from the Entra principal (`x-ms-client-principal`), decoded
+  server-side in `currentPrincipal()`. Every mutating route checks it **first** —
+  a 401 always outranks a 400, so an unauthenticated caller learns nothing about
+  the endpoint.
+- **Authority lives in the database.** `mapToStaff` resolves the caller to a
+  `staff` row DB-first (by Entra object id, then email), falling back to the
+  seeded roster only when no database is configured. **Unmapped returns null, not
+  a default** — a valid sign-in with no staff row gets no role and no
+  capabilities. Granting or revoking a prescriber is a row change, not a deploy.
+- **Capabilities** (`lib/authz/capabilities.ts`) are the unit of permission —
+  e.g. `sign:encounter`, `write:consult`, `write:prescription`, `write:order`,
+  `write:refund`, `order:labs`, `override:contraindication`, `admin:break-glass`,
+  `read:financial`, `read:ledger`. `can(actor, capability, subject)` additionally
+  enforces **care-team membership** and **location scope** — a Raleigh provider
+  cannot open a Myrtle Beach chart without **break-glass**, which is itself an
+  audited event.
+- **Roles:** `Medical`, `Coach`, `Admin` (personas are the UI workspace; roles are
+  the authority).
+- **The audit ledger is tamper-evident.** Each row hashes the previous row's hash
+  under a Postgres advisory lock inside a transaction, so appends are strictly
+  ordered and the chain is verifiable. Retractions are **compensating writes**,
+  never deletes — "it was logged and then retracted" is the true record.
+- **Clinical safety:** suggestions are rule-based and category-level (never a
+  dose); provider sign-off is required; contraindication rules (e.g.
+  estrogen + intact uterus ⇒ progesterone) are encoded; controlled substances
+  pass a dispense gate with PDMP/lot-recall checks.
+
+---
+
+## Data model (Drizzle, 28 tables)
+
+Core tables in `lib/db/schema.ts`, migrations in `lib/db/migrations/`:
+
+- **`ledger`** — the hash-chained audit trail (actor, action, entity, subject,
+  location, before/after, `prevHash`/`hash`).
+- **`staff`** — identity + clinical authority, including `entra_object_id`,
+  `role`, `location_ids`, `can_approve`, `active`.
+- **`dose_log`** / **`member_day`** — member self-logging (append-only doses with
+  retraction; one upsert row per member per day for weight & check-in).
+- **`consult`** / **`consult_addendum`** — encounter notes (draft→signed, with
+  post-sign addenda) — schema ready; server persistence is the next slice.
+- **`dispense`** / **`inventory_movement`** — controlled-substance dispensing and
+  stock movement.
+- **`contact_entry`**, **`escalation`**, **`lead`** / **`lead_stage_event`**,
+  **`consent`**, **`invoice_line`**, **`member_prefs`**, and more.
+
+Apply/generate migrations:
 
 ```bash
-cd alpha-os
+npx drizzle-kit generate    # generate a migration after a schema.ts change
+# migrations auto-apply at boot; /api/health reports the migration state honestly
+```
+
+---
+
+## API surface
+
+All routes are Node runtime, `force-dynamic`, and fail closed.
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/health` | public | boot + migration state (`ok` / `degraded`) |
+| GET | `/api/me` | authenticated | resolved principal (role, staffId) |
+| POST | `/api/consults/sign` | `sign:encounter` | durable consult co-sign |
+| POST | `/api/tasks/complete` | `write:task` | durable task completion |
+| POST | `/api/orders/create` | `write:order` | durable order record |
+| POST | `/api/member/log` | authenticated | durable dose/skip/retract/day |
+| GET | `/api/ledger` | `read:ledger` | durable audit ledger |
+| POST | `/api/acs/token` | authenticated | real ACS VoIP/SMS token |
+| GET | `/api/audit` | admin-gated | live referential-integrity check |
+
+`/api/audit` runs a real integrity sweep across the seeded universe (dangling
+`*Id` refs, duplicate IDs, NaN, implausible dates, ledger-chain continuity) — a
+deliberately strict check, because a silent skip is how a broken reference hides
+for months.
+
+---
+
+## Local development
+
+```bash
 npm install
+npm run dev            # http://localhost:3000  (no DB needed; writes 503 honestly)
+```
+
+Without `DATABASE_URL`, reads work from the seed and every durable write returns
+an honest `503` — nothing fakes success. With a database:
+
+```bash
+export DATABASE_URL="postgresql://USER:PASS@HOST:5432/apex?sslmode=require"
 npm run dev
-# open http://localhost:3000
 ```
 
-Build for production:
+**Testing personas locally.** Every request needs an Entra principal. Craft the
+header EasyAuth would inject:
 
 ```bash
-npm run build
-npm start
+PRINCIPAL=$(node -e "console.log(Buffer.from(JSON.stringify({claims:[
+  {typ:'email',val:'m.vale@alphahealth.demo'},
+  {typ:'oid',val:'oid-vale'},{typ:'name',val:'Marcus Vale'}]})).toString('base64'))")
+curl -H "x-ms-client-principal: $PRINCIPAL" http://localhost:3000/api/me
 ```
 
-**Requirements:** Node 18.18+ (built/tested on Node 24). No environment variables, no
-external/paid APIs, no database — everything runs from local mock data.
+---
 
-### Tech stack
-
-- **Next.js 14** (App Router) + **TypeScript**
-- **Tailwind CSS** (Alpha Health brand: black/charcoal/white with **red** accent — #e93d3d / #bf1e2e — dark-mode first)
-- **lucide-react** icons, **Recharts** charts
-- shadcn/ui-style local component primitives (`components/ui/`)
-- Local React Context store (`lib/store.tsx`) for interactive state (role switcher,
-  location filter, recommendation approvals, automation/rule toggles, tasks, notes, leads)
-
-### Deploying to Vercel
-
-This is a standard Next.js app — deploy by importing the repo in Vercel, or:
+## Testing & verification
 
 ```bash
-npm i -g vercel
-vercel        # preview
-vercel --prod # production
+npm run typecheck      # tsc --noEmit
+npm run lint
+npm run smoke          # boots standalone server, asserts 11 invariants
+npm run smoke:ui       # Playwright render sweep
 ```
 
-The app is fully responsive (mobile drawer nav + adaptive tables/cards) and looks good
-on phone and desktop.
+`scripts/smoke.mjs` is the contract that must never regress: `/api/health` shape;
+`/api/me`, `/api/audit`, `/api/acs/token` and **every mutation** return 401/403
+unauthenticated; a crafted provider principal resolves to `Medical/st-001`; and a
+**coach hitting `sign:encounter` is refused with 403** — the core authorization
+invariant. `hardload.mjs` (repo root) is an opacity-aware route sweep that
+detects blank-but-present content (`getComputedStyle().opacity`, not `innerText`).
+Verify at `America/New_York` **and** `Asia/Tokyo` against the standalone server —
+never `next start`.
 
 ---
 
-## Compliance notes
+## Build & deploy (Azure)
 
-- The app **never says "prescribed automatically."**
-- Every recommendation is labeled **"AI-assisted recommendation for provider/coach review"**
-  and carries `requiresProviderApproval: true`.
-- **No exact dosing** is ever generated — dosing is always "protocol details added by provider."
-- A persistent disclaimer appears across the app:
-  *"Demo only. Not medical advice. Recommendations require review and approval by a
-  licensed provider."*
-- The Coach Copilot is **deterministic** (no external LLM) and cites the internal mock
-  records it used.
-- Role switcher (Provider / Coach / Operations) gates approval actions — only the
-  **Provider** role can approve recommendations.
+```bash
+# 1. Build the image (ACR). --no-logs: Next's ▲ crashes cp1252 log streaming.
+az acr build --registry acrapexfcfde \
+  --image apex-os:vN-$(git rev-parse --short HEAD) --image apex-os:latest . --no-logs
 
----
+# 2. Roll the Container App
+az containerapp update -n ca-apex -g apex-prod \
+  --image acrapexfcfde.azurecr.io/apex-os:vN-$(git rev-parse --short HEAD)
 
-## Future integration roadmap
+# 3. Wait for the NEW revision to read Running before verifying
+#    (deactivating the old one early = platform 404 while it drains)
+curl -s https://ca-apex.kindground-78fc25fb.eastus.azurecontainerapps.io/api/health
+```
 
-**Phase 1 — MVP (this build)**
-- Mock CRM, mock labs, mock recommendations, mock inventory, mock automations, mock AI agent
-
-**Phase 2**
-- Mindbody client/appointment sync
-- Real lab PDF upload/parser
-- LabCorp / Quest / Health Gorilla integration exploration
-- Provider approval workflow (persisted)
-- Secure user roles & auth
-- Audit logs
-
-**Phase 3**
-- EHR integration
-- Patient portal
-- SMS / email messaging
-- Payment / subscription tracking
-- Vendor / pharmacy ordering workflow
-- Multi-location analytics
-
-**Phase 4**
-- Clinical rules governance
-- Versioned recommendation protocols
-- Compliance review
-- HIPAA-ready infrastructure
-- SOC 2 roadmap
+**Azure resources** (RG `apex-prod`, sub `fcfde7e1-…`): Container App `ca-apex`
+in env `cae-apex-prod` · Postgres `pg-apex-fcfde` (db `apex`) · ACS `acs-apex` ·
+ACR `acrapexfcfde` · Entra single-tenant app registration for EasyAuth. The DB
+firewall allows Azure services only; migrations self-apply from inside the
+container.
 
 ---
 
-*Apex is a demonstration build created to visualize Alpha Health's internal workflows.
-It is not a medical device and provides no medical advice.*
+## Repository layout
+
+```
+app/            68 routes — entry, /portal, /coach, /clinic, /desk, /exec,
+                /admin, /clients/[id], /book, /demo, and app/api/* handlers
+components/     UI by domain — portal/, coach/, clinic/, exec/, community/,
+                consult/, client/, brand/, layout/
+lib/
+  db/           schema.ts · repo.ts (only DB access) · migrate.ts · client.ts
+  auth/         principal.ts · guard.ts · actor.ts · session.ts
+  authz/        capabilities.ts (capability → role grants, can())
+  clinical/     titration · womensHealth · sexualHealth · dosing · rules
+  community/    buddies · milestones · squads · mentors · kudos · photos
+  member/       logStore (durable-synced) · viewer
+  mock/         27 deterministic seed collections (no PHI)
+  trace/        ledger (hash chain) · acs · analytics · exec · …
+scripts/        smoke.mjs · smoke-ui.mjs
+```
+
+---
+
+## Roadmap (honest next slices)
+
+1. **Consult drafts off localStorage** — server-side autosave keyed by
+   principal + client, `write:consult`-gated, with a visible "not saving" state.
+   PHI clinical notes must not persist on a shared workstation.
+2. **Golden-path segment 1** — lead → intake → consent → consult → sign, persisted
+   end-to-end on Postgres with no in-memory authority.
+3. **Order-create UI wiring** — the coach order flow calling the gated durable
+   endpoint, with an honest durable-confirmation and failure state.
+4. **Reads to Postgres** — migrate seeded reads onto the system of record; at that
+   point a failed migration should refuse to start (the code notes exactly where).
+5. **Patient identity (CIAM)** and **payments** (abstract processor port, never
+   storing PANs); rotate the demo DB credential before any real PHI.
+
+Apex is optimized not for the number of features shown, but for how confidently
+Alpha Health could depend on a feature during a real clinic day.
