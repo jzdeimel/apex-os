@@ -182,6 +182,19 @@ export interface GroupPost {
 // Meetups
 // ---------------------------------------------------------------------------
 
+/**
+ * The kind of event. Drives the icon and a little of the copy. Seeded meetups
+ * predate this field, so it is optional and defaults to "social" when absent.
+ */
+export type EventKind =
+  | "hike"
+  | "meal-prep"
+  | "workshop"
+  | "qa"
+  | "strength"
+  | "social"
+  | "virtual";
+
 export interface Meetup {
   id: string;
   /** Physical clinics only. Telehealth members are welcome at any of them. */
@@ -194,6 +207,16 @@ export interface Meetup {
   hostStaffId: string;
   capacity: number;
   rsvps: number;
+  /** New, optional so seeded meetups still satisfy the type. */
+  kind?: EventKind;
+  /** A longer description for created events; the card shows it under the blurb. */
+  description?: string;
+  /** True for an online event — no address, a join note instead. */
+  virtual?: boolean;
+  /** Handle or name of whoever created it, when member/staff-created in-app. */
+  createdBy?: string;
+  /** ISO timestamp of creation, for created events. */
+  createdAt?: string;
 }
 
 // ---------------------------------------------------------------------------

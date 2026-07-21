@@ -43,6 +43,9 @@ const TABS = [
   { id: "meetups", label: "Meetups" },
 ];
 
+/** The pinned demo clock, so "upcoming" events are deterministic. */
+const COMMUNITY_NOW = "2026-06-12T09:00:00";
+
 export default function PortalCommunityPage() {
   // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
   // module constant ME, which pinned the portal to one male member.
@@ -94,7 +97,14 @@ export default function PortalCommunityPage() {
         {tab === "group" && group && (
           <CoachGroup group={group} posts={posts} me={client} myHandle={myHandle} />
         )}
-        {tab === "meetups" && <Meetups meetups={meetups} />}
+        {tab === "meetups" && (
+          <Meetups
+            nowIso={COMMUNITY_NOW}
+            myHandle={myHandle}
+            myCoachId={client.coachId}
+            myLocationId={client.locationId}
+          />
+        )}
       </SwitchView>
 
       {/* The rule, said plainly to the member once per page rather than only at
