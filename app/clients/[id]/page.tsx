@@ -30,6 +30,7 @@ import { LabTable } from "@/components/LabTable";
 import { TitrationAssistant } from "@/components/clinic/TitrationAssistant";
 import { HematocritTracker } from "@/components/clinic/HematocritTracker";
 import { WomensHealthPanel } from "@/components/clinic/WomensHealthPanel";
+import { SexualHealthPanel } from "@/components/clinic/SexualHealthPanel";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { AiDraftPanel } from "@/components/AiDraftPanel";
 import { ProtocolScheduleBuilder } from "@/components/ProtocolScheduleBuilder";
@@ -194,9 +195,15 @@ export default function ClientProfilePage() {
           <div className="space-y-6">
             <TitrationAssistant clientId={id} />
             <HematocritTracker clientId={id} />
+            <SexualHealthPanel clientId={id} />
           </div>
         )}
-        {tab === "womens-health" && canTitrate && <WomensHealthPanel clientId={id} />}
+        {tab === "womens-health" && canTitrate && (
+          <div className="space-y-6">
+            <WomensHealthPanel clientId={id} />
+            <SexualHealthPanel clientId={id} />
+          </div>
+        )}
         {tab === "scan" && <ScanTab id={id} />}
         {tab === "recs" && <RecsTab id={id} />}
         {tab === "schedule" && <ProtocolScheduleBuilder client={client} />}

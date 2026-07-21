@@ -46,6 +46,37 @@ const PANEL: PanelDef[] = [
   { key: "egfr", name: "eGFR", unit: "mL/min", category: "Organ", ref: [90, 120], optimal: [95, 120] },
   { key: "hct", name: "Hematocrit", unit: "%", category: "Blood", ref: [38.3, 48.6], optimal: [40, 48], decimals: 1 },
   { key: "psa", name: "PSA", unit: "ng/mL", category: "Prostate", ref: [0, 4], optimal: [0, 2.5], maleOnly: true, decimals: 1 },
+
+  // --- Expanded panel: the rest of the "100+ markers" Alpha Health advertises.
+  // Adrenal / additional hormones
+  { key: "dheas", name: "DHEA-S", unit: "µg/dL", category: "Hormones", ref: [80, 560], optimal: [200, 400], female: { ref: [35, 430], optimal: [150, 350] } },
+  { key: "cortisol_am", name: "Cortisol (AM)", unit: "µg/dL", category: "Hormones", ref: [6, 23], optimal: [10, 18], decimals: 1 },
+  { key: "prolactin", name: "Prolactin", unit: "ng/mL", category: "Hormones", ref: [2, 18], optimal: [3, 12], decimals: 1 },
+  { key: "pregnenolone", name: "Pregnenolone", unit: "ng/dL", category: "Hormones", ref: [10, 200], optimal: [50, 150] },
+  // CBC / blood
+  { key: "wbc", name: "WBC", unit: "10³/µL", category: "Blood", ref: [3.4, 10.8], optimal: [4.5, 7.5], decimals: 1 },
+  { key: "rbc", name: "RBC", unit: "10⁶/µL", category: "Blood", ref: [4.2, 5.8], optimal: [4.6, 5.4], decimals: 2 },
+  { key: "hemoglobin", name: "Hemoglobin", unit: "g/dL", category: "Blood", ref: [13.5, 17.5], optimal: [14, 16.5], female: { ref: [12, 15.5], optimal: [12.5, 15] }, decimals: 1 },
+  { key: "platelets", name: "Platelets", unit: "10³/µL", category: "Blood", ref: [150, 400], optimal: [180, 320] },
+  { key: "mcv", name: "MCV", unit: "fL", category: "Blood", ref: [80, 100], optimal: [85, 95], decimals: 1 },
+  { key: "rdw", name: "RDW", unit: "%", category: "Blood", ref: [11.5, 14.5], optimal: [11.5, 13], decimals: 1 },
+  // Comprehensive metabolic / organ
+  { key: "sodium", name: "Sodium", unit: "mmol/L", category: "Organ", ref: [135, 145], optimal: [137, 142] },
+  { key: "potassium", name: "Potassium", unit: "mmol/L", category: "Organ", ref: [3.5, 5.1], optimal: [4, 4.8], decimals: 1 },
+  { key: "calcium", name: "Calcium", unit: "mg/dL", category: "Organ", ref: [8.6, 10.3], optimal: [9.2, 10], decimals: 1 },
+  { key: "albumin", name: "Albumin", unit: "g/dL", category: "Organ", ref: [3.5, 5], optimal: [4.2, 4.9], decimals: 1 },
+  { key: "ggt", name: "GGT", unit: "U/L", category: "Organ", ref: [8, 61], optimal: [8, 30] },
+  { key: "uric_acid", name: "Uric Acid", unit: "mg/dL", category: "Metabolic", ref: [3.4, 7], optimal: [3.4, 5.5], female: { ref: [2.4, 6], optimal: [2.4, 5] }, decimals: 1 },
+  // Cardiovascular / advanced lipids & inflammation
+  { key: "cholesterol", name: "Total Cholesterol", unit: "mg/dL", category: "Lipids", ref: [125, 200], optimal: [140, 180] },
+  { key: "lpa", name: "Lipoprotein(a)", unit: "nmol/L", category: "Lipids", ref: [0, 75], optimal: [0, 30] },
+  { key: "homocysteine", name: "Homocysteine", unit: "µmol/L", category: "Inflammation", ref: [4, 15], optimal: [5, 8], decimals: 1 },
+  { key: "ferritin_sat", name: "Iron Saturation", unit: "%", category: "Nutrients", ref: [15, 55], optimal: [25, 45] },
+  // Nutrients
+  { key: "magnesium", name: "Magnesium (RBC)", unit: "mg/dL", category: "Nutrients", ref: [4, 6.4], optimal: [5, 6.4], decimals: 1 },
+  { key: "folate", name: "Folate", unit: "ng/mL", category: "Nutrients", ref: [3, 20], optimal: [10, 20], decimals: 1 },
+  { key: "omega3", name: "Omega-3 Index", unit: "%", category: "Nutrients", ref: [2, 12], optimal: [8, 12], decimals: 1 },
+  { key: "zinc", name: "Zinc", unit: "µg/dL", category: "Nutrients", ref: [70, 120], optimal: [90, 120] },
 ];
 
 // Per-client overrides that encode each client's clinical story so the
