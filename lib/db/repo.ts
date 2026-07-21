@@ -468,18 +468,19 @@ export async function seedStaff(): Promise<number> {
         canApprove: s.canApprove ?? false,
         active: true,
       })
-      .onConflictDoUpdate({
-        target: staffTable.id,
-        set: {
-          email: s.email ?? `${s.id}@alphahealth.demo`,
-          name: s.name,
-          role: s.role,
-          locationIds: s.locationIds ?? [],
-          credentials: s.credentials ?? null,
-          canApprove: s.canApprove ?? false,
-          updatedAt: new Date(),
-        },
-      });
+      /**
+       * DO NOTHING on conflict. The seed may CREATE a staff row; it must never
+       * overwrite one that already exists.
+       *
+       * This previously re-applied role, locationIds and canApprove on every
+       * boot, which meant the database was not actually the authority it claims
+       * to be: revoke a prescriber by setting their role in the table, restart
+       * the container, and the seed silently promoted them back. Authority
+       * changes have to survive a deploy or they are theatre.
+       *
+       * Deactivation is likewise preserved — an inactive row stays inactive.
+       */
+      .onConflictDoNothing({ target: staffTable.id });
   }
   return seededStaff.length;
 }

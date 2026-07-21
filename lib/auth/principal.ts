@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { StaffRole } from "@/lib/types";
 import { staff } from "@/lib/mock/staff";
+import { IS_DEMO } from "@/lib/config";
 
 /**
  * The signed-in user, from Container Apps EasyAuth.
@@ -149,10 +150,26 @@ async function mapToStaff(
       const row = byOid ?? (lower ? await staffByEmail(lower) : null);
       // With a database present it is the authority — including the answer "no".
       return row ? { id: row.id, role: row.role as StaffRole } : null;
-    } catch {
-      // A transient DB error must not turn into a login outage; fall through to
-      // the seed for THIS request. The write paths still hit the DB and fail
-      // closed there if it is really down.
+    } catch (err) {
+      /**
+       * FAIL CLOSED.
+       *
+       * This used to fall through to the seeded roster on any database error,
+       * which meant a DB outage silently PROMOTED the identity model back to a
+       * checked-in TypeScript file: someone deactivated in the database would
+       * be authorised again, with whatever role the seed happens to carry, for
+       * as long as the database was unreachable. An attacker who can induce a
+       * database error can therefore choose which authority table applies.
+       *
+       * Losing authority when we cannot verify it is the correct failure. The
+       * caller sees "no staff record", which the guard turns into a 403.
+       */
+      console.error(
+        "[apex] staff lookup failed — failing closed:",
+        err instanceof Error ? err.message : err,
+      );
+      if (!IS_DEMO) return null;
+      // Demo builds only: fall through to the seed so a demo survives a blip.
     }
   }
 

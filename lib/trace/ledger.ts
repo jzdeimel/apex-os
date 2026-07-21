@@ -73,8 +73,62 @@ export interface LedgerRow extends LedgerPayload {
 /** Genesis anchor — the chain's immovable root. */
 export const GENESIS_HASH = "0".repeat(64);
 
+/**
+ * Put a payload into ONE canonical shape before hashing.
+ *
+ * THIS IS THE WHOLE CORRECTNESS OF THE CHAIN. The write path hashed the sparse
+ * draft — optional fields simply absent — while Postgres stores those columns
+ * as NULL and hands them back present-and-null. `canonicalJson` includes a
+ * present null key and omits an absent one, so the same logical row hashed
+ * differently on write and on read-back, and `verifyChain` reported
+ * hash-mismatch (i.e. "someone tampered with this") for rows nobody had
+ * touched. A tamper-evidence mechanism that cries wolf is worse than none,
+ * because the first real alarm is indistinguishable from the noise.
+ *
+ * Second, subtler instance of the same fault: `at` is a timestamptz, so it
+ * comes back as a Date. `typeof Date === "object"` and it has no own
+ * enumerable keys, so canonicalJson rendered it as `{}` — every read-back row
+ * would have failed regardless of the null handling.
+ *
+ * Normalising HERE, inside hashRow, means both callers get it for free and no
+ * future call site can reintroduce the drift.
+ */
+export function normalizeLedgerPayload(payload: LedgerPayload): Record<string, unknown> {
+  // `at` is typed string, but a row read back from Postgres carries a Date in
+  // that slot — which canonicalJson would render as "{}" because a Date has no
+  // own enumerable keys. Widen to unknown so the runtime check is legal and the
+  // two shapes converge.
+  const rawAt: unknown = payload.at;
+  const at =
+    rawAt instanceof Date
+      ? rawAt.toISOString()
+      : typeof rawAt === "string"
+        ? rawAt
+        : String(rawAt);
+
+  // Every field named explicitly, optionals coerced to null. Deliberately NOT
+  // a spread of the input: an unexpected extra key would change the hash on one
+  // side only.
+  return {
+    seq: payload.seq,
+    at,
+    actorId: payload.actorId,
+    actorName: payload.actorName,
+    actorRole: payload.actorRole,
+    action: payload.action,
+    entity: payload.entity,
+    entityId: payload.entityId,
+    subjectId: payload.subjectId ?? null,
+    subjectName: payload.subjectName ?? null,
+    locationId: payload.locationId ?? null,
+    reason: payload.reason ?? null,
+    before: payload.before ?? null,
+    after: payload.after ?? null,
+  };
+}
+
 export function hashRow(prevHash: string, payload: LedgerPayload): string {
-  return sha256(prevHash + canonicalJson(payload));
+  return sha256(prevHash + canonicalJson(normalizeLedgerPayload(payload)));
 }
 
 /** Link a payload sequence into a chain. Pure — used by the generator + tests. */
