@@ -180,11 +180,10 @@ export const DEMO_MEMBERS: DemoMember[] = [
   // Perimenopausal band. The library's perimenopause and women's-hormone-panel
   // articles only surface for a female member in this age range.
   { id: "c-016", why: "Women's track — perimenopause band, plan in review" },
-  // Kept so the hormone programme itself is reachable. HONEST NOTE: no seeded
-  // client is both female and on "Hormone Optimization" — that programme is
-  // assigned to c-011 and c-019, both male, in lib/mock/clients.ts. Inventing a
-  // woman on that programme would mean editing the seed, so the picker shows
-  // what the dataset actually contains rather than implying coverage it lacks.
+  // Women on the hormone programme now exist in the seed (c-006/008/010/016
+  // were enrolled with menopause lab patterns), so c-016 above is both female and
+  // on Hormone Optimization — it drives the Women's Health / HRT panel and the
+  // menopause tracker. This one keeps the men's HRT programme reachable too.
   { id: "c-011", why: "Hormone Optimization programme — men's HRT" },
 ];
 

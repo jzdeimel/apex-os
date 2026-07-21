@@ -36,6 +36,7 @@ import { Stagger, StaggerItem } from "@/components/portal/still";
 import { formatDate, cn } from "@/lib/utils";
 import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { MyLevelNow } from "@/components/portal/MyLevelNow";
+import { MenopauseTracker } from "@/components/portal/MenopauseTracker";
 import { InjectionSiteMap } from "@/components/portal/InjectionSiteMap";
 import { ReconstitutionCalculator } from "@/components/portal/ReconstitutionCalculator";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
@@ -291,6 +292,10 @@ export default function PortalProtocolPage() {
           in me right now" are the same question at two resolutions. Renders
           nothing when the member is on no characterised compound. */}
       <MyLevelNow clientId={client.id} iso={PROTOCOL_NOW} />
+
+      {/* Menopause symptom tracker — renders only for female members, the female
+          counterpart to the men's level/injection tools above. */}
+      <MenopauseTracker clientId={client.id} iso={PROTOCOL_NOW} />
 
       {/* Injection-site rotation -------------------------------------------
           The other half of "where is it in me": absorption depends on WHERE the

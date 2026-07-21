@@ -29,6 +29,7 @@ import { Disclaimer, AiLabel } from "@/components/Disclaimer";
 import { LabTable } from "@/components/LabTable";
 import { TitrationAssistant } from "@/components/clinic/TitrationAssistant";
 import { HematocritTracker } from "@/components/clinic/HematocritTracker";
+import { WomensHealthPanel } from "@/components/clinic/WomensHealthPanel";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { AiDraftPanel } from "@/components/AiDraftPanel";
 import { ProtocolScheduleBuilder } from "@/components/ProtocolScheduleBuilder";
@@ -153,9 +154,13 @@ export default function ClientProfilePage() {
   // portal identity the same way the rest of the chart is, so a coach who
   // break-glasses in still does not get a dose-direction console.
   const canTitrate = portal.id === "clinic" || portal.id === "exec";
-  const shownTabs = canTitrate
-    ? [...TABS.slice(0, 5), { id: "titration", label: "Titration" }, ...TABS.slice(5)]
-    : TABS;
+  // The hormone decision-support tab is SEX-SPECIFIC: men get testosterone
+  // titration, women get the HRT / menopause panel. Same clinic/owner gate.
+  const hormoneTab =
+    client.sex === "female"
+      ? { id: "womens-health", label: "Women's Health" }
+      : { id: "titration", label: "Titration" };
+  const shownTabs = canTitrate ? [...TABS.slice(0, 5), hormoneTab, ...TABS.slice(5)] : TABS;
   const tabsWithCounts = shownTabs.map((t) => ({
     ...t,
     count:
@@ -191,6 +196,7 @@ export default function ClientProfilePage() {
             <HematocritTracker clientId={id} />
           </div>
         )}
+        {tab === "womens-health" && canTitrate && <WomensHealthPanel clientId={id} />}
         {tab === "scan" && <ScanTab id={id} />}
         {tab === "recs" && <RecsTab id={id} />}
         {tab === "schedule" && <ProtocolScheduleBuilder client={client} />}
