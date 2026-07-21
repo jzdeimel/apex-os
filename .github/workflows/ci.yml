@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# The build is hermetic now (fonts vendored, no Google Fonts fetch), so CI needs
+# no network beyond npm. Everything below is a gate the Dockerfile comments prove
+# the value of — half of them are postmortems of things this would have caught.
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        # Advisory for now — the codebase predates a lint gate, so a sea of
+        # pre-existing warnings should not block a deploy. Tighten once cleaned.
+        run: npx next lint || true
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit (production deps, high+)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Smoke (API contract)
+        run: node scripts/smoke.mjs
+
+      - name: Smoke (UI render)
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/smoke-ui.mjs

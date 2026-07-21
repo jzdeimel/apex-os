@@ -1,0 +1,4 @@
+{
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": ["scripts/**", "hardload.mjs", ".next/**", "node_modules/**"]
+}
