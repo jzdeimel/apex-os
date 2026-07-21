@@ -179,12 +179,15 @@ export default function EntryPage() {
                     scale: entering === p.id ? 1.03 : 1,
                   }}
                   transition={{
-                    duration: 0.55,
+                    // Tightened from 0.45 + i*0.1 / 0.55s. The old cascade left
+                    // the fifth card still animating 1.4s after load, which read
+                    // as five cards of different heights rather than one row.
+                    duration: 0.42,
                     ease: EASE,
-                    delay: entering ? 0 : 0.45 + i * 0.1,
+                    delay: entering ? 0 : 0.24 + i * 0.055,
                   }}
                   whileHover={{ y: -6 }}
-                  className="group relative overflow-hidden rounded-2xl border border-ink-700/70 bg-ink-900/60 p-5 text-left backdrop-blur-md transition-colors hover:border-ink-600 focus-ring"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-700/70 bg-ink-900/60 p-5 text-left backdrop-blur-md transition-colors hover:border-ink-600 focus-ring"
                 >
                   {/* Accent wash — only visible on hover/focus */}
                   <div
@@ -198,18 +201,31 @@ export default function EntryPage() {
                     style={{ background: `linear-gradient(90deg, transparent, ${p.accent.hex}, transparent)` }}
                   />
 
-                  <div className="relative">
+                  {/* A flex column so the five cards read as one row rather than
+                      five loose ones: the eyebrow reserves two lines (personas
+                      are one or two words, and the difference used to start the
+                      titles at different heights), and the CTA is pinned to the
+                      bottom with mt-auto so it lands on the same baseline in
+                      every card regardless of how many lines the identity block
+                      below runs to. */}
+                  <div className="relative flex flex-1 flex-col">
                     <div
                       className={`mb-4 grid h-10 w-10 place-items-center rounded-xl border transition-transform duration-500 group-hover:scale-110 ${p.accent.soft} ${p.accent.border}`}
                     >
                       <Icon className={`h-5 w-5 ${p.accent.text}`} />
                     </div>
 
-                    <p className="label-eyebrow">{p.persona}</p>
-                    <h2 className="mt-1 font-display text-heading font-semibold text-ink-50">
+                    <p className="label-eyebrow flex min-h-[2rem] items-start leading-[1.45]">
+                      {p.persona}
+                    </p>
+                    <h2 className="font-display text-heading font-semibold text-ink-50">
                       {p.label}
                     </h2>
-                    <p className="mt-2 min-h-[3.25rem] text-detail leading-relaxed text-ink-400">
+                    {/* flex-1 rather than a fixed min-height: the tagline absorbs
+                        whatever slack the tallest card sets, at any breakpoint,
+                        so the identity block and CTA below it stay bottom-aligned
+                        without hardcoding a line count that breaks on rewording. */}
+                    <p className="mt-2 flex-1 text-detail leading-relaxed text-ink-400">
                       {p.tagline}
                     </p>
 
@@ -230,7 +246,7 @@ export default function EntryPage() {
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-1.5">
+                    <div className="mt-auto flex items-center gap-1.5 pt-4">
                       <span className={`text-detail font-medium ${p.accent.text}`}>
                         {entering === p.id ? "Signing in" : "Enter"}
                       </span>
