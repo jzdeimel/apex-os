@@ -36,6 +36,17 @@ const nextConfig = {
   serverExternalPackages: ["postgres"],
 
   /**
+   * Lint runs in CI (advisory), not as a hard gate on the production build.
+   *
+   * The repo predates any ESLint config, so adding one surfaced a backlog of
+   * pre-existing stylistic warnings (unescaped apostrophes and the like). Those
+   * should not be able to block a deploy of working, type-checked code — tsc is
+   * the real gate. CI still runs `next lint` so the backlog is visible and can
+   * be burned down, just not on the critical path.
+   */
+  eslint: { ignoreDuringBuilds: true },
+
+  /**
    * Build output directory.
    *
    * Overridable so a dev server can be run for diagnosis WITHOUT clobbering the

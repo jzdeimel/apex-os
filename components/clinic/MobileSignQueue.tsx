@@ -416,6 +416,32 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
       tone: outcome === "signed" ? "success" : "warn",
     });
 
+    // DURABLE WRITE. Signing a consult also writes a real, hash-chained row to
+    // Postgres through the gated /api/consults/sign endpoint (requirePrincipal +
+    // can(sign:encounter) server-side). The local append above still drives the
+    // demo's in-memory chain UI; this is the row that survives a refresh. Best
+    // effort and honest: if there is no database (a local build) or the caller
+    // is not permitted, the endpoint says so and the demo record still stands.
+    if (outcome === "signed" && item.kind === "consult") {
+      void fetch("/api/consults/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultId: item.consult.id, clientId: item.client.id }),
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.ok && res.durable) {
+            toast("Written to the durable ledger", {
+              desc: `${res.ledger.id} · persisted to Postgres`,
+              tone: "success",
+            });
+          }
+        })
+        .catch(() => {
+          /* offline / no DB — the in-memory record above still holds */
+        });
+    }
+
     // Advance only after a decision is recorded, so the row id is always
     // committed before the item leaves the screen.
     if (index < queue.length - 1) window.setTimeout(() => go(1), 320);
