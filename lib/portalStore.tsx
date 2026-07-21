@@ -129,6 +129,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const isEntry =
     (fromRoute === null && pathname === "/") ||
     pathname === "/book" ||
+    pathname === "/demo" ||
     pathname.startsWith("/intake/") ||
     pathname.startsWith("/card/");
 

@@ -930,6 +930,41 @@ export const staffCredential = pgTable(
  * of the streak/level/quest layer still received all of it. The clinical
  * experience already survives without it; there was simply no switch to throw.
  */
+/**
+ * Staff — the roster, and the identity mapping that decides clinical authority.
+ *
+ * The audit called out that granting someone the power to prescribe was a commit
+ * to lib/mock/staff.ts: edit a TypeScript file, ship a build, and a new email is
+ * suddenly a Medical provider. That is not an access-control system, it is a
+ * deploy. This table is where that decision belongs — a row, keyed to a stable
+ * Entra object id, that `principal.mapToStaff` reads. Adding a prescriber becomes
+ * an INSERT (auditable, reversible, no deploy); the `entraObjectId` column is the
+ * durable join to the real identity, so a renamed email cannot silently re-point
+ * authority.
+ */
+export const staff = pgTable(
+  "staff",
+  {
+    id: text("id").primaryKey(),
+    /** Stable Entra object id — the identity join that survives an email change. */
+    entraObjectId: text("entra_object_id"),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    /** The role that decides capabilities. NULL is not allowed — no default authority. */
+    role: text("role").notNull(),
+    /** Locations this staff member covers. */
+    locationIds: jsonb("location_ids").notNull(),
+    credentials: text("credentials"),
+    canApprove: boolean("can_approve").default(false).notNull(),
+    active: boolean("active").default(true).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    emailIdx: uniqueIndex("staff_email_idx").on(t.email),
+    oidIdx: index("staff_oid_idx").on(t.entraObjectId),
+  }),
+);
+
 export const memberPrefs = pgTable("member_prefs", {
   clientId: text("client_id").primaryKey(), // seeded ref -> client
   gamificationEnabled: boolean("gamification_enabled").default(true).notNull(),

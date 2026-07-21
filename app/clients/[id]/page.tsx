@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, notFound } from "next/navigation";
+import { useParams, useSearchParams, notFound } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { getClient, clientName } from "@/lib/mock/clients";
@@ -100,10 +100,13 @@ const TABS = [
 
 export default function ClientProfilePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = String(params.id);
   const client = getClient(id);
   const { portal } = usePortal();
-  const [tab, setTab] = useState("overview");
+  // Honour a ?tab= deep link (used by the Demo Guide to jump straight to a tab
+  // like Titration or Women's Health) — falls back to overview.
+  const [tab, setTab] = useState(searchParams.get("tab") || "overview");
 
   if (!client) return notFound();
 

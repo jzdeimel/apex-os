@@ -18,6 +18,7 @@ import {
   Sparkles,
   Lock,
   Gauge,
+  Compass,
 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -87,9 +88,17 @@ export default function EntryPage() {
             <AlphaMark size={34} />
             <AlphaLogo height={20} />
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-ink-700/70 bg-ink-900/60 px-3 py-1.5 backdrop-blur">
-            <ShieldCheck className="h-3.5 w-3.5 text-optimal" />
-            <span className="text-micro text-ink-300">Demonstration build · synthetic data</span>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/demo"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-gold-400/40 bg-gold-400/10 px-3 py-1.5 text-micro font-medium text-gold-200 transition-colors hover:bg-gold-400/15"
+            >
+              <Compass className="h-3.5 w-3.5" /> Demo guide — see everything
+            </Link>
+            <div className="hidden items-center gap-2 rounded-full border border-ink-700/70 bg-ink-900/60 px-3 py-1.5 backdrop-blur sm:flex">
+              <ShieldCheck className="h-3.5 w-3.5 text-optimal" />
+              <span className="text-micro text-ink-300">Demonstration build</span>
+            </div>
           </div>
         </motion.header>
 
