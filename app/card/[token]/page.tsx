@@ -229,8 +229,9 @@ function CardBody({ card }: { card: EmergencyCard }) {
   );
 }
 
-export default function EmergencyCardPage({ params }: { params: { token: string } }) {
-  const card = cardForToken(params.token);
+export default async function EmergencyCardPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const card = cardForToken(token);
   if (!card) return <NotFound />;
   return <CardBody card={card} />;
 }

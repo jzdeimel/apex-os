@@ -84,8 +84,10 @@ function claim(claims: EasyAuthClaim[], candidates: string[]): string | undefine
  * Returns null rather than throwing so a read-only surface can render for an
  * excluded path. Every WRITE path must call `requirePrincipal()` instead.
  */
-export function currentPrincipal(): Principal | null {
-  const raw = headers().get("x-ms-client-principal");
+export async function currentPrincipal(): Promise<Principal | null> {
+  // `headers()` is async as of Next 15. Awaiting it keeps this correct on 15 and
+  // forward-compatible with 16 (where sync access is removed).
+  const raw = (await headers()).get("x-ms-client-principal");
   if (!raw) return null;
 
   let parsed: EasyAuthPrincipal;
@@ -141,8 +143,8 @@ function mapToStaff(email: string): { id: string; role: StaffRole } | null {
  * boring and carries no claim detail — an authorization failure should not
  * teach the caller about the identity model.
  */
-export function requirePrincipal(): Principal {
-  const p = currentPrincipal();
+export async function requirePrincipal(): Promise<Principal> {
+  const p = await currentPrincipal();
   if (!p) {
     throw new Error("Not authenticated.");
   }

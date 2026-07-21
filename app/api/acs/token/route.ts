@@ -69,7 +69,7 @@ function parseConnectionString(cs: string): { endpoint: string; accessKey: strin
 export async function POST() {
   // Defense in depth: EasyAuth gates the path, but this handler mints a
   // real credential, so it verifies the caller itself. No principal → no token.
-  const principal = currentPrincipal();
+  const principal = await currentPrincipal();
   if (!principal) {
     return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
   }

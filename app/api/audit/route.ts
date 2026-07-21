@@ -191,7 +191,7 @@ export async function GET() {
   // product surface. It must not be reachable by anyone but an admin. EasyAuth
   // gates the door; this gates the capability, so an authenticated non-admin
   // (or an unauthenticated caller past a mis-set exclusion) gets nothing.
-  const p = currentPrincipal();
+  const p = await currentPrincipal();
   const actor = p && p.staffId && p.role ? { id: p.staffId, role: p.role } : null;
   if (!actor || !can(actor as never, "admin:export").allowed) {
     return NextResponse.json({ ok: false, error: "Admin only." }, { status: 403 });

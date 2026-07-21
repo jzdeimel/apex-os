@@ -133,8 +133,9 @@ function InvalidLink() {
   );
 }
 
-export default function IntakeTokenPage({ params }: { params: { token: string } }) {
-  const invite = inviteByToken(decodeURIComponent(params.token));
+export default async function IntakeTokenPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const invite = inviteByToken(decodeURIComponent(token));
   const verdict = checkToken(invite, NOW);
 
   return (

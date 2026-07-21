@@ -17,7 +17,7 @@ import { can } from "@/lib/authz/capabilities";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const p = currentPrincipal();
+  const p = await currentPrincipal();
 
   if (!p) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
