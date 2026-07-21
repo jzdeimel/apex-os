@@ -88,7 +88,15 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           </>
         )}
 
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        {/*
+          min-w-0 so this cluster may SHRINK rather than force the document wider.
+          Without it the four controls summed to 327px inside a 390px viewport,
+          pushing the document to 407px — and because the page background and the
+          mobile tab bar are `fixed inset-x-0`, they stretched to that 407px too,
+          so the entire app scrolled sideways on a phone. The overflow was in the
+          shared shell, which is why it showed up on a dozen unrelated routes.
+        */}
+        <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
           <MotionToggle />
           {!isMember && <LocationFilter />}
           {!isMember && <NotificationBell />}
@@ -100,7 +108,18 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           The switcher is an owner affordance for checking other surfaces; it has
           no business inside the surface being checked.
         */}
-        {!isMember && <PersonaSwitcher />}
+        {/*
+          Hidden on phones. The switcher renders the full console name ("Medical
+          Console · Providers & clinicians") and was the widest thing in the bar;
+          it is an owner affordance for glancing at another surface, not
+          something anyone needs mid-shift on a 390px screen — and the entry
+          screen already offers every console.
+        */}
+        {!isMember && (
+          <span className="hidden sm:inline-flex">
+            <PersonaSwitcher />
+          </span>
+        )}
         </div>
       </div>
 

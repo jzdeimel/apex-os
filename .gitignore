@@ -81,3 +81,7 @@ next-stale-lock/
 /confirm.js
 /dbgburst.mjs
 /*.log
+
+# Local QA detectors (see hardload.mjs)
+mobile-audit.mjs
+polish-audit.mjs
