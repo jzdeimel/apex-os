@@ -35,19 +35,23 @@ const config: Config = {
           950: "#070809",
         },
         // Alpha brand red (matches alphamaleraleigh.com: #e93d3d / #bf1e2e).
-        // Token is named `gold` for historical reasons; values are the brand red.
+        // Token is named `gold` for historical reasons; values are the ALPHA
+        // HEALTH BRAND RED. Anchored on the exact logo red #b81828 (600) and the
+        // dark-surface-legible lift #ec3d50 (400) — the same two values the
+        // production AlphaOS brand uses — so the crimson hue matches the real
+        // logo rather than the previous orange-shifted red (#e93d3d).
         gold: {
-          50: "#fdeaea",
-          100: "#fbd5d5",
-          200: "#f6aaaa",
-          300: "#f17d7d",
-          400: "#e93d3d",
-          500: "#d92b2b",
-          600: "#bf1e2e",
-          700: "#9e1824",
-          800: "#82141d",
-          900: "#6b1318",
-          950: "#3d0a0d",
+          50: "#fdecee",
+          100: "#fbd0d5",
+          200: "#f4a3ac",
+          300: "#ec6e7e",
+          400: "#ec3d50", // on-dark accent (matches AlphaOS dark-lifted brand)
+          500: "#d21f34",
+          600: "#b81828", // ★ exact Alpha Health logo red
+          700: "#8f1220", // hover / pressed (AlphaOS brand-dark)
+          800: "#6d0f1a",
+          900: "#4f0b13",
+          950: "#320810",
         },
         // Clinical status semantics
         optimal: "#34d399",

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { AlphaMark, AlphaLogo } from "@/components/brand/AlphaLogo";
 import { Activity, ChevronsUpDown, X, Check } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -56,18 +57,11 @@ export function Sidebar({
         />
 
         <div className="flex items-center justify-between px-5 py-5">
-          <Link href="/" className="group flex items-center gap-2.5" onClick={onClose}>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950 shadow-glow transition-transform group-hover:scale-105">
-              <Activity className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <span className="flex flex-col leading-none">
-              <span className="font-display text-body font-bold tracking-tight text-ink-50">
-                Apex
-              </span>
-              <span className="text-micro uppercase tracking-[0.2em] text-gold-400/80">
-                Alpha Health
-              </span>
-            </span>
+          <Link href="/" className="group flex items-center gap-2.5" onClick={onClose} aria-label="Alpha Health — home">
+            {/* The real Alpha Health mark + wordmark. apex is dark, so the
+                white-text lockup. */}
+            <AlphaMark size={30} className="shrink-0 transition-transform group-hover:scale-105" />
+            <AlphaLogo height={16} className="opacity-95" />
           </Link>
           <button
             onClick={onClose}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Alpha Health">
+  <rect width="64" height="64" rx="14" fill="#b81828"/>
+  <path d="M15 49 L32 14 L49 49" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22.5 38 H41.5" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+</svg>

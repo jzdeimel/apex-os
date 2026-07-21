@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { usePathname } from "next/navigation";
+import { MotionConfig } from "framer-motion";
 import {
   PORTALS,
   isPortalId,
@@ -158,7 +159,26 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [portal, chosen, setPortal, clearPortal, isEntry, playOn, setPlayOn],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  // Motion authority. The old behaviour deferred entirely to the OS
+  // `prefers-reduced-motion` setting — so a viewer whose system had animations
+  // turned off (common on Windows) saw a completely static app while the code
+  // insisted it was "alive". Now the in-app `playOn` toggle is the authority and
+  // defaults ON, so motion shows for everyone by default and can be turned off:
+  //  - MotionConfig reducedMotion="never" makes framer-motion animate regardless
+  //    of the OS flag (this is what un-freezes the 26 components that gated on
+  //    useReducedMotion); "user" hands control back to the OS when the member
+  //    deliberately turns motion off.
+  //  - the `data-motion` attribute drives the CSS reduce-motion block, which now
+  //    keys off the app choice instead of the OS media query.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-motion", playOn ? "on" : "off");
+  }, [playOn]);
+
+  return (
+    <Ctx.Provider value={value}>
+      <MotionConfig reducedMotion={playOn ? "never" : "user"}>{children}</MotionConfig>
+    </Ctx.Provider>
+  );
 }
 
 export function usePortal(): PortalStore {

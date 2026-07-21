@@ -46,13 +46,14 @@ USER node
 # `standalone` carries the server and exactly the traced dependencies. `static`
 # is NOT part of that trace and must be copied separately — omitting it yields
 # a site that boots fine and renders completely unstyled.
-#
-# There is deliberately no `public/` copy: Apex ships no static assets. Every
-# icon is an inline SVG component and every visual is drawn at runtime, so the
-# directory does not exist. A COPY of a path that is not there fails the build
-# rather than being skipped, which is exactly what happened on the first run.
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# Brand assets (the real Alpha Health logo PNGs). Static files under public/ are
+# NOT part of Next's standalone trace, so they must be copied explicitly — the
+# same reason .next/static is copied above. Apex previously shipped no public/
+# dir at all; the logo lockups are the first real static assets.
+COPY --from=builder --chown=node:node /app/public ./public
 
 # Migrations are READ FROM DISK at runtime by a path string, so Next's
 # dependency tracer never sees them and `standalone` does not carry them. The

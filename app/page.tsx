@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlphaMark, AlphaLogo } from "@/components/brand/AlphaLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { PORTAL_LIST, type PortalDef } from "@/lib/portals";
 import { AmbientField } from "@/components/entry/AmbientField";
@@ -82,18 +83,9 @@ export default function EntryPage() {
           transition={{ duration: 0.5, ease: EASE }}
           className="flex items-center justify-between"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500 shadow-glow">
-              <span className="font-display text-body font-bold text-white">A</span>
-            </div>
-            <div className="leading-none">
-              <p className="font-display text-body font-semibold tracking-tight text-ink-50">
-                Apex
-              </p>
-              <p className="mt-0.5 text-micro uppercase tracking-[0.18em] text-ink-500">
-                Alpha Health
-              </p>
-            </div>
+          <div className="flex items-center gap-3">
+            <AlphaMark size={34} />
+            <AlphaLogo height={20} />
           </div>
           <div className="flex items-center gap-2 rounded-full border border-ink-700/70 bg-ink-900/60 px-3 py-1.5 backdrop-blur">
             <ShieldCheck className="h-3.5 w-3.5 text-optimal" />

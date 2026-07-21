@@ -88,15 +88,21 @@ body {
  * only ever reveal content, never hide it. A viewer who asks the OS for less
  * motion gets a static, fully visible app rather than a degraded one.
  */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/*
+ * Motion is now controlled by the in-app toggle (data-motion on <html>), not the
+ * OS media query directly. This is deliberate: a viewer with the OS "reduce
+ * motion" setting on was seeing a fully static app and reasonably concluded the
+ * animations were broken. Motion is ON by default; a member who wants calm turns
+ * it off, which sets data-motion="off" and neutralises every animation and
+ * transition here (the same aggressive net as before, just member-controlled).
+ */
+:root[data-motion="off"] *,
+:root[data-motion="off"] *::before,
+:root[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /*

@@ -6,6 +6,7 @@ import { LocationFilter } from "@/components/LocationFilter";
 import { NotificationBell } from "@/components/NotificationBell";
 import { usePortal } from "@/lib/portalStore";
 import { PersonaSwitcher } from "@/components/layout/PersonaSwitcher";
+import { MotionToggle } from "@/components/layout/MotionToggle";
 import { me } from "@/components/portal/PortalHeader";
 import { BRAND } from "@/lib/brand";
 
@@ -88,6 +89,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         )}
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <MotionToggle />
           {!isMember && <LocationFilter />}
           {!isMember && <NotificationBell />}
           {/*
