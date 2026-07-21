@@ -140,14 +140,32 @@ export function ReceiptVault({ client }: { client: Client }) {
   const onExport = () => {
     const x = buildExport(client.id, year);
     if (!x) return;
-    // The CSV is built here so the disclaimer travels inside the file. In this
-    // demo build we surface it rather than triggering a download.
+    // A REAL download. This used to build the CSV and console.info() it, while
+    // the button carried a download icon and the panel promised "Send it to
+    // your administrator · One file, every charge" — so the member went looking
+    // in Downloads for a file that was never created. The eligibility
+    // disclaimer travels inside the file, which is why the CSV is built here.
     const csv = toCsv(x);
-    toast(`${year} receipts ready`, {
-      desc: `${x.rows.length} rows, ${dollars(x.totalCents)} total. The eligibility note is included in the file.`,
-    });
-    // eslint-disable-next-line no-console -- demo build: proves the export shape.
-    console.info(csv);
+    try {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `alpha-health-receipts-${year}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoke on the next tick so the download has claimed the blob.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      toast(`${year} receipts downloaded`, {
+        desc: `${x.rows.length} rows, ${dollars(x.totalCents)} total. The eligibility note is included in the file.`,
+      });
+    } catch {
+      toast("Could not download", {
+        tone: "warn",
+        desc: "Your browser blocked the file. Try again, or ask us to email it.",
+      });
+    }
   };
 
   return (

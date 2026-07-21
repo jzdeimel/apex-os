@@ -23,6 +23,8 @@ import {
   type RecordAnswer,
 } from "@/lib/assistant/myRecord";
 import { getClient } from "@/lib/mock/clients";
+import { sendMessage } from "@/lib/comms/send";
+import { appendLedger } from "@/lib/trace/ledger";
 import { Card, CardContent, Button, Input, Badge } from "@/components/ui/primitives";
 import { SwitchView, FadeIn } from "@/components/portal/still";
 import { useToast } from "@/components/ui/Toast";
@@ -151,6 +153,7 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
   const [draft, setDraft] = useState("");
   const [result, setResult] = useState<RecordAnswer | null>(null);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
   const client = getClient(clientId);
@@ -164,13 +167,50 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
     setResult(answer(clientId, trimmed));
   };
 
-  const handoff = () => {
-    setSent(true);
-    // Demo-shaped: in production this raises an escalation onto the care team's
-    // queue (lib/escalations) with the member's verbatim question as the source.
-    toast("Sent to your care team", {
-      desc: "They'll reply in your messages.",
-    });
+  /**
+   * Actually send it.
+   *
+   * This button only appears when the answer engine REFUSED — i.e. on the
+   * clinically sensitive questions, the ones that most need a human. It used to
+   * be `setSent(true)` plus a toast reading "Sent to your care team… They'll
+   * reply in your messages", and nothing was sent to anybody. A member asked
+   * the question they were most worried about, was told a clinician had it, and
+   * no clinician ever did.
+   *
+   * It now goes through the same guarded `sendMessage` path the messages page
+   * uses — consent-checked, idempotent, ledger-witnessed — and reports failure
+   * instead of asserting success.
+   */
+  const handoff = async () => {
+    if (sending) return;
+    setSending(true);
+    const question = draft.trim();
+    const recipientId = client?.providerId ?? client?.coachId ?? "unknown";
+    try {
+      const result = await sendMessage({
+        clientId,
+        staffId: recipientId,
+        channel: "Portal message",
+        scope: "clinical",
+        body: question,
+        to: client?.email,
+        idempotencyKey: `ask-${clientId}-${question.length}-${question.slice(0, 32)}`,
+      });
+      if (!result.ok) {
+        toast("Not sent", { tone: "warn", desc: result.message });
+        return;
+      }
+      appendLedger(result.ledgerEvent);
+      setSent(true);
+      toast("Sent to your care team", { desc: "They'll reply in your messages." });
+    } catch {
+      toast("Not sent", {
+        tone: "warn",
+        desc: "We couldn't reach the server. Your question was not sent.",
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   return (

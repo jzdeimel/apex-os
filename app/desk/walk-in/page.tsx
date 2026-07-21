@@ -44,6 +44,7 @@ export default function WalkInPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<null | { leadId: string; intakePath: string }>(null);
   const [copied, setCopied] = React.useState(false);
+  const [copyFailed, setCopyFailed] = React.useState(false);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -113,19 +114,39 @@ export default function WalkInPage() {
               </Link>
               <Button
                 variant="outline"
-                onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
-                    navigator.clipboard
-                      .writeText(`${window.location.origin}${done.intakePath}`)
-                      .catch(() => undefined);
+                onClick={async () => {
+                  // Only claim "Copied" if it actually copied. On a counter
+                  // tablet served over plain http, or with the permission
+                  // denied, the write fails silently — and a receptionist who
+                  // trusts the tick pastes whatever was on the clipboard
+                  // before, plausibly the PREVIOUS patient's single-use intake
+                  // link. Fail visibly instead.
+                  const url = `${window.location.origin}${done.intakePath}`;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setCopied(true);
+                  } catch {
+                    setCopyFailed(true);
                   }
-                  setCopied(true);
                 }}
                 className="gap-1.5"
               >
                 <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy link"}
               </Button>
             </div>
+            {copyFailed && (
+              <div className="mt-2">
+                <p className="text-micro text-high">
+                  Couldn&apos;t copy automatically — select and copy this link:
+                </p>
+                <input
+                  readOnly
+                  onFocus={(e) => e.currentTarget.select()}
+                  value={`${typeof window !== "undefined" ? window.location.origin : ""}${done.intakePath}`}
+                  className="focus-ring mt-1 w-full rounded-lg border border-ink-700 bg-ink-950/60 px-2 py-1.5 stat-mono text-micro text-ink-200"
+                />
+              </div>
+            )}
           </div>
 
           <Button
@@ -143,6 +164,7 @@ export default function WalkInPage() {
                 source: "walk-in",
               });
               setCopied(false);
+              setCopyFailed(false);
             }}
           >
             Add another <ArrowRight className="ml-1 h-3.5 w-3.5" />

@@ -111,3 +111,33 @@ export const purchaseOrders: PurchaseOrder[] = [
     ],
   },
 ];
+
+/**
+ * Commit a drafted purchase order into the shared corpus.
+ *
+ * The New-PO modal used to toast "Purchase order submitted" with a vendor and a
+ * dollar total and write nothing at all, so the list rendered right beside the
+ * button never changed and no stock was ever ordered. Same shape as
+ * commitOrder in lib/mock/orders.ts: mutate the module corpus so every reader
+ * agrees within the session.
+ *
+ * Status is "Draft" deliberately — nothing here transmits to a vendor.
+ */
+export function commitPurchaseOrder(input: {
+  vendorId: string;
+  vendorName: string;
+  locationId?: string;
+  lines: { name: string; qty: number; unitCost: number }[];
+}): PurchaseOrder {
+  const seq = purchaseOrders.length + 1043;
+  const po: PurchaseOrder = {
+    id: `po-${seq}`,
+    vendorId: input.vendorId,
+    locationId: (input.locationId ?? "raleigh") as PurchaseOrder["locationId"],
+    createdOn: new Date().toISOString().slice(0, 10),
+    status: "Draft",
+    lines: input.lines.map((l) => ({ name: l.name, quantity: l.qty, unitCost: l.unitCost })),
+  } as PurchaseOrder;
+  purchaseOrders.unshift(po);
+  return po;
+}

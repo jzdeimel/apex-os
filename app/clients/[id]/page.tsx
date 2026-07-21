@@ -184,7 +184,13 @@ export default function ClientProfilePage() {
       {/* What changed since THIS staff member last opened this chart. Above the
           hero deliberately: a coach returning after three weeks should be told
           what moved before they start reading, not after. */}
-      <SinceYouLastLooked clientId={id} staffId={VIEWER.id} />
+      {/* staffId, not VIEWER.id. VIEWER.id is "st-owner", which is never a
+          ledger actor (the chain seeds actors from st-001..st-024), so
+          lastViewedBy() returned null for every chart forever and this always
+          fell into its first-look branch — rendering the raw id as a name:
+          "st-owner has no prior view of Jake's record." on every chart in the
+          clinic. staffIdForPortal() is already computed above. */}
+      {staffId && <SinceYouLastLooked clientId={id} staffId={staffId} />}
 
       {/* Hero */}
       <ProfileHero id={id} />
@@ -580,7 +586,7 @@ function LabsTab({ id }: { id: string }) {
             <p className="text-body font-medium text-ink-300">No labs on file</p>
             <p className="mt-1 text-detail text-ink-500">Order the Alpha Base Panel, or import an existing lab PDF to populate this tab.</p>
           </div>
-          <LabUploadSim markerCount={28} label="Import existing lab PDF" />
+          <LabUploadSim markerCount={28} label="See how lab import will work (demo)" />
         </div>
       </div>
     );

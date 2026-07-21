@@ -44,9 +44,8 @@ export function LabUploadSim({
       } else {
         setStep(STEPS.length);
         setDone(true);
-        toast("Lab PDF parsed", {
-          desc: `${markerCount} biomarkers extracted and mapped to the Alpha Base Panel.`,
-          tone: "success",
+        toast("Walkthrough complete", {
+          desc: "Demo only — no file was read and nothing was added to this chart.",
         });
         onComplete?.();
       }
@@ -83,8 +82,8 @@ export function LabUploadSim({
                   className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-ink-600 bg-ink-900/40 px-6 py-10 text-center transition-colors hover:border-gold-400/50 hover:bg-ink-900/70"
                 >
                   <Upload className="h-7 w-7 text-ink-500" />
-                  <span className="text-body font-medium text-ink-200">Drop a lab PDF or click to select</span>
-                  <span className="text-micro text-ink-500">LabCorp · Quest · Health Gorilla (simulated parser)</span>
+                  <span className="text-body font-medium text-ink-200">Preview the lab-import flow</span>
+                  <span className="text-micro text-watch">Demo walkthrough — no file is read and no results are saved</span>
                 </button>
                 <input
                   ref={inputRef}
@@ -124,11 +123,11 @@ export function LabUploadSim({
                 </div>
                 {done && (
                   <div className="mt-4 animate-fade-in rounded-lg border border-optimal/25 bg-optimal/[0.06] px-3 py-2.5 text-body text-optimal">
-                    ✓ Parsed {markerCount} biomarkers. Mapped to Alpha Base Panel — provider review required.
+                    Walkthrough complete. This is what a {markerCount}-biomarker import would look like — nothing was read from a file and no results were added to this chart.
                   </div>
                 )}
                 <Button variant={done ? "primary" : "ghost"} className="mt-4 w-full" onClick={close} disabled={!done}>
-                  {done ? "View results" : "Parsing…"}
+                  {done ? "Close" : "Running the walkthrough…"}
                 </Button>
               </div>
             )}

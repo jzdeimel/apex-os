@@ -1,7 +1,9 @@
 "use client";
+import { appendLedger } from "@/lib/trace/ledger";
+import { VIEWER } from "@/lib/viewer";
 
 import { useState } from "react";
-import { vendors } from "@/lib/mock/vendors";
+import { commitPurchaseOrder, vendors } from "@/lib/mock/vendors";
 import { inventory } from "@/lib/mock/inventory";
 import { locations, locationName } from "@/lib/mock/locations";
 import { Button, Select, Badge } from "@/components/ui/primitives";
@@ -33,9 +35,31 @@ export function NewPOModal() {
     setLines((l) => l.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
 
   const submit = () => {
+    // "Purchase order submitted" was the entire handler — a toast quoting a
+    // vendor and a dollar total while nothing was written, so an ops manager
+    // believed stock was on order and none was. It now commits a real DRAFT
+    // purchase order that the list beside this button reads, and witnesses it
+    // in the ledger. The word is "drafted", not "submitted": nothing is
+    // transmitted to a vendor from here, and saying so is the point.
+    const vendor = vendors.find((v) => v.id === vendorId);
+    const po = commitPurchaseOrder({
+      vendorId,
+      vendorName: vendor?.name ?? vendorId,
+      lines: lines.map((l) => ({ name: l.name, qty: l.qty, unitCost: l.unitCost })),
+    });
+    const row = appendLedger({
+      actorId: VIEWER.id,
+      actorName: VIEWER.name,
+      actorRole: "Admin",
+      action: "create",
+      entity: "order",
+      entityId: po.id,
+      reason: `Purchase order drafted: ${lines.length} line(s) to ${vendor?.name ?? vendorId}`,
+      after: { status: "Draft", total: currency(total), lines: lines.length },
+    });
     setOpen(false);
-    toast("Purchase order submitted", {
-      desc: `${lines.length} line(s) · ${currency(total)} to ${vendors.find((v) => v.id === vendorId)?.name}`,
+    toast("Purchase order drafted", {
+      desc: `${po.id} · ${lines.length} line(s) · ${currency(total)} to ${vendor?.name} · ledger ${row.id}`,
     });
   };
 

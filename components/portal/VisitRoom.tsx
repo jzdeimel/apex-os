@@ -23,7 +23,7 @@
  * `PlanItem`.
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
   AlertTriangle,
@@ -40,6 +40,7 @@ import {
   X,
 } from "lucide-react";
 import { roomFor, ROOM_ASSURANCES, type PreflightCheck, type VisitRoomState } from "@/lib/visits/room";
+import { probeDevices, checkingState, type DeviceCheck } from "@/lib/visits/preflight";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { memberSummary, memberReasons } from "@/lib/planOfCare/memberVoice";
 import { latestConsult } from "@/lib/mock/consults";
@@ -64,6 +65,28 @@ export function VisitRoom({ apptId }: { apptId: string }) {
   const client = useMeClient();
   const state = roomFor(apptId);
   const [joined, setJoined] = useState(false);
+
+  /**
+   * REAL device checks, replacing a seeded PRNG that could disable Join on a
+   * booked appointment for a member whose hardware was fine. Runs on mount and
+   * on demand — there was previously no way to re-check at all.
+   */
+  const [devices, setDevices] = useState<DeviceCheck[]>(checkingState);
+  const [probing, setProbing] = useState(false);
+  const runProbe = useCallback(async () => {
+    setProbing(true);
+    try {
+      setDevices(await probeDevices());
+    } finally {
+      setProbing(false);
+    }
+  }, []);
+  useEffect(() => {
+    void runProbe();
+  }, [runProbe]);
+
+  // Only a positively-reported missing microphone blocks. Never a guess.
+  const deviceBlocked = devices.some((d) => d.blocking);
 
   if (!state) {
     return (
@@ -151,7 +174,7 @@ export function VisitRoom({ apptId }: { apptId: string }) {
                       <X className="h-3.5 w-3.5" /> Leave
                     </Button>
                   ) : (
-                    <Button variant="primary" size="sm" disabled={!state.joinable} onClick={() => setJoined(true)}>
+                    <Button variant="primary" size="sm" disabled={!state.joinable || deviceBlocked} onClick={() => setJoined(true)}>
                       <Video className="h-3.5 w-3.5" /> Join visit
                     </Button>
                   )}
@@ -171,15 +194,20 @@ export function VisitRoom({ apptId }: { apptId: string }) {
           {/* ── Pre-flight ─────────────────────────────────────────────────── */}
           <Card>
             <CardContent className="pt-5">
-              <p className="label-eyebrow">Before you join</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="label-eyebrow">Before you join</p>
+                <Button size="sm" variant="ghost" disabled={probing} onClick={() => void runProbe()}>
+                  {probing ? "Checking…" : "Re-check"}
+                </Button>
+              </div>
               <Stagger className="mt-3 grid grid-cols-1 gap-2">
-                {state.preflight.map((c) => (
+                {devices.map((c) => (
                   <StaggerItem key={c.id}>
-                    <CheckRow check={c} />
+                    <CheckRow check={c as unknown as PreflightCheck} />
                   </StaggerItem>
                 ))}
               </Stagger>
-              {!state.ready && (
+              {deviceBlocked && (
                 <p className="mt-3 text-detail leading-relaxed text-watch">
                   We can't start without a microphone — a visit you can't speak in isn't a visit. Everything else is
                   optional: audio-only is a real telehealth visit and your provider is used to it.

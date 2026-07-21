@@ -20,7 +20,8 @@ import { Badge, Button, Progress, EmptyState } from "@/components/ui/primitives"
 import { SwitchView } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
 import { useToast } from "@/components/ui/Toast";
-import { consults } from "@/lib/mock/consults";
+import { useStore } from "@/lib/store";
+import { consults, commitConsultStatus } from "@/lib/mock/consults";
 import { seededRecommendations } from "@/lib/mock/recommendations";
 import { clientMap, clientName } from "@/lib/mock/clients";
 import { staffMap, staffName } from "@/lib/mock/staff";
@@ -363,6 +364,7 @@ function ConsultEvidence({ consult }: { consult: Consult }) {
 
 export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: string }) {
   const { toast } = useToast();
+  const { setRecStatus } = useStore();
   const queue = React.useMemo(() => buildQueue(providerId), [providerId]);
   const [index, setIndex] = React.useState(0);
   const [decisions, setDecisions] = React.useState<Record<string, Decision>>({});
@@ -406,6 +408,21 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
         surface: "mobile-sign-queue",
       },
     });
+
+    /**
+     * COMMIT THE DECISION TO THE SHARED RECORD, not just to this component.
+     *
+     * Previously `decide` appended a ledger row and set the local `decisions`
+     * map and nothing else — so a provider cleared the queue, navigated away,
+     * and `buildQueue` (which filters on status) rebuilt every item. The clinic
+     * dashboard kept counting them as unsigned. The signature was real in the
+     * audit chain and invisible everywhere a human looked.
+     */
+    if (item.kind === "consult") {
+      commitConsultStatus(item.consult.id, outcome === "signed" ? "Signed" : "Awaiting review");
+    } else {
+      setRecStatus(item.rec.id, outcome === "signed" ? "provider approved" : "declined");
+    }
 
     setDecisions((d) => ({
       ...d,

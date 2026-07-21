@@ -183,3 +183,24 @@ export function unsignedConsultsFor(coachId: string): Consult[] {
 }
 
 export const NOTE_TEMPLATE_SAMPLES = NOTE_TEMPLATES.map((t) => t.notes);
+
+/**
+ * Mark a consult signed, in the shared corpus.
+ *
+ * WHY THIS EXISTS. The mobile sign queue appended a ledger row and then set
+ * component-local state, so a provider clearing their queue between patients saw
+ * "Signed — recorded" with a hash, navigated away, and found every item back:
+ * `buildQueue` filters on `consult.status !== "Signed"`, and nothing had ever
+ * changed that status. The clinic's "Unsigned notes" count kept counting them.
+ *
+ * Same shape as commitOrder in lib/mock/orders.ts — mutate the module corpus so
+ * every reader of it agrees. The DURABLE record of the signature is the
+ * hash-chained row written by /api/consults/sign; this keeps the in-session
+ * read model from contradicting it.
+ */
+export function commitConsultStatus(consultId: string, status: Consult["status"]): void {
+  const target = consults.find((c) => c.id === consultId);
+  if (!target) return;
+  target.status = status;
+  if (status === "Signed") target.signedAt = target.signedAt ?? new Date().toISOString();
+}

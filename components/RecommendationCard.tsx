@@ -1,5 +1,7 @@
 "use client";
 import { appendLedger } from "@/lib/trace/ledger";
+import { shortHash } from "@/lib/trace/hash";
+import { staffName } from "@/lib/mock/staff";
 import { VIEWER } from "@/lib/viewer";
 
 import { useState } from "react";
@@ -38,7 +40,7 @@ export function RecommendationCard({
   showClient?: boolean;
   defaultOpen?: boolean;
 }) {
-  const { recStatus, setRecStatus, role, addNote, addTask } = useStore();
+  const { recStatus, setRecStatus, role, addNote, addTask, activeStaffId } = useStore();
   const status = recStatus[rec.id] ?? rec.status;
   const [open, setOpen] = useState(defaultOpen);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -267,8 +269,27 @@ export function RecommendationCard({
             disabled={!canApprove || status === "provider approved"}
             title={canApprove ? "" : "Switch to the Medical role to approve"}
             onClick={() => {
+              // A provider authorising a therapy MUST leave a trace. This wrote
+              // no ledger row at all, while Decline (below) did — so the
+              // negative decision was audited and the positive one, the one
+              // that puts a patient on a drug, was not. It also silently
+              // removed the row from the /recommendations sign-off queue, which
+              // reads the same store, skipping that queue's interaction
+              // screening and override recording.
+              const row = appendLedger({
+                actorId: activeStaffId,
+                actorName: staffName(activeStaffId),
+                actorRole: role,
+                action: "approve",
+                entity: "recommendation",
+                entityId: rec.id,
+                subjectId: rec.clientId,
+                reason: "Recommendation approved by provider",
+                before: { status },
+                after: { status: "provider approved" },
+              });
               setRecStatus(rec.id, "provider approved");
-              toast("Approved by provider");
+              toast(`Approved by provider · ledger ${row.id} · ${shortHash(row.hash)}`);
             }}
           >
             <CheckCircle2 className="h-3.5 w-3.5" /> Approve
@@ -288,8 +309,10 @@ export function RecommendationCard({
             title={!canApprove ? "Declining a clinical recommendation is a provider decision." : undefined}
             onClick={() => {
               const row = appendLedger({
-                actorId: VIEWER.id,
-                actorName: VIEWER.name,
+                // Was VIEWER.id ("st-owner") — the ledger recorded the owner
+                // as declining even when a provider was the active persona.
+                actorId: activeStaffId,
+                actorName: staffName(activeStaffId),
                 actorRole: role,
                 action: "deny",
                 entity: "recommendation",
