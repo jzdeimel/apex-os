@@ -23,9 +23,13 @@ const sans = localFont({
   variable: "--font-sans",
   display: "swap",
 });
+// Display face: Bricolage Grotesque — a characterful variable grotesque with
+// real personality (contrasty strokes, distinctive a/g), so headings read as a
+// DIFFERENT voice from the Inter body rather than "uniform". Vendored like the
+// rest; the old Space Grotesk was too close to Inter to create hierarchy.
 const display = localFont({
-  src: "./fonts/space-grotesk.woff2",
-  weight: "300 700",
+  src: "./fonts/bricolage-grotesque.woff2",
+  weight: "300 800",
   variable: "--font-display",
   display: "swap",
 });

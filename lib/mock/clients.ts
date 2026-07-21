@@ -175,7 +175,9 @@ const heroClients: Client[] = [
     providerId: "st-002",
     goals: ["Energy", "Sleep", "Cognition"],
     symptoms: ["Low energy", "Cold intolerance", "Brain fog"],
-    programs: [],
+    programs: [
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-04-18", status: "Active" },
+    ],
     joinedOn: "2026-05-01",
     latestLabDate: "2026-06-04",
     nextAppointment: "2026-06-16T10:00:00",
@@ -228,7 +230,9 @@ const heroClients: Client[] = [
     providerId: "st-004",
     goals: ["Fat loss", "Energy"],
     symptoms: ["Weight gain", "Low energy", "Mood changes"],
-    programs: [],
+    programs: [
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-03-30", status: "Active" },
+    ],
     joinedOn: "2026-04-09",
     latestLabDate: "2026-06-02",
     nextAppointment: "2026-06-17T12:00:00",
@@ -278,7 +282,9 @@ const heroClients: Client[] = [
     providerId: "st-002",
     goals: ["Skin/hair", "Energy"],
     symptoms: ["Hair thinning", "Low energy"],
-    programs: [],
+    programs: [
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-05-02", status: "Active" },
+    ],
     joinedOn: "2026-06-06",
     latestLabDate: undefined,
     nextAppointment: "2026-06-13T15:00:00",
@@ -439,7 +445,9 @@ const heroClients: Client[] = [
     providerId: "st-002",
     goals: ["Energy", "Cognition", "Sleep"],
     symptoms: ["Low energy", "Brain fog", "Cold intolerance"],
-    programs: [],
+    programs: [
+      { name: "Hormone Optimization", category: "Hormone optimization discussion", startedOn: "2026-03-12", status: "Active" },
+    ],
     joinedOn: "2026-04-15",
     latestLabDate: "2026-06-06",
     nextAppointment: "2026-06-17T09:00:00",

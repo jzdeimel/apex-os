@@ -8,6 +8,7 @@ import {
 } from "@/components/exec/Figure";
 import { AttentionList } from "@/components/exec/AttentionList";
 import { LocationTable } from "@/components/exec/LocationTable";
+import { CrossLocationMoney } from "@/components/exec/CrossLocationMoney";
 import { yesterdayFigures, YESTERDAY, TODAY, TRAILING_DAYS } from "@/lib/exec/morning";
 import { businessFigures, unanswerable } from "@/lib/exec/business";
 import { formatDate } from "@/lib/utils";
@@ -125,7 +126,20 @@ export default function ExecMorningPage() {
         </div>
       </section>
 
-      {/* ---- 4. CROSS-LOCATION ------------------------------------------- */}
+      {/* ---- 4. CROSS-LOCATION MONEY ------------------------------------- */}
+      {/* The owner's compare-and-contrast: which site is working, which is
+          leaking, ranked on money. The operational LocationTable sits under it
+          for the by-site visit/consult detail. */}
+      <section className="mt-8 border-t border-ink-800/60 pt-6">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-heading font-semibold text-ink-50">
+            Which location is working
+          </h2>
+          <p className="text-micro text-ink-500">Ranked on money — all sites, side by side</p>
+        </div>
+        <CrossLocationMoney />
+      </section>
+
       <section className="mt-5">
         <LocationTable />
       </section>

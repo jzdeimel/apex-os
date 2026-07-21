@@ -176,6 +176,22 @@ export function titrationFor(clientId: string): TitrationView {
     return { applicable: false, reason: "No client on file.", regimen: null, markers: [], gates: [], considerations: [], disclaimer };
   }
 
+  // This assistant is testosterone titration — total-T/free-T/HCT/PSA and a
+  // male dose-direction logic. It must NOT run for a woman on HRT, whose
+  // hormones, ranges and levers are entirely different. Women are routed to the
+  // Women's Health surface instead.
+  if (client.sex !== "male") {
+    return {
+      applicable: false,
+      reason: "Testosterone titration applies to male hormone therapy. A woman's HRT is on the Women's Health tab.",
+      regimen: null,
+      markers: [],
+      gates: [],
+      considerations: [],
+      disclaimer,
+    };
+  }
+
   if (!onTherapy(client)) {
     return {
       applicable: false,
