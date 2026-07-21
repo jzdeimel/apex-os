@@ -185,6 +185,8 @@ export const DEMO_MEMBERS: DemoMember[] = [
   // on Hormone Optimization — it drives the Women's Health / HRT panel and the
   // menopause tracker. This one keeps the men's HRT programme reachable too.
   { id: "c-011", why: "Hormone Optimization programme — men's HRT" },
+  // Recovery & Performance track — drives the recovery readiness panel.
+  { id: "c-007", why: "Recovery & Performance track — recovery readiness + peptides" },
 ];
 
 export function isDemoMemberId(id: string | null | undefined): id is string {

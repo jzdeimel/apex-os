@@ -19,6 +19,7 @@
 
 import { RefillRunway } from "@/components/portal/RefillRunway";
 import { CostClarity } from "@/components/portal/CostClarity";
+import { MembershipTiers } from "@/components/portal/MembershipTiers";
 import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 
 export default function PortalCostsPage() {
@@ -53,6 +54,10 @@ export default function PortalCostsPage() {
           </p>
         </div>
         <CostClarity client={client} />
+      </section>
+
+      <section className="space-y-4">
+        <MembershipTiers clientId={client.id} />
       </section>
     </div>
   );

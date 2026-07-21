@@ -37,6 +37,7 @@ import { formatDate, cn } from "@/lib/utils";
 import { useMeClient, PortalPageHeader } from "@/components/portal/PortalHeader";
 import { MyLevelNow } from "@/components/portal/MyLevelNow";
 import { MenopauseTracker } from "@/components/portal/MenopauseTracker";
+import { RecoveryPanel } from "@/components/portal/RecoveryPanel";
 import { InjectionSiteMap } from "@/components/portal/InjectionSiteMap";
 import { ReconstitutionCalculator } from "@/components/portal/ReconstitutionCalculator";
 import { ChevronDown, Lock, Utensils, Dumbbell, FlaskConical, CalendarCheck, ShieldCheck } from "lucide-react";
@@ -296,6 +297,10 @@ export default function PortalProtocolPage() {
       {/* Menopause symptom tracker — renders only for female members, the female
           counterpart to the men's level/injection tools above. */}
       <MenopauseTracker clientId={client.id} iso={PROTOCOL_NOW} />
+
+      {/* Recovery & performance — renders only for members on recovery-oriented
+          compounds (peptides, GH secretagogues, NAD+). */}
+      <RecoveryPanel clientId={client.id} />
 
       {/* Injection-site rotation -------------------------------------------
           The other half of "where is it in me": absorption depends on WHERE the
