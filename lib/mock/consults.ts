@@ -204,3 +204,20 @@ export function commitConsultStatus(consultId: string, status: Consult["status"]
   target.status = status;
   if (status === "Signed") target.signedAt = target.signedAt ?? new Date().toISOString();
 }
+
+/**
+ * Look a consult up by its own id.
+ *
+ * Needed because /api/consults/sign took BOTH a consultId and a clientId from
+ * the request body and scoped authorization to the clientId — so a caller could
+ * pair someone else's consult id with a client they legitimately cover and sign
+ * a note on a chart they have no access to. Authorization has to be derived
+ * from the record, which means the record has to be loadable by id alone.
+ */
+export const consultsById: Record<string, Consult> = Object.fromEntries(
+  consults.map((c) => [c.id, c]),
+);
+
+export function getConsult(id: string): Consult | undefined {
+  return consultsById[id];
+}

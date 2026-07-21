@@ -1,99 +1,121 @@
-import { NextResponse } from "next/server";
-import { fail, serverError, unavailable } from "@/lib/api/respond";
-import { guard } from "@/lib/auth/guard";
-import { currentPrincipal } from "@/lib/auth/principal";
+import { runMutation, ConflictError } from "@/lib/api/gateway";
 import { appendLedgerRow } from "@/lib/db/repo";
 import { getClient, clientName } from "@/lib/mock/clients";
+import { getConsult, commitConsultStatus } from "@/lib/mock/consults";
+import type { Consult } from "@/lib/consult/types";
+import type { Client } from "@/lib/types";
 import { staffMap } from "@/lib/mock/staff";
 
 /**
- * Sign a consult — the first real, gated, durable write in Apex.
+ * PROVIDER CO-SIGN of an existing consult.
  *
- * WHAT MAKES THIS DIFFERENT FROM EVERY OTHER "SIGN" IN THE APP
- * -----------------------------------------------------------
- * Elsewhere, "sign" flips a bit of React state and pushes onto an in-memory
- * array that dies on refresh. This one:
- *   1. resolves the caller's identity from the Entra principal (not a client
- *      claim),
- *   2. checks `sign:encounter` server-side — a coach or an unmapped user is
- *      REFUSED here, not merely hidden in the UI,
- *   3. writes a hash-chained row to Postgres through repo.appendLedgerRow, under
- *      an advisory lock, inside a transaction.
+ * WHAT WAS WRONG. This took BOTH `consultId` and `clientId` from the request
+ * body, scoped authorization to the clientId, and then signed the consultId —
+ * without ever loading the consult. So a caller could pair someone else's
+ * consult id with a client they legitimately cover and sign a note on a chart
+ * they have no access to. Authorization was checked against a relationship the
+ * CALLER asserted rather than one the server read.
  *
- * So the traceability pitch becomes true for a signed consult: the row survives
- * a refresh, a replica swap and a restart, and the chain it joins is verifiable.
- * This is audit items #1, #2 and #5 in one endpoint.
+ * It also never changed the consult's status: it appended a ledger row and
+ * returned success, so the sign queue rebuilt with the same item still unsigned
+ * and the clinic dashboard kept counting it.
  *
- * Reads still come from the seeded roster (the client's care team + location, to
- * scope the permission); only the WRITE is real. That split is deliberate and
- * honest — the mutation persists, the reference data does not yet.
+ * Now the consult is LOADED BY ID, the client is derived from the loaded
+ * record, `sign:encounter` is checked against that client's care team and
+ * location, an already-signed consult is a 409 rather than a second signature,
+ * and the status change and the ledger row happen together.
+ *
+ * DISTINCT FROM /api/consults/draft POST, which is AUTHOR self-sign under
+ * write:consult. This is the provider co-sign of somebody else's note under
+ * sign:encounter — a different act by a different person, deliberately kept as
+ * a separate route rather than overloading one.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+interface Body {
+  consultId: string;
+}
+
+interface Subject {
+  consult: Consult;
+  client: Client;
+}
+
 export async function POST(req: Request) {
-  // AUTH FIRST. An unauthenticated caller learns nothing about this endpoint —
-  // not its field names, not whether an id exists. The guard() below re-resolves
-  // the principal for the capability decision; this precheck just fixes the
-  // order so 401 always outranks 400.
-  if (!(await currentPrincipal())) {
-    return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
-  }
+  return runMutation<Body, Subject, { consultId: string; ledger: { id: string; seq: number; hash: string } }>(
+    req,
+    {
+      context: "consults.sign",
+      capability: "sign:encounter",
+      unavailableMessage: "The signature could not be recorded. Please try again.",
 
-  let body: { consultId?: string; clientId?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "Malformed body." }, { status: 400 });
-  }
-
-  const { consultId, clientId } = body;
-  if (!consultId || !clientId) {
-    return NextResponse.json({ ok: false, error: "consultId and clientId are required." }, { status: 400 });
-  }
-
-  const client = getClient(clientId);
-  if (!client) {
-    return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
-  }
-
-  // sign:encounter is Medical-only, and gated to this client's care team +
-  // location. A coach reaching this endpoint is refused by can(), server-side.
-  const g = await guard("sign:encounter", {
-    coachId: client.coachId,
-    providerId: client.providerId,
-    locationId: client.locationId,
-  });
-  if (!g.ok) return g.res;
-
-  const actorName = staffMap[g.actor.id]?.name ?? g.actor.id;
-
-  try {
-    const row = await appendLedgerRow(
-      {
-        actorId: g.actor.id,
-        actorName,
-        actorRole: g.actor.role,
-        action: "sign",
-        entity: "note",
-        entityId: consultId,
-        subjectId: clientId,
-        subjectName: clientName(client),
-        locationId: client.locationId,
-        reason: "Consult co-signed by provider",
-        after: { immutable: true, consultId },
+      parse: (raw) => {
+        const b = (raw ?? {}) as Partial<Body>;
+        if (typeof b.consultId !== "string" || !b.consultId) return "consultId is required.";
+        // clientId is deliberately NOT read from the body. It comes off the
+        // loaded consult, so it cannot be used to redirect the scope check.
+        return { consultId: b.consultId };
       },
-      new Date().toISOString(),
-    );
 
-    return NextResponse.json({
-      ok: true,
-      durable: true,
-      ledger: { id: row.id, seq: row.seq, hash: row.hash, prevHash: row.prevHash },
-    });
-  } catch (err) {
-    // requireDb throws when DATABASE_URL is absent — say so honestly rather than
-    // pretend a durable write happened.
-    return unavailable("consult.sign", err, 'The signature could not be recorded. Please try again.');
-  }
+      loadSubject: (body) => {
+        const consult = getConsult(body.consultId);
+        if (!consult) return null;
+        const client = getClient(consult.clientId);
+        if (!client) return null;
+        return { consult, client };
+      },
+
+      // Scope from the RECORD's client.
+      scopeOf: ({ client }) => ({
+        coachId: client.coachId,
+        providerId: client.providerId,
+        locationId: client.locationId,
+      }),
+
+      validate: ({ subject }) =>
+        subject.consult.status === "Signed"
+          ? "This consult is already signed. A second signature is not recorded."
+          : null,
+
+      execute: async ({ subject, actor }) => {
+        const { consult, client } = subject;
+        const me = staffMap[actor.id];
+
+        // Re-check under the write rather than trusting the validate pass: two
+        // providers hitting the queue at once must not both sign.
+        if (consult.status === "Signed") {
+          throw new ConflictError("This consult is already signed.");
+        }
+
+        const row = await appendLedgerRow(
+          {
+            actorId: actor.id,
+            actorName: me?.name ?? actor.id,
+            actorRole: actor.role,
+            action: "sign",
+            entity: "note",
+            entityId: consult.id,
+            subjectId: client.id,
+            subjectName: clientName(client),
+            locationId: client.locationId,
+            reason: "Consult co-signed by provider",
+            before: { status: consult.status },
+            after: { status: "Signed", immutable: true, consultId: consult.id },
+          },
+          new Date().toISOString(),
+        );
+
+        // Only after the durable witness exists does the read model move, so a
+        // failed ledger write cannot leave a consult marked signed with nothing
+        // recording who signed it.
+        commitConsultStatus(consult.id, "Signed");
+
+        return {
+          consultId: consult.id,
+          ledger: { id: row.id, seq: row.seq, hash: row.hash },
+        };
+      },
+    },
+  );
 }

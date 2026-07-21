@@ -117,7 +117,10 @@ try {
     const r = await fetch(`${BASE}/api/consults/sign`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-ms-client-principal": principal("m.vega@alphahealth.demo", "vega") },
-      body: JSON.stringify({ consultId: "con-smoke", clientId: "c-001" }),
+      // A REAL consult id (con-<last3 of clientId>-<index>). The route now loads
+      // the consult and derives the client from it, so a made-up id would 404
+      // before authorization ever runs and the test would prove nothing.
+      body: JSON.stringify({ consultId: "con-001-1" }),
     });
     if (r.status !== 403) fail(`coach consult-sign => ${r.status}, expected 403`);
     console.log("ok  POST /api/consults/sign (coach) => 403 refused");
