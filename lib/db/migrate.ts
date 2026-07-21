@@ -66,6 +66,18 @@ export async function runMigrations(): Promise<MigrationState> {
   const at = new Date().toISOString();
   try {
     await migrate(db, { migrationsFolder: "./lib/db/migrations" });
+
+    // Seed the staff roster (idempotent upsert) so the authority table is
+    // populated the moment the schema exists. Best-effort: a seed failure
+    // degrades staff-table lookups to the in-code fallback, which principal.ts
+    // already handles, so it must not fail the migration state.
+    try {
+      const { seedStaff } = await import("@/lib/db/repo");
+      await seedStaff();
+    } catch (seedErr) {
+      console.error("[apex] staff seed failed:", seedErr instanceof Error ? seedErr.message : seedErr);
+    }
+
     state = { status: "applied", at };
     return state;
   } catch (err) {

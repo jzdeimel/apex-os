@@ -67,6 +67,45 @@ try {
   await expectStatus("GET", "/api/audit", 403);
   await expectStatus("POST", "/api/acs/token", 401);
 
+  // Every mutating endpoint fails closed without a principal.
+  for (const path of ["/api/consults/sign", "/api/tasks/complete", "/api/orders/create", "/api/member/log"]) {
+    const r = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.status !== 401) fail(`POST ${path} unauthenticated => ${r.status}, expected 401`);
+    console.log(`ok  POST ${path} (unauth) => 401`);
+  }
+
+  // AUTHORIZATION BOUNDARY: role comes from the server-resolved principal, and
+  // can() refuses a coach a provider-only capability. Uses a crafted EasyAuth
+  // header, which is exactly what the platform injects — so this tests the same
+  // code path production runs. (No DATABASE_URL in CI, so mapToStaff exercises
+  // its seeded fallback; the capability check is identical either way.)
+  const principal = (email, name) =>
+    Buffer.from(
+      JSON.stringify({ claims: [{ typ: "email", val: email }, { typ: "oid", val: `oid-${name}` }, { typ: "name", val: name }] }),
+    ).toString("base64");
+
+  {
+    const r = await fetch(`${BASE}/api/me`, { headers: { "x-ms-client-principal": principal("m.vale@alphahealth.demo", "vale") } });
+    const body = await r.json();
+    if (body.role !== "Medical" || body.staffId !== "st-001") fail(`provider /api/me resolved ${body.role}/${body.staffId}, expected Medical/st-001`);
+    console.log("ok  /api/me (provider) => Medical st-001");
+  }
+  {
+    // A COACH must be refused sign:encounter — 403 with the capability reason,
+    // not a silent success. This is the audit's core invariant.
+    const r = await fetch(`${BASE}/api/consults/sign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ms-client-principal": principal("m.vega@alphahealth.demo", "vega") },
+      body: JSON.stringify({ consultId: "con-smoke", clientId: "c-001" }),
+    });
+    if (r.status !== 403) fail(`coach consult-sign => ${r.status}, expected 403`);
+    console.log("ok  POST /api/consults/sign (coach) => 403 refused");
+  }
+
   const home = await fetch(`${BASE}/`);
   if (home.status !== 200) fail(`GET / => ${home.status}, expected 200`);
   console.log("ok  GET / => 200");

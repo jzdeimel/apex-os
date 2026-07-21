@@ -104,7 +104,7 @@ export async function currentPrincipal(): Promise<Principal | null> {
   const name = claim(claims, NAME_CLAIMS) ?? email;
   if (!objectId) return null;
 
-  const mapped = mapToStaff(email);
+  const mapped = await mapToStaff(objectId, email);
 
   return {
     objectId,
@@ -116,22 +116,47 @@ export async function currentPrincipal(): Promise<Principal | null> {
 }
 
 /**
- * Map an Entra identity to an Apex staff record, by email.
+ * Map an Entra identity to an Apex staff record — AUTHORITY LIVES IN THE DB.
  *
- * Email is a weak join key and this is explicitly an interim measure: email
- * addresses change, and a rename would silently strip someone's clinical
- * authority. The durable fix is an `entraObjectId` column on the staff record,
- * which is why `Principal.objectId` is carried even though nothing consumes it
- * yet — the column lands with the staff table, and this function switches to it.
+ * Resolution order:
+ *   1. The staff table, by stable Entra object id (the durable join — an email
+ *      rename cannot silently re-point clinical authority).
+ *   2. The staff table, by email (how a row is claimed before its objectId has
+ *      been filled in; the first successful sign-in could stamp it).
+ *   3. The seeded roster, by email — ONLY when no database is configured, so a
+ *      local build without Postgres still authenticates. When a DB exists it is
+ *      authoritative: a row deactivated there is deactivated, full stop.
+ *
+ * This closes the audit finding that granting someone prescriber authority was
+ * an edit to a TypeScript file: with a DB present, it is now an INSERT/UPDATE on
+ * the staff table (auditable, reversible, no deploy).
  *
  * UNMAPPED RETURNS NULL, NOT A DEFAULT. Somebody who signs in with a valid
- * Alpha Health account but has no staff record gets NO role and therefore no
- * capabilities. That is the whole correction: the previous implementation
- * defaulted to "Medical".
+ * Alpha Health account but no staff row gets NO role and no capabilities.
  */
-function mapToStaff(email: string): { id: string; role: StaffRole } | null {
-  if (!email) return null;
+async function mapToStaff(
+  objectId: string,
+  email: string,
+): Promise<{ id: string; role: StaffRole } | null> {
   const lower = email.toLowerCase();
+
+  // DB-first. isConfigured is false when DATABASE_URL is absent (local builds).
+  const { isConfigured } = await import("@/lib/db/client");
+  if (isConfigured) {
+    try {
+      const { staffByObjectId, staffByEmail } = await import("@/lib/db/repo");
+      const byOid = objectId ? await staffByObjectId(objectId) : null;
+      const row = byOid ?? (lower ? await staffByEmail(lower) : null);
+      // With a database present it is the authority — including the answer "no".
+      return row ? { id: row.id, role: row.role as StaffRole } : null;
+    } catch {
+      // A transient DB error must not turn into a login outage; fall through to
+      // the seed for THIS request. The write paths still hit the DB and fail
+      // closed there if it is really down.
+    }
+  }
+
+  if (!lower) return null;
   const hit = staff.find((s) => s.email?.toLowerCase() === lower);
   return hit ? { id: hit.id, role: hit.role } : null;
 }

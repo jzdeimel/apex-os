@@ -29,9 +29,12 @@ export function DemoTour() {
   const router = useRouter();
   const [step, setStep] = useState(-1);
 
+  // "Take the tour" now opens the Demo Guide (/demo) — a current, one-tap index
+  // of every feature. The old step-through overlay pushed to "/" as its first
+  // step, which dumped the viewer back on the entry screen, and its narration
+  // referenced features that no longer exist. The guide replaces it.
   const start = () => {
-    setStep(0);
-    router.push(STEPS[0].href);
+    router.push("/demo");
   };
   const goto = (i: number) => {
     setStep(i);

@@ -235,10 +235,45 @@ export function MemberLogProvider({
     }
   }, [store, clientId]);
 
+  /**
+   * DURABLE SYNC — every member log mutation also posts to /api/member/log,
+   * which writes through the repo to Postgres. Best-effort by design at this
+   * stage: the local record is the immediate UX and stays authoritative for
+   * the demo's reads; the durable row is the one that survives a refresh and a
+   * device change. Failures are silent here because the endpoint is honest
+   * (401/503 with a reason) and the local record still holds — but nothing
+   * fakes success, and when reads flip to Postgres this becomes await-and-error.
+   *
+   * The dose id is deterministic (client+rx+date), matching the local
+   * one-dose-per-rx-per-day semantics, so a retraction targets the same row.
+   */
+  const syncDurable = useCallback(
+    (body: Record<string, unknown>) => {
+      try {
+        void fetch("/api/member/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId, ...body }),
+        }).catch(() => {});
+      } catch {
+        /* fetch unavailable (SSR) — nothing to sync */
+      }
+    },
+    [clientId],
+  );
+
   const logDose = useCallback(
     (rxId: string, name: string, opts?: { site?: string }) => {
       const entry: DoseLog = { rxId, takenAt: nowIso, name, site: opts?.site };
       persist({ ...today, doses: [...today.doses.filter((d) => d.rxId !== rxId), entry] });
+      syncDurable({
+        op: "dose",
+        doseId: `dose-${clientId}-${rxId}-${today.date}`,
+        prescriptionId: rxId,
+        date: today.date,
+        takenAt: nowIso,
+        site: opts?.site,
+      });
       // Self-reported, and recorded as such. A closed ring is a member saying
       // they took it, which is not the same as confirmation that they did — the
       // ledger says which, so nobody downstream mistakes one for the other.
@@ -253,13 +288,22 @@ export function MemberLogProvider({
         reason: `Member recorded ${name} as taken${opts?.site ? ` at ${opts.site}` : ""} (self-reported)`,
       });
     },
-    [today, persist, nowIso, clientId],
+    [today, persist, nowIso, clientId, syncDurable],
   );
 
   const skipDose = useCallback(
     (rxId: string, name: string, reason: string) => {
       const entry: DoseLog = { rxId, takenAt: nowIso, name, skipped: true, skipReason: reason };
       persist({ ...today, doses: [...today.doses.filter((d) => d.rxId !== rxId), entry] });
+      syncDurable({
+        op: "dose",
+        doseId: `dose-${clientId}-${rxId}-${today.date}`,
+        prescriptionId: rxId,
+        date: today.date,
+        takenAt: nowIso,
+        skipped: true,
+        skipReason: reason,
+      });
       appendLedger({
         actorId: clientId,
         actorName: "Member",
@@ -271,7 +315,7 @@ export function MemberLogProvider({
         reason: `Member recorded ${name} as not taken — ${reason}`,
       });
     },
-    [today, persist, nowIso, clientId],
+    [today, persist, nowIso, clientId, syncDurable],
   );
 
   /**
@@ -309,8 +353,9 @@ export function MemberLogProvider({
           ? `Member retracted the earlier "not taken" record for ${what} — reverses the row logged at ${entry.takenAt}`
           : `Member retracted the earlier "taken" record for ${what} — reverses the row logged at ${entry.takenAt}`,
       });
+      syncDurable({ op: "retract", doseId: `dose-${clientId}-${rxId}-${today.date}` });
     },
-    [today, persist, clientId],
+    [today, persist, clientId, syncDurable],
   );
 
   const logWeight = useCallback(
@@ -324,6 +369,7 @@ export function MemberLogProvider({
       if (!Number.isFinite(lb) || lb <= 0) return;
       const correcting = today.weightLb !== undefined;
       persist({ ...today, weightLb: lb });
+      syncDurable({ op: "day", date: today.date, weightLb: lb, feel: today.feel });
       appendLedger({
         actorId: clientId,
         actorName: "Member",
@@ -339,12 +385,13 @@ export function MemberLogProvider({
           : `Member logged weight ${lb} lb (self-reported)`,
       });
     },
-    [today, persist, clientId, date],
+    [today, persist, clientId, date, syncDurable],
   );
 
   const logFeel = useCallback(
     (answers: Record<string, number>) => {
       persist({ ...today, feel: answers });
+      syncDurable({ op: "day", date: today.date, weightLb: today.weightLb, feel: answers });
       appendLedger({
         actorId: clientId,
         actorName: "Member",
@@ -356,7 +403,7 @@ export function MemberLogProvider({
         reason: `Member completed the daily check-in (${Object.keys(answers).length} answers)`,
       });
     },
-    [today, persist, clientId, date],
+    [today, persist, clientId, date, syncDurable],
   );
 
   const isDoseLogged = useCallback(

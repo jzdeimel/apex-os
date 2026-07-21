@@ -8,7 +8,9 @@ import {
   escalation as escalationTable,
   dispense,
   inventoryMovement,
+  staff as staffTable,
 } from "@/lib/db/schema";
+import { staff as seededStaff } from "@/lib/mock/staff";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
 
 /**
@@ -415,4 +417,94 @@ export async function stockOnHand(sku: string, locationId: string) {
     .where(and(eq(inventoryMovement.sku, sku), eq(inventoryMovement.locationId, locationId)))
     .groupBy(inventoryMovement.lotNumber);
   return rows;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Staff — identity and clinical authority                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Seed the staff roster into the DB, idempotently.
+ *
+ * Runs at boot after migrations. Upserts every seeded staff member so the table
+ * is populated on a fresh database, and re-running is a no-op that refreshes the
+ * row. This is the bridge: the roster still originates in lib/mock/staff for the
+ * demo, but the AUTHORITY (who is a prescriber) is now read from the table, so a
+ * real deployment adds a provider with an INSERT here rather than a code change.
+ * entraObjectId starts null for the seeded rows — a real Entra tenant fills it,
+ * and the lookup prefers it once set.
+ */
+export async function seedStaff(): Promise<number> {
+  const db = requireDb();
+  for (const s of seededStaff) {
+    await db
+      .insert(staffTable)
+      .values({
+        id: s.id,
+        email: s.email ?? `${s.id}@alphahealth.demo`,
+        name: s.name,
+        role: s.role,
+        locationIds: s.locationIds ?? [],
+        credentials: s.credentials ?? null,
+        canApprove: s.canApprove ?? false,
+        active: true,
+      })
+      .onConflictDoUpdate({
+        target: staffTable.id,
+        set: {
+          email: s.email ?? `${s.id}@alphahealth.demo`,
+          name: s.name,
+          role: s.role,
+          locationIds: s.locationIds ?? [],
+          credentials: s.credentials ?? null,
+          canApprove: s.canApprove ?? false,
+          updatedAt: new Date(),
+        },
+      });
+  }
+  return seededStaff.length;
+}
+
+export interface StaffRow {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  locationIds: string[];
+  canApprove: boolean;
+  active: boolean;
+}
+
+function toRow(r: typeof staffTable.$inferSelect): StaffRow {
+  return {
+    id: r.id,
+    email: r.email,
+    name: r.name,
+    role: r.role,
+    locationIds: (r.locationIds as string[]) ?? [],
+    canApprove: r.canApprove,
+    active: r.active,
+  };
+}
+
+/** Look up a staff member by email. The authority read behind mapToStaff. */
+export async function staffByEmail(email: string): Promise<StaffRow | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select()
+    .from(staffTable)
+    .where(and(eq(staffTable.email, email.toLowerCase()), eq(staffTable.active, true)))
+    .limit(1);
+  return row ? toRow(row) : null;
+}
+
+/** Look up a staff member by their stable Entra object id (preferred join). */
+export async function staffByObjectId(objectId: string): Promise<StaffRow | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select()
+    .from(staffTable)
+    .where(and(eq(staffTable.entraObjectId, objectId), eq(staffTable.active, true)))
+    .limit(1);
+  return row ? toRow(row) : null;
 }

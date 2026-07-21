@@ -150,7 +150,22 @@ export default function TasksPage() {
                       className="cursor-grab rounded-xl border border-ink-800 bg-ink-850/70 p-3 active:cursor-grabbing"
                     >
                       <div className="flex items-start gap-2">
-                        <button onClick={() => { toggleTask(t.id); toast("Task completed", { desc: t.title }); }} className="mt-0.5 text-ink-500 hover:text-optimal">
+                        <button onClick={() => {
+                          toggleTask(t.id);
+                          toast("Task completed", { desc: t.title });
+                          // DURABLE: completion also writes a hash-chained row to
+                          // Postgres via the gated endpoint (requirePrincipal +
+                          // can(write:task) server-side). Best-effort; the local
+                          // state is the immediate UX and the endpoint is honest
+                          // about failure.
+                          void fetch("/api/tasks/complete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ taskId: t.id, clientId: t.clientId, label: t.title }),
+                          }).then((r) => r.json()).then((res) => {
+                            if (res?.ok && res.durable) toast("Written to the durable ledger", { desc: res.ledger.id, tone: "success" });
+                          }).catch(() => {});
+                        }} className="mt-0.5 text-ink-500 hover:text-optimal">
                           <Circle className="h-4 w-4" />
                         </button>
                         <div className="min-w-0 flex-1">

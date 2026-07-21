@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/auth/guard";
+import { currentPrincipal } from "@/lib/auth/principal";
 import { appendLedgerRow } from "@/lib/db/repo";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
@@ -30,6 +31,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // AUTH FIRST. An unauthenticated caller learns nothing about this endpoint —
+  // not its field names, not whether an id exists. The guard() below re-resolves
+  // the principal for the capability decision; this precheck just fixes the
+  // order so 401 always outranks 400.
+  if (!(await currentPrincipal())) {
+    return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+  }
+
   let body: { consultId?: string; clientId?: string };
   try {
     body = await req.json();
