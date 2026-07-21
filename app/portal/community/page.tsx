@@ -35,12 +35,21 @@ import { Challenges } from "@/components/community/Challenges";
 import { CoachGroup } from "@/components/community/CoachGroup";
 import { Meetups } from "@/components/community/Meetups";
 import { Leaderboard } from "@/components/portal/Leaderboard";
+import { BattleBuddy } from "@/components/community/BattleBuddy";
+import { Milestones } from "@/components/community/Milestones";
+import { PhotoWall } from "@/components/community/PhotoWall";
+import { Squads } from "@/components/community/Squads";
+import { Mentors } from "@/components/community/Mentors";
 
 const TABS = [
+  { id: "milestones", label: "Milestones" },
+  { id: "photos", label: "Photos" },
+  { id: "squads", label: "Squads" },
+  { id: "guides", label: "Guides" },
   { id: "wins", label: "Wins" },
   { id: "challenges", label: "Challenges" },
   { id: "group", label: "My group" },
-  { id: "meetups", label: "Meetups" },
+  { id: "meetups", label: "Events" },
 ];
 
 /** The pinned demo clock, so "upcoming" events are deterministic. */
@@ -51,7 +60,7 @@ export default function PortalCommunityPage() {
   // module constant ME, which pinned the portal to one male member.
   const meId = useMe();
   const client = useMeClient();
-  const [tab, setTab] = useState("wins");
+  const [tab, setTab] = useState("milestones");
 
   // The identity substitution happens once, here, at the boundary. Nothing
   // below this line receives a clientId except CoachGroup, which needs it only
@@ -75,6 +84,10 @@ export default function PortalCommunityPage() {
           like a room rather than a noticeboard. */}
       <CommunityPulse />
 
+      {/* Your battle buddy — the 1:1 bond, above the feed because the person in
+          your corner matters more than the crowd. */}
+      <BattleBuddy clientId={meId} />
+
       <Leaderboard clientId={meId} limit={5} />
 
       <Tabs
@@ -90,6 +103,10 @@ export default function PortalCommunityPage() {
       />
 
       <SwitchView k={tab}>
+        {tab === "milestones" && <Milestones clientId={meId} />}
+        {tab === "photos" && <PhotoWall clientId={meId} />}
+        {tab === "squads" && <Squads clientId={meId} />}
+        {tab === "guides" && <Mentors clientId={meId} />}
         {tab === "wins" && <WinsWall wins={wins} />}
         {tab === "challenges" && (
           <Challenges challenges={challenges} myLocationId={client.locationId} />

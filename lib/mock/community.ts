@@ -79,7 +79,12 @@ function buildHandles(): CommunityHandle[] {
     // Community participation is opt-in and most people lurk or skip it. A demo
     // showing 100% participation would set an expectation the real clinic will
     // never hit, and the empty-ish states are the ones worth designing for.
-    const optedIn = rand() < 0.62;
+    // The demo's default member (c-001) is always opted in, so the community
+    // surfaces — battle buddy, your milestones, squads — actually demonstrate
+    // for the person viewing. The roll is still consumed so the rest of the
+    // deterministic sequence is unchanged.
+    const roll = rand();
+    const optedIn = c.id === "c-001" ? true : roll < 0.62;
 
     // Real-name display is a second, much rarer consent. Off for nearly
     // everyone, by design — see CommunityHandle.realNameOptIn.
