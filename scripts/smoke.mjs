@@ -184,6 +184,53 @@ try {
     console.log("ok  GET /api/leads (coach) => 403 owner-only");
   }
 
+  {
+    /**
+     * THE PRESCRIBER GATE, server-side.
+     *
+     * /api/orders/create used to take {clientId, sku, quantity}, check only the
+     * broad write:order capability, and append a ledger row — bypassing
+     * validateOrder and therefore RULE 4. A COACH could place a
+     * prescriber-required item by POSTing to it. Tyler Brooks (st-005) is a
+     * Coach ON c-001's care team, so scope passes and this isolates the gate
+     * rather than accidentally testing care-team scoping.
+     */
+    const r = await fetch(`${BASE}/api/orders/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks"),
+      },
+      body: JSON.stringify({
+        clientId: "c-001",
+        lines: [{ sku: "PEP-SERM-15", qty: 1 }],
+        shipping: "ship",
+        shipTo: { line1: "12 Oak St", city: "Raleigh", state: "NC", postal: "27601" },
+      }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.status !== 422) fail(`coach ordering a prescriber-required SKU => ${r.status}, expected 422`);
+    if (!/requires a prescriber/i.test(body.error ?? "")) {
+      fail(`coach order refusal did not cite the prescriber gate: ${body.error}`);
+    }
+    console.log("ok  POST /api/orders/create (coach + Rx-required SKU) => 422 prescriber gate");
+  }
+  {
+    // Every failure carries a correlation id, so support can join a user report
+    // to a server log without the caller ever seeing driver text.
+    const r = await fetch(`${BASE}/api/orders/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks") },
+      body: JSON.stringify({ clientId: "c-001" }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!body.correlationId) fail("API failure did not include a correlationId");
+    if (/postgres|relation|constraint|column/i.test(body.error ?? "")) {
+      fail(`API failure leaked backend detail: ${body.error}`);
+    }
+    console.log("ok  API failures carry a correlationId and leak no backend detail");
+  }
+
   const home = await fetch(`${BASE}/`);
   if (home.status !== 200) fail(`GET / => ${home.status}, expected 200`);
   console.log("ok  GET / => 200");
