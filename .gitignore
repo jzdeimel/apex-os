@@ -85,3 +85,4 @@ next-stale-lock/
 # Local QA detectors (see hardload.mjs)
 mobile-audit.mjs
 polish-audit.mjs
+deadclick.mjs

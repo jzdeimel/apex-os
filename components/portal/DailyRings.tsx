@@ -7,6 +7,7 @@ import { buildDailyPlan, ringHistory, hasDose, type Ring, type DailyPlan } from 
 import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { Stagger, StaggerItem } from "@/components/portal/still";
+import { useMemberLog } from "@/lib/member/logStore";
 
 /**
  * The daily loop, on one screen.
@@ -33,6 +34,19 @@ export function DailyRings({ clientId }: { clientId: string }) {
   const reduced = useReducedMotion();
   const [openRing, setOpenRing] = useState<Ring["id"] | null>(null);
 
+  /**
+   * The member's REAL log, not a seeded guess.
+   *
+   * `buildDailyPlan` fills `taken` from a PRNG so the demo has a plausible
+   * shape, and the checkbox next to each item used to be a decorative <span>
+   * with no handler — so the single action this whole screen exists to
+   * support, "I took it", was impossible, and the tick you saw was fiction.
+   * Both halves are fixed here: state comes from the log store, and the control
+   * is a real button that writes through it (which now persists to Postgres via
+   * /api/member/log).
+   */
+  const { isDoseLogged, logDose, undoDose, hydrated } = useMemberLog();
+
   const plan = useMemo<DailyPlan | null>(
     () => (client ? buildDailyPlan(client) : null),
     [client],
@@ -41,7 +55,29 @@ export function DailyRings({ clientId }: { clientId: string }) {
 
   if (!plan) return null;
 
-  const closed = plan.rings.filter((r) => r.progress >= 1).length;
+  /** Logged, per the member's own record. Empty until the store hydrates. */
+  const takenNow = (id: string) => (hydrated ? !!isDoseLogged(id) : false);
+
+  /**
+   * The Protocol ring counts what the member actually logged, so the ring and
+   * the checkboxes below it can never disagree. Held items are excluded from
+   * the target rather than counted as missed — pausing on medical advice must
+   * not read as a failure (see the header note).
+   */
+  const actionable = plan.doses.filter((d) => !d.heldReason);
+  const loggedCount = actionable.filter((d) => takenNow(d.id)).length;
+  const rings = plan.rings.map((r) =>
+    r.id === "protocol"
+      ? {
+          ...r,
+          done: loggedCount,
+          target: actionable.length,
+          progress: actionable.length === 0 ? 1 : loggedCount / actionable.length,
+        }
+      : r,
+  );
+
+  const closed = rings.filter((r) => r.progress >= 1).length;
 
   return (
     <div className="space-y-4">
@@ -50,7 +86,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
         <CardContent className="p-5">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="flex shrink-0 items-center justify-center gap-4">
-              {plan.rings.map((ring, i) => (
+              {rings.map((ring, i) => (
                 <button
                   key={ring.id}
                   onClick={() => setOpenRing((v) => (v === ring.id ? null : ring.id))}
@@ -132,7 +168,7 @@ export function DailyRings({ clientId }: { clientId: string }) {
               animate={{ opacity: 1, height: "auto" }}
               className="mt-4 overflow-hidden border-t border-ink-800/60 pt-4"
             >
-              {plan.rings
+              {rings
                 .filter((r) => r.id === openRing)
                 .map((r) => (
                   <div key={r.id}>
@@ -165,15 +201,34 @@ export function DailyRings({ clientId }: { clientId: string }) {
                         : "border-ink-800 bg-ink-900/40"
                     }`}
                   >
-                    <span
-                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-control border ${
-                        d.taken
+                    <button
+                      type="button"
+                      // A provider hold is not the member's to override. It stays
+                      // visible and stays uncheckable, with the reason shown.
+                      disabled={!!d.heldReason}
+                      aria-pressed={takenNow(d.id)}
+                      aria-label={
+                        d.heldReason
+                          ? `${d.name} — paused by your provider`
+                          : takenNow(d.id)
+                            ? `Undo — mark ${d.name} as not taken`
+                            : `Mark ${d.name} as taken`
+                      }
+                      onClick={() =>
+                        takenNow(d.id) ? undoDose(d.id) : logDose(d.id, d.name)
+                      }
+                      className={`focus-ring grid h-7 w-7 shrink-0 place-items-center rounded-control border transition-colors ${
+                        takenNow(d.id)
                           ? "border-optimal/40 bg-optimal/15 text-optimal"
                           : "border-ink-700 bg-ink-800 text-ink-500"
+                      } ${
+                        d.heldReason
+                          ? "cursor-not-allowed opacity-50"
+                          : "hover:border-optimal/40 hover:text-optimal"
                       }`}
                     >
-                      {d.taken ? <Check className="h-3.5 w-3.5" /> : null}
-                    </span>
+                      {takenNow(d.id) ? <Check className="h-3.5 w-3.5" /> : null}
+                    </button>
                     <div className="min-w-0 flex-1">
                       <p className="text-detail font-medium text-ink-100">{d.name}</p>
                       <p className="mt-0.5 text-micro text-ink-500">

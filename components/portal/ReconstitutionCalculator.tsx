@@ -255,9 +255,17 @@ function Fact({ label, value, sub }: { label: string; value: string; sub?: strin
  * A syringe barrel the member can read the draw off.
  *
  * Horizontal U-100 insulin barrel: graduation ticks every 10 units, the liquid
- * filled from the plunger to the draw mark, and a labelled pointer at the exact
- * pull. It animates to the mark so a change in diluent visibly moves the
+ * against the NEEDLE, the plunger tip at the draw mark, and a labelled pointer
+ * at the exact pull. It animates so a change in diluent visibly moves the
  * plunger — the whole reason to show it rather than print a number.
+ *
+ * THE NEEDLE IS ON THE LEFT, and that is not arbitrary. Liquid in a syringe sits
+ * between the plunger tip and the needle, so it must be drawn against the
+ * needle end; an earlier version filled from the plunger side, which is the
+ * mirror image of what the member is holding. Putting the needle on the left
+ * makes the fill physically correct AND keeps the graduations ascending
+ * left-to-right, which is how they are read. Flipping the numbers instead would
+ * have been correct and unreadable.
  */
 function Syringe({
   units,
@@ -270,10 +278,11 @@ function Syringe({
   exceeds: boolean;
   between: boolean;
 }) {
-  // Geometry
+  // Geometry. Needle occupies the left gutter; the plunger rod and flange the
+  // right, so the barrel sits between them exactly as it does in the hand.
   const W = 320;
-  const bx = 20; // barrel left (after flange)
-  const bw = 250; // barrel width
+  const bx = 46; // barrel left (after the needle + hub)
+  const bw = 234; // barrel width
   const by = 26;
   const bh = 26;
   const clamped = Math.min(Math.max(units, 0), barrelUnits);
@@ -287,9 +296,9 @@ function Syringe({
 
   return (
     <svg viewBox={`0 0 ${W} 74`} width="100%" className="mt-4 text-ink-600" role="img" aria-label={`Syringe drawn to ${formatUnits(units)}`}>
-      {/* plunger flange + rod at the back */}
-      <rect x="4" y={by - 6} width="6" height={bh + 12} rx="2" fill="currentColor" opacity="0.6" />
-      <rect x="10" y={by + bh / 2 - 3} width="10" height="6" fill="currentColor" opacity="0.4" />
+      {/* needle + hub, at the LEFT — the end the liquid sits against */}
+      <line x1="2" y1={by + bh / 2} x2={bx - 12} y2={by + bh / 2} stroke="currentColor" strokeWidth="1.4" opacity="0.6" />
+      <rect x={bx - 12} y={by + bh / 2 - 1.5} width="12" height="3" fill="currentColor" opacity="0.5" />
 
       {/* barrel */}
       <rect x={bx} y={by} width={bw} height={bh} rx="4" fill="#0f141b" stroke="currentColor" strokeWidth="1" opacity="0.9" />
@@ -320,9 +329,13 @@ function Syringe({
         );
       })}
 
-      {/* needle */}
-      <rect x={bx + bw} y={by + bh / 2 - 1.5} width="10" height="3" fill="currentColor" opacity="0.5" />
-      <line x1={bx + bw + 10} y1={by + bh / 2} x2={W - 2} y2={by + bh / 2} stroke="currentColor" strokeWidth="1.4" opacity="0.6" />
+      {/* plunger — its TIP sits at the draw mark, rod and flange trailing right.
+          It moves when the dose or the diluent changes, which is the point. */}
+      <motion.g initial={false} animate={{ x: markX }} transition={{ type: "spring", stiffness: 260, damping: 26 }}>
+        <rect x={0} y={by + 1} width="4" height={bh - 2} rx="1" fill="currentColor" opacity="0.75" />
+        <rect x={4} y={by + bh / 2 - 3} width={W - 12 - bx} height="6" fill="currentColor" opacity="0.35" />
+      </motion.g>
+      <rect x={W - 8} y={by - 6} width="6" height={bh + 12} rx="2" fill="currentColor" opacity="0.6" />
 
       {/* draw pointer */}
       {!exceeds && (
