@@ -135,6 +135,55 @@ try {
     console.log("ok  PUT /api/consults/draft (off-care-team) => 403 refused");
   }
 
+  // PUBLIC endpoints: reachable without auth (they sit outside EasyAuth), but
+  // they must validate, not just accept. A public write that trusts its input
+  // is the one place an unauthenticated attacker can reach the database.
+  {
+    const r = await fetch(`${BASE}/api/public/leads`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: "A" }),
+    });
+    if (r.status !== 400) fail(`public leads (invalid) => ${r.status}, expected 400`);
+    console.log("ok  POST /api/public/leads (invalid) => 400 validated");
+  }
+  {
+    // A bogus token must produce ONE generic failure — never an oracle that
+    // confirms which intake links exist.
+    const r = await fetch(`${BASE}/api/public/intake?token=NOTAREALTOKEN`);
+    const body = await r.json().catch(() => ({}));
+    // With a database: 400 + the ONE generic message. Without one (CI): 503,
+    // because the lookup cannot run — which is the honest answer, not a
+    // pretend-valid 200. Either way it must never confirm the token exists.
+    if (![400, 503].includes(r.status)) fail(`public intake (bogus token) => ${r.status}, expected 400 or 503`);
+    if (r.status === 400 && !/no longer valid/i.test(body.error ?? "")) {
+      fail("bogus token did not return the generic failure");
+    }
+    if (/found|exists|unknown token|expired token/i.test(body.error ?? "")) {
+      fail(`bogus-token response leaks token state: ${body.error}`);
+    }
+    console.log(`ok  GET /api/public/intake (bogus token) => ${r.status} no oracle`);
+  }
+  {
+    // The staff walk-in path is NOT public.
+    const r = await fetch(`${BASE}/api/leads`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.status !== 401) fail(`staff lead capture (unauth) => ${r.status}, expected 401`);
+    console.log("ok  POST /api/leads (unauth) => 401");
+  }
+  {
+    // Acquisition is OWNER-only: a coach holds read:financial but must not see
+    // business-wide funnel performance.
+    const r = await fetch(`${BASE}/api/leads`, {
+      headers: { "x-ms-client-principal": principal("m.vega@alphahealth.demo", "vega") },
+    });
+    if (r.status !== 403) fail(`coach acquisition read => ${r.status}, expected 403`);
+    console.log("ok  GET /api/leads (coach) => 403 owner-only");
+  }
+
   const home = await fetch(`${BASE}/`);
   if (home.status !== 200) fail(`GET / => ${home.status}, expected 200`);
   console.log("ok  GET / => 200");

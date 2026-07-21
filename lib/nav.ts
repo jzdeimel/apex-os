@@ -1,4 +1,6 @@
 import {
+  UserPlus,
+  Megaphone,
   Activity,
   Award,
   BarChart3,
@@ -230,6 +232,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "The counter",
       items: [
         { href: "/desk", label: "Today", icon: ListChecks, spotlight: true },
+        { href: "/desk/walk-in", label: "New walk-in", icon: UserPlus, spotlight: true },
         { href: "/desk/book", label: "Book a caller", icon: PhoneCall, spotlight: true },
         { href: "/desk/rooms", label: "Rooms", icon: DoorOpen },
         { href: "/schedule", label: "Who's on today", icon: CalendarDays },
@@ -272,6 +275,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       items: [
         { href: "/exec", label: "Morning", icon: Gauge, spotlight: true },
         { href: "/exec/capacity", label: "Capacity & load", icon: Activity },
+        { href: "/exec/marketing", label: "Acquisition", icon: Megaphone },
         { href: "/clinic/population", label: "Clinical risk radar", icon: ShieldAlert },
         { href: "/exec/pipeline", label: "Lead pipeline", icon: Workflow },
       ],

@@ -96,7 +96,8 @@ export default function BookPage() {
     reason: "",
   });
   const [error, setError] = React.useState<string | null>(null);
-  const [booked, setBooked] = React.useState<null | { token: string; shortCode: string }>(null);
+  const [booked, setBooked] = React.useState<null | { intakePath: string; expiresAt: string }>(null);
+  const [submitting, setSubmitting] = React.useState(false);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -114,11 +115,46 @@ export default function BookPage() {
       return;
     }
     setError(null);
-    // Deterministic: the same details always mint the same token. A production
-    // implementation draws from a CSPRNG instead — see lib/intake/tokens.ts.
-    const t = makeIntakeToken(`${form.email}|${form.phone}|${form.locationId}`);
-    setBooked({ token: t.token, shortCode: t.shortCode });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    void send();
+  };
+
+  /**
+   * The real capture. This used to mint a token in the browser from a seeded
+   * PRNG and store nothing — the lead was discarded and the link it produced
+   * could never resolve, which the confirmation screen had to admit. Now the
+   * server creates the lead + invite in one transaction and returns the one raw
+   * copy of a CSPRNG token.
+   */
+  const send = async () => {
+    setSubmitting(true);
+    try {
+      const r = await fetch("/api/public/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          track: form.track,
+          locationId: form.locationId,
+          reason: form.reason,
+        }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.ok && res.ok) {
+        setBooked({ intakePath: res.intakePath, expiresAt: res.expiresAt });
+        if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        // Never a fake confirmation: if it did not save, the person must know,
+        // because they will otherwise wait for a call that is not coming.
+        setError(res.error || "We could not save your request. Please try again or call us.");
+      }
+    } catch {
+      setError("We could not reach the server. Please check your connection or call us.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const track = CARE_TRACKS[form.track];
@@ -130,7 +166,7 @@ export default function BookPage() {
 
       <main className="flex-1">
         {booked ? (
-          <Confirmation form={form} token={booked.token} shortCode={booked.shortCode} />
+          <Confirmation form={form} intakePath={booked.intakePath} />
         ) : (
           <>
             {/* ---------------------------------------------------------------
@@ -467,16 +503,14 @@ export default function BookPage() {
 
 function Confirmation({
   form,
-  token,
-  shortCode,
+  intakePath,
 }: {
   form: Form;
-  token: string;
-  shortCode: string;
+  intakePath: string;
 }) {
   const [copied, setCopied] = React.useState(false);
   const chosen = locations.find((l) => l.id === form.locationId);
-  const link = `/intake/${token}`;
+  const link = intakePath;
 
   const copy = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -522,33 +556,12 @@ function Confirmation({
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-detail text-ink-500">
-            <span>
-              Backup code <span className="stat-mono text-ink-200">{shortCode}</span>
-            </span>
             <span>Expires in {INTAKE_TTL_HOURS} hours</span>
             <span>Single use</span>
           </div>
 
-          {/*
-            The link above is minted from what you typed, so it is real and it is
-            deterministic — but no invite row exists for it in the mock store, and
-            /intake/<token> correctly refuses tokens it has never issued. That
-            refusal IS the feature, so we don't fake around it; the button below
-            opens a seeded invite that the store does know about.
-          */}
-          <div className="mt-5 rounded-xl border border-dashed border-ink-700 p-4">
-            <p className="text-detail leading-relaxed text-ink-500">
-              Demo: this token was minted for you but no invite was persisted, so the
-              intake page will (correctly) reject it — unissued tokens are indistinguishable
-              from expired ones by design. Open a seeded invite instead:
-            </p>
-            <Link href={`/intake/${DEMO_INVITE.token}`} className="mt-3 inline-block">
-              <Button variant="primary" size="sm" className="gap-1.5">
-                Open a working intake link
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </Link>
-          </div>
+          {/* Real: the lead and its single-use invite were written in one
+              transaction, and this link resolves against that row. */}
         </div>
 
         <div className="card mt-4 p-5">

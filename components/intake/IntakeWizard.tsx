@@ -207,6 +207,62 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
     marketing: false,
   });
   const [submitted, setSubmitted] = React.useState(false);
+  const [sending, setSending] = React.useState(false);
+  const [sendError, setSendError] = React.useState<string | null>(null);
+  const [receipt, setReceipt] = React.useState<{ submissionId: string; ledgerId: string } | null>(
+    null,
+  );
+
+  /**
+   * The real submission.
+   *
+   * This used to be `setSubmitted(true)` — no network call at all, so a
+   * completed intake (including four signed consents) existed only in React
+   * state and died on refresh. Now it POSTs to the public intake endpoint,
+   * which claims the single-use invite, writes the submission and one consent
+   * row per decision, advances the lead, and witnesses all of it in the ledger
+   * inside one transaction.
+   *
+   * On failure we do NOT advance to the confirmation screen: telling someone
+   * their medical history was recorded when it was not is the worst lie this
+   * product could tell.
+   */
+  const doSubmit = async () => {
+    setSending(true);
+    setSendError(null);
+    try {
+      const r = await fetch("/api/public/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: invite.token,
+          dateOfBirth: answers.dateOfBirth,
+          sex: answers.sex,
+          goals: answers.goals,
+          symptoms: answers.symptoms,
+          history: answers.history,
+          signatureName: `${answers.firstName ?? ""} ${answers.lastName ?? ""}`.trim() || "Patient",
+          consents: CONSENT_DEFINITIONS.map((d) => ({
+            scope: d.kind,
+            documentVersion: d.version,
+            textSha256: consentTextHash(d.kind),
+            granted: consentState[d.kind],
+          })),
+        }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.ok && res.ok) {
+        setReceipt({ submissionId: res.submissionId, ledgerId: res.ledger?.id ?? "" });
+        setSubmitted(true);
+      } else {
+        setSendError(res.error || "We could not record your intake. Please call us.");
+      }
+    } catch {
+      setSendError("We could not reach the server. Please check your connection.");
+    } finally {
+      setSending(false);
+    }
+  };
   const [touchedNext, setTouchedNext] = React.useState(false);
 
   const step = STEPS[stepIndex];
@@ -285,6 +341,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
         answers={answers}
         invite={invite}
         consentRecords={records}
+        receipt={receipt}
       />
     );
   }
@@ -719,14 +776,18 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                 <Button
                   variant="primary"
                   className="mt-5 h-11 w-full text-body"
-                  onClick={() => setSubmitted(true)}
+                  disabled={sending}
+                  onClick={() => void doSubmit()}
                 >
-                  Submit intake
+                  {sending ? "Submitting…" : "Submit intake"}
                 </Button>
-                <p className="mt-2 text-center text-detail text-ink-600">
-                  Demo — nothing is transmitted. The next screen shows exactly what would
-                  be written.
-                </p>
+                {sendError ? (
+                  <p className="mt-2 text-center text-detail text-high">{sendError}</p>
+                ) : (
+                  <p className="mt-2 text-center text-detail text-ink-600">
+                    Your answers and consents are recorded to your chart when you submit.
+                  </p>
+                )}
               </StepShell>
             )}
 
@@ -832,12 +893,19 @@ function SubmittedPanel({
   answers,
   invite,
   consentRecords,
+  receipt,
 }: {
   answers: IntakeAnswers;
   invite: IntakeInvite;
   consentRecords: ReturnType<typeof makeConsentRecord>[];
+  /** Server-issued proof of what was actually written. Null only pre-submit. */
+  receipt: { submissionId: string; ledgerId: string } | null;
 }) {
   const granted = consentRecords.filter((c) => c.granted).length;
+
+  // The server's receipt. When present these are FACTS about rows that exist in
+  // Postgres — not a preview of a write we chose not to perform.
+  const durable = receipt !== null;
 
   // The draft that would go to appendLedger() in lib/trace/ledger.ts. Built, not
   // committed — a demo page that mutates the audit chain on render is a demo
@@ -918,12 +986,26 @@ function SubmittedPanel({
           .
         </p>
 
-        {/* Demo transparency */}
+        {/* The receipt. Real ids when the server accepted the submission. */}
+        {durable && (
+          <div className="mt-5 rounded-xl border border-optimal/40 bg-optimal/10 p-4">
+            <p className="text-body font-medium text-optimal">Recorded to your chart</p>
+            <p className="stat-mono mt-1 text-detail text-ink-300">
+              Submission {receipt!.submissionId}
+              {receipt!.ledgerId ? ` · ledger ${receipt!.ledgerId}` : ""}
+            </p>
+            <p className="mt-1 text-micro text-ink-500">
+              Your consents were stored with the exact wording you were shown, the time, and
+              your IP — this link is now spent and cannot be reused.
+            </p>
+          </div>
+        )}
+
         <div className="mt-7 rounded-xl border border-dashed border-ink-700 bg-ink-900/40 p-4">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gold-300" />
             <p className="text-body font-medium text-ink-100">
-              What this would create (demo — nothing was sent)
+              What was recorded
             </p>
           </div>
 
@@ -950,7 +1032,7 @@ function SubmittedPanel({
             </li>
           </ul>
 
-          <p className="label-eyebrow mt-4 mb-2">Ledger row that would be appended</p>
+          <p className="label-eyebrow mt-4 mb-2">Ledger row appended</p>
           <pre className="stat-mono overflow-x-auto rounded-lg border border-ink-700/70 bg-ink-950/70 p-3 text-micro leading-relaxed text-ink-300">
 {JSON.stringify(ledgerDraft, null, 2)}
           </pre>

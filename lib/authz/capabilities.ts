@@ -39,6 +39,14 @@ export type Capability =
   | "read:financial"        // purchases, invoices, LTV
   | "read:ledger"           // the audit ledger
   | "read:all-clients"      // beyond one's own assigned book
+  /**
+   * Acquisition and channel performance across the business. OWNER ONLY, and
+   * deliberately NOT read:financial — a coach holds that so they can discuss a
+   * member's own plan costs, which is a different question from how the funnel
+   * is performing. Keeping them separate is what makes "money only on the owner
+   * console" a capability rule instead of a page-routing convention.
+   */
+  | "read:business-metrics"
 
   // ── Coaching authorship ────────────────────────────────────────────────
   | "write:consult"         // record and sign a coaching consult
@@ -107,6 +115,7 @@ const GRANTS: Record<StaffRole, Capability[]> = {
     "read:chart", "read:financial", "read:ledger", "read:all-clients",
     "write:contact", "write:demographics", "write:task",
     "write:order", "write:membership", "write:refund",
+    "read:business-metrics",
     "admin:roles", "admin:locations", "admin:export", "admin:break-glass",
     "triage:escalation",
   ],
@@ -156,12 +165,27 @@ export function can(
 
   // Capability held. Now check that this actor is on this member's care team.
   if (subject) {
+    /**
+     * A subject with NO care team cannot be care-team-checked.
+     *
+     * This is the walk-in case: someone standing at the desk who is not in the
+     * system yet has, by definition, no coach and no provider. Comparing
+     * `undefined === actor.id` is always false, so without this the receptionist
+     * capturing them was told "Not on this member's care team" about a person
+     * who is not a member and has no team — and creating a new patient was
+     * impossible for everyone except holders of read:all-clients.
+     *
+     * Location scope still applies below, which is the check that actually
+     * means something here: you may only create a person at a site you cover.
+     * Subjects that DO carry a care team are unaffected.
+     */
+    const hasCareTeam = subject.coachId !== undefined || subject.providerId !== undefined;
     const onCareTeam =
       subject.coachId === actor.id || subject.providerId === actor.id;
     const inLocation =
       !subject.locationId || actor.locationIds.includes(subject.locationId);
 
-    if (!onCareTeam && !grants.includes("read:all-clients")) {
+    if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients")) {
       if (actor.breakGlass) {
         return {
           allowed: true,

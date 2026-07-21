@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ShieldCheck, Lock, Phone, AlertTriangle } from "lucide-react";
 import { IntakeWizard } from "@/components/intake/IntakeWizard";
 import { inviteByToken, intakeInvites, NOW } from "@/lib/mock/intake";
+import { findInviteByTokenHash } from "@/lib/db/repo";
+import { sha256 } from "@/lib/trace/hash";
+import type { IntakeInvite } from "@/lib/intake/types";
 import { checkToken, GENERIC_TOKEN_FAILURE, SHORT_CODE_BITS } from "@/lib/intake/tokens";
 import { BRAND } from "@/lib/brand";
 import { Button, Badge } from "@/components/ui/primitives";
@@ -133,10 +136,53 @@ function InvalidLink() {
   );
 }
 
+/**
+ * Resolve a presented token to an invite.
+ *
+ * DATABASE FIRST. A token minted by /book lives only as a SHA-256 in
+ * intake_invite, so it is looked up by hash and validated against the WALL
+ * clock. If there is no database, or the token is not a real one, we fall back
+ * to the seeded demo corpus — which is pinned to the demo clock, and must be
+ * checked against that clock instead. The two clocks must never cross: checking
+ * a seeded invite against wall time would expire the entire demo corpus, and
+ * checking a real invite against the pinned clock would accept expired links.
+ */
+async function resolveInvite(
+  raw: string,
+): Promise<{ invite: IntakeInvite | undefined; verdict: ReturnType<typeof checkToken> }> {
+  try {
+    const row = await findInviteByTokenHash(sha256(raw));
+    if (row) {
+      const prefill = (row.prefill ?? {}) as Record<string, string | null>;
+      const invite = {
+        id: row.inviteId,
+        token: raw,
+        shortCode: "",
+        createdAt: new Date().toISOString(),
+        expiresAt: row.expiresAt,
+        usedAt: row.usedAt ?? undefined,
+        prefill: {
+          firstName: prefill.firstName ?? "",
+          lastName: prefill.lastName ?? "",
+          email: prefill.email ?? "",
+          phone: prefill.phone ?? "",
+          track: (prefill.track as "male" | "female") ?? "male",
+          locationId: prefill.locationId ?? "raleigh",
+        },
+      } as unknown as IntakeInvite;
+      // Real invite -> real clock.
+      return { invite, verdict: checkToken(invite, new Date().toISOString()) };
+    }
+  } catch {
+    // No database configured — fall through to the seeded corpus.
+  }
+  const seeded = inviteByToken(raw);
+  return { invite: seeded, verdict: checkToken(seeded, NOW) };
+}
+
 export default async function IntakeTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const invite = inviteByToken(decodeURIComponent(token));
-  const verdict = checkToken(invite, NOW);
+  const { invite, verdict } = await resolveInvite(decodeURIComponent(token));
 
   return (
     <div className="flex min-h-screen flex-col">

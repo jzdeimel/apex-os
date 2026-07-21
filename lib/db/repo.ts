@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   ledger as ledgerTable,
@@ -10,6 +10,11 @@ import {
   inventoryMovement,
   staff as staffTable,
   consult as consultTable,
+  lead as leadTable,
+  leadStageEvent,
+  consent as consentTable,
+  intakeInvite,
+  intakeSubmission,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
@@ -685,4 +690,255 @@ export async function signConsultDraft(input: {
     await tx.update(consultTable).set({ ledgerId: ledger.id }).where(eq(consultTable.id, row.id));
     return { consultId: row.id, ledger };
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Golden path: lead -> intake invite -> submission + consents                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Capture a lead from the public booking form and mint its intake invite.
+ *
+ * One transaction, because a lead without its invite is a person who filled in
+ * a form and can never continue, and an invite without a lead is a link to
+ * nowhere. `/book` previously created NEITHER — it minted a token client-side
+ * from a seeded PRNG and discarded the name, email, phone, location and reason
+ * entirely (the defect the lead table's own comment describes). This is the fix.
+ *
+ * Only the token HASH is stored; the caller holds the one raw copy.
+ */
+export async function createLeadWithInvite(input: {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  track?: string;
+  preferredLocationId?: string;
+  modality?: string;
+  reason?: string;
+  source?: string;
+  tokenSha256: string;
+  expiresAt: string;
+  at: string;
+}): Promise<{ leadId: string; inviteId: string }> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  const leadId = `lead-${at.getTime().toString(36)}-${input.tokenSha256.slice(0, 8)}`;
+  const inviteId = `inv-${at.getTime().toString(36)}-${input.tokenSha256.slice(8, 16)}`;
+
+  return db.transaction(async (tx) => {
+    await tx.insert(leadTable).values({
+      id: leadId,
+      firstName: input.firstName ?? null,
+      lastName: input.lastName ?? null,
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      track: input.track ?? null,
+      preferredLocationId: input.preferredLocationId ?? null,
+      modality: input.modality ?? null,
+      reason: input.reason ?? null,
+      source: input.source ?? "website",
+      stage: "new",
+      createdAt: at,
+    });
+
+    await tx.insert(leadStageEvent).values({
+      id: `lse-${leadId}-new`,
+      leadId,
+      fromStage: null,
+      toStage: "new",
+      at,
+      note: "Captured from the public booking form",
+    });
+
+    await tx.insert(intakeInvite).values({
+      id: inviteId,
+      leadId,
+      tokenSha256: input.tokenSha256,
+      createdAt: at,
+      expiresAt: new Date(input.expiresAt),
+      prefill: {
+        firstName: input.firstName ?? null,
+        lastName: input.lastName ?? null,
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        track: input.track ?? null,
+        locationId: input.preferredLocationId ?? null,
+      } as never,
+    });
+
+    return { leadId, inviteId };
+  });
+}
+
+/** Resolve a presented token by its hash. Returns null for anything unknown. */
+export async function findInviteByTokenHash(tokenSha256: string): Promise<{
+  inviteId: string;
+  leadId: string;
+  expiresAt: string;
+  usedAt: string | null;
+  prefill: unknown;
+} | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select()
+    .from(intakeInvite)
+    .where(eq(intakeInvite.tokenSha256, tokenSha256))
+    .limit(1);
+  return row
+    ? {
+        inviteId: row.id,
+        leadId: row.leadId,
+        expiresAt: row.expiresAt.toISOString(),
+        usedAt: row.usedAt ? row.usedAt.toISOString() : null,
+        prefill: row.prefill,
+      }
+    : null;
+}
+
+export interface ConsentDecision {
+  scope: string;
+  documentVersion: string;
+  textSha256?: string;
+  granted: boolean;
+  signatureName?: string;
+}
+
+/**
+ * Record a completed intake: claim the invite, store the answers, store every
+ * consent decision, advance the lead, and witness the whole thing in the ledger
+ * — all in ONE transaction.
+ *
+ * SINGLE USE IS ENFORCED BY THE DATABASE. The invite is claimed with a
+ * conditional `UPDATE ... WHERE used_at IS NULL AND expires_at > now()
+ * RETURNING`. If two submissions race, exactly one UPDATE returns a row; the
+ * other sees none and is rejected. A read-then-write check — which is what the
+ * mock flow did — would let both through.
+ *
+ * Consents are ROWS, not rendered decorations. Each carries the document
+ * version AND a hash of the exact wording shown, plus the IP / user-agent /
+ * time tuple, without which an e-signature evidences nothing.
+ */
+export async function submitIntake(input: {
+  tokenSha256: string;
+  dateOfBirth?: string;
+  sex?: string;
+  goals?: unknown;
+  symptoms?: unknown;
+  history?: unknown;
+  consents: ConsentDecision[];
+  signatureName?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  at: string;
+}): Promise<{ leadId: string; submissionId: string; ledger: LedgerRow } | null> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  return db.transaction(async (tx) => {
+    // Claim the invite. Unusable (unknown / already used / expired) => no row.
+    const [claimed] = await tx
+      .update(intakeInvite)
+      .set({ usedAt: at })
+      .where(
+        // Drizzle operators, not a raw template: `sql\`col > ${jsDate}\`` binds the
+        // Date without the column's type mapping, and Postgres then refuses to
+        // compare timestamptz with the inferred parameter type. gt()/isNull()
+        // carry the column type through.
+        and(
+          eq(intakeInvite.tokenSha256, input.tokenSha256),
+          isNull(intakeInvite.usedAt),
+          gt(intakeInvite.expiresAt, at),
+        ),
+      )
+      .returning({ id: intakeInvite.id, leadId: intakeInvite.leadId });
+
+    if (!claimed) return null;
+
+    const submissionId = `sub-${claimed.id}`;
+    await tx.insert(intakeSubmission).values({
+      id: submissionId,
+      inviteId: claimed.id,
+      leadId: claimed.leadId,
+      dateOfBirth: input.dateOfBirth ?? null,
+      sex: input.sex ?? null,
+      goals: (input.goals as never) ?? null,
+      symptoms: (input.symptoms as never) ?? null,
+      history: (input.history as never) ?? null,
+      submittedAt: at,
+      ipAddress: input.ipAddress ?? null,
+      userAgent: input.userAgent ?? null,
+    });
+
+    for (const [i, c] of input.consents.entries()) {
+      await tx.insert(consentTable).values({
+        id: `cns-${claimed.id}-${i}`,
+        clientId: null,
+        leadId: claimed.leadId,
+        scope: c.scope,
+        documentVersion: c.documentVersion,
+        textSha256: c.textSha256 ?? null,
+        granted: c.granted,
+        signatureName: c.signatureName ?? input.signatureName ?? null,
+        signedAt: at,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
+    }
+
+    await tx.insert(leadStageEvent).values({
+      id: `lse-${claimed.leadId}-submitted`,
+      leadId: claimed.leadId,
+      fromStage: "new",
+      toStage: "intake-submitted",
+      at,
+      note: `Intake submitted with ${input.consents.filter((c) => c.granted).length} consent(s) granted`,
+    });
+    await tx
+      .update(leadTable)
+      .set({ stage: "intake-submitted" })
+      .where(eq(leadTable.id, claimed.leadId));
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: claimed.leadId,
+        actorName: input.signatureName ?? "Prospective patient",
+        actorRole: "Patient",
+        action: "sign",
+        entity: "consent",
+        entityId: submissionId,
+        subjectId: claimed.leadId,
+        subjectName: input.signatureName ?? undefined,
+        reason: "Intake submitted and consents signed",
+        after: {
+          consents: input.consents.map((c) => ({
+            scope: c.scope,
+            version: c.documentVersion,
+            granted: c.granted,
+          })),
+        },
+      },
+      input.at,
+    );
+
+    await tx
+      .update(intakeSubmission)
+      .set({ ledgerId: ledger.id })
+      .where(eq(intakeSubmission.id, submissionId));
+    for (const [i] of input.consents.entries()) {
+      await tx
+        .update(consentTable)
+        .set({ ledgerId: ledger.id })
+        .where(eq(consentTable.id, `cns-${claimed.id}-${i}`));
+    }
+
+    return { leadId: claimed.leadId, submissionId, ledger };
+  });
+}
+
+/** The funnel, for the exec pipeline board — real rows, not seeded counts. */
+export async function readLeads(limit = 200) {
+  const db = requireDb();
+  return db.select().from(leadTable).orderBy(desc(leadTable.createdAt)).limit(limit);
 }

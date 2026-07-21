@@ -567,11 +567,24 @@ export const consent = pgTable(
   "consent",
   {
     id: text("id").primaryKey(),
-    clientId: text("client_id").notNull(), // seeded ref -> client
-    /** "treatment" | "telehealth" | "financial" | "clinical-comms" | "marketing" */
+    /**
+     * Nullable because consent is signed at INTAKE — before the person is a
+     * client. A pre-client signer is identified by leadId instead; exactly one
+     * of the two is set. Making this notNull was the reason intake consents had
+     * nowhere to go and were rendered-but-never-stored.
+     */
+    clientId: text("client_id"), // seeded ref -> client
+    leadId: text("lead_id").references(() => lead.id),
+    /** "treatment" | "telehealth" | "financial" | "clinical-comms" | "marketing" | "hipaaNotice" */
     scope: text("scope").notNull(),
     /** The exact document version agreed to, e.g. "telehealth-v2". */
     documentVersion: text("document_version").notNull(),
+    /**
+     * SHA-256 of the exact wording shown. A version string alone cannot prove
+     * WHAT was agreed to if the document behind that version is ever edited;
+     * the hash can.
+     */
+    textSha256: text("text_sha256"),
     granted: boolean("granted").notNull(),
     /** Typed name as the signature. Kept verbatim. */
     signatureName: text("signature_name"),
@@ -584,6 +597,66 @@ export const consent = pgTable(
   },
   (t) => ({
     clientScopeIdx: index("consent_client_scope_idx").on(t.clientId, t.scope),
+    leadIdx: index("consent_lead_idx").on(t.leadId),
+  }),
+);
+
+/**
+ * An intake invitation — the token a prospect follows from /book to /intake.
+ *
+ * ONLY THE HASH IS STORED. The raw token is returned to the caller once and
+ * never persisted or logged: a token in a database (or a request log) is a
+ * credential sitting in plaintext, and this one opens a form that collects
+ * medical history. Lookup hashes the presented token and matches on that.
+ *
+ * Single use is enforced at the DATABASE, not in application logic — see
+ * repo.submitIntake, which claims the invite with a conditional UPDATE ...
+ * WHERE used_at IS NULL RETURNING inside the submission transaction. A
+ * read-then-write check would let two concurrent submits both pass.
+ */
+export const intakeInvite = pgTable(
+  "intake_invite",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull().references(() => lead.id),
+    tokenSha256: text("token_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    /** Known-at-capture fields the wizard pre-fills (name, email, phone, track). */
+    prefill: jsonb("prefill"),
+  },
+  (t) => ({
+    tokenIdx: uniqueIndex("intake_invite_token_idx").on(t.tokenSha256),
+    leadIdx: index("intake_invite_lead_idx").on(t.leadId),
+  }),
+);
+
+/**
+ * A submitted intake. Answers land as jsonb rather than being exploded into the
+ * allergy/medication/problem tables, because those are keyed to a client and
+ * this person is still a lead — promoting them is a conversion-time step, and
+ * losing the submission in the meantime is not acceptable.
+ */
+export const intakeSubmission = pgTable(
+  "intake_submission",
+  {
+    id: text("id").primaryKey(),
+    inviteId: text("invite_id").notNull().references(() => intakeInvite.id),
+    leadId: text("lead_id").notNull().references(() => lead.id),
+    dateOfBirth: text("date_of_birth"),
+    sex: text("sex"),
+    goals: jsonb("goals"),
+    symptoms: jsonb("symptoms"),
+    history: jsonb("history"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    leadIdx: index("intake_submission_lead_idx").on(t.leadId),
+    inviteIdx: uniqueIndex("intake_submission_invite_idx").on(t.inviteId),
   }),
 );
 
