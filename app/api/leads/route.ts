@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { createLeadWithInvite, readLeads } from "@/lib/db/repo";
@@ -98,10 +99,7 @@ export async function POST(req: Request) {
       expiresAt: minted.expiresAt,
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Could not save this walk-in." },
-      { status: 503 },
-    );
+    return unavailable("leads", err, 'We could not complete that. Please try again.');
   }
 }
 
@@ -121,9 +119,6 @@ export async function GET() {
     const leads = await readLeads(500);
     return NextResponse.json({ ok: true, leads });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Lead store unavailable." },
-      { status: 503 },
-    );
+    return unavailable("leads", err, 'We could not complete that. Please try again.');
   }
 }

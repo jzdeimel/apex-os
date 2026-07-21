@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { currentPrincipal } from "@/lib/auth/principal";
+import { actorFromPrincipal } from "@/lib/auth/actor";
+import { can } from "@/lib/authz/capabilities";
 import { logDose, retractDose, upsertMemberDay } from "@/lib/db/repo";
+import { getClient } from "@/lib/mock/clients";
+import { isDemoMemberId } from "@/lib/viewer";
+import { IS_DEMO } from "@/lib/config";
 
 /**
  * Member log — the durable write path for what a member records about
@@ -53,6 +59,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "clientId and op are required." }, { status: 400 });
   }
 
+  /**
+   * AUTHORIZE THE SUBJECT — do not simply believe the body.
+   *
+   * This route used to accept whatever clientId it was handed, so any
+   * authenticated staff session could write dose and weight entries onto ANY
+   * patient's chart, and the portal's demo member switcher (a localStorage
+   * value) effectively chose the subject. Identity from the client is not
+   * identity.
+   *
+   * There is no member sign-in yet — the whole app sits behind staff EasyAuth,
+   * and patient identity needs CIAM — so the honest rule is:
+   *   · staff may write a member's log only with `write:adherence` on THAT
+   *     member, which enforces care team and location; and
+   *   · in DEMO builds only, the seeded demo members remain writable so the
+   *     portal walkthrough works.
+   * When member auth lands, the subject comes from the session and the body's
+   * clientId is ignored entirely. This is the seam.
+   */
+  const client = getClient(body.clientId);
+  if (!client) {
+    return NextResponse.json({ ok: false, error: "Unknown member." }, { status: 404 });
+  }
+  const actor = actorFromPrincipal(principal);
+  const staffMayWrite =
+    !!actor &&
+    can(actor, "write:adherence", {
+      coachId: client.coachId,
+      providerId: client.providerId,
+      locationId: client.locationId,
+    }).allowed;
+  const demoMemberWrite = IS_DEMO && isDemoMemberId(body.clientId);
+
+  if (!staffMayWrite && !demoMemberWrite) {
+    return NextResponse.json(
+      { ok: false, error: "You are not permitted to write to this member's log." },
+      { status: 403 },
+    );
+  }
+
   try {
     if (body.op === "dose") {
       if (!body.doseId || !body.prescriptionId || !body.date || !body.takenAt) {
@@ -78,7 +123,15 @@ export async function POST(req: Request) {
       if (!body.doseId) {
         return NextResponse.json({ ok: false, error: "doseId is required." }, { status: 400 });
       }
-      await retractDose(body.doseId, body.clientId, new Date().toISOString());
+      const retracted = await retractDose(body.doseId, body.clientId, new Date().toISOString());
+      if (!retracted) {
+        // Either the dose is not this member's, or it was already retracted.
+        // One answer for both, so the endpoint is not an existence oracle.
+        return NextResponse.json(
+          { ok: false, error: "That dose could not be retracted." },
+          { status: 409 },
+        );
+      }
       return NextResponse.json({ ok: true, durable: true });
     }
 
@@ -99,9 +152,6 @@ export async function POST(req: Request) {
   } catch (err) {
     // requireDb throws when DATABASE_URL is absent — the honest 503, never a
     // fake success. The client-side log keeps its local record either way.
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Durable write failed." },
-      { status: 503 },
-    );
+    return unavailable("member.log", err, 'We could not save that. Please try again.');
   }
 }

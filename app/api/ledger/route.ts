@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { readLedger } from "@/lib/db/repo";
 
@@ -29,9 +30,6 @@ export async function GET() {
       rows,
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Durable read failed." },
-      { status: 503 },
-    );
+    return unavailable("ledger.read", err, 'The audit ledger is unavailable.');
   }
 }

@@ -1,3 +1,4 @@
+import { IS_DEMO } from "@/lib/config";
 import type { Client, RiskFlag, StaffMember, Location } from "@/lib/types";
 import { clients, getClient } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
@@ -60,7 +61,26 @@ const NOW = "2026-06-12T09:00:00";
 const TOKEN_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
 const TOKEN_LENGTH = 22;
 
+/**
+ * DEMO ONLY. Throws in production.
+ *
+ * This derives the card token from `seededRandom("emergency-card:" + clientId)`
+ * over SEQUENTIAL client ids (c-001, c-002 …), so anyone who noticed the scheme
+ * could generate every member's card and read their name, MRN, medications,
+ * allergies, risk flags and care team. That is bulk PHI disclosure from a
+ * predictable string, and the page it opens is designed to be public.
+ *
+ * The real path is repo.issueEmergencyCard: crypto-random, stored as a SHA-256
+ * only, with an expiry and revocation. This survives solely so the seeded demo
+ * corpus has stable URLs, and it refuses to run when demo mode is off — a
+ * derivable emergency card must not be reachable in a build serving real people.
+ */
 export function emergencyTokenFor(clientId: string): string {
+  if (!IS_DEMO) {
+    throw new Error(
+      "emergencyTokenFor is demo-only — issue a card via repo.issueEmergencyCard instead.",
+    );
+  }
   const rand = seededRandom(`emergency-card:${clientId}`);
   let out = "";
   for (let i = 0; i < TOKEN_LENGTH; i++) {
@@ -80,6 +100,12 @@ export function emergencyTokenFor(clientId: string): string {
 let TOKEN_INDEX: Record<string, string> | null = null;
 
 export function clientIdForToken(token: string): string | undefined {
+  // DEMO ONLY, and it fails CLOSED. The index is built by deriving every
+  // member's token from their sequential client id, so in a build serving real
+  // people this lookup would itself be the enumeration vector it is meant to
+  // resist. Production resolves a card through repo.readEmergencyCard, which
+  // matches a stored SHA-256 and honours expiry and revocation.
+  if (!IS_DEMO) return undefined;
   if (!TOKEN_INDEX) {
     TOKEN_INDEX = Object.fromEntries(clients.map((c) => [emergencyTokenFor(c.id), c.id]));
   }
@@ -280,7 +306,7 @@ export function buildEmergencyCard(clientId: string, nowIso: string = NOW): Emer
 
   return {
     clientId,
-    token: emergencyTokenFor(clientId),
+    token: IS_DEMO ? emergencyTokenFor(clientId) : "",
     name: `${client.firstName} ${client.lastName}`,
     age: client.age,
     sex: client.sex,
@@ -303,6 +329,14 @@ export function buildEmergencyCard(clientId: string, nowIso: string = NOW): Emer
   };
 }
 
+/**
+ * Resolve a card from a token — the SEEDED path.
+ *
+ * Returns null outside demo mode, so an unresolvable token renders the same
+ * "not a valid card" page rather than exposing anybody. The durable path
+ * (repo.readEmergencyCard) additionally records the disclosure, which this
+ * cannot do because it is synchronous and has no database.
+ */
 export function cardForToken(token: string, nowIso: string = NOW): EmergencyCard | null {
   const clientId = clientIdForToken(token);
   return clientId ? buildEmergencyCard(clientId, nowIso) : null;

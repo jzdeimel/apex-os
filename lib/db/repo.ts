@@ -15,6 +15,7 @@ import {
   consent as consentTable,
   intakeInvite,
   intakeSubmission,
+  emergencyCard,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
@@ -185,12 +186,35 @@ export async function logDose(input: {
   });
 }
 
-export async function retractDose(id: string, byClientId: string, at: string) {
+/**
+ * Retract a dose — SCOPED to the owning client, and idempotent.
+ *
+ * Previously this matched on the dose id ALONE, so a caller who could guess or
+ * enumerate an id could retract a dose belonging to somebody else's chart; the
+ * clientId argument was recorded as the retractor but never constrained the
+ * row. It also had no guard against double retraction, so a repeat call moved
+ * `retractedAt` forward and quietly rewrote when the correction happened.
+ *
+ * Returns true only when THIS call performed the retraction, so the caller can
+ * tell "retracted" from "was already retracted" rather than reporting success
+ * for a no-op.
+ */
+export async function retractDose(id: string, clientId: string, at: string): Promise<boolean> {
   const db = requireDb();
-  await db
+  const rows = await db
     .update(doseLog)
-    .set({ retractedAt: new Date(at), retractedBy: byClientId })
-    .where(eq(doseLog.id, id));
+    .set({ retractedAt: new Date(at), retractedBy: clientId })
+    .where(
+      and(
+        eq(doseLog.id, id),
+        // The row must belong to this member.
+        eq(doseLog.clientId, clientId),
+        // …and must not already be retracted.
+        isNull(doseLog.retractedAt),
+      ),
+    )
+    .returning({ id: doseLog.id });
+  return rows.length > 0;
 }
 
 /**
@@ -942,4 +966,93 @@ export async function submitIntake(input: {
 export async function readLeads(limit = 200) {
   const db = requireDb();
   return db.select().from(leadTable).orderBy(desc(leadTable.createdAt)).limit(limit);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Emergency card — a public bearer token over real PHI                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Issue an emergency card. Returns the raw token ONCE; only its hash is stored.
+ *
+ * Replaces `emergencyTokenFor(clientId)`, which derived the token from
+ * seededRandom over a sequential client id — so every member's card was
+ * computable by anyone who noticed. Revoking any previous card for the member is
+ * part of issuing a new one: two live cards means the old wallet still works.
+ */
+export async function issueEmergencyCard(input: {
+  clientId: string;
+  tokenSha256: string;
+  expiresAt: string;
+  issuedBy: string;
+  at: string;
+}): Promise<{ cardId: string }> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  const cardId = `ec-${at.getTime().toString(36)}-${input.tokenSha256.slice(0, 8)}`;
+
+  return db.transaction(async (tx) => {
+    await tx
+      .update(emergencyCard)
+      .set({ revokedAt: at, revokedBy: input.issuedBy })
+      .where(and(eq(emergencyCard.clientId, input.clientId), isNull(emergencyCard.revokedAt)));
+
+    await tx.insert(emergencyCard).values({
+      id: cardId,
+      clientId: input.clientId,
+      tokenSha256: input.tokenSha256,
+      createdAt: at,
+      expiresAt: new Date(input.expiresAt),
+      issuedBy: input.issuedBy,
+    });
+    return { cardId };
+  });
+}
+
+/**
+ * Resolve a presented card token, and RECORD THE DISCLOSURE.
+ *
+ * Someone scanning this card reads a named person's medications, allergies and
+ * risk flags. That is a disclosure under §164.528 whether or not the reader
+ * signed in, so it is written to the ledger in the same transaction as the
+ * lookup — a read that cannot be accounted for should not be possible.
+ *
+ * Returns null for unknown, expired and revoked alike: the caller must not be
+ * able to tell which, or the endpoint becomes an oracle for valid cards.
+ */
+export async function readEmergencyCard(
+  tokenSha256: string,
+  at: string,
+  context: { ip?: string; userAgent?: string },
+): Promise<{ clientId: string; cardId: string } | null> {
+  const db = requireDb();
+  const now = new Date(at);
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(emergencyCard)
+      .where(eq(emergencyCard.tokenSha256, tokenSha256))
+      .limit(1);
+
+    if (!row || row.revokedAt || row.expiresAt <= now) return null;
+
+    await appendLedgerInTx(
+      tx,
+      {
+        actorId: "public-emergency-card",
+        actorName: context.ip ? `Emergency card scan (${context.ip})` : "Emergency card scan",
+        actorRole: "System",
+        action: "view",
+        entity: "chart",
+        entityId: row.id,
+        subjectId: row.clientId,
+        reason: "Emergency card viewed via public link",
+        after: { userAgent: context.userAgent ?? null },
+      },
+      at,
+    );
+
+    return { clientId: row.clientId, cardId: row.id };
+  });
 }

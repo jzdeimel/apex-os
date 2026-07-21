@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { getConsultDraft, upsertConsultDraft, signConsultDraft } from "@/lib/db/repo";
@@ -50,10 +51,7 @@ export async function GET(req: Request) {
     const draft = await getConsultDraft(g.actor.id, clientId);
     return NextResponse.json({ ok: true, draft });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Draft store unavailable." },
-      { status: 503 },
-    );
+    return unavailable("consult.draft", err, 'The draft store is unavailable. Your notes are not backed up.');
   }
 }
 
@@ -86,10 +84,7 @@ export async function PUT(req: Request) {
     });
     return NextResponse.json({ ok: true, durable: true, ...saved });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Draft save failed." },
-      { status: 503 },
-    );
+    return unavailable("consult.draft", err, 'The draft store is unavailable. Your notes are not backed up.');
   }
 }
 
@@ -141,9 +136,6 @@ export async function POST(req: Request) {
       ledger: { id: result.ledger.id, seq: result.ledger.seq, hash: result.ledger.hash },
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Sign failed." },
-      { status: 503 },
-    );
+    return unavailable("consult.draft", err, 'The draft store is unavailable. Your notes are not backed up.');
   }
 }

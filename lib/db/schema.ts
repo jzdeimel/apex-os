@@ -633,6 +633,43 @@ export const intakeInvite = pgTable(
 );
 
 /**
+ * An emergency card grant — the QR a paramedic scans.
+ *
+ * WHY THIS TABLE EXISTS. The card token was derived as
+ * `seededRandom("emergency-card:" + clientId)`, and client ids are sequential
+ * (c-001, c-002 …). Anyone who worked that out could generate EVERY member's
+ * card token and read name, MRN, medications, allergies, risk flags and care
+ * team — a public bulk PHI disclosure from a predictable string. The page is
+ * currently behind staff auth, which is the only reason it is not live; the
+ * design intends it to be public, so the derivation had to go before it ever is.
+ *
+ * Only the SHA-256 is stored, like intake_invite: a bearer token at rest in a
+ * table is a plaintext credential. Grants expire and can be revoked, because an
+ * emergency card that cannot be turned off after a lost wallet is a permanent
+ * disclosure.
+ */
+export const emergencyCard = pgTable(
+  "emergency_card",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(), // seeded ref -> client
+    tokenSha256: text("token_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Cards expire. A stale card is a stale medication list. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Set when the member or clinic turns the card off. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: text("revoked_by"),
+    /** Who issued it, for the accounting of disclosures. */
+    issuedBy: text("issued_by"),
+  },
+  (t) => ({
+    tokenIdx: uniqueIndex("emergency_card_token_idx").on(t.tokenSha256),
+    clientIdx: index("emergency_card_client_idx").on(t.clientId),
+  }),
+);
+
+/**
  * A submitted intake. Answers land as jsonb rather than being exploded into the
  * allergy/medication/problem tables, because those are keyed to a client and
  * this person is still a lead — promoting them is a conversion-time step, and

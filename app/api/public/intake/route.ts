@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unavailable } from "@/lib/api/respond";
 import { findInviteByTokenHash, submitIntake, type ConsentDecision } from "@/lib/db/repo";
 import { sha256 } from "@/lib/trace/hash";
 import { GENERIC_TOKEN_FAILURE } from "@/lib/intake/tokens";
@@ -54,11 +55,8 @@ export async function GET(req: Request) {
     // Unknown, spent, or expired — one answer for all three.
     if (!invite || invite.usedAt || new Date(invite.expiresAt).getTime() <= now) return generic();
     return NextResponse.json({ ok: true, prefill: invite.prefill, expiresAt: invite.expiresAt });
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Intake is temporarily unavailable. Please call us." },
-      { status: 503 },
-    );
+  } catch (err) {
+    return unavailable("public.intake.resolve", err, "Intake is temporarily unavailable. Please call us.");
   }
 }
 
@@ -136,12 +134,6 @@ export async function POST(req: Request) {
       ledger: { id: result.ledger.id, hash: result.ledger.hash },
     });
   } catch (err) {
-    // Logged server-side so a failing public write is diagnosable. The message
-    // is the driver's, which carries schema text and never patient answers.
-    console.error("[apex] intake submit failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json(
-      { ok: false, error: "We could not record your intake. Please call us." },
-      { status: 503 },
-    );
+return unavailable("public.intake", err, 'We could not record your intake. Please call us.');
   }
 }

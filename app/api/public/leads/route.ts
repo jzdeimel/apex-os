@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { createLeadWithInvite } from "@/lib/db/repo";
 import { mintIntakeToken } from "@/lib/intake/mint";
 import { sha256 } from "@/lib/trace/hash";
@@ -110,18 +111,8 @@ export async function POST(req: Request) {
       expiresAt: minted.expiresAt,
     });
   } catch (err) {
-    console.error("[apex] lead capture failed:", err instanceof Error ? err.message : err);
     // No database — say so honestly. A booking form that silently swallows a
     // prospect is worse than one that admits it is down.
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          err instanceof Error && /DATABASE_URL/.test(err.message)
-            ? "Booking is temporarily unavailable. Please call us."
-            : "We could not save your request. Please try again or call us.",
-      },
-      { status: 503 },
-    );
+    return unavailable("public.leads", err, 'We could not save your request. Please try again or call us.');
   }
 }

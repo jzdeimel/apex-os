@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { appendLedgerRow } from "@/lib/db/repo";
@@ -59,9 +60,6 @@ export async function POST(req: Request) {
     );
     return NextResponse.json({ ok: true, durable: true, ledger: { id: row.id, seq: row.seq, hash: row.hash } });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Durable write failed." },
-      { status: 503 },
-    );
+    return unavailable("tasks.complete", err, 'The task update could not be recorded.');
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { createHash, createHmac } from "crypto";
 import { currentPrincipal } from "@/lib/auth/principal";
 
@@ -146,9 +147,6 @@ export async function POST() {
 
     return NextResponse.json({ ok: true, userId, token, expiresOn });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Failed to mint ACS token." },
-      { status: 500 },
-    );
+    return serverError("acs.token", err, 'Calling is temporarily unavailable.', 500);
   }
 }

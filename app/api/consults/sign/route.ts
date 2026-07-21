@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { appendLedgerRow } from "@/lib/db/repo";
@@ -93,9 +94,6 @@ export async function POST(req: Request) {
   } catch (err) {
     // requireDb throws when DATABASE_URL is absent — say so honestly rather than
     // pretend a durable write happened.
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Durable write failed." },
-      { status: 503 },
-    );
+    return unavailable("consult.sign", err, 'The signature could not be recorded. Please try again.');
   }
 }
