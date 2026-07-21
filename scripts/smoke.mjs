@@ -78,6 +78,23 @@ try {
     console.log(`ok  POST ${path} (unauth) => 401`);
   }
 
+  // The consult-draft endpoint (PHI drafts, server-side) fails closed on every
+  // verb — GET reads a draft, PUT autosaves, POST signs; none may leak to an
+  // anonymous caller.
+  for (const [method, path] of [
+    ["GET", "/api/consults/draft?clientId=c-001"],
+    ["PUT", "/api/consults/draft"],
+    ["POST", "/api/consults/draft"],
+  ]) {
+    const r = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: method === "GET" ? undefined : JSON.stringify({ clientId: "c-001", rawNotes: "x" }),
+    });
+    if (r.status !== 401) fail(`${method} ${path} unauthenticated => ${r.status}, expected 401`);
+    console.log(`ok  ${method} ${path.split("?")[0]} (unauth) => 401`);
+  }
+
   // AUTHORIZATION BOUNDARY: role comes from the server-resolved principal, and
   // can() refuses a coach a provider-only capability. Uses a crafted EasyAuth
   // header, which is exactly what the platform injects — so this tests the same
@@ -104,6 +121,18 @@ try {
     });
     if (r.status !== 403) fail(`coach consult-sign => ${r.status}, expected 403`);
     console.log("ok  POST /api/consults/sign (coach) => 403 refused");
+  }
+  {
+    // CARE-TEAM SCOPE: a provider who is NOT on this client's care team is
+    // refused a draft write (guard runs before any DB access, so this holds in
+    // CI without a database). Dr. Park is off c-001's team.
+    const r = await fetch(`${BASE}/api/consults/draft`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-ms-client-principal": principal("e.park@alphahealth.demo", "park") },
+      body: JSON.stringify({ clientId: "c-001", rawNotes: "probe" }),
+    });
+    if (r.status !== 403) fail(`off-care-team draft PUT => ${r.status}, expected 403`);
+    console.log("ok  PUT /api/consults/draft (off-care-team) => 403 refused");
   }
 
   const home = await fetch(`${BASE}/`);

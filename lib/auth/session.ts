@@ -27,6 +27,15 @@ const SENSITIVE_KEYS = [
   "apex_demo_member_v1", // which member the portal is acting as
 ];
 
+/**
+ * Dynamic key prefixes to sweep. Consult drafts USED to autosave to
+ * `apex.consult.draft.${clientId}` — unsigned clinical PHI, one key per client,
+ * so no fixed list could name them. Current builds write these server-side and
+ * never create the key, but a workstation that ran an older build may still hold
+ * drafts; this purges them at the next sign-out so they cannot outlive a session.
+ */
+const SENSITIVE_PREFIXES = ["apex.consult.draft."];
+
 export function clearSensitiveStorage(): void {
   if (typeof window === "undefined") return;
   for (const key of SENSITIVE_KEYS) {
@@ -35,6 +44,18 @@ export function clearSensitiveStorage(): void {
     } catch {
       /* private mode / quota — nothing to clear */
     }
+  }
+  // Prefix sweep for dynamic keys. Collect first, then remove — mutating
+  // localStorage while iterating its indices skips entries.
+  try {
+    const doomed: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && SENSITIVE_PREFIXES.some((p) => k.startsWith(p))) doomed.push(k);
+    }
+    for (const k of doomed) window.localStorage.removeItem(k);
+  } catch {
+    /* private mode / quota — nothing to clear */
   }
 }
 

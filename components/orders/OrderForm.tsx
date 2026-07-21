@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Info,
   CheckCircle2,
+  Check,
+  Save,
   X,
   ShieldCheck,
   Package,
@@ -82,6 +84,36 @@ const ACTOR: PlacingActor = {
 
 type QtyMap = Record<string, number>;
 
+/**
+ * The result of placing an order, plus the DURABLE witness state.
+ *
+ * The in-memory record (`order` + local ledger `row`) drives the demo board
+ * immediately. Separately, each line is posted to the gated /api/orders/create,
+ * which hash-chains a row into Postgres. `durable` tracks that second, real
+ * write honestly — "pending" while posting, "saved" once the ledger accepted it,
+ * "refused" on an auth/scope 4xx (carrying the server's reason), "unavailable"
+ * when there is no database. The in-memory record is NEVER rolled back on
+ * failure; the panel simply tells the truth about what did and did not persist.
+ */
+type DurableState =
+  | { status: "pending" }
+  | { status: "saved"; ledgerId?: string; hash?: string; savedLines: number; totalLines: number }
+  | {
+      status: "refused" | "unavailable";
+      error: string;
+      savedLines: number;
+      totalLines: number;
+      ledgerId?: string;
+      hash?: string;
+    };
+
+interface PlacedState {
+  order: Order;
+  row: LedgerRow;
+  totalCents: number;
+  durable: DurableState;
+}
+
 export function OrderForm() {
   const { toast } = useToast();
 
@@ -125,7 +157,7 @@ export function OrderForm() {
   const [note, setNote] = React.useState("");
   const [line, setLine] = React.useState<ServiceLine | "all">("all");
   const [catalogQuery, setCatalogQuery] = React.useState("");
-  const [placed, setPlaced] = React.useState<{ order: Order; row: LedgerRow; totalCents: number } | null>(null);
+  const [placed, setPlaced] = React.useState<PlacedState | null>(null);
 
   /**
    * Selecting a member autofills everything the clinic already knows: their home
@@ -228,6 +260,8 @@ export function OrderForm() {
 
   // --- place ---------------------------------------------------------------
   function handlePlace() {
+    // (The durable POSTs run in a fire-and-forget async IIFE below, so this stays
+    // a plain handler and the button never awaits.)
     // A second click must not produce a second order.
     //
     // `orderIdFor` is deterministic over client + clock + lines, so re-running
@@ -254,10 +288,87 @@ export function OrderForm() {
     // order that no board, portal or lookup could resolve — and the panel below
     // claimed it was "visible in the member's portal", which was not true.
     commitOrder(result.order);
-    setPlaced({ order: result.order, row, totalCents: result.pricing.totalCents });
+    const lines = result.order.lines;
+    setPlaced({
+      order: result.order,
+      row,
+      totalCents: result.pricing.totalCents,
+      durable: { status: "pending" },
+    });
     toast(`Order ${result.order.id} placed`, {
       desc: `Ledger ${row.id} · ${shortHash(row.hash)} · ${centsToDollars(result.pricing.totalCents)}`,
     });
+
+    // DURABLE WITNESS — one gated POST per line to /api/orders/create, which
+    // hash-chains a row into Postgres server-side (auth + scope enforced there).
+    // The endpoint is single-SKU, orders are multi-line, so this is a line at a
+    // time; the first failure stops and is reported honestly. The in-memory
+    // record above stands regardless — this only records whether it also
+    // persisted, never fakes that it did.
+    void (async () => {
+      let savedLines = 0;
+      let firstLedger: { id: string; hash: string } | undefined;
+      let failure: { status: "refused" | "unavailable"; error: string } | undefined;
+
+      for (const l of lines) {
+        try {
+          const r = await fetch("/api/orders/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clientId, sku: l.sku, quantity: l.qty }),
+          });
+          const res = await r.json().catch(() => ({}));
+          if (r.ok && res.ok && res.durable) {
+            savedLines += 1;
+            if (!firstLedger) firstLedger = { id: res.ledger.id, hash: res.ledger.hash };
+          } else {
+            failure = {
+              status: r.status === 503 ? "unavailable" : "refused",
+              error: res.error || `The ledger refused the write (HTTP ${r.status}).`,
+            };
+            break;
+          }
+        } catch {
+          failure = { status: "unavailable", error: "The durable ledger could not be reached." };
+          break;
+        }
+      }
+
+      setPlaced((prev) =>
+        prev && prev.order.id === result.order.id
+          ? {
+              ...prev,
+              durable: failure
+                ? {
+                    status: failure.status,
+                    error: failure.error,
+                    savedLines,
+                    totalLines: lines.length,
+                    ledgerId: firstLedger?.id,
+                    hash: firstLedger?.hash,
+                  }
+                : {
+                    status: "saved",
+                    savedLines,
+                    totalLines: lines.length,
+                    ledgerId: firstLedger?.id,
+                    hash: firstLedger?.hash,
+                  },
+            }
+          : prev,
+      );
+
+      if (failure) {
+        toast("Recorded in this browser only", {
+          tone: "warn",
+          desc: `Durable ledger did not accept the order: ${failure.error}`,
+        });
+      } else if (firstLedger) {
+        toast("Written to the durable ledger", {
+          desc: `${firstLedger.id} · persisted to Postgres`,
+        });
+      }
+    })();
   }
 
   // -------------------------------------------------------------------------
@@ -864,9 +975,10 @@ function PlacedPanel({
   placed,
   onReset,
 }: {
-  placed: { order: Order; row: LedgerRow; totalCents: number };
+  placed: PlacedState;
   onReset: () => void;
 }) {
+  const { durable } = placed;
   const { order, row, totalCents } = placed;
   return (
     <FadeIn>
@@ -900,11 +1012,38 @@ function PlacedPanel({
           {/* The committed ledger row id, shown rather than hidden. This is the
               receipt: the order and the record of it are the same event. */}
           <p className="stat-mono text-micro text-ink-500">
-            Ledger {row.id} · {shortHash(row.hash)}
+            Session ledger {row.id} · {shortHash(row.hash)}
           </p>
+
+          {/* The DURABLE witness — the honest state of the real Postgres write. */}
+          {durable.status === "pending" && (
+            <p className="inline-flex items-center gap-1.5 text-micro text-ink-400">
+              <Save className="h-3 w-3 animate-pulse" /> Recording to the durable ledger…
+            </p>
+          )}
+          {durable.status === "saved" && (
+            <p className="inline-flex items-center gap-1.5 stat-mono text-micro text-optimal">
+              <Check className="h-3 w-3" /> Durable ledger {durable.ledgerId ?? "recorded"} ·
+              persisted to Postgres
+            </p>
+          )}
+          {(durable.status === "refused" || durable.status === "unavailable") && (
+            <div className="flex items-start gap-2 rounded-lg border border-critical/40 bg-critical/10 p-2.5 text-micro text-critical">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                <strong>Recorded in this browser only.</strong> The durable ledger did not accept
+                this order: {durable.error}
+                {durable.totalLines > 1 &&
+                  ` (${durable.savedLines} of ${durable.totalLines} lines were recorded durably)`}
+                .
+              </span>
+            </div>
+          )}
+
           <p className="text-micro leading-relaxed text-ink-600">
-            Submitted to fulfillment and now visible in the member&apos;s portal. The MedSource
-            hand-off is demo-only — nothing left this browser.
+            {durable.status === "saved"
+              ? "Submitted to fulfillment and durably recorded in the audit ledger. The MedSource hand-off is demo-only."
+              : "Submitted to fulfillment and shown in the member's portal for this session. The MedSource hand-off is demo-only."}
           </p>
 
           <Button variant="outline" className="w-full" onClick={onReset}>

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -249,10 +250,19 @@ export const consult = pgTable(
     signerCredential: text("signer_credential"),
     visibleToClient: boolean("visible_to_client").default(false).notNull(),
     ledgerId: text("ledger_id"),
+    /** Last server-side write. Drives the "Draft saved {time}" stamp and stale-draft hygiene. */
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
     clientIdx: index("consult_client_idx").on(t.clientId, t.startedAt),
     unsignedIdx: index("consult_unsigned_idx").on(t.authorId, t.status),
+    // At most ONE live draft per (author, client). The partial predicate lets a
+    // signed consult and a fresh draft for the same pair coexist, while the
+    // upsert in repo.upsertConsultDraft relies on this to be a real conflict
+    // target — so one clinician's chart never accretes a pile of half-notes.
+    draftUnique: uniqueIndex("consult_draft_unique")
+      .on(t.authorId, t.clientId)
+      .where(sql`status = 'Draft'`),
   }),
 );
 

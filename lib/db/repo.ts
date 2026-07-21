@@ -9,9 +9,13 @@ import {
   dispense,
   inventoryMovement,
   staff as staffTable,
+  consult as consultTable,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
+
+/** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
+type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
 
 /**
  * Repositories — the only code that touches the database.
@@ -54,48 +58,58 @@ import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/t
  * It works, but a retry loop around a hash chain is subtle enough that the next
  * person to touch it would probably get it wrong.
  */
+/**
+ * The chain append, done inside a caller-supplied transaction.
+ *
+ * Extracted so a compound write — "update this consult row AND witness it in the
+ * ledger" — can be ONE transaction with ONE advisory lock, rather than a durable
+ * update followed by a separate ledger append that could fail on its own and
+ * leave a signed row nobody witnessed. The advisory lock is transaction-scoped,
+ * so taking it here under the outer tx still serialises the whole chain.
+ */
+async function appendLedgerInTx(tx: DbTx, draft: LedgerDraft, at: string): Promise<LedgerRow> {
+  // 4,242 is an arbitrary but fixed key. One lock for the whole chain,
+  // because the chain is one sequence.
+  await tx.execute(raw`SELECT pg_advisory_xact_lock(4242)`);
+
+  const [tail] = await tx
+    .select({ seq: ledgerTable.seq, hash: ledgerTable.hash })
+    .from(ledgerTable)
+    .orderBy(desc(ledgerTable.seq))
+    .limit(1);
+
+  const seq = (tail?.seq ?? 0) + 1;
+  const prevHash = tail?.hash ?? GENESIS_HASH;
+  const payload = { ...draft, seq, at };
+  const hash = hashRow(prevHash, payload as never);
+  const id = `led-${String(seq).padStart(5, "0")}`;
+
+  await tx.insert(ledgerTable).values({
+    id,
+    seq,
+    at: new Date(at),
+    actorId: draft.actorId,
+    actorName: draft.actorName,
+    actorRole: draft.actorRole,
+    action: draft.action,
+    entity: draft.entity,
+    entityId: draft.entityId,
+    subjectId: draft.subjectId ?? null,
+    subjectName: draft.subjectName ?? null,
+    locationId: draft.locationId ?? null,
+    reason: draft.reason ?? null,
+    before: draft.before ?? null,
+    after: draft.after ?? null,
+    prevHash,
+    hash,
+  });
+
+  return { ...payload, id, prevHash, hash } as LedgerRow;
+}
+
 export async function appendLedgerRow(draft: LedgerDraft, at: string): Promise<LedgerRow> {
   const db = requireDb();
-
-  return db.transaction(async (tx) => {
-    // 4,242 is an arbitrary but fixed key. One lock for the whole chain,
-    // because the chain is one sequence.
-    await tx.execute(raw`SELECT pg_advisory_xact_lock(4242)`);
-
-    const [tail] = await tx
-      .select({ seq: ledgerTable.seq, hash: ledgerTable.hash })
-      .from(ledgerTable)
-      .orderBy(desc(ledgerTable.seq))
-      .limit(1);
-
-    const seq = (tail?.seq ?? 0) + 1;
-    const prevHash = tail?.hash ?? GENESIS_HASH;
-    const payload = { ...draft, seq, at };
-    const hash = hashRow(prevHash, payload as never);
-    const id = `led-${String(seq).padStart(5, "0")}`;
-
-    await tx.insert(ledgerTable).values({
-      id,
-      seq,
-      at: new Date(at),
-      actorId: draft.actorId,
-      actorName: draft.actorName,
-      actorRole: draft.actorRole,
-      action: draft.action,
-      entity: draft.entity,
-      entityId: draft.entityId,
-      subjectId: draft.subjectId ?? null,
-      subjectName: draft.subjectName ?? null,
-      locationId: draft.locationId ?? null,
-      reason: draft.reason ?? null,
-      before: draft.before ?? null,
-      after: draft.after ?? null,
-      prevHash,
-      hash,
-    });
-
-    return { ...payload, id, prevHash, hash } as LedgerRow;
-  });
+  return db.transaction((tx) => appendLedgerInTx(tx, draft, at));
 }
 
 /** Newest first. Used by the audit trail and the member access log. */
@@ -507,4 +521,168 @@ export async function staffByObjectId(objectId: string): Promise<StaffRow | null
     .where(and(eq(staffTable.entraObjectId, objectId), eq(staffTable.active, true)))
     .limit(1);
   return row ? toRow(row) : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Consults — server-side drafts (PHI off the workstation) and author sign     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Save (or update) a clinician's working draft of a consult note.
+ *
+ * WHY THIS IS A DATABASE ROW, NOT localStorage. The draft is unsigned clinical
+ * PHI. Kept in the browser it survives sign-out on a shared clinic workstation
+ * and is readable by the next person to sit down — the audit's P0 #8. Here it
+ * lives server-side, keyed to (authorId, clientId), so one clinician can never
+ * read another's draft and the workstation holds nothing.
+ *
+ * At most one live draft per (author, client): the partial unique index
+ * `consult_draft_unique` (status = 'Draft') is the conflict target, so repeated
+ * autosaves UPDATE the same row rather than pile up. The server owns updatedAt —
+ * the "Draft saved {time}" stamp is a real write time, not a client guess.
+ *
+ * kind/channel/startedAt are NOT NULL on the table but the composer collects
+ * none of them; sensible defaults are supplied on first insert and never
+ * touched again, so signing later can refine them without losing the draft.
+ */
+export async function upsertConsultDraft(input: {
+  clientId: string;
+  authorId: string;
+  rawNotes: string;
+  aiSummary?: unknown;
+  at: string;
+}): Promise<{ id: string; updatedAt: string }> {
+  const db = requireDb();
+  const now = new Date(input.at);
+  // A fresh candidate id for the INSERT path. On conflict the existing draft row
+  // is updated and its id is what RETURNING gives back, so a signed note plus a
+  // new draft for the same pair never collide on a reused deterministic id.
+  const candidateId = `con-${input.authorId}-${input.clientId}-${now.getTime().toString(36)}`;
+
+  const [row] = await db
+    .insert(consultTable)
+    .values({
+      id: candidateId,
+      clientId: input.clientId,
+      authorId: input.authorId,
+      kind: "coaching",
+      channel: "in-person",
+      startedAt: now,
+      status: "Draft",
+      rawNotes: input.rawNotes,
+      aiSummary: (input.aiSummary as never) ?? null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [consultTable.authorId, consultTable.clientId],
+      targetWhere: raw`status = 'Draft'`,
+      set: {
+        rawNotes: input.rawNotes,
+        aiSummary: (input.aiSummary as never) ?? null,
+        updatedAt: now,
+      },
+    })
+    .returning({ id: consultTable.id, updatedAt: consultTable.updatedAt });
+
+  return { id: row.id, updatedAt: row.updatedAt.toISOString() };
+}
+
+/** The caller's single live draft for this client, or null. */
+export async function getConsultDraft(
+  authorId: string,
+  clientId: string,
+): Promise<{ id: string; rawNotes: string; aiSummary: unknown; updatedAt: string } | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      id: consultTable.id,
+      rawNotes: consultTable.rawNotes,
+      aiSummary: consultTable.aiSummary,
+      updatedAt: consultTable.updatedAt,
+    })
+    .from(consultTable)
+    .where(
+      and(
+        eq(consultTable.authorId, authorId),
+        eq(consultTable.clientId, clientId),
+        eq(consultTable.status, "Draft"),
+      ),
+    )
+    .limit(1);
+  return row
+    ? { id: row.id, rawNotes: row.rawNotes ?? "", aiSummary: row.aiSummary, updatedAt: row.updatedAt.toISOString() }
+    : null;
+}
+
+/**
+ * Author-sign the live draft: Draft → Signed, witnessed in the ledger, atomically.
+ *
+ * The old client-side sign forged the signer as `client.coachId` (whoever the
+ * chart's coach happened to be) and wrote only an in-memory ledger row. This
+ * attributes the signature to the AUTHENTICATED author and makes the consult row
+ * and its ledger witness one transaction: either both land or neither does.
+ *
+ * Returns null when there is no live draft to sign (already signed, or never
+ * saved) — the route turns that into a 409, so a double-tap can't mint a second
+ * signature for a note that isn't there.
+ */
+export async function signConsultDraft(input: {
+  authorId: string;
+  clientId: string;
+  signedBy: string;
+  signerName: string;
+  actorRole: string;
+  signerCredential?: string;
+  attestation: string;
+  subjectName?: string;
+  locationId?: string;
+  at: string;
+}): Promise<{ consultId: string; ledger: LedgerRow } | null> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(consultTable)
+      .set({
+        status: "Signed",
+        signedAt: at,
+        signedBy: input.signedBy,
+        attestation: input.attestation,
+        signerCredential: input.signerCredential ?? null,
+        updatedAt: at,
+      })
+      .where(
+        and(
+          eq(consultTable.authorId, input.authorId),
+          eq(consultTable.clientId, input.clientId),
+          eq(consultTable.status, "Draft"),
+        ),
+      )
+      .returning({ id: consultTable.id });
+
+    if (!row) return null; // nothing live to sign
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.signedBy,
+        actorName: input.signerName,
+        actorRole: input.actorRole,
+        action: "sign",
+        entity: "note",
+        entityId: row.id,
+        subjectId: input.clientId,
+        subjectName: input.subjectName,
+        locationId: input.locationId as LedgerDraft["locationId"],
+        reason: "Consult authored and signed",
+        before: { status: "Draft" },
+        after: { status: "Signed", immutable: true, consultId: row.id },
+      },
+      input.at,
+    );
+
+    await tx.update(consultTable).set({ ledgerId: ledger.id }).where(eq(consultTable.id, row.id));
+    return { consultId: row.id, ledger };
+  });
 }

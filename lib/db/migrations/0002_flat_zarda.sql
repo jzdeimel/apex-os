@@ -1,0 +1,2 @@
+ALTER TABLE "consult" ADD COLUMN "updated_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "consult_draft_unique" ON "consult" USING btree ("author_id","client_id") WHERE status = 'Draft';

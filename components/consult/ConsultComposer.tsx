@@ -17,7 +17,7 @@ import type { ConsultSummary, ExtractedItem } from "@/lib/consult/types";
 import { summarizeConsult, stampFor, findingCount, ENGINE_VERSION } from "@/lib/consult/summarize";
 import { appendLedger } from "@/lib/trace/ledger";
 import { getClient, clientName } from "@/lib/mock/clients";
-import { staffMap, staffName } from "@/lib/mock/staff";
+import { staffName } from "@/lib/mock/staff";
 import { raiseEscalation, SLA_HOURS } from "@/lib/escalations/queue";
 import { commitEscalation } from "@/lib/mock/escalations";
 import { NOTE_TEMPLATE_SAMPLES } from "@/lib/mock/consults";
@@ -44,23 +44,15 @@ sleep is the problem, waking 2-3x
 asked about a peptide for sleep — flagging for the provider
 rebook 4 weeks`;
 
-/** Namespaced per client so two members' drafts can never collide. */
-function draftKey(clientId: string) {
-  return `apex.consult.draft.${clientId}`;
-}
-
-interface StoredDraft {
-  raw: string;
-  savedAt: string;
-  revisions: number;
-}
+/** Slower than the summarizer: the summary is local and free, a PUT is neither. */
+const SAVE_DEBOUNCE_MS = 1200;
 
 /**
  * THE CONSULT SCRIBE.
  *
  * Left: what the coach types. Right: what the engine reads out of it, live.
  *
- * Two things this does that the system we are replacing does not:
+ * Three things this does that the system we are replacing does not:
  *
  *  1. **Nothing is asserted without a citation.** Hover any extracted item and
  *     the exact substring it came from lights up in the raw notes. If the engine
@@ -68,9 +60,18 @@ interface StoredDraft {
  *     whole contract, and this UI is where it becomes visible rather than
  *     merely promised.
  *
- *  2. **Work cannot be lost.** Today, navigating away from a half-written
- *     clinical note silently discards it. Here every keystroke lands in
- *     localStorage under a client-scoped key and is restored on mount.
+ *  2. **Work cannot be lost — and PHI never sits on the workstation.** An earlier
+ *     build autosaved the note to localStorage, which meant an unsigned clinical
+ *     note survived sign-out on a shared clinic machine, readable by the next
+ *     person to sit down (audit P0 #8). Now every autosave is an authenticated
+ *     PUT to a server-side draft keyed to (this author, this client); the browser
+ *     holds nothing durable. If the save cannot happen, the composer SAYS SO —
+ *     see `saveStatus` — rather than pretending it did.
+ *
+ *  3. **Signing is real.** The author-sign posts to the gated draft endpoint,
+ *     which transitions the row Draft → Signed and writes a hash-chained ledger
+ *     row attributed to the AUTHENTICATED signer — not, as before, to whoever the
+ *     chart's coach happened to be.
  */
 export function ConsultComposer({
   clientId,
@@ -89,31 +90,61 @@ export function ConsultComposer({
   const [escalated, setEscalated] = React.useState<Record<string, boolean>>({});
   const [confirmSign, setConfirmSign] = React.useState(false);
   const [signed, setSigned] = React.useState(false);
-  const [draftMeta, setDraftMeta] = React.useState<{ savedAt: string; revisions: number } | null>(
-    null,
-  );
+  const [signing, setSigning] = React.useState(false);
   const [restored, setRestored] = React.useState(false);
+
+  // Server-draft lifecycle. `hydrating` blocks autosave until the initial GET
+  // resolves, so a slow load can never overwrite the stored draft with empty.
+  const [hydrating, setHydrating] = React.useState(true);
+  const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedAt, setSavedAt] = React.useState<string | null>(null);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   const textRef = React.useRef<HTMLTextAreaElement>(null);
   const highlightRef = React.useRef<HTMLDivElement>(null);
 
-  // -- Restore -------------------------------------------------------------
-  // Read on mount only (never during render) so server and client markup match.
+  // Autosave coalescing: never two PUTs in flight; if the note changes while one
+  // is out, remember to re-save the latest when it lands (last-write-wins).
+  const inFlight = React.useRef(false);
+  const dirtyAfterSave = React.useRef(false);
+  const rawRef = React.useRef("");
+  const summaryRef = React.useRef<ConsultSummary | null>(null);
   React.useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(draftKey(clientId));
-      if (!stored) return;
-      const d = JSON.parse(stored) as StoredDraft;
-      if (d?.raw) {
-        setRaw(d.raw);
-        setSummary(summarizeConsult(d.raw));
-        setDraftMeta({ savedAt: d.savedAt, revisions: d.revisions });
-        setRestored(true);
+    rawRef.current = raw;
+    summaryRef.current = summary;
+  }, [raw, summary]);
+
+  // -- Restore -------------------------------------------------------------
+  // Fetch the caller's server-side draft on mount. Never reads localStorage —
+  // there is nothing there to read, by design. A failed GET does not block the
+  // composer: the clinician can still write; it just starts empty.
+  React.useEffect(() => {
+    let cancelled = false;
+    setHydrating(true);
+    (async () => {
+      try {
+        const r = await fetch(`/api/consults/draft?clientId=${encodeURIComponent(clientId)}`, {
+          headers: { Accept: "application/json" },
+        });
+        const res = await r.json().catch(() => ({}));
+        if (cancelled) return;
+        if (r.ok && res.ok && res.draft?.rawNotes) {
+          setRaw(res.draft.rawNotes);
+          setSummary(summarizeConsult(res.draft.rawNotes));
+          setSavedAt(res.draft.updatedAt ?? null);
+          setSaveStatus("saved");
+          setRestored(true);
+        }
+      } catch {
+        // Offline / no DB — start empty. The "not saving" state below will show
+        // the moment the clinician types, so nothing is silently lost.
+      } finally {
+        if (!cancelled) setHydrating(false);
       }
-    } catch {
-      // A corrupt draft must never block the composer — the coach still needs
-      // to be able to write the note.
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [clientId]);
 
   // -- Summarize (debounced) ----------------------------------------------
@@ -131,29 +162,57 @@ export function ConsultComposer({
     return () => window.clearTimeout(t);
   }, [raw]);
 
-  // -- Autosave ------------------------------------------------------------
-  // Same debounce window as summarization: one settle, both effects.
-  React.useEffect(() => {
-    if (!raw) return;
-    const t = window.setTimeout(() => {
-      const next: StoredDraft = {
-        raw,
-        savedAt: NOW,
-        revisions: (draftMeta?.revisions ?? 0) + 1,
-      };
-      try {
-        window.localStorage.setItem(draftKey(clientId), JSON.stringify(next));
-        setDraftMeta({ savedAt: next.savedAt, revisions: next.revisions });
-      } catch {
-        // Quota or private-mode failure. Silent here; the absent "Draft saved"
-        // stamp is the signal, and we never pretend a save happened.
+  // -- Autosave (server) ---------------------------------------------------
+  // One PUT at a time. While a save is in flight, later edits set a dirty flag
+  // and re-fire the save with the latest text when it lands, so the server row
+  // always converges on what the clinician last typed.
+  const persist = React.useCallback(async () => {
+    if (inFlight.current) {
+      dirtyAfterSave.current = true;
+      return;
+    }
+    inFlight.current = true;
+    setSaveStatus("saving");
+    try {
+      const r = await fetch("/api/consults/draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          rawNotes: rawRef.current,
+          aiSummary: summaryRef.current ?? undefined,
+        }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.ok && res.ok) {
+        setSaveStatus("saved");
+        setSavedAt(res.updatedAt ?? null);
+        setSaveError(null);
+        setRestored(false);
+      } else {
+        setSaveStatus("error");
+        setSaveError(res.error || `Save rejected (HTTP ${r.status}).`);
       }
-    }, DEBOUNCE_MS);
+    } catch {
+      setSaveStatus("error");
+      setSaveError("The draft could not reach the server. Your notes are not backed up.");
+    } finally {
+      inFlight.current = false;
+      if (dirtyAfterSave.current) {
+        dirtyAfterSave.current = false;
+        void persist();
+      }
+    }
+  }, [clientId]);
+
+  React.useEffect(() => {
+    // Nothing to save while hydrating, after signing, or before the first
+    // keystroke against an empty draft.
+    if (hydrating || signed) return;
+    if (!raw && saveStatus === "idle") return;
+    const t = window.setTimeout(() => void persist(), SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-    // draftMeta intentionally excluded — including it would re-fire the effect
-    // on every save and count revisions twice.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, clientId]);
+  }, [raw, hydrating, signed, saveStatus, persist]);
 
   // Keep the highlight underlay scrolled in lockstep with the textarea, or the
   // highlight drifts off the word it is supposed to be marking.
@@ -178,68 +237,61 @@ export function ConsultComposer({
   function clearDraft() {
     setRaw("");
     setSummary(null);
-    setDraftMeta(null);
     setRestored(false);
     setSigned(false);
-    try {
-      window.localStorage.removeItem(draftKey(clientId));
-    } catch {
-      /* nothing recoverable to do */
+    // Persist the cleared state so a navigate-away doesn't restore old notes.
+    // Empty is a legitimate draft; the effect above will PUT rawNotes: "".
+    setSaveStatus("saving");
+    void persist();
+  }
+
+  async function saveDraft() {
+    await persist();
+    // `persist` has set saveStatus/saveError; surface the outcome as a toast too.
+    if (inFlight.current === false && saveStatus === "error") {
+      toast("Draft not saved", { tone: "warn", desc: saveError ?? "The server rejected the save." });
+    } else {
+      toast("Draft saved", { desc: "Backed up to your account — restored on any device." });
     }
   }
 
-  function saveDraft() {
-    try {
-      window.localStorage.setItem(
-        draftKey(clientId),
-        JSON.stringify({ raw, savedAt: NOW, revisions: (draftMeta?.revisions ?? 0) + 1 }),
-      );
-      setDraftMeta({ savedAt: NOW, revisions: (draftMeta?.revisions ?? 0) + 1 });
-      toast("Draft saved", { desc: "Restored automatically if you navigate away." });
-    } catch {
-      toast("Could not save draft", { tone: "warn", desc: "Local storage is unavailable." });
-    }
-  }
-
-  function doSign() {
-    setSigned(true);
+  async function doSign() {
     setConfirmSign(false);
+    setSigning(true);
     try {
-      window.localStorage.removeItem(draftKey(clientId));
+      const r = await fetch("/api/consults/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.ok && res.ok) {
+        setSigned(true);
+        toast("Consult signed", {
+          desc: `Immutable. Recorded durably as ${res.ledger.id} · ${shortHash(res.ledger.hash)}`,
+        });
+        onSigned?.(raw);
+      } else if (r.status === 409) {
+        // No live draft on the server — usually because the autosave never
+        // reached it. Say so plainly instead of forging a signature.
+        toast("Nothing to sign yet", {
+          tone: "warn",
+          desc: "This note hasn't saved to the server. Check the draft status and try again.",
+        });
+      } else {
+        toast("Could not sign", {
+          tone: "warn",
+          desc: res.error || `The server refused the signature (HTTP ${r.status}).`,
+        });
+      }
     } catch {
-      /* draft is superseded by the signed record either way */
+      toast("Could not sign", {
+        tone: "warn",
+        desc: "The signature could not reach the server. Nothing was signed.",
+      });
+    } finally {
+      setSigning(false);
     }
-
-    // Signing is a state change, so it becomes a link in the chain. The row
-    // carries the before/after and the provenance of the summary that was
-    // signed — which is what makes "who signed this, against which AI output,
-    // on what input" answerable years later rather than inferred.
-    const client = getClient(clientId);
-    const author = client ? staffMap[client.coachId] : undefined;
-    const row = appendLedger({
-      actorId: author?.id ?? "unknown",
-      actorName: author?.name ?? "Unknown",
-      actorRole: author?.role ?? "Coach",
-      action: "sign",
-      entity: "note",
-      entityId: `con-${clientId}-draft`,
-      subjectId: clientId,
-      subjectName: client ? clientName(client) : undefined,
-      locationId: client?.locationId,
-      before: { status: "Draft", signedAt: null },
-      after: {
-        status: "Signed",
-        engine: stamp?.engine ?? "consult-summarizer",
-        engineVersion: stamp?.engineVersion ?? ENGINE_VERSION,
-        inputHash: stamp?.inputHash ?? "",
-        findings: summary ? findingCount(summary) : 0,
-      },
-    });
-
-    toast("Consult signed", {
-      desc: `Immutable. Recorded as ${row.id} · ${shortHash(row.hash)}`,
-    });
-    onSigned?.(raw);
   }
 
   return (
@@ -301,23 +353,39 @@ export function ConsultComposer({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-micro text-ink-500">
               <span className="stat-mono">{raw.length}</span> chars
-              {draftMeta && (
+              {saveStatus === "saving" && (
+                <>
+                  <span className="text-ink-700">·</span>
+                  <span className="inline-flex items-center gap-1 text-ink-400">
+                    <Save className="h-3 w-3 animate-pulse" /> Saving…
+                  </span>
+                </>
+              )}
+              {saveStatus === "saved" && savedAt && (
                 <>
                   <span className="text-ink-700">·</span>
                   <span className="inline-flex items-center gap-1 text-optimal">
-                    <Save className="h-3 w-3" />
-                    Draft saved{" "}
-                    <span className="stat-mono">{formatTime(draftMeta.savedAt)}</span>
+                    <Check className="h-3 w-3" /> Draft saved{" "}
+                    <span className="stat-mono">{formatTime(savedAt)}</span>
                   </span>
-                  <span className="text-ink-700">·</span>
-                  <span className="stat-mono">rev {draftMeta.revisions}</span>
                 </>
               )}
             </div>
-            {restored && (
-              <Badge tone="info">Restored from your last session</Badge>
-            )}
+            {restored && <Badge tone="info">Restored from your account</Badge>}
           </div>
+
+          {/* Honest failure — never a silent lost note. This is where the old
+              build's silent catch used to be. */}
+          {saveStatus === "error" && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-critical/40 bg-critical/10 p-2.5 text-micro text-critical">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                <strong>Draft not saving.</strong> {saveError ?? "Your notes are not backed up."} They
+                stay on screen, but leaving this page may lose them — retry with{" "}
+                <span className="font-medium">Save draft</span>.
+              </span>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -685,18 +753,20 @@ export function ConsultComposer({
               >
                 <Button
                   variant="primary"
-                  disabled={!summary}
+                  disabled={!summary || signing || saveStatus === "error" || saveStatus === "saving"}
                   onClick={() => setConfirmSign(true)}
                 >
                   <PenLine className="h-4 w-4" />
-                  Sign consult
+                  {signing ? "Signing…" : "Sign consult"}
                 </Button>
-                <Button variant="outline" disabled={!raw} onClick={saveDraft}>
+                <Button variant="outline" disabled={!raw || saveStatus === "saving"} onClick={saveDraft}>
                   <Save className="h-4 w-4" />
                   Save draft
                 </Button>
                 <span className="text-micro text-ink-600">
-                  Drafts autosave — nothing is lost if you navigate away.
+                  {saveStatus === "error"
+                    ? "Resolve the save error before signing."
+                    : "Drafts autosave to your account — restored on any device."}
                 </span>
               </motion.div>
             )}
