@@ -1,4 +1,4 @@
-import type { Appointment, Client, LocationId, StaffRole } from "@/lib/types";
+import type { Appointment, Client, LocationId, StaffMember, StaffRole } from "@/lib/types";
 import type { TravelWindow } from "@/lib/account/travel";
 import { staff, staffMap } from "@/lib/mock/staff";
 import { locationMap } from "@/lib/mock/locations";
@@ -6,6 +6,7 @@ import { appointments } from "@/lib/mock/appointments";
 import { shifts, WEEK_DATES, type Shift } from "@/lib/mock/shifts";
 import { appendLedger, type LedgerEntity } from "@/lib/trace/ledger";
 import { seededRandom, absolute } from "@/lib/utils";
+import { NURSING, APP, PHYSICIAN, type CredentialClass } from "@/lib/scheduling/credentials";
 
 /**
  * Self-booking availability.
@@ -58,6 +59,20 @@ export interface VisitType {
   inPerson: boolean;
   /** True when a licensed provider must be the one in the room. */
   providerOnly: boolean;
+  /**
+   * Credential tiers in preference order, when the visit type has a licensure
+   * requirement `roles` cannot express.
+   *
+   * `roles` answers "what part of the app does this person work in"; this
+   * answers "what are they licensed to perform". Stephanie Butler's NCV spec
+   * turns entirely on the second question and on the ORDER — use the lowest
+   * appropriate licence, so a nurse draws blood while a nurse exists and an
+   * NP only when one does not. A flat set loses the ordering and quietly
+   * consumes the provider capacity the rule exists to protect.
+   *
+   * Absent means the visit type has no licensure constraint beyond `roles`.
+   */
+  credentialTiers?: readonly (readonly CredentialClass[])[];
 }
 
 /**
@@ -74,6 +89,9 @@ export const VISIT_TYPES: VisitType[] = [
     blurb: "Your first sit-down with a provider — history, goals, and what to test.",
     durationMin: 45,
     roles: ["Medical"],
+    // NP/PA preferred, physician as fallback — the spec's ordering for a
+    // provider evaluation, so physicians stay free for higher-acuity work.
+    credentialTiers: [APP, PHYSICIAN],
     virtual: true,
     inPerson: true,
     providerOnly: true,
@@ -101,7 +119,7 @@ export const VISIT_TYPES: VisitType[] = [
   {
     id: "Telehealth",
     label: "Telehealth visit",
-    blurb: "Same visit, by video. Telehealth is one of our five locations, not a fallback.",
+    blurb: "Same visit, by video — with the clinic that already knows you.",
     durationMin: 30,
     roles: ["Medical", "Coach"],
     virtual: true,
@@ -113,7 +131,18 @@ export const VISIT_TYPES: VisitType[] = [
     label: "Lab draw",
     blurb: "In and out. Bring nothing; your panel is already ordered.",
     durationMin: 20,
-    roles: ["Medical", "Admin"],
+    /**
+     * WAS `["Medical", "Admin"]`. Admin is the front desk and operations — an
+     * office manager is not a phlebotomist, and this list was the only thing
+     * standing between "book a lab draw" and "book it with Veronica".
+     *
+     * Stephanie Butler's NCV spec (2026-07-21) names the qualified set exactly:
+     * RN/LPN preferred, NP/PA as fallback. That is a CREDENTIAL requirement,
+     * which `roles` cannot express — see `credentialTiers` below and
+     * lib/scheduling/credentials.ts for why the two are different questions.
+     */
+    roles: ["Medical"],
+    credentialTiers: [NURSING, APP],
     virtual: false,
     inPerson: true,
     providerOnly: false,
@@ -143,6 +172,38 @@ export const VISIT_TYPES: VisitType[] = [
 export const visitTypeMap: Record<VisitTypeId, VisitType> = Object.fromEntries(
   VISIT_TYPES.map((v) => [v.id, v]),
 ) as Record<VisitTypeId, VisitType>;
+
+/**
+ * May this staff member PERFORM this visit type?
+ *
+ * The credential gate, applied everywhere a candidate list is built. It exists
+ * as one function because it was three filters in three places and a rule
+ * enforced in three places is a rule enforced in two of them by next quarter.
+ *
+ * UNKNOWN CREDENTIAL FAILS CLOSED. A staff member whose credential class is
+ * null is refused for any visit type that declares tiers. The roster
+ * spreadsheet says "Nurse" without distinguishing RN from LPN, and that
+ * difference is a state scope-of-practice question — so "we do not know" must
+ * behave as "not until someone tells us", never as "probably fine".
+ */
+export function credentialedFor(member: StaffMember, type: VisitType): boolean {
+  if (!type.credentialTiers) return true;
+  if (!member.credentialClass) return false;
+  return type.credentialTiers.some((tier) => tier.includes(member.credentialClass!));
+}
+
+/**
+ * Which preference tier a member satisfies, or -1 for none.
+ *
+ * Lower is more preferred. Slot generation sorts on this so the front desk is
+ * offered the nurse before the nurse practitioner — Stephanie Butler's
+ * "lowest appropriate licence" rule, expressed where it can take effect.
+ */
+export function credentialTierOf(member: StaffMember, type: VisitType): number {
+  if (!type.credentialTiers) return 0;
+  if (!member.credentialClass) return -1;
+  return type.credentialTiers.findIndex((tier) => tier.includes(member.credentialClass!));
+}
 
 // ---------------------------------------------------------------------------
 // Licensure — the constraint that is actually law
@@ -359,6 +420,13 @@ export function bookSlot(
     staffId: slot.staffId,
     locationId: slot.locationId,
     type: slot.visitType,
+    // Set from the visit type's own delivery rules, not from the location. A
+    // visit type that cannot be delivered in a room (Telehealth) is virtual; a
+    // visit type that cannot be delivered by video (Lab Draw, IV Therapy) is
+    // in-person. Anything deliverable both ways is booked in-person here
+    // because these slots are location-scoped — see lib/types.ts on why
+    // location and modality are no longer the same fact.
+    modality: visitTypeMap[slot.visitType].inPerson ? "in-person" : "virtual",
     start: slot.startIso,
     durationMin: slot.durationMin,
     status: "Scheduled",
@@ -465,6 +533,8 @@ export function slotsFor(query: SlotQuery): Slot[] {
       if (!type.roles.includes(member.role)) continue;
       // A visit that needs a signature needs someone who can give one.
       if (type.providerOnly && !member.canApprove) continue;
+      // ...and one that needs a licence needs someone who holds it.
+      if (!credentialedFor(member, type)) continue;
 
       // ── Licensure gate ────────────────────────────────────────────────────
       // Telehealth only. An in-person visit happens at a clinic in a state the
@@ -569,6 +639,7 @@ export function eligibleStaff(
     .filter((s) => s.locationIds.includes(locationId))
     .filter((s) => type.roles.includes(s.role))
     .filter((s) => !type.providerOnly || s.canApprove)
+    .filter((s) => credentialedFor(s, type))
     .filter((s) => !isVirtual || !memberState || licensedIn(s.id).includes(memberState))
     .map((s) => ({
       id: s.id,
@@ -598,6 +669,7 @@ export function blockedByLicensure(
     .filter((s) => s.locationIds.includes("telehealth"))
     .filter((s) => type.roles.includes(s.role))
     .filter((s) => !type.providerOnly || s.canApprove)
+    .filter((s) => credentialedFor(s, type))
     .filter((s) => !licensedIn(s.id).includes(memberState))
     .map((s) => ({ id: s.id, name: s.name, licences: licensedIn(s.id) }));
 }

@@ -392,7 +392,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   return (
     <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#23272d" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--chart-grid)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}

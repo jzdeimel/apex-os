@@ -59,7 +59,7 @@ export const CATEGORY_LABEL: Record<PhotoCategory, string> = {
 const CAT_HUES: Record<PhotoCategory, [string, string]> = {
   progress: ["#b81828", "#3d0a0d"],
   meal: ["#1a7f4e", "#0c2f1e"],
-  training: ["#e0bd6e", "#3a2e13"],
+  training: ["var(--c-watch)", "#3a2e13"],
   event: ["#3b82f6", "#0e1e3a"],
   other: ["#7a838f", "#1a1d22"],
 };
@@ -128,6 +128,8 @@ export interface NewPhoto {
   src: string; // downscaled data URL from the component
   caption: string;
   category: PhotoCategory;
+  actorId?: string;
+  actorHandle?: string;
 }
 
 export function usePhotos(clientId: string) {
@@ -155,8 +157,8 @@ export function usePhotos(clientId: string) {
       const cur = readMine();
       const post: PhotoPost = {
         id: `photo-${cur.length + 1}-${Math.abs(hashStr(input.caption + input.src.slice(0, 40))) % 100000}`,
-        clientId,
-        handle: handleFor(clientId),
+        clientId: input.actorId ?? clientId,
+        handle: input.actorHandle ?? handleFor(clientId),
         src: input.src,
         caption: input.caption,
         category: input.category,

@@ -35,6 +35,7 @@ import {
   Settings,
   ShieldAlert,
   Siren,
+  SlidersHorizontal,
   Sparkles,
   Stethoscope,
   Syringe,
@@ -45,6 +46,8 @@ import {
   Workflow,
 } from "lucide-react";
 import type { PortalId } from "@/lib/portals";
+import { featureForPath } from "@/lib/features/catalog";
+import { labelFor } from "@/lib/nav/v1Parity";
 
 export interface NavItem {
   href: string;
@@ -131,6 +134,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/clinic/escalations", label: "Escalations", icon: Siren, spotlight: true },
         { href: "/clinic/population", label: "Risk radar", icon: Activity },
         { href: "/clinic/sign", label: "Sign queue", icon: FileSignature, spotlight: true },
+        { href: "/clinic/lab-draws", label: "Lab draw queue", icon: Syringe },
         { href: "/clients", label: "Patients", icon: Users },
         { href: "/recommendations", label: "Awaiting sign-off", icon: Sparkles },
         { href: "/coach/consults", label: "Consults", icon: ClipboardList },
@@ -141,6 +145,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Intelligence",
       items: [
         { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/clinic/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/agent", label: "Ask Apex", icon: Bot },
         { href: "/coach/documents", label: "Documents", icon: FileText },
       ],
@@ -151,6 +156,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/clinic/ledger", label: "Audit trail", icon: History, spotlight: true },
         { href: "/clinic/controlled", label: "Controlled substances", icon: Pill, spotlight: true },
         { href: "/admin/roster", label: "Roster health", icon: Rows3 },
+        { href: "/clinic/coverage", label: "Visit coverage", icon: UsersRound },
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
         { href: "/settings", label: "Settings", icon: Settings },
       ],
@@ -182,6 +188,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Growth",
       items: [
         { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/coach/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/coach/winback", label: "Lapsed members", icon: Repeat },
         { href: "/automations", label: "Automations", icon: Workflow },
         // Analytics (revenue/MRR) is an owner surface — it lives on the exec
@@ -242,6 +249,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Look someone up",
       items: [
         { href: "/tasks", label: "Tasks", icon: ClipboardList },
+        { href: "/desk/community", label: "Community", icon: UsersRound, spotlight: true },
       ],
     },
     {
@@ -294,8 +302,10 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "The clinic",
       items: [
         { href: "/clients", label: "Members", icon: Users },
+        { href: "/exec/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/schedule", label: "Team calendar", icon: CalendarDays },
         { href: "/supply-chain", label: "Stock & vendors", icon: Boxes },
+        { href: "/exec/features", label: "Features", icon: SlidersHorizontal },
         { href: "/settings", label: "Settings", icon: Settings },
       ],
     },
@@ -319,6 +329,48 @@ export function allNavItems(): NavItem[] {
         out.push(item);
       }
     }
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Feature filtering                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Drop nav items whose route belongs to a disabled feature.
+ *
+ * PURE, AND THEREFORE NOT THE ENFORCEMENT. `lib/features/gate.tsx` is what
+ * actually refuses a request; this only stops the sidebar advertising a link
+ * that would 404. Both are needed and neither substitutes for the other: a nav
+ * that lies wastes a click, a missing gate exposes a surface.
+ *
+ * Groups that empty out are removed entirely, so a section heading never sits
+ * above nothing — "Growth" with no items under it reads as a broken build.
+ */
+export function filterNavByFeatures(
+  groups: NavGroup[],
+  enabled: Record<string, boolean>,
+  /**
+   * The active release preset. Under `clinic-v1` the labels switch to the words
+   * Alpha OS V1 uses, so a coach who spent two weeks learning "Clients" is not
+   * asked to learn "My members" on the morning of the cutover. See
+   * lib/nav/v1Parity.ts — the mapping is taken from V1's own nav, verbatim.
+   */
+  preset: string = "clinic-v1",
+): NavGroup[] {
+  const out: NavGroup[] = [];
+  for (const group of groups) {
+    const items = group.items
+      .filter((item) => {
+        const owner = featureForPath(item.href);
+        return !owner || enabled[owner.key] !== false;
+      })
+      .map((item) => {
+        const label = labelFor(item.href, item.label, preset);
+        return label === item.label ? item : { ...item, label };
+      });
+    if (items.length > 0) out.push({ ...group, items });
   }
   return out;
 }

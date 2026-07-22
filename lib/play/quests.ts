@@ -57,10 +57,10 @@ export interface Quest {
 /** Fuel green, Train blue, log slate-gold, care gold. Protocol red is absent
  *  by design — there is no protocol quest, because there is no dose quest. */
 const KIND_HEX: Record<QuestKind, string> = {
-  train: "#60a5fa",
-  fuel: "#34d399",
-  log: "#a78bfa",
-  care: "#e93d3d",
+  train: "var(--c-low)",
+  fuel: "var(--c-optimal)",
+  log: "var(--chart-series-4)",
+  care: "var(--chart-brand)",
 };
 
 /**

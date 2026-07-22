@@ -23,7 +23,7 @@ import { locationName } from "@/lib/mock/locations";
 const SEV_STYLE: Record<RiskSeverity, string> = {
   urgent: "text-high border-high/40 bg-high/10",
   action: "text-gold-300 border-gold-400/30 bg-gold-400/5",
-  watch: "text-sky-300 border-sky-400/30 bg-sky-400/5",
+  watch: "text-low border-low/30 bg-low/5",
 };
 
 export default function PopulationPage() {

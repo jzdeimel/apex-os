@@ -190,7 +190,7 @@ function LevelCard({
           nowHour={personal.nowHour}
           maxLevel={maxLevel}
           reduce={!!reduce}
-          accent="#e0bd6e"
+          accent="var(--c-watch)"
         />
       )}
 

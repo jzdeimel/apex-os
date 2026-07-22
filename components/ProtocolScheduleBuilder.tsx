@@ -136,7 +136,7 @@ export function ProtocolScheduleBuilder({ client }: { client: Client }) {
                       {days[i] ? (
                         <Check className="mx-auto mt-0.5 h-3.5 w-3.5 text-gold-300" />
                       ) : (
-                        <span className="block text-ink-700">·</span>
+                        <span className="block text-ink-500">·</span>
                       )}
                     </div>
                   ))}

@@ -3,6 +3,8 @@
 // Mock-only types. No PHI. No real prescribing. Demo purposes only.
 // =============================================================================
 
+import type { CredentialClass } from "@/lib/scheduling/credentials";
+
 export type LocationId =
   | "raleigh"
   | "raleigh-boutique"
@@ -38,7 +40,21 @@ export interface StaffMember {
   id: string;
   name: string;
   role: StaffRole;
-  credentials?: string; // e.g. "MD", "NP", "PA-C", "CPT"
+  /**
+   * What this person may PERFORM, as opposed to what they may WRITE.
+   *
+   * `role` answers the authorization question and has three values, which is
+   * right for it. Scheduling asks a different question — Stephanie Butler's NCV
+   * spec requires "the lowest appropriate clinical license" per component — and
+   * three values cannot express it: under `role` alone a medical director and a
+   * nurse are the same resource, so a lab draw consumes an MD's afternoon.
+   *
+   * See lib/scheduling/credentials.ts. Null means UNKNOWN, never "any": an
+   * unknown credential is not schedulable for a clinical component, because
+   * defaulting it up over-licenses someone into a physical exam.
+   */
+  credentialClass: CredentialClass | null;
+  credentials?: string; // display text, e.g. "MD", "NP", "PA-C", "CPT"
   locationIds: LocationId[];
   email: string;
   canApprove: boolean; // only licensed providers may approve recommendations
@@ -96,6 +112,25 @@ export interface Client {
   lastName: string;
   sex: "male" | "female";
   age: number;
+  /**
+   * THE CLINIC THAT OWNS THE RELATIONSHIP — not where the last visit happened.
+   *
+   * Paul Kennard, 2026-07-21: a telehealth patient "does not live within a
+   * distance of a clinic that allows for them to come in. They are then
+   * categorised as a telehealth patient as though it is its own location, with
+   * its own coach." So `telehealth` is a legitimate value here — it is a PANEL.
+   *
+   * What it must never absorb is a one-off virtual visit by a clinic patient:
+   * "I am not a telehealth patient despite using a telehealth mode of
+   * communication." That distinction now lives on `Appointment.modality`.
+   *
+   * This field drives coach assignment, provider coverage and — once Clover is
+   * wired — which of the four merchant accounts is credited. Getting it wrong
+   * misroutes money silently, because every individual charge still succeeds.
+   * See lib/payments/merchants.ts, which also handles the case this field
+   * cannot answer: a telehealth-panel patient has no clinic and therefore no
+   * merchant account of their own.
+   */
   locationId: LocationId;
   status: ClientStatus;
   coachId: string;
@@ -407,6 +442,31 @@ export interface Appointment {
     | "Follow-Up"
     | "IV Therapy"
     | "Telehealth";
+  /**
+   * HOW the visit is delivered — distinct from WHERE the patient belongs.
+   *
+   * Paul Kennard drew this line explicitly on 2026-07-21: a *telehealth
+   * patient* lives too far from a clinic and is "categorised as a telehealth
+   * patient as though it is its own location, with its own coach". A Raleigh
+   * patient taking one visit by video is NOT a telehealth patient — "I am not a
+   * telehealth patient despite using a telehealth mode of communication."
+   *
+   * Apex modelled telehealth only as a `LocationId`, which collapses the two.
+   * That is not cosmetic: `Client.locationId` drives coach assignment, provider
+   * coverage AND — once Clover's four per-clinic merchant accounts are wired —
+   * WHICH CLINIC GETS PAID. A Raleigh member filed under "telehealth" for a
+   * single video follow-up would bill the wrong merchant account.
+   *
+   * The staff roster confirms the same shape independently: nobody is *located*
+   * at telehealth. Jerry Cattelane's title is "Telehealth Physician" and his
+   * location is Myrtle Beach; Marc McCully, the telehealth coach, is Myrtle
+   * Beach. Telehealth is a panel served by clinic staff, not a sixth clinic.
+   *
+   * So `locationId` stays the clinic responsible for the visit, and this says
+   * how it happened. `type: "Telehealth"` is retained only for seeded data and
+   * is deprecated — read `modality`.
+   */
+  modality: "in-person" | "virtual";
   start: string; // ISO datetime
   durationMin: number;
   status: "Scheduled" | "Checked In" | "Completed" | "No Show";

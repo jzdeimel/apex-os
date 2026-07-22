@@ -253,7 +253,7 @@ function SwarmGraph({ state }: { state: SwarmState }) {
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" style={{ maxHeight: 380 }}>
           {/* spokes to the orchestrator core */}
           {AGENTS.map((a) => (
-            <line key={`spoke-${a.id}`} x1={cx} y1={cy} x2={pos[a.id].x} y2={pos[a.id].y} stroke="#23272d" strokeWidth={1} />
+            <line key={`spoke-${a.id}`} x1={cx} y1={cy} x2={pos[a.id].x} y2={pos[a.id].y} stroke="var(--chart-grid)" strokeWidth={1} />
           ))}
 
           {/* active hand-off lines */}
@@ -287,11 +287,11 @@ function SwarmGraph({ state }: { state: SwarmState }) {
           </AnimatePresence>
 
           {/* orchestrator core */}
-          <circle cx={cx} cy={cy} r={26} fill="#17191e" stroke="#3d0a0d" strokeWidth={1.5} />
+          <circle cx={cx} cy={cy} r={26} fill="var(--chart-tooltip-bg)" stroke="#3d0a0d" strokeWidth={1.5} />
           {/* `initial` is required, not optional: animating an SVG `r` with only
               an `animate` keyframe array makes framer-motion render r="undefined"
               on the first frame, which the browser rejects. */}
-          <motion.circle cx={cx} cy={cy} r={26} fill="none" stroke="#e93d3d" strokeWidth={1}
+          <motion.circle cx={cx} cy={cy} r={26} fill="none" stroke="var(--chart-brand)" strokeWidth={1}
             initial={{ r: 26, opacity: 0.5 }}
             animate={{ r: [26, 34, 26], opacity: [0.5, 0, 0.5] }} transition={{ duration: 3, repeat: Infinity }} />
           <text x={cx} y={cy - 1} textAnchor="middle" fontSize={11} fontWeight={700} fill="#f6aaaa">APEX</text>
@@ -301,7 +301,7 @@ function SwarmGraph({ state }: { state: SwarmState }) {
           {AGENTS.map((a) => {
             const st = agentStatus(state, a.id);
             const p = pos[a.id];
-            const ringColor = st.status === "review" ? "#e0bd6e" : a.color;
+            const ringColor = st.status === "review" ? "var(--c-watch)" : a.color;
             return (
               <g key={a.id}>
                 {(st.status === "working" || st.status === "review") && (
@@ -314,8 +314,8 @@ function SwarmGraph({ state }: { state: SwarmState }) {
                   stroke={st.status === "idle" ? "#2a2f37" : ringColor}
                   strokeWidth={st.status === "idle" ? 1 : 1.8} />
                 <text x={p.x} y={p.y + 3.5} textAnchor="middle" fontSize={9} fontWeight={700}
-                  fill={st.status === "idle" ? "#6f7884" : ringColor}>{NODE_INITIALS[a.id]}</text>
-                <text x={p.x} y={p.y + (p.y > cy ? 30 : -22)} textAnchor="middle" fontSize={8.5} fill="#94a1a6">{a.name}</text>
+                  fill={st.status === "idle" ? "var(--chart-axis)" : ringColor}>{NODE_INITIALS[a.id]}</text>
+                <text x={p.x} y={p.y + (p.y > cy ? 30 : -22)} textAnchor="middle" fontSize={8.5} fill="var(--chart-axis)">{a.name}</text>
               </g>
             );
           })}
@@ -477,7 +477,7 @@ function RunPipeline({ run, onApprove, onDecline }: { run: Run; onApprove: () =>
                     <motion.span className="absolute -top-[3px] h-[7px] w-[7px] rounded-full" style={{ background: a.color }}
                       initial={{ left: "-10%", opacity: 0 }} animate={{ left: "100%", opacity: [0, 1, 0] }} transition={{ duration: 0.9 }} />
                   )}
-                  <ChevronRight className="absolute -top-[7px] right-[-6px] h-3.5 w-3.5 text-ink-700" />
+                  <ChevronRight className="absolute -top-[7px] right-[-6px] h-3.5 w-3.5 text-ink-500" />
                 </div>
               )}
             </div>

@@ -40,3 +40,22 @@ export const IS_DEMO_UI = truthy(process.env.NEXT_PUBLIC_APEX_DEMO_MODE);
  * fallback, no acting-as-another-patient, no demo links.
  */
 export const IS_PRODUCTION_BEHAVIOUR = !IS_DEMO;
+
+/**
+ * Which release preset the feature registry starts from.
+ *
+ * WHY AN ENVIRONMENT VARIABLE AND NOT A DATABASE ROW
+ * --------------------------------------------------
+ * Per-feature overrides are administration and belong in Postgres, where an
+ * owner can change them without a deploy — that is the whole point of
+ * `feature_flag`. The PRESET is a different kind of thing: it is which product
+ * this deployment is, and it changes exactly once, at a release boundary, as a
+ * deliberate act with a rollback. Binding it to the image means a rollback of
+ * the image is a rollback of the posture, which is the behaviour you want at
+ * 6am on Aug 7.
+ *
+ * Unknown or unset resolves to `clinic-v1` — the smaller surface. An
+ * environment typo must not silently ship the full product to a clinic.
+ */
+export const FEATURE_PRESET: "clinic-v1" | "full" =
+  process.env.APEX_FEATURE_PRESET === "full" ? "full" : "clinic-v1";

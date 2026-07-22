@@ -84,7 +84,7 @@ function LoopRow({ loop }: { loop: OpenLoop }) {
           <SourceChip source={loop.source} />
           {loop.evidence.length > 0 && (
             <>
-              <span className="text-micro text-ink-700">evidence</span>
+              <span className="text-micro text-ink-500">evidence</span>
               <SourceChips sources={loop.evidence} />
             </>
           )}

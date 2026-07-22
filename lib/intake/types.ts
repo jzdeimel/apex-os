@@ -120,15 +120,20 @@ export interface IntakeHistory {
   conditions: string;
   medications: IntakeMedication[];
   allergies: string;
+  missingOrgans: string;
+  surgeries: Array<{ procedure: string; year: string; notes: string }> | null;
+  cancerHistory: boolean | null;
+  cancerDetail: string;
+  familyCancerHistory: string;
   /**
    * Questions with real clinical consequence for TRT/HRT candidacy. Asked here
    * so the provider is not discovering them live on the consult call.
    */
-  usesTobacco: boolean;
-  priorHormoneTherapy: boolean;
-  familyCardiacHistory: boolean;
+  usesTobacco: boolean | null;
+  priorHormoneTherapy: boolean | null;
+  familyCardiacHistory: string;
   /** Female track only; hidden on the male track rather than asked and ignored. */
-  pregnantOrTrying?: boolean;
+  pregnantOrTrying?: boolean | null;
 }
 
 export interface IntakeAnswers {

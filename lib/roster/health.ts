@@ -650,7 +650,7 @@ export function scoreBand(score: number): {
   tone: "optimal" | "watch" | "high";
   color: string;
 } {
-  if (score >= 85) return { label: "Healthy", tone: "optimal", color: "#34d399" };
-  if (score >= 60) return { label: "Needs work", tone: "watch", color: "#e0bd6e" };
-  return { label: "At risk", tone: "high", color: "#e93d3d" };
+  if (score >= 85) return { label: "Healthy", tone: "optimal", color: "var(--c-optimal)" };
+  if (score >= 60) return { label: "Needs work", tone: "watch", color: "var(--c-watch)" };
+  return { label: "At risk", tone: "high", color: "var(--chart-brand)" };
 }

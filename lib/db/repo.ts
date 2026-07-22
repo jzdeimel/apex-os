@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, isNull, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, ne, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   ledger as ledgerTable,
@@ -16,9 +16,35 @@ import {
   intakeInvite,
   intakeSubmission,
   emergencyCard,
+  featureFlag,
+  encounter,
+  encounterSegment,
+  vitals,
+  historyPhysical,
+  signedDocument as signedDocumentTable,
+  signedDocumentArtifact,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
+import type { Consult } from "@/lib/consult/types";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
+import {
+  segmentPlanFor,
+  completionVerdict,
+  credentialSatisfies,
+  validateVitals,
+  vitalsAcceptable,
+  type EncounterKind,
+  type VitalsInput,
+} from "@/lib/encounters/lifecycle";
+import { isProvider, type CredentialClass } from "@/lib/scheduling/credentials";
+import type { LocationId } from "@/lib/types";
+import {
+  documentSha256,
+  signatureAcceptable,
+  validateSignature,
+  type SignableDocument,
+  type SignatureEvidence,
+} from "@/lib/documents/signing";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -354,6 +380,54 @@ export async function raiseEscalation(input: {
   });
 }
 
+/** Escalation row and audit witness commit together or neither commits. */
+export async function raiseEscalationWithLedger(input: {
+  id: string;
+  clientId: string;
+  raisedByStaffId: string;
+  raisedByName: string;
+  raisedByRole: string;
+  raisedAt: string;
+  kind: string;
+  priority: string;
+  question: string;
+  memberQuote?: string;
+  dueAt: string;
+  messageId?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.raisedByStaffId,
+        actorName: input.raisedByName,
+        actorRole: input.raisedByRole,
+        action: "create",
+        entity: "note",
+        entityId: input.id,
+        subjectId: input.clientId,
+        reason: `Pushed to medical: ${input.kind} (${input.priority})`,
+        after: { kind: input.kind, priority: input.priority, dueAt: input.dueAt, messageId: input.messageId ?? null },
+      },
+      input.raisedAt,
+    );
+    await tx.insert(escalationTable).values({
+      id: input.id,
+      clientId: input.clientId,
+      raisedByStaffId: input.raisedByStaffId,
+      raisedAt: new Date(input.raisedAt),
+      kind: input.kind,
+      priority: input.priority,
+      question: input.question,
+      memberQuote: input.memberQuote ?? null,
+      dueAt: new Date(input.dueAt),
+      ledgerId: ledger.id,
+    });
+    return { escalationId: input.id, ledger };
+  });
+}
+
 /** Open escalations, worst SLA first — the provider's queue. */
 export async function readOpenEscalations() {
   const db = requireDb();
@@ -385,7 +459,7 @@ export async function recordDispense(input: {
   expiryOn?: string;
   quantity: number;
   method: string;
-  locationId?: string;
+  locationId?: LocationId;
   dispensedBy: string;
   dispensedAt: string;
   orderId?: string;
@@ -511,10 +585,12 @@ export async function seedStaff(): Promise<number> {
 
 export interface StaffRow {
   id: string;
+  entraObjectId: string | null;
   email: string;
   name: string;
   role: string;
   locationIds: string[];
+  credentials: string | null;
   canApprove: boolean;
   active: boolean;
 }
@@ -522,13 +598,35 @@ export interface StaffRow {
 function toRow(r: typeof staffTable.$inferSelect): StaffRow {
   return {
     id: r.id,
+    entraObjectId: r.entraObjectId,
     email: r.email,
     name: r.name,
     role: r.role,
     locationIds: (r.locationIds as string[]) ?? [],
+    credentials: r.credentials,
     canApprove: r.canApprove,
     active: r.active,
   };
+}
+
+/**
+ * Claim the stable Entra object id for a staff row that was initially matched
+ * by email. This makes email fallback a one-time bridge, not the permanent
+ * identity join. The unique partial index on staff.entra_object_id protects the
+ * assignment if two rows race.
+ */
+export async function claimStaffObjectIdByEmail(email: string, objectId: string): Promise<void> {
+  const db = requireDb();
+  await db
+    .update(staffTable)
+    .set({ entraObjectId: objectId, updatedAt: new Date() })
+    .where(
+      and(
+        eq(staffTable.email, email.toLowerCase()),
+        eq(staffTable.active, true),
+        isNull(staffTable.entraObjectId),
+      ),
+    );
 }
 
 /** Look up a staff member by email. The authority read behind mapToStaff. */
@@ -717,6 +815,106 @@ export async function signConsultDraft(input: {
   });
 }
 
+/**
+ * Provider co-sign of a consult that is still served from the seeded read model.
+ *
+ * The queue has not migrated to Postgres yet, but the signature itself must be a
+ * durable clinical write. This mirrors the loaded consult into `consult`, marks
+ * it signed and appends the ledger witness inside the same transaction. The
+ * in-memory queue may still update after this returns, but it is no longer the
+ * source of truth for whether the signature exists.
+ */
+export async function coSignSeededConsult(input: {
+  consult: Consult;
+  signedBy: string;
+  signerName: string;
+  actorRole: string;
+  signerCredential?: string;
+  attestation: string;
+  subjectName?: string;
+  locationId?: string;
+  at: string;
+}): Promise<{ consultId: string; ledger: LedgerRow } | null> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  const consult = input.consult;
+
+  const dateOr = (value: string | undefined, fallback: Date) => {
+    if (!value) return fallback;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? fallback : d;
+  };
+
+  return db.transaction(async (tx) => {
+    await tx
+      .insert(consultTable)
+      .values({
+        id: consult.id,
+        clientId: consult.clientId,
+        authorId: consult.authorId,
+        kind: consult.kind,
+        channel: consult.channel,
+        startedAt: dateOr(consult.startedAt, at),
+        endedAt: consult.endedAt ? dateOr(consult.endedAt, at) : null,
+        durationMin: consult.durationMin ?? null,
+        rawNotes: consult.rawNotes,
+        aiSummary: (consult.aiSummary as never) ?? null,
+        status: consult.status,
+        signedAt: consult.signedAt ? dateOr(consult.signedAt, at) : null,
+        signedBy: consult.signedBy ?? null,
+        visibleToClient: consult.visibleToClient,
+        updatedAt: at,
+      })
+      .onConflictDoNothing({ target: consultTable.id });
+
+    const [existing] = await tx
+      .select({ id: consultTable.id, status: consultTable.status })
+      .from(consultTable)
+      .where(eq(consultTable.id, consult.id))
+      .limit(1);
+
+    if (!existing || existing.status === "Signed") return null;
+
+    const [row] = await tx
+      .update(consultTable)
+      .set({
+        status: "Signed",
+        signedAt: at,
+        signedBy: input.signedBy,
+        attestation: input.attestation,
+        signerCredential: input.signerCredential ?? null,
+        visibleToClient: true,
+        updatedAt: at,
+      })
+      .where(and(eq(consultTable.id, consult.id), ne(consultTable.status, "Signed")))
+      .returning({ id: consultTable.id, beforeStatus: consultTable.status });
+
+    if (!row) return null;
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.signedBy,
+        actorName: input.signerName,
+        actorRole: input.actorRole,
+        action: "sign",
+        entity: "note",
+        entityId: row.id,
+        subjectId: consult.clientId,
+        subjectName: input.subjectName,
+        locationId: input.locationId as LedgerDraft["locationId"],
+        reason: "Consult co-signed by provider",
+        before: { status: existing.status },
+        after: { status: "Signed", immutable: true, consultId: row.id },
+      },
+      input.at,
+    );
+
+    await tx.update(consultTable).set({ ledgerId: ledger.id }).where(eq(consultTable.id, row.id));
+    return { consultId: row.id, ledger };
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Golden path: lead -> intake invite -> submission + consents                 */
 /* -------------------------------------------------------------------------- */
@@ -742,6 +940,8 @@ export async function createLeadWithInvite(input: {
   modality?: string;
   reason?: string;
   source?: string;
+  mode?: "self-serve" | "coach-guided";
+  capturedBy?: string;
   tokenSha256: string;
   expiresAt: string;
   at: string;
@@ -782,6 +982,8 @@ export async function createLeadWithInvite(input: {
       tokenSha256: input.tokenSha256,
       createdAt: at,
       expiresAt: new Date(input.expiresAt),
+      mode: input.mode ?? "self-serve",
+      capturedBy: input.capturedBy ?? null,
       prefill: {
         firstName: input.firstName ?? null,
         lastName: input.lastName ?? null,
@@ -851,8 +1053,15 @@ export async function submitIntake(input: {
   goals?: unknown;
   symptoms?: unknown;
   history?: unknown;
+  /** Answers keyed by question id, against `formVersion`. */
+  answers?: unknown;
+  formVersion?: string;
+  formSha256?: string;
   consents: ConsentDecision[];
   signatureName?: string;
+  signedByRole?: string;
+  electronicConsentGiven?: boolean;
+  attestedRead?: boolean;
   ipAddress?: string;
   userAgent?: string;
   at: string;
@@ -876,7 +1085,12 @@ export async function submitIntake(input: {
           gt(intakeInvite.expiresAt, at),
         ),
       )
-      .returning({ id: intakeInvite.id, leadId: intakeInvite.leadId });
+      .returning({
+        id: intakeInvite.id,
+        leadId: intakeInvite.leadId,
+        mode: intakeInvite.mode,
+        capturedBy: intakeInvite.capturedBy,
+      });
 
     if (!claimed) return null;
 
@@ -890,6 +1104,18 @@ export async function submitIntake(input: {
       goals: (input.goals as never) ?? null,
       symptoms: (input.symptoms as never) ?? null,
       history: (input.history as never) ?? null,
+      answers: (input.answers as never) ?? null,
+      formVersion: input.formVersion ?? null,
+      formSha256: input.formSha256 ?? null,
+      // Defaults to self-serve because that is what a token link IS. A
+      // coach-guided intake is the staff path and says so explicitly; inferring
+      // "guided" from anything else would put a coach's name on a form they
+      // never sat through.
+      // Mode/coach attribution comes from the staff-minted invite, never from
+      // this public request body. A browser cannot put a coach's name on an
+      // intake that coach did not guide.
+      mode: claimed.mode,
+      capturedBy: claimed.capturedBy,
       submittedAt: at,
       ipAddress: input.ipAddress ?? null,
       userAgent: input.userAgent ?? null,
@@ -905,6 +1131,9 @@ export async function submitIntake(input: {
         textSha256: c.textSha256 ?? null,
         granted: c.granted,
         signatureName: c.signatureName ?? input.signatureName ?? null,
+        signedByRole: input.signedByRole ?? null,
+        electronicConsentGiven: input.electronicConsentGiven ?? null,
+        attestedRead: input.attestedRead ?? null,
         signedAt: at,
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
@@ -1054,5 +1283,784 @@ export async function readEmergencyCard(
     );
 
     return { clientId: row.clientId, cardId: row.id };
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Feature flags                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every stored flag override.
+ *
+ * Deliberately unfiltered and unpaginated. The registry is closed and small
+ * (lib/features/catalog.ts), the scopes are few, and the only subject that can
+ * multiply rows is the per-client pilot list — a table this size is cheaper to
+ * read whole once per request than to query five ways, and resolution needs all
+ * of it anyway to detect same-scope conflicts.
+ *
+ * Rows for keys that are no longer in the registry are returned as-is; the
+ * evaluator ignores them. Deleting them on read would be a write inside a read
+ * path, and a retired key that comes back later would silently lose its setting.
+ */
+export async function listFeatureFlags(): Promise<
+  Array<{
+    id: string;
+    key: string;
+    scope: string;
+    targetId: string;
+    enabled: boolean;
+    reason: string | null;
+    updatedBy: string;
+    updatedAt: Date;
+  }>
+> {
+  const db = requireDb();
+  return db
+    .select({
+      id: featureFlag.id,
+      key: featureFlag.key,
+      scope: featureFlag.scope,
+      targetId: featureFlag.targetId,
+      enabled: featureFlag.enabled,
+      reason: featureFlag.reason,
+      updatedBy: featureFlag.updatedBy,
+      updatedAt: featureFlag.updatedAt,
+    })
+    .from(featureFlag);
+}
+
+/**
+ * Set an override, and witness it.
+ *
+ * Upsert on (key, scope, target) — the unique index makes "set it again" an
+ * update rather than a second contradictory row. The ledger append shares the
+ * transaction, so a flag change that is not witnessed does not happen at all:
+ * the alternative is an audit trail with holes exactly where someone changed
+ * what the system records.
+ */
+export async function setFeatureFlag(input: {
+  key: string;
+  scope: string;
+  targetId: string;
+  enabled: boolean;
+  reason?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}): Promise<{ ledger: LedgerRow }> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  const id = `ff-${input.scope}-${input.targetId}-${input.key}`;
+
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({ enabled: featureFlag.enabled })
+      .from(featureFlag)
+      .where(
+        and(
+          eq(featureFlag.key, input.key),
+          eq(featureFlag.scope, input.scope),
+          eq(featureFlag.targetId, input.targetId),
+        ),
+      )
+      .limit(1);
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "feature-flag",
+        entityId: id,
+        reason: input.reason ?? `Feature ${input.key} set to ${input.enabled ? "on" : "off"}`,
+        before: before ? { enabled: before.enabled } : { enabled: null, note: "no override" },
+        after: { enabled: input.enabled, scope: input.scope, target: input.targetId },
+      },
+      input.at,
+    );
+
+    await tx
+      .insert(featureFlag)
+      .values({
+        id,
+        key: input.key,
+        scope: input.scope,
+        targetId: input.targetId,
+        enabled: input.enabled,
+        reason: input.reason ?? null,
+        updatedBy: input.actorId,
+        updatedAt: at,
+        ledgerId: ledger.id,
+      })
+      .onConflictDoUpdate({
+        target: [featureFlag.key, featureFlag.scope, featureFlag.targetId],
+        set: {
+          enabled: input.enabled,
+          reason: input.reason ?? null,
+          updatedBy: input.actorId,
+          updatedAt: at,
+          ledgerId: ledger.id,
+        },
+      });
+
+    return { ledger };
+  });
+}
+
+/**
+ * Remove an override so the key falls back to the release preset.
+ *
+ * This is NOT the same as setting it to the preset's current value, and the
+ * difference matters at a release boundary: a stored value survives a preset
+ * change and a cleared key follows it. See the `featureFlag` table docblock.
+ */
+export async function clearFeatureFlag(input: {
+  key: string;
+  scope: string;
+  targetId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}): Promise<{ ledger: LedgerRow } | null> {
+  const db = requireDb();
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .delete(featureFlag)
+      .where(
+        and(
+          eq(featureFlag.key, input.key),
+          eq(featureFlag.scope, input.scope),
+          eq(featureFlag.targetId, input.targetId),
+        ),
+      )
+      .returning({ id: featureFlag.id, enabled: featureFlag.enabled });
+
+    if (!row) return null;
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "feature-flag",
+        entityId: row.id,
+        reason: `Override cleared; ${input.key} follows the release preset again`,
+        before: { enabled: row.enabled, override: true },
+        after: { override: false },
+      },
+      input.at,
+    );
+
+    return { ledger };
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Encounters                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Open an encounter and lay out the segments the visit kind requires.
+ *
+ * Segments are created UP FRONT, all of them, in `pending`. The alternative —
+ * creating each part as it happens — cannot answer "what is this visit still
+ * waiting on", which is the question the front desk and the lab-draw queue are
+ * both built around. A pending row is the thing that makes the work visible.
+ *
+ * `requiredCredentials` is snapshotted onto each row rather than referenced.
+ * See the table docblock: the matrix will change and old encounters must keep
+ * saying what was required of them at the time.
+ */
+export async function openEncounter(input: {
+  id: string;
+  appointmentId?: string;
+  clientId: string;
+  clientName?: string;
+  locationId: string;
+  kind: EncounterKind;
+  modality?: "in-person" | "virtual";
+  /** Optional per-component assignment from the NCV resolver. */
+  assignments?: Partial<Record<string, string>>;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}): Promise<{ encounterId: string; segments: string[]; ledger: LedgerRow }> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  const plan = segmentPlanFor(input.kind);
+
+  return db.transaction(async (tx) => {
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "note",
+        entityId: input.id,
+        subjectId: input.clientId,
+        subjectName: input.clientName,
+        locationId: input.locationId as LedgerDraft["locationId"],
+        reason: `Encounter opened: ${input.kind}`,
+        after: { kind: input.kind, segments: plan.map((p) => p.component) },
+      },
+      input.at,
+    );
+
+    await tx.insert(encounter).values({
+      id: input.id,
+      appointmentId: input.appointmentId ?? null,
+      clientId: input.clientId,
+      locationId: input.locationId,
+      kind: input.kind,
+      modality: input.modality ?? "in-person",
+      status: "open",
+      startedAt: at,
+      ledgerId: ledger.id,
+    });
+
+    const segmentIds: string[] = [];
+    for (const p of plan) {
+      const segmentId = `${input.id}-${p.component}`;
+      segmentIds.push(segmentId);
+      await tx.insert(encounterSegment).values({
+        id: segmentId,
+        encounterId: input.id,
+        component: p.component,
+        sequence: p.sequence,
+        requiredCredentials: p.requiredCredentials as never,
+        assignedStaffId: input.assignments?.[p.component] ?? null,
+        status: "pending",
+      });
+    }
+
+    return { encounterId: input.id, segments: segmentIds, ledger };
+  });
+}
+
+/**
+ * Complete a segment, and close the encounter if that was the last one.
+ *
+ * THE CREDENTIAL CHECK HAPPENS HERE, NOT ONLY AT ASSIGNMENT.
+ * A segment assigned to a nurse and completed by whoever is logged in at the
+ * shared workstation is exactly how a lab draw ends up attributed to an office
+ * manager. `performedByCredential` is the credential held AT THE TIME and is
+ * verified against the snapshot on the row before the write.
+ *
+ * COMPLETION IS OBSERVED, NOT ASSERTED.
+ * The encounter's own completion is computed from its segments inside the same
+ * transaction, after this one lands. Nothing may set `completedAt` directly.
+ * Returns `encounterComplete` so the caller can say something true rather than
+ * guessing.
+ */
+export async function completeSegment(input: {
+  segmentId: string;
+  performedBy: string;
+  performedByName: string;
+  performedByCredential: string | null;
+  actorRole: string;
+  /** Required when marking a segment `not-required`. */
+  waivedReason?: string;
+  waive?: boolean;
+  at: string;
+}): Promise<
+  | {
+      ok: true;
+      encounterId: string;
+      encounterComplete: boolean;
+      outstanding: string[];
+      ledger: LedgerRow;
+    }
+  | { ok: false; error: string }
+> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  if (input.waive && !input.waivedReason?.trim()) {
+    // A skipped clinical step with no stated reason is indistinguishable from a
+    // forgotten one. See the column docblock.
+    return { ok: false, error: "Waiving a required part of a visit needs a reason." };
+  }
+
+  return db.transaction(async (tx) => {
+    const [segment] = await tx
+      .select()
+      .from(encounterSegment)
+      .where(eq(encounterSegment.id, input.segmentId))
+      .limit(1);
+
+    if (!segment) return { ok: false as const, error: "No such segment." };
+    if (segment.status === "complete") {
+      return { ok: false as const, error: "That part of the visit is already complete." };
+    }
+
+    const required = segment.requiredCredentials as
+      | readonly (readonly CredentialClass[])[]
+      | null;
+
+    if (
+      !input.waive &&
+      !credentialSatisfies(input.performedByCredential as CredentialClass | null, required)
+    ) {
+      return {
+        ok: false as const,
+        error: input.performedByCredential
+          ? `A ${input.performedByCredential} cannot complete this part of the visit.`
+          : "This part of the visit needs a recorded clinical credential, and yours is not on file.",
+      };
+    }
+
+    await tx
+      .update(encounterSegment)
+      .set({
+        status: input.waive ? "not-required" : "complete",
+        completedAt: at,
+        performedBy: input.performedBy,
+        performedByCredential: input.performedByCredential,
+        waivedReason: input.waive ? input.waivedReason!.trim() : null,
+      })
+      .where(eq(encounterSegment.id, input.segmentId));
+
+    const siblings = await tx
+      .select()
+      .from(encounterSegment)
+      .where(eq(encounterSegment.encounterId, segment.encounterId));
+
+    const verdict = completionVerdict(
+      siblings.map((s) => ({
+        component: s.component as never,
+        status: s.status as never,
+        // Everything laid out at open time is required; a waiver is expressed
+        // as `not-required` STATUS, which the verdict treats as settled.
+        required: true,
+      })),
+    );
+
+    const [enc] = await tx
+      .select({ clientId: encounter.clientId, locationId: encounter.locationId })
+      .from(encounter)
+      .where(eq(encounter.id, segment.encounterId))
+      .limit(1);
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.performedBy,
+        actorName: input.performedByName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "note",
+        entityId: input.segmentId,
+        subjectId: enc?.clientId,
+        locationId: enc?.locationId as LedgerDraft["locationId"],
+        reason: input.waive
+          ? `${segment.component} waived: ${input.waivedReason!.trim()}`
+          : `${segment.component} completed`,
+        before: { status: segment.status },
+        after: {
+          status: input.waive ? "not-required" : "complete",
+          credential: input.performedByCredential,
+          encounterComplete: verdict.complete,
+        },
+      },
+      input.at,
+    );
+
+    await tx
+      .update(encounterSegment)
+      .set({ ledgerId: ledger.id })
+      .where(eq(encounterSegment.id, input.segmentId));
+
+    if (verdict.complete) {
+      await tx
+        .update(encounter)
+        .set({ status: "complete", completedAt: at })
+        .where(eq(encounter.id, segment.encounterId));
+    }
+
+    return {
+      ok: true as const,
+      encounterId: segment.encounterId,
+      encounterComplete: verdict.complete,
+      outstanding: verdict.outstanding,
+      ledger,
+    };
+  });
+}
+
+/**
+ * Record vitals.
+ *
+ * Corrections are a NEW ROW pointing at the old one via `supersedesId`, never
+ * an update — Paul Kennard's append-only rule is not limited to allergies, and
+ * vitals are where the urge to just fix the number is strongest.
+ */
+export async function recordVitals(input: {
+  id: string;
+  clientId: string;
+  encounterId?: string;
+  segmentId?: string;
+  values: VitalsInput;
+  notes?: string;
+  takenBy: string;
+  takenByName: string;
+  takenByCredential: string | null;
+  actorRole: string;
+  supersedesId?: string;
+  correctionReason?: string;
+  at: string;
+}): Promise<
+  | { ok: true; vitalsId: string; warnings: string[]; ledger: LedgerRow }
+  | { ok: false; error: string }
+> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  const problems = validateVitals(input.values);
+  if (!vitalsAcceptable(problems)) {
+    return {
+      ok: false,
+      error: problems
+        .filter((p) => p.severity === "error")
+        .map((p) => p.message)
+        .join(" "),
+    };
+  }
+
+  if (input.supersedesId && !input.correctionReason?.trim()) {
+    return {
+      ok: false,
+      error: "A correction needs a reason. The original row is kept either way.",
+    };
+  }
+
+  return db.transaction(async (tx) => {
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.takenBy,
+        actorName: input.takenByName,
+        actorRole: input.actorRole,
+        action: input.supersedesId ? "update" : "create",
+        entity: "chart",
+        entityId: input.id,
+        subjectId: input.clientId,
+        reason: input.supersedesId
+          ? `Vitals corrected: ${input.correctionReason!.trim()}`
+          : "Vitals recorded",
+        after: {
+          ...input.values,
+          supersedes: input.supersedesId ?? null,
+          warnings: problems.filter((p) => p.severity === "warning").map((p) => p.message),
+        },
+      },
+      input.at,
+    );
+
+    await tx.insert(vitals).values({
+      id: input.id,
+      clientId: input.clientId,
+      encounterId: input.encounterId ?? null,
+      segmentId: input.segmentId ?? null,
+      systolic: input.values.systolic ?? null,
+      diastolic: input.values.diastolic ?? null,
+      heartRate: input.values.heartRate ?? null,
+      respiratoryRate: input.values.respiratoryRate ?? null,
+      spo2: input.values.spo2 ?? null,
+      temperatureC: input.values.temperatureC ?? null,
+      weightKg: input.values.weightKg ?? null,
+      heightCm: input.values.heightCm ?? null,
+      notes: input.notes ?? null,
+      takenBy: input.takenBy,
+      takenByCredential: input.takenByCredential,
+      takenAt: at,
+      supersedesId: input.supersedesId ?? null,
+      correctionReason: input.correctionReason?.trim() ?? null,
+      ledgerId: ledger.id,
+    });
+
+    return {
+      ok: true as const,
+      vitalsId: input.id,
+      warnings: problems.filter((p) => p.severity === "warning").map((p) => p.message),
+      ledger,
+    };
+  });
+}
+
+/**
+ * The lab-draw queue — the nurse's worklist.
+ *
+ * Matt Chilson: "the client's for lab draw, so this will go into a lab draw
+ * queue. The nurse, Natalie in this case, would go and see the name there."
+ *
+ * Ordered oldest-first because a patient sitting in a chair is the unit of
+ * urgency here, not clinical acuity.
+ */
+export async function readLabDrawQueue(locationId?: string) {
+  const db = requireDb();
+  const rows = await db
+    .select({
+      segmentId: encounterSegment.id,
+      encounterId: encounter.id,
+      clientId: encounter.clientId,
+      locationId: encounter.locationId,
+      kind: encounter.kind,
+      status: encounterSegment.status,
+      assignedStaffId: encounterSegment.assignedStaffId,
+      startedAt: encounter.startedAt,
+    })
+    .from(encounterSegment)
+    .innerJoin(encounter, eq(encounterSegment.encounterId, encounter.id))
+    .where(
+      and(
+        eq(encounterSegment.component, "lab-draw"),
+        ne(encounterSegment.status, "complete"),
+        ne(encounterSegment.status, "not-required"),
+        eq(encounter.status, "open"),
+      ),
+    )
+    .orderBy(encounter.startedAt);
+
+  return locationId ? rows.filter((r) => r.locationId === locationId) : rows;
+}
+
+/** Segments of one encounter, in order. The visit board's row detail. */
+export async function readEncounterSegments(encounterId: string) {
+  const db = requireDb();
+  return db
+    .select()
+    .from(encounterSegment)
+    .where(eq(encounterSegment.encounterId, encounterId))
+    .orderBy(encounterSegment.sequence);
+}
+
+/**
+ * Sign the History & Physical.
+ *
+ * SIGNING IS THE IMMUTABILITY BOUNDARY. There is no update path for a signed
+ * row — a correction is an addendum, the same pattern `consultAddendum`
+ * establishes. That is enforced by the conditional UPDATE below: it matches
+ * only where `signed_at IS NULL`, so a second signature attempt returns null
+ * rather than overwriting the first.
+ *
+ * Completing the physical SEGMENT is deliberately a separate call. The
+ * signature is a clinical act and the segment is a workflow state, and a
+ * provider who signs but whose segment silently closes cannot tell you which of
+ * the two failed when something goes wrong.
+ */
+export async function signHistoryPhysical(input: {
+  id: string;
+  clientId: string;
+  encounterId?: string;
+  segmentId?: string;
+  providerId: string;
+  providerName: string;
+  providerCredential: string | null;
+  actorRole: string;
+  chiefComplaint?: string;
+  historyNarrative?: string;
+  examNarrative?: string;
+  assessment?: string;
+  labIndications?: string;
+  attestation: string;
+  at: string;
+}): Promise<{ ok: true; hpId: string; ledger: LedgerRow } | { ok: false; error: string }> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  if (!isProvider(input.providerCredential as CredentialClass | null)) {
+    // The H&P is a provider act. `canApprove` on the staff row is the app's
+    // authorization answer; this is the licence answer, and both must hold.
+    return {
+      ok: false,
+      error: "A History & Physical must be signed by an NP, PA or physician.",
+    };
+  }
+
+  return db.transaction(async (tx) => {
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.providerId,
+        actorName: input.providerName,
+        actorRole: input.actorRole,
+        action: "sign",
+        entity: "note",
+        entityId: input.id,
+        subjectId: input.clientId,
+        reason: "History & Physical signed",
+        after: {
+          immutable: true,
+          credential: input.providerCredential,
+          encounterId: input.encounterId ?? null,
+        },
+      },
+      input.at,
+    );
+
+    await tx
+      .insert(historyPhysical)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        encounterId: input.encounterId ?? null,
+        segmentId: input.segmentId ?? null,
+        providerId: input.providerId,
+        providerCredential: input.providerCredential,
+        chiefComplaint: input.chiefComplaint ?? null,
+        historyNarrative: input.historyNarrative ?? null,
+        examNarrative: input.examNarrative ?? null,
+        assessment: input.assessment ?? null,
+        labIndications: input.labIndications ?? null,
+        startedAt: at,
+        signedAt: at,
+        attestation: input.attestation,
+        ledgerId: ledger.id,
+      })
+      .onConflictDoNothing({ target: historyPhysical.id });
+
+    return { ok: true as const, hpId: input.id, ledger };
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Immutable patient/staff signed documents                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Retain the exact text, evidence tuple, content digest, and audit witness in
+ * one transaction. The database trigger in migration 0011 refuses every later
+ * UPDATE or DELETE; amendments are newly signed versions.
+ */
+export async function recordSignedDocument(input: {
+  id: string;
+  clientId: string | null;
+  subjectName?: string;
+  document: SignableDocument;
+  evidence: SignatureEvidence;
+  actor: { id: string; name: string; role: string };
+  locationId?: LocationId;
+}) {
+  const problems = validateSignature(input.document, input.evidence);
+  if (!signatureAcceptable(problems)) {
+    throw new Error(`Signature refused: ${problems.map((problem) => problem.field).join(", ")}`);
+  }
+  const signedAt = new Date(input.evidence.signedAt);
+  if (Number.isNaN(signedAt.getTime())) throw new Error("Signature refused: signedAt");
+  const hash = documentSha256(input.document);
+  const db = requireDb();
+
+  return db.transaction(async (tx) => {
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actor.id,
+        actorName: input.actor.name,
+        actorRole: input.actor.role,
+        action: "sign",
+        entity: "document",
+        entityId: input.id,
+        subjectId: input.clientId ?? undefined,
+        subjectName: input.subjectName,
+        locationId: input.locationId,
+        reason: `${input.document.kind} signed`,
+        after: {
+          documentId: input.document.documentId,
+          version: input.document.version,
+          documentSha256: hash,
+          immutable: true,
+        },
+      },
+      signedAt.toISOString(),
+    );
+
+    await tx.insert(signedDocumentTable).values({
+      id: input.id,
+      clientId: input.clientId,
+      kind: input.document.kind,
+      documentId: input.document.documentId,
+      version: input.document.version,
+      title: input.document.title,
+      body: input.document.body,
+      regime: input.document.regime,
+      documentSha256: hash,
+      signatureName: input.evidence.signatureName,
+      signedByRole: input.evidence.signedByRole,
+      signedByAccountId: input.evidence.signedByAccountId,
+      signedAt,
+      ipAddress: input.evidence.ipAddress!,
+      userAgent: input.evidence.userAgent!,
+      electronicConsentGiven: input.evidence.electronicConsentGiven,
+      attestedRead: input.evidence.attestedRead,
+      ledgerId: ledger.id,
+    });
+
+    return { signedDocumentId: input.id, documentSha256: hash, ledger };
+  });
+}
+
+/** Append an archived render or delivery receipt; never overwrite one. */
+export async function recordSignedDocumentArtifact(input: {
+  id: string;
+  signedDocumentId: string;
+  kind: "archived-pdf" | "patient-copy";
+  storageProvider: string;
+  objectKey: string;
+  mediaType?: string;
+  artifactSha256: string;
+  deliveredTo?: string;
+  deliveredAt?: string;
+  actor: { id: string; name: string; role: string };
+  clientId?: string;
+}) {
+  if (!/^[a-f0-9]{64}$/i.test(input.artifactSha256)) {
+    throw new Error("Artifact SHA-256 must be a 64-character hexadecimal digest.");
+  }
+  const deliveredAt = input.deliveredAt ? new Date(input.deliveredAt) : null;
+  if (deliveredAt && Number.isNaN(deliveredAt.getTime())) throw new Error("Invalid delivery timestamp.");
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx.insert(signedDocumentArtifact).values({
+      id: input.id,
+      signedDocumentId: input.signedDocumentId,
+      kind: input.kind,
+      storageProvider: input.storageProvider,
+      objectKey: input.objectKey,
+      mediaType: input.mediaType ?? "application/pdf",
+      artifactSha256: input.artifactSha256.toLowerCase(),
+      deliveredTo: input.deliveredTo ?? null,
+      deliveredAt,
+    });
+    const at = (deliveredAt ?? new Date()).toISOString();
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actor.id,
+        actorName: input.actor.name,
+        actorRole: input.actor.role,
+        action: input.kind === "patient-copy" ? "deliver" : "archive",
+        entity: "document",
+        entityId: input.signedDocumentId,
+        subjectId: input.clientId,
+        after: {
+          artifactId: input.id,
+          kind: input.kind,
+          artifactSha256: input.artifactSha256.toLowerCase(),
+        },
+      },
+      at,
+    );
+    return { artifactId: input.id, ledger };
   });
 }

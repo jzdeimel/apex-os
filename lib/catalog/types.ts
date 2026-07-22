@@ -64,7 +64,24 @@ export type ServiceLine =
  * This drives the ship/pickup decision on the order form, which is why it lives
  * on the item rather than being guessed from the item's name at submit time.
  */
-export type Fulfillment = "medsource" | "in-clinic" | "none";
+export type Fulfillment =
+  | "medsource"
+  | "in-clinic"
+  /**
+   * Filled by an OUTSIDE pharmacy against a real prescription.
+   *
+   * The missing third path. Paul Kennard, 2026-07-21, on PT-141: "that is not
+   * on the list of peptides or products that MedSource offers. Therefore it
+   * must go to a doctor, it must have a prescription, and it must get sent to
+   * an actual pharmacy to get fulfilled."
+   *
+   * Without this value such an item had nowhere to go: it was either mislabelled
+   * `medsource` (and would be submitted to a partner who does not stock it) or
+   * `none` (and would be quietly fulfilled by nobody). Both fail the same way —
+   * the patient's order does not arrive and nothing in the system knows.
+   */
+  | "external-pharmacy"
+  | "none";
 
 export interface CatalogItem {
   id: string;
@@ -120,6 +137,45 @@ export interface CatalogItem {
   retiredOn?: string;
   /** Increments on any substantive change. Orders record what they priced against. */
   version: number;
+
+  /**
+   * Where this may be shipped, when the answer is narrower than `availableAt`.
+   *
+   * `availableAt` is about which CLINIC may sell it. This is about which STATE
+   * the patient may receive it in, which is a different question with a legal
+   * answer — Matt Chilson raised it on 2026-07-21 ("there are states, Ohio for
+   * example, where [providers] will approve medications... we need to figure
+   * out the parameters around that so we can route this correctly").
+   *
+   * Undefined means unrestricted. An empty array means nowhere, and is a data
+   * error rather than a silent block — `catalogProblems` reports it.
+   */
+  allowedStates?: string[];
+  /** Explicitly barred states. Applied after `allowedStates`. */
+  restrictedStates?: string[];
+
+  /**
+   * Where the item is in its life, when `active` cannot express it.
+   *
+   * `active` + `retiredOn` is binary, and the HCG decision is not: Paul Kennard
+   * and Matt Chilson agreed MedSource stops distributing hCG "once we run
+   * through this batch" because it is a controlled substance. That is a third
+   * state — fillable from stock on hand, closed to reorder, retiring itself at
+   * zero. Modelling it as `active: true` loses the decision entirely and lets
+   * someone reorder; modelling it as `active: false` strands inventory that
+   * patients are still owed.
+   */
+  lifecycle?: "available" | "sell-through";
+
+  /**
+   * A controlled substance under federal or state schedule.
+   *
+   * Drives the PDMP and controlled-substance paths (lib/clinical/controlled.ts,
+   * `pdmp_check`). Explicit rather than inferred from the name, because
+   * inferring a legal classification from a product string is exactly the kind
+   * of guess that is wrong once and expensive.
+   */
+  controlled?: boolean;
 }
 
 /** A validation problem raised against catalog data itself. */

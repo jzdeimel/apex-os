@@ -14,6 +14,8 @@ import { AdherenceWorklist } from "@/components/coach/AdherenceWorklist";
 import { QuickReply } from "@/components/coach/QuickReply";
 import { Select } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
+import { NextMoveRail } from "@/components/intelligence/NextMoveRail";
+import { coachMoves } from "@/lib/intelligence/coachMoves";
 
 /**
  * Coach · Today
@@ -258,8 +260,6 @@ export default function CoachTodayPage() {
         <BookAtAGlance book={mine} />
       </section>
 
-      {/* What this coach is waiting on a provider for — including anything
-          already answered and safe to relay to the member. */}
       <section className="mt-5">
         <CoachWaitingOn coachId={ME_COACH} />
       </section>
@@ -267,6 +267,15 @@ export default function CoachTodayPage() {
       {/* THE QUEUE IS THE PAGE. */}
       <section className="mt-5">
         <TodayQueue coachId={ME_COACH} />
+      </section>
+
+      <section className="mt-6">
+        <NextMoveRail
+          eyebrow="Coach brief"
+          title="Signals behind the queue"
+          detail="A read-only view from your book: triage, churn risk, stale touch and the next member action. The queue above remains the work surface."
+          moves={coachMoves(ME_COACH, 4)}
+        />
       </section>
 
       {/*

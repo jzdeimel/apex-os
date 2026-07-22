@@ -155,10 +155,10 @@ export default function InsightsPage() {
     const needsClinician = triage.filter((t) => t.level === "critical" || t.level === "high").length;
     const triageLevels = (
       [
-        { key: "critical", color: "#f87171" },
-        { key: "high", color: "#e0bd6e" },
-        { key: "medium", color: "#e93d3d" },
-        { key: "low", color: "#34d399" },
+        { key: "critical", color: "var(--c-high)" },
+        { key: "high", color: "var(--c-watch)" },
+        { key: "medium", color: "var(--chart-brand)" },
+        { key: "low", color: "var(--c-optimal)" },
       ] as const
     )
       .map((l) => ({ name: l.key, value: triage.filter((t) => t.level === l.key).length, color: l.color }))
@@ -424,14 +424,14 @@ export default function InsightsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative grid h-11 w-11 shrink-0 place-items-center">
                         <svg className="h-11 w-11 -rotate-90" viewBox="0 0 36 36">
-                          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#23272d" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--chart-grid)" strokeWidth="3" />
                           <circle
                             cx="18"
                             cy="18"
                             r="15.5"
                             fill="none"
                             stroke={
-                              t.level === "critical" ? "#f87171" : t.level === "high" ? "#e0bd6e" : "#e93d3d"
+                              t.level === "critical" ? "var(--c-high)" : t.level === "high" ? "var(--c-watch)" : "var(--chart-brand)"
                             }
                             strokeWidth="3"
                             strokeLinecap="round"

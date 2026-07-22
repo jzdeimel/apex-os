@@ -23,7 +23,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           alignItems: "center",
           justifyContent: "center",
           background: "#070809",
-          color: "#e7e9ec",
+          color: "var(--chart-tooltip-text)",
           fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
           padding: "24px",
         }}

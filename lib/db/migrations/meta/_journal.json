@@ -43,6 +43,69 @@
       "when": 1784656151878,
       "tag": "0005_sticky_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784682249007,
+      "tag": "0006_living_valeria_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784683344900,
+      "tag": "0007_lyrical_tusk",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784684055059,
+      "tag": "0008_friendly_natasha_romanoff",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784684056059,
+      "tag": "0009_append_only_clinical_facts",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784730343118,
+      "tag": "0010_cutover-identity-foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784731011046,
+      "tag": "0011_immutable-signed-document-archive",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784731332371,
+      "tag": "0012_intake-signature-evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784731423888,
+      "tag": "0013_guided-intake-provenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784731532917,
+      "tag": "0014_staff-calendar-capacity",
+      "breakpoints": true
     }
   ]
 }

@@ -85,6 +85,8 @@ export async function POST(req: Request) {
       preferredLocationId: body.locationId,
       reason: (body.reason ?? "").trim().slice(0, 2000) || undefined,
       source: body.source && SOURCES.has(body.source) ? body.source : "walk-in",
+      mode: "coach-guided",
+      capturedBy: g.actor.id,
       tokenSha256: sha256(minted.token),
       expiresAt: minted.expiresAt,
       at,

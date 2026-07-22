@@ -762,7 +762,7 @@ export default function CoachRosterPage() {
                         <SinceLastVisitInline clientId={r.client.id} coachId={ME_COACH} />
                       ) : (
                         <span
-                          className="stat-mono text-detail text-ink-700"
+                          className="stat-mono text-detail text-ink-500"
                           title="Not your member — there is no last visit of yours to measure from."
                         >
                           —

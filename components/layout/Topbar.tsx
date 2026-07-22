@@ -127,7 +127,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       <div className="flex items-center gap-2 border-t border-ink-800/60 bg-ink-900/40 px-4 py-1.5 lg:px-6">
         <ShieldCheck
           className="h-3.5 w-3.5 shrink-0"
-          style={{ color: isMember ? "#34d399" : undefined }}
+          style={{ color: isMember ? "var(--c-optimal)" : undefined }}
         />
         <p className="text-micro text-ink-400">
           {isMember ? (

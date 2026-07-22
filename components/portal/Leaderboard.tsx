@@ -29,7 +29,15 @@ import { cn } from "@/lib/utils";
  * Everything rendered here is a handle. The row type has no clientId and no name
  * field at all — see lib/play/leaderboard.ts.
  */
-export function Leaderboard({ clientId, limit = 5 }: { clientId: string; limit?: number }) {
+export function Leaderboard({
+  clientId,
+  limit = 5,
+  personal = true,
+}: {
+  clientId: string;
+  limit?: number;
+  personal?: boolean;
+}) {
   // Five, not ten. The board is a reason to come back, not the page — a long
   // list pushed the actual community feed clean off the screen, which inverted
   // what the page is for.
@@ -47,7 +55,7 @@ export function Leaderboard({ clientId, limit = 5 }: { clientId: string; limit?:
     );
   }
 
-  const youInSlice = board.rows.some((r) => r.isYou);
+  const youInSlice = personal && board.rows.some((r) => r.isYou);
 
   return (
     <section className="rounded-panel border border-ink-800 bg-ink-900/40">
@@ -76,7 +84,7 @@ export function Leaderboard({ clientId, limit = 5 }: { clientId: string; limit?:
             key={row.handle}
             className={cn(
               "flex items-center gap-3 px-5 py-3",
-              row.isYou && "bg-gold-400/[0.07]",
+              personal && row.isYou && "bg-gold-400/[0.07]",
             )}
           >
             <span
@@ -88,9 +96,9 @@ export function Leaderboard({ clientId, limit = 5 }: { clientId: string; limit?:
               {row.rank}
             </span>
             <div className="min-w-0 flex-1">
-              <p className={cn("truncate text-body", row.isYou ? "text-gold-200" : "text-ink-100")}>
+              <p className={cn("truncate text-body", personal && row.isYou ? "text-gold-200" : "text-ink-100")}>
                 {row.handle}
-                {row.isYou && <span className="ml-2 text-micro text-ink-500">you</span>}
+                {personal && row.isYou && <span className="ml-2 text-micro text-ink-500">you</span>}
               </p>
               <p className="truncate text-micro text-ink-500">
                 Level {row.level} · {row.title}
@@ -104,7 +112,7 @@ export function Leaderboard({ clientId, limit = 5 }: { clientId: string; limit?:
       </ol>
 
       {/* Pinned own-row for anyone outside the visible slice, as a band. */}
-      {!youInSlice && board.you && (
+      {personal && !youInSlice && board.you && (
         <div className="flex items-center gap-3 border-t border-ink-800 bg-gold-400/[0.07] px-5 py-3">
           <span className="w-7 shrink-0 text-detail text-ink-500">·</span>
           <div className="min-w-0 flex-1">

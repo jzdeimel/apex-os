@@ -1,5 +1,7 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db, sql, isConfigured } from "@/lib/db/client";
+import { staff as staffTable } from "@/lib/db/schema";
+import { staff as seededStaff } from "@/lib/mock/staff";
 
 /**
  * Apply pending migrations at boot.
@@ -67,13 +69,24 @@ export async function runMigrations(): Promise<MigrationState> {
   try {
     await migrate(db, { migrationsFolder: "./lib/db/migrations" });
 
-    // Seed the staff roster (idempotent upsert) so the authority table is
-    // populated the moment the schema exists. Best-effort: a seed failure
-    // degrades staff-table lookups to the in-code fallback, which principal.ts
-    // already handles, so it must not fail the migration state.
+    // Seed the staff roster (idempotent insert) so the authority table is
+    // populated the moment the schema exists. This is deliberately done here
+    // against `db` directly rather than through repo.seedStaff(): the repository
+    // guard refuses writes while migrations are pending, and migration bootstrap
+    // is the one place that must be allowed to finish creating that ready state.
     try {
-      const { seedStaff } = await import("@/lib/db/repo");
-      await seedStaff();
+      for (const s of seededStaff) {
+        await db.insert(staffTable).values({
+          id: s.id,
+          email: s.email ?? `${s.id}@alphahealth.demo`,
+          name: s.name,
+          role: s.role,
+          locationIds: s.locationIds ?? [],
+          credentials: s.credentials ?? null,
+          canApprove: s.canApprove ?? false,
+          active: true,
+        }).onConflictDoNothing({ target: staffTable.id });
+      }
     } catch (seedErr) {
       console.error("[apex] staff seed failed:", seedErr instanceof Error ? seedErr.message : seedErr);
     }

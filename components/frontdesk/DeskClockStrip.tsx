@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Clock3, DoorOpen, RotateCcw, Users } from "lucide-react";
 import type { DeskDay } from "@/lib/frontdesk/day";
 import { duration, hhmm, nudgeDeskClock, resetDeskClock } from "@/lib/frontdesk/clock";
@@ -47,9 +48,18 @@ function Tile({
         <Icon className="h-2.5 w-2.5 shrink-0" />
         {label}
       </p>
-      <p className={cn("stat-mono mt-1 truncate text-title font-semibold leading-none", toneText)}>
-        {value}
-      </p>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.p
+          key={String(value)}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          className={cn("stat-mono mt-1 truncate text-title font-semibold leading-none", toneText)}
+        >
+          {value}
+        </motion.p>
+      </AnimatePresence>
       <p className="mt-1.5 truncate text-micro leading-tight text-ink-500" title={hint}>
         {hint}
       </p>

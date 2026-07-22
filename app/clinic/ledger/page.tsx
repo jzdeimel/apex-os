@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Filter,
   History,
+  Archive,
+  Send,
 } from "lucide-react";
 import {
   ledger,
@@ -43,6 +45,8 @@ const ACTION_META: Record<
   decline: { icon: X, tone: "watch", label: "Declined" },
   deny: { icon: ShieldAlert, tone: "high", label: "Access denied" },
   export: { icon: Download, tone: "watch", label: "Exported" },
+  archive: { icon: Archive, tone: "neutral", label: "Archived" },
+  deliver: { icon: Send, tone: "low", label: "Delivered" },
   login: { icon: LogIn, tone: "neutral", label: "Signed in" },
   "break-glass": { icon: Siren, tone: "high", label: "Break-glass" },
 };
@@ -73,7 +77,7 @@ export default function LedgerPage() {
     if (lens === "reads") return desc.filter((r) => r.action === "view" || r.action === "export");
     if (lens === "writes")
       return desc.filter((r) =>
-        ["create", "update", "sign", "approve", "decline"].includes(r.action),
+        ["create", "update", "sign", "approve", "decline", "archive", "deliver"].includes(r.action),
       );
     if (lens === "security")
       return desc.filter((r) => r.action === "deny" || r.action === "break-glass");
@@ -253,7 +257,7 @@ function LedgerRowItem({
             <span className="stat-mono">{formatDateTime(row.at)}</span>
             <span>{row.actorRole}</span>
             {row.locationId && <span>{locationName(row.locationId)}</span>}
-            <span className="stat-mono text-ink-700">{shortHash(row.hash)}</span>
+            <span className="stat-mono text-ink-500">{shortHash(row.hash)}</span>
           </span>
           {row.reason && (
             <span className="mt-1.5 block text-micro italic text-ink-500">

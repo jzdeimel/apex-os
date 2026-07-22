@@ -20,19 +20,32 @@ const config: Config = {
     extend: {
       colors: {
         // Charcoal / ink canvas
+        /**
+         * The ink scale is SEMANTIC BY POSITION, not by lightness.
+         *
+         * 950 is always the page canvas, 850 always a card, 700 always a
+         * hairline, 100 always body text. Under the V1 skin those resolve to
+         * light values (see app/globals.css) — so `bg-ink-950` still means "the
+         * canvas" and every existing class reskins for free. Read the numbers
+         * as depth, not brightness.
+         *
+         * RGB channels, not hex, because the codebase leans on opacity
+         * modifiers (`bg-ink-850/80`, `border-ink-700/70`) and those only work
+         * when Tailwind can compose the alpha itself.
+         */
         ink: {
-          50: "#f5f6f7",
-          100: "#e7e9ec",
-          200: "#c9ced4",
-          300: "#a3abb5",
-          400: "#7a838f",
-          500: "#5d646f",
-          600: "#474e58",
-          700: "#23272d",
-          800: "#17191e",
-          850: "#121419",
-          900: "#0d0f12",
-          950: "#070809",
+          50: "rgb(var(--ink-50) / <alpha-value>)",
+          100: "rgb(var(--ink-100) / <alpha-value>)",
+          200: "rgb(var(--ink-200) / <alpha-value>)",
+          300: "rgb(var(--ink-300) / <alpha-value>)",
+          400: "rgb(var(--ink-400) / <alpha-value>)",
+          500: "rgb(var(--ink-500) / <alpha-value>)",
+          600: "rgb(var(--ink-600) / <alpha-value>)",
+          700: "rgb(var(--ink-700) / <alpha-value>)",
+          800: "rgb(var(--ink-800) / <alpha-value>)",
+          850: "rgb(var(--ink-850) / <alpha-value>)",
+          900: "rgb(var(--ink-900) / <alpha-value>)",
+          950: "rgb(var(--ink-950) / <alpha-value>)",
         },
         // Alpha brand red (matches alphamaleraleigh.com: #e93d3d / #bf1e2e).
         // Token is named `gold` for historical reasons; values are the ALPHA
@@ -41,23 +54,30 @@ const config: Config = {
         // production AlphaOS brand uses — so the crimson hue matches the real
         // logo rather than the previous orange-shifted red (#e93d3d).
         gold: {
-          50: "#fdecee",
-          100: "#fbd0d5",
-          200: "#f4a3ac",
-          300: "#ec6e7e",
-          400: "#ec3d50", // on-dark accent (matches AlphaOS dark-lifted brand)
-          500: "#d21f34",
-          600: "#b81828", // ★ exact Alpha Health logo red
-          700: "#8f1220", // hover / pressed (AlphaOS brand-dark)
-          800: "#6d0f1a",
-          900: "#4f0b13",
-          950: "#320810",
+          50: "rgb(var(--brand-50) / <alpha-value>)",
+          100: "rgb(var(--brand-100) / <alpha-value>)",
+          200: "rgb(var(--brand-200) / <alpha-value>)",
+          300: "rgb(var(--brand-300) / <alpha-value>)",
+          400: "rgb(var(--brand-400) / <alpha-value>)",
+          500: "rgb(var(--brand-500) / <alpha-value>)",
+          600: "rgb(var(--brand-600) / <alpha-value>)",
+          700: "rgb(var(--brand-700) / <alpha-value>)",
+          800: "rgb(var(--brand-800) / <alpha-value>)",
+          900: "rgb(var(--brand-900) / <alpha-value>)",
+          950: "rgb(var(--brand-950) / <alpha-value>)",
         },
         // Clinical status semantics
-        optimal: "#34d399",
-        watch: "#e0bd6e",
-        low: "#60a5fa",
-        high: "#f87171",
+        optimal: "rgb(var(--status-optimal) / <alpha-value>)",
+        watch: "rgb(var(--status-watch) / <alpha-value>)",
+        low: "rgb(var(--status-low) / <alpha-value>)",
+        high: "rgb(var(--status-high) / <alpha-value>)",
+        /** The sidebar rail — dark in BOTH skins. That is V1's design, not a
+         *  compromise: a #16181c rail against a #f7f7f8 page is the most
+         *  recognisable thing about the app a coach opens every morning. */
+        rail: {
+          DEFAULT: "rgb(var(--rail-bg) / <alpha-value>)",
+          border: "rgb(var(--rail-border) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

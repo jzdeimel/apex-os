@@ -355,7 +355,7 @@ export function ConsultComposer({
               <span className="stat-mono">{raw.length}</span> chars
               {saveStatus === "saving" && (
                 <>
-                  <span className="text-ink-700">·</span>
+                  <span className="text-ink-500">·</span>
                   <span className="inline-flex items-center gap-1 text-ink-400">
                     <Save className="h-3 w-3 animate-pulse" /> Saving…
                   </span>
@@ -363,7 +363,7 @@ export function ConsultComposer({
               )}
               {saveStatus === "saved" && savedAt && (
                 <>
-                  <span className="text-ink-700">·</span>
+                  <span className="text-ink-500">·</span>
                   <span className="inline-flex items-center gap-1 text-optimal">
                     <Check className="h-3 w-3" /> Draft saved{" "}
                     <span className="stat-mono">{formatTime(savedAt)}</span>

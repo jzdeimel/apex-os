@@ -5,6 +5,9 @@ import { MobileSignQueue } from "@/components/clinic/MobileSignQueue";
 import { SecondOpinion } from "@/components/clinic/SecondOpinion";
 import { SwitchView } from "@/components/motion";
 import { Tabs } from "@/components/ui/Tabs";
+import { NextMoveRail } from "@/components/intelligence/NextMoveRail";
+import { providerMoves } from "@/lib/intelligence/providerMoves";
+import { ME_PROVIDER } from "@/lib/escalations/queue";
 
 /**
  * Clinic · Sign — the provider's signature queue, built phone-first, with the
@@ -45,6 +48,13 @@ export default function ClinicSignPage() {
       <SwitchView k={tab}>
         {tab === "queue" ? <MobileSignQueue /> : <SecondOpinion />}
       </SwitchView>
+
+      <NextMoveRail
+        eyebrow="Provider brief"
+        title="Other clinical work waiting"
+        detail="A read-only list of unsigned notes, sourced recommendations and charts with review signals. The queue above remains the signing surface."
+        moves={providerMoves(ME_PROVIDER, 4)}
+      />
     </div>
   );
 }

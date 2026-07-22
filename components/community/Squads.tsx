@@ -20,7 +20,13 @@ const ICON: Record<SquadIcon, typeof Syringe> = {
   peptide: FlaskConical,
 };
 
-export function Squads({ clientId }: { clientId: string }) {
+export function Squads({
+  clientId,
+  memberActions = true,
+}: {
+  clientId: string;
+  memberActions?: boolean;
+}) {
   const { toast } = useToast();
   const { squads, isJoined, toggle, hydrated } = useSquads();
 
@@ -36,6 +42,7 @@ export function Squads({ clientId }: { clientId: string }) {
             <SquadCard
               squad={s}
               clientId={clientId}
+              memberActions={memberActions}
               joined={hydrated && isJoined(s.id)}
               onToggle={() => {
                 const was = isJoined(s.id);
@@ -53,17 +60,19 @@ export function Squads({ clientId }: { clientId: string }) {
 function SquadCard({
   squad,
   clientId,
+  memberActions,
   joined,
   onToggle,
 }: {
   squad: Squad;
   clientId: string;
+  memberActions: boolean;
   joined: boolean;
   onToggle: () => void;
 }) {
   const Icon = ICON[squad.icon];
   const memberCount = squad.memberClientIds.length + (joined ? 1 : 0);
-  const inSquad = squad.memberClientIds.includes(clientId) || joined;
+  const inSquad = squad.memberClientIds.includes(clientId) || joined || !memberActions;
 
   return (
     <Card>
@@ -78,10 +87,14 @@ function SquadCard({
               <p className="mt-0.5 text-detail leading-relaxed text-ink-400">{squad.tagline}</p>
             </div>
           </div>
+          {memberActions ? (
           <Button size="sm" variant={joined ? "success" : "primary"} onClick={onToggle}>
             {joined ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {joined ? "Joined" : "Join"}
           </Button>
+          ) : (
+            <Badge tone="neutral">Staff view</Badge>
+          )}
         </div>
 
         <div className="mt-4 flex items-center gap-2 text-micro text-ink-500">
@@ -116,10 +129,12 @@ function SquadCard({
                 </div>
               </div>
             ))}
-            <p className="pl-9 text-micro text-ink-600">You&apos;re in — say something when you&apos;re ready.</p>
+            {memberActions && (
+              <p className="pl-9 text-micro text-ink-600">You&apos;re in — say something when you&apos;re ready.</p>
+            )}
           </div>
         )}
-        {!inSquad && (
+        {memberActions && !inSquad && (
           <Badge tone="neutral" className="mt-3">
             Join to see the conversation
           </Badge>

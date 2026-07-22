@@ -9,7 +9,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePortal } from "@/lib/portalStore";
 import { PORTAL_LIST } from "@/lib/portals";
-import { PORTAL_NAV } from "@/lib/nav";
+import { PORTAL_NAV, filterNavByFeatures } from "@/lib/nav";
+import { useFeatures, usePreset } from "@/lib/features/client";
 import { SupportLink } from "@/components/SupportLink";
 import { signOut } from "@/lib/auth/session";
 
@@ -24,7 +25,10 @@ export function Sidebar({
   const { portal, setPortal } = usePortal();
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
-  const groups = PORTAL_NAV[portal.id];
+  // Feature-filtered so the rail never offers a link the server would 404.
+  const features = useFeatures();
+  const preset = usePreset();
+  const groups = filterNavByFeatures(PORTAL_NAV[portal.id], features, preset);
 
   // Longest-match so /clinic/ledger highlights Ledger, not Command Center.
   const activeHref = groups
@@ -43,7 +47,12 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-800 bg-ink-950/95 backdrop-blur-xl transition-transform lg:translate-x-0",
+          // `app-rail` re-scopes the ink variables to dark values inside this
+          // element only (app/globals.css). Under the V1 skin the page canvas
+          // is light and the rail stays dark — which is V1's actual design, and
+          // the most recognisable thing about the app a coach opens daily.
+          // Nothing else in this file changes between skins.
+          "app-rail fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-800 bg-ink-950/95 backdrop-blur-xl transition-transform lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -195,10 +204,7 @@ export function Sidebar({
         </nav>
 
         <div className="m-3 rounded-xl border border-ink-800 bg-ink-900/60 p-3">
-          <p
-            className="text-micro font-medium uppercase tracking-wide"
-            style={{ color: portal.accent.hex }}
-          >
+          <p className="text-micro font-medium uppercase tracking-wide text-ink-300">
             Demo environment
           </p>
           <p className="mt-1 text-micro leading-relaxed text-ink-500">

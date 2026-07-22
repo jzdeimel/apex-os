@@ -62,13 +62,13 @@ export function LevelCard({
           {/* ── Level ring ──────────────────────────────────────────── */}
           <div className="relative grid shrink-0 place-items-center self-center">
             <svg width="104" height="104" viewBox="0 0 104 104" className="-rotate-90">
-              <circle cx="52" cy="52" r={R} fill="none" stroke="#23272d" strokeWidth="8" />
+              <circle cx="52" cy="52" r={R} fill="none" stroke="var(--chart-grid)" strokeWidth="8" />
               <motion.circle
                 cx="52"
                 cy="52"
                 r={R}
                 fill="none"
-                stroke="#e93d3d"
+                stroke="var(--chart-brand)"
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={C}

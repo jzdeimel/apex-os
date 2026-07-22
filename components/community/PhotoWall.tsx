@@ -51,7 +51,15 @@ function downscale(file: File): Promise<string> {
 
 const CATEGORIES: PhotoCategory[] = ["progress", "meal", "training", "event", "other"];
 
-export function PhotoWall({ clientId }: { clientId: string }) {
+export function PhotoWall({
+  clientId,
+  actorId = clientId,
+  actorHandle,
+}: {
+  clientId: string;
+  actorId?: string;
+  actorHandle?: string;
+}) {
   const { toast } = useToast();
   const { posts, hydrated, addPhoto, removePhoto } = usePhotos(clientId);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -82,7 +90,7 @@ export function PhotoWall({ clientId }: { clientId: string }) {
 
   function post() {
     if (!pending) return;
-    addPhoto({ src: pending, caption: caption.trim() || "Shared a photo", category });
+    addPhoto({ src: pending, caption: caption.trim() || "Shared a photo", category, actorId, actorHandle });
     setPending(null);
     setCaption("");
     setCategory("progress");
@@ -94,7 +102,7 @@ export function PhotoWall({ clientId }: { clientId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-prose text-body leading-relaxed text-ink-400">
           Progress shots, meal prep, the trail from Saturday&apos;s hike. Real photos from real people
-          doing the work. You post as your handle.
+          doing the work. You post as {actorHandle ?? "your handle"}.
         </p>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
         <Button variant="primary" disabled={busy} onClick={() => fileRef.current?.click()}>
@@ -167,7 +175,7 @@ export function PhotoWall({ clientId }: { clientId: string }) {
                   <CardContent className="space-y-2 p-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2 text-detail">
-                        <span className="font-medium text-ink-50">{p.clientId === clientId ? "You" : p.handle}</span>
+                        <span className="font-medium text-ink-50">{p.clientId === actorId ? "You" : p.handle}</span>
                         <Badge tone="neutral">{CATEGORY_LABEL[p.category]}</Badge>
                       </span>
                       <span className="text-micro text-ink-600">{relativeDays(p.postedAt)}</span>
@@ -175,7 +183,7 @@ export function PhotoWall({ clientId }: { clientId: string }) {
                     <p className="text-detail leading-relaxed text-ink-300">{p.caption}</p>
                     <div className="flex items-center justify-between pt-1">
                       <KudosButton itemId={p.id} />
-                      {p.clientId === clientId && !p.seeded && (
+                      {p.clientId === actorId && !p.seeded && (
                         <button
                           type="button"
                           onClick={() => removePhoto(p.id)}

@@ -12,6 +12,8 @@ import { CrossLocationMoney } from "@/components/exec/CrossLocationMoney";
 import { yesterdayFigures, YESTERDAY, TODAY, TRAILING_DAYS } from "@/lib/exec/morning";
 import { businessFigures, unanswerable } from "@/lib/exec/business";
 import { formatDate } from "@/lib/utils";
+import { Stagger, StaggerItem } from "@/components/motion";
+import { OwnerMorningBrief } from "@/components/exec/OwnerMorningBrief";
 
 /**
  * OWNER CONSOLE · Morning.
@@ -87,11 +89,13 @@ export default function ExecMorningPage() {
             to read alone
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {yesterday.map((f) => (
-            <FigureTile key={f.id} figure={f} size="lead" />
+            <StaggerItem key={f.id}>
+              <FigureTile figure={f} size="lead" />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       {/* ---- 2. WHAT NEEDS YOU ------------------------------------------- */}
@@ -103,6 +107,10 @@ export default function ExecMorningPage() {
           </p>
         </div>
         <AttentionList />
+      </section>
+
+      <section className="mt-6">
+        <OwnerMorningBrief />
       </section>
 
       {/* ---- 3. IS THE BUSINESS HEALTHY ---------------------------------- */}
@@ -119,11 +127,13 @@ export default function ExecMorningPage() {
             <ArrowUpRight className="h-3 w-3" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {business.map((f) => (
-            <FigureTile key={f.id} figure={f} />
+            <StaggerItem key={f.id}>
+              <FigureTile figure={f} />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       {/* ---- 4. CROSS-LOCATION MONEY ------------------------------------- */}

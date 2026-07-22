@@ -29,13 +29,13 @@ const STATUSES: ClientStatus[] = [
 ];
 
 const STATUS_COLOR: Record<ClientStatus, string> = {
-  Lead: "#6f7884",
-  "Consult Booked": "#60a5fa",
+  Lead: "var(--chart-axis)",
+  "Consult Booked": "var(--c-low)",
   "Labs Ordered": "#38bdf8",
-  "Results Ready": "#e93d3d",
-  "Plan Review": "#e0bd6e",
-  "Active Protocol": "#34d399",
-  "Follow-Up Due": "#f87171",
+  "Results Ready": "var(--chart-brand)",
+  "Plan Review": "var(--c-watch)",
+  "Active Protocol": "var(--c-optimal)",
+  "Follow-Up Due": "var(--c-high)",
   Inactive: "#4b525c",
 };
 
@@ -107,7 +107,7 @@ export default function ClientsPage() {
       const order = { high: 3, moderate: 2, low: 1, none: 0 } as const;
       return c.riskFlags.slice().sort((a, b) => order[b.level] - order[a.level])[0]?.level ?? "none";
     };
-    const colors: Record<string, string> = { none: "#34d399", low: "#60a5fa", moderate: "#e0bd6e", high: "#f87171" };
+    const colors: Record<string, string> = { none: "var(--c-optimal)", low: "var(--c-low)", moderate: "var(--c-watch)", high: "var(--c-high)" };
     return (["none", "low", "moderate", "high"] as const)
       .map((lvl) => ({ name: lvl === "none" ? "No flags" : lvl, value: base.filter((c) => top(c) === lvl).length, color: colors[lvl] }))
       .filter((d) => d.value > 0);

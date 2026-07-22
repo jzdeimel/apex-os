@@ -111,8 +111,8 @@ const ACCENT_OVERRIDES: Record<string, string> = {
   retatrutide: "#818cf8",
   sermorelin: "#c4b5fd",
   ipamorelin: "#f0abfc",
-  "cjc-1295": "#a78bfa",
-  glutathione: "#7dd3fc",
+  "cjc-1295": "var(--chart-series-4)",
+  glutathione: "var(--c-low)",
   hcg: "#fb923c",
 };
 

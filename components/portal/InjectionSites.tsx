@@ -76,7 +76,7 @@ function Silhouette({ view }: { view: "front" | "back" }) {
       {/* The only thing distinguishing the two figures: a spine line on the
           back view. Enough to orient, not enough to over-claim. */}
       {view === "back" && (
-        <rect x="49" y="44" width="2" height="58" rx="1" className="text-ink-950" fill="currentColor" opacity={0.5} />
+        <rect x="49" y="44" width="2" height="58" rx="1" className="text-white" fill="currentColor" opacity={0.5} />
       )}
     </svg>
   );

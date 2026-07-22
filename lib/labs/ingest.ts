@@ -6,7 +6,25 @@ import {
 } from "@/lib/azure/documentIntelligence";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { getClient, clientName } from "@/lib/mock/clients";
-import { VIEWER } from "@/lib/viewer";
+/**
+ * THE ACTOR IS AN ARGUMENT, NOT A MODULE CONSTANT.
+ *
+ * This file used to stamp every ledger row with `VIEWER` — a hardcoded demo
+ * account. A ledger row attributed to a constant is worse than no ledger row:
+ * it is a false statement about who touched a clinical record, and it is
+ * indistinguishable from a true one when read back. The whole point of the hash
+ * chain is answering "who did this", and a fixed answer voids it.
+ *
+ * The module stays PURE — it takes the actor rather than resolving one, so it
+ * remains testable without a request context and the caller (which has the
+ * authenticated principal) cannot forget to supply it: the parameter is
+ * required, so omitting it is a type error.
+ */
+export interface LabActor {
+  id: string;
+  name: string;
+  role: string;
+}
 import { sha256, shortHash } from "@/lib/trace/hash";
 import type { LedgerDraft } from "@/lib/trace/ledger";
 import type { ProvenanceStamp } from "@/lib/consult/types";
@@ -242,7 +260,11 @@ function mapOne(m: ExtractedMarker, idx: Map<string, Biomarker>): Biomarker | un
  * result, which is what makes the review screen screenshot-stable and the
  * provenance hash meaningful.
  */
-export function ingestLabReport(fileName: string, clientId: string): LabIngestResult {
+export function ingestLabReport(
+  fileName: string,
+  clientId: string,
+  actor: LabActor,
+): LabIngestResult {
   const ingestId = `labdoc-${shortHash(sha256(`${fileName}|${clientId}`))}`;
   const client = getClient(clientId);
 
@@ -263,9 +285,9 @@ export function ingestLabReport(fileName: string, clientId: string): LabIngestRe
   });
 
   const failDraft = (reason: string): LedgerDraft => ({
-    actorId: VIEWER.id,
-    actorName: VIEWER.name,
-    actorRole: VIEWER.role,
+    actorId: actor.id,
+    actorName: actor.name,
+    actorRole: actor.role,
     action: "decline",
     entity: "lab",
     entityId: ingestId,
@@ -369,9 +391,9 @@ export function ingestLabReport(fileName: string, clientId: string): LabIngestRe
   };
 
   const ledgerDraft: LedgerDraft = {
-    actorId: VIEWER.id,
-    actorName: VIEWER.name,
-    actorRole: VIEWER.role,
+    actorId: actor.id,
+    actorName: actor.name,
+    actorRole: actor.role,
     action: "create",
     entity: "lab",
     entityId: ingestId,
@@ -430,13 +452,14 @@ export function reviewQueue(result: LabIngestResult): IngestedMarker[] {
 export function chartCommitDraft(
   result: LabIngestResult,
   confirmed: ReadonlySet<string>,
+  actor: LabActor,
 ): LedgerDraft {
   const client = getClient(result.clientId);
   const charted = chartable(result, confirmed);
   return {
-    actorId: VIEWER.id,
-    actorName: VIEWER.name,
-    actorRole: VIEWER.role,
+    actorId: actor.id,
+    actorName: actor.name,
+    actorRole: actor.role,
     action: "update",
     entity: "lab",
     entityId: result.ingestId,

@@ -1,10 +1,13 @@
 import { runMutation, ConflictError } from "@/lib/api/gateway";
-import { appendLedgerRow } from "@/lib/db/repo";
+import { coSignSeededConsult } from "@/lib/db/repo";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { getConsult, commitConsultStatus } from "@/lib/mock/consults";
 import type { Consult } from "@/lib/consult/types";
 import type { Client } from "@/lib/types";
 import { staffMap } from "@/lib/mock/staff";
+
+const DEFAULT_ATTESTATION =
+  "I attest that this note is accurate and complete to the best of my knowledge.";
 
 /**
  * PROVIDER CO-SIGN of an existing consult.
@@ -88,23 +91,21 @@ export async function POST(req: Request) {
           throw new ConflictError("This consult is already signed.");
         }
 
-        const row = await appendLedgerRow(
-          {
-            actorId: actor.id,
-            actorName: me?.name ?? actor.id,
-            actorRole: actor.role,
-            action: "sign",
-            entity: "note",
-            entityId: consult.id,
-            subjectId: client.id,
-            subjectName: clientName(client),
-            locationId: client.locationId,
-            reason: "Consult co-signed by provider",
-            before: { status: consult.status },
-            after: { status: "Signed", immutable: true, consultId: consult.id },
-          },
-          new Date().toISOString(),
-        );
+        const result = await coSignSeededConsult({
+          consult,
+          signedBy: actor.id,
+          signerName: me?.name ?? actor.id,
+          actorRole: actor.role,
+          signerCredential: me?.credentials,
+          attestation: DEFAULT_ATTESTATION,
+          subjectName: clientName(client),
+          locationId: client.locationId,
+          at: new Date().toISOString(),
+        });
+
+        if (!result) {
+          throw new ConflictError("This consult is already signed.");
+        }
 
         // Only after the durable witness exists does the read model move, so a
         // failed ledger write cannot leave a consult marked signed with nothing
@@ -112,8 +113,8 @@ export async function POST(req: Request) {
         commitConsultStatus(consult.id, "Signed");
 
         return {
-          consultId: consult.id,
-          ledger: { id: row.id, seq: row.seq, hash: row.hash },
+          consultId: result.consultId,
+          ledger: { id: result.ledger.id, seq: result.ledger.seq, hash: result.ledger.hash },
         };
       },
     },

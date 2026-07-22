@@ -44,7 +44,7 @@ export default function EntryPage() {
   const [hovered, setHovered] = useState<PortalDef | null>(null);
   const [entering, setEntering] = useState<string | null>(null);
 
-  const accent = hovered?.accent.hex ?? "#e93d3d";
+  const accent = hovered?.accent.hex ?? "var(--chart-brand)";
 
   function enter(p: PortalDef) {
     setEntering(p.id);
@@ -241,7 +241,7 @@ export default function EntryPage() {
                           security claims the code did not honour. Labelled, they
                           are useful; unlabelled, they were the worst kind of
                           untruth this product could tell. */}
-                      <p className="pl-[18px] text-micro text-ink-700">
+                      <p className="pl-[18px] text-micro text-ink-500">
                         <span className="text-ink-600">Planned:</span> {p.identity.planned}
                       </p>
                     </div>
@@ -294,7 +294,7 @@ export default function EntryPage() {
             className="pointer-events-none absolute inset-0 origin-bottom"
             style={{
               background: `linear-gradient(0deg, ${
-                PORTAL_LIST.find((p) => p.id === entering)?.accent.hex ?? "#e93d3d"
+                PORTAL_LIST.find((p) => p.id === entering)?.accent.hex ?? "var(--chart-brand)"
               }14, transparent)`,
             }}
           />

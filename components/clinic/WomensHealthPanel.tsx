@@ -12,7 +12,7 @@ import { womensHealthView, type WHMarker, type WHConsideration } from "@/lib/cli
  */
 
 const STAGE_STYLE: Record<string, string> = {
-  premenopausal: "text-sky-300 border-sky-400/30 bg-sky-400/5",
+  premenopausal: "text-low border-low/30 bg-low/5",
   perimenopause: "text-gold-300 border-gold-400/30 bg-gold-400/5",
   menopausal: "text-high border-high/30 bg-high/5",
   postmenopausal: "text-high border-high/30 bg-high/5",
@@ -108,7 +108,7 @@ export function WomensHealthPanel({ clientId }: { clientId: string }) {
 
 function MarkerCard({ m }: { m: WHMarker }) {
   const pos: Record<WHMarker["position"], { t: string; c: string }> = {
-    below: { t: "Below optimal", c: "text-sky-300" },
+    below: { t: "Below optimal", c: "text-low" },
     optimal: { t: "In range", c: "text-emerald" },
     "above-optimal": { t: "Above optimal", c: "text-gold-300" },
     "above-ref": { t: "Above reference", c: "text-high" },

@@ -45,6 +45,12 @@ export interface Principal {
   staffId: string | null;
   /** Role from the mapped staff record. Null when unmapped — never a default. */
   role: StaffRole | null;
+  /** Location scope from the mapped staff row. Empty means no member scope. */
+  locationIds: string[];
+  /** Credential text captured on the staff row, for signatures and display. */
+  credentials: string | null;
+  /** Whether this staff member may approve gated clinical/commercial actions. */
+  canApprove: boolean;
 }
 
 interface EasyAuthClaim {
@@ -113,6 +119,9 @@ export async function currentPrincipal(): Promise<Principal | null> {
     name,
     staffId: mapped?.id ?? null,
     role: mapped?.role ?? null,
+    locationIds: mapped?.locationIds ?? [],
+    credentials: mapped?.credentials ?? null,
+    canApprove: mapped?.canApprove ?? false,
   };
 }
 
@@ -138,18 +147,37 @@ export async function currentPrincipal(): Promise<Principal | null> {
 async function mapToStaff(
   objectId: string,
   email: string,
-): Promise<{ id: string; role: StaffRole } | null> {
+): Promise<{
+  id: string;
+  role: StaffRole;
+  locationIds: string[];
+  credentials: string | null;
+  canApprove: boolean;
+} | null> {
   const lower = email.toLowerCase();
 
   // DB-first. isConfigured is false when DATABASE_URL is absent (local builds).
   const { isConfigured } = await import("@/lib/db/client");
   if (isConfigured) {
     try {
-      const { staffByObjectId, staffByEmail } = await import("@/lib/db/repo");
+      const { staffByObjectId, staffByEmail, claimStaffObjectIdByEmail } = await import("@/lib/db/repo");
       const byOid = objectId ? await staffByObjectId(objectId) : null;
-      const row = byOid ?? (lower ? await staffByEmail(lower) : null);
+      const byEmail = byOid ? null : lower ? await staffByEmail(lower) : null;
+      if (byEmail?.entraObjectId && byEmail.entraObjectId !== objectId) return null;
+      if (byEmail && !byEmail.entraObjectId && objectId) {
+        await claimStaffObjectIdByEmail(lower, objectId);
+      }
+      const row = byOid ?? byEmail;
       // With a database present it is the authority — including the answer "no".
-      return row ? { id: row.id, role: row.role as StaffRole } : null;
+      return row
+        ? {
+            id: row.id,
+            role: row.role as StaffRole,
+            locationIds: row.locationIds,
+            credentials: row.credentials,
+            canApprove: row.canApprove,
+          }
+        : null;
     } catch (err) {
       /**
        * FAIL CLOSED.
@@ -175,7 +203,15 @@ async function mapToStaff(
 
   if (!lower) return null;
   const hit = staff.find((s) => s.email?.toLowerCase() === lower);
-  return hit ? { id: hit.id, role: hit.role } : null;
+  return hit
+    ? {
+        id: hit.id,
+        role: hit.role,
+        locationIds: hit.locationIds ?? [],
+        credentials: hit.credentials ?? null,
+        canApprove: hit.canApprove ?? false,
+      }
+    : null;
 }
 
 /**

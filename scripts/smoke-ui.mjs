@@ -51,6 +51,7 @@ try {
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.goto(`${BASE}/`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.waitForFunction(() => document.body.innerText.trim().length >= 100, null, { timeout: 10000 });
     const text = (await p.evaluate(() => document.body.innerText)).trim();
     if (text.length < 100) done(1, `SMOKE-UI FAIL: entry screen rendered only ${text.length} chars`);
     if (errors.length) done(1, `SMOKE-UI FAIL: entry page errors: ${errors.slice(0, 3).join(" | ")}`);
@@ -65,6 +66,7 @@ try {
     p.on("pageerror", (e) => errors.push(e.message));
     await ctx.addInitScript((k) => { try { localStorage.setItem(k, "coach"); } catch {} }, "apex_portal_v1");
     await p.goto(`${BASE}/coach`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, { timeout: 10000 });
     const text = (await p.evaluate(() => document.body.innerText)).trim();
     if (text.length < 200) done(1, `SMOKE-UI FAIL: /coach rendered only ${text.length} chars`);
     if (errors.length) done(1, `SMOKE-UI FAIL: /coach errors: ${errors.slice(0, 3).join(" | ")}`);

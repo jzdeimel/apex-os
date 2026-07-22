@@ -509,6 +509,254 @@ export const pdmpCheck = pgTable(
 );
 
 /* ========================================================================== */
+/* Cutover identity, locations and migration provenance                        */
+/* ========================================================================== */
+
+/**
+ * One controlled V1 -> Apex migration execution.
+ *
+ * Only counts and digests belong here. The migration runner never writes raw
+ * source rows or PHI into logs; the clinical tables remain the sole data copy.
+ */
+export const migrationRun = pgTable(
+  "migration_run",
+  {
+    id: text("id").primaryKey(),
+    sourceSystem: text("source_system").notNull(),
+    mode: text("mode").notNull(), // baseline | delta | rehearsal
+    status: text("status").notNull().default("running"),
+    sourceWatermark: timestamp("source_watermark", { withTimezone: true }),
+    nextWatermark: timestamp("next_watermark", { withTimezone: true }),
+    counts: jsonb("counts"),
+    checksum: text("checksum"),
+    initiatedBy: text("initiated_by").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+  },
+  (t) => ({ sourceIdx: index("migration_run_source_idx").on(t.sourceSystem, t.startedAt) }),
+);
+
+/** Stable source-to-target identity and row checksum for idempotent deltas. */
+export const importBinding = pgTable(
+  "import_binding",
+  {
+    id: text("id").primaryKey(),
+    sourceSystem: text("source_system").notNull(),
+    entityType: text("entity_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    targetId: text("target_id").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    checksum: text("checksum").notNull(),
+    firstRunId: text("first_run_id").notNull(),
+    lastRunId: text("last_run_id").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    sourceIdx: uniqueIndex("import_binding_source_idx").on(t.sourceSystem, t.entityType, t.sourceId),
+    targetIdx: uniqueIndex("import_binding_target_idx").on(t.entityType, t.targetId),
+  }),
+);
+
+/** Physical clinic or corporate site. Virtual delivery is an appointment modality. */
+export const clinicLocation = pgTable(
+  "clinic_location",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    address1: text("address1"),
+    city: text("city"),
+    state: text("state"),
+    zip: text("zip"),
+    timezone: text("timezone").notNull().default("America/New_York"),
+    active: boolean("active").notNull().default(true),
+    /** Clover merchant id is not a secret; API secrets remain in Key Vault. */
+    merchantAccountId: text("merchant_account_id"),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    codeIdx: uniqueIndex("clinic_location_code_idx").on(t.code),
+    sourceIdx: uniqueIndex("clinic_location_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
+/**
+ * Authoritative Master Patient Index for Apex.
+ *
+ * This replaces the seeded `lib/mock/clients.ts` corpus one read surface at a
+ * time. `homeLocationId` owns the relationship and billing; modality belongs
+ * to an appointment, so a Raleigh member on a video visit stays Raleigh.
+ */
+export const client = pgTable(
+  "client",
+  {
+    id: text("id").primaryKey(),
+    mrn: text("mrn").notNull(),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    preferredName: text("preferred_name"),
+    dateOfBirth: text("date_of_birth"),
+    sex: text("sex"),
+    email: text("email"),
+    phone: text("phone"),
+    address1: text("address1"),
+    address2: text("address2"),
+    city: text("city"),
+    state: text("state"),
+    zip: text("zip"),
+    status: text("status").notNull().default("active"),
+    isProspect: boolean("is_prospect").notNull().default(false),
+    /** Synthetic accounts never enter clinical, revenue or capacity rollups. */
+    synthetic: boolean("synthetic").notNull().default(false),
+    homeLocationId: text("home_location_id").references(() => clinicLocation.id),
+    assignedCoachId: text("assigned_coach_id"),
+    assignedProviderId: text("assigned_provider_id"),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    mrnIdx: uniqueIndex("client_mrn_idx").on(t.mrn),
+    sourceIdx: uniqueIndex("client_source_idx").on(t.sourceSystem, t.sourceId),
+    nameIdx: index("client_name_idx").on(t.lastName, t.firstName),
+    locationIdx: index("client_location_idx").on(t.homeLocationId, t.status),
+  }),
+);
+
+/** Patient login identity is deliberately separate from the clinical person. */
+export const patientIdentity = pgTable(
+  "patient_identity",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    emailNormalized: text("email_normalized").notNull(),
+    status: text("status").notNull().default("active"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    emailClientIdx: uniqueIndex("patient_identity_email_client_idx").on(t.emailNormalized, t.clientId),
+    clientIdx: uniqueIndex("patient_identity_client_idx").on(t.clientId),
+  }),
+);
+
+/** Hash-only, expiring, single-use magic link. Raw tokens are never stored. */
+export const patientMagicLink = pgTable(
+  "patient_magic_link",
+  {
+    id: text("id").primaryKey(),
+    identityId: text("identity_id").notNull().references(() => patientIdentity.id),
+    tokenSha256: text("token_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    issuedBy: text("issued_by").notNull(),
+  },
+  (t) => ({
+    tokenIdx: uniqueIndex("patient_magic_link_token_idx").on(t.tokenSha256),
+    identityIdx: index("patient_magic_link_identity_idx").on(t.identityId, t.expiresAt),
+  }),
+);
+
+/** Opaque patient session. The browser receives the raw token; Postgres does not. */
+export const patientSession = pgTable(
+  "patient_session",
+  {
+    id: text("id").primaryKey(),
+    identityId: text("identity_id").notNull().references(() => patientIdentity.id),
+    tokenSha256: text("token_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    userAgentSha256: text("user_agent_sha256"),
+  },
+  (t) => ({
+    tokenIdx: uniqueIndex("patient_session_token_idx").on(t.tokenSha256),
+    identityIdx: index("patient_session_identity_idx").on(t.identityId, t.expiresAt),
+  }),
+);
+
+/** Explicit dual-identity mapping for a staff member participating as a patient. */
+export const staffPatientLink = pgTable(
+  "staff_patient_link",
+  {
+    staffId: text("staff_id").notNull(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.staffId, t.clientId] }),
+    clientIdx: uniqueIndex("staff_patient_link_client_idx").on(t.clientId),
+  }),
+);
+
+/**
+ * Exact retained record covered by an electronic signature.
+ *
+ * The text and evidence tuple are immutable after INSERT. A later PDF or email
+ * copy is an artifact/delivery event below; it never rewrites what was signed.
+ */
+export const signedDocument = pgTable(
+  "signed_document",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").references(() => client.id),
+    kind: text("kind").notNull(),
+    documentId: text("document_id").notNull(),
+    version: text("version").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    regime: text("regime").notNull(),
+    documentSha256: text("document_sha256").notNull(),
+    signatureName: text("signature_name").notNull(),
+    signedByRole: text("signed_by_role").notNull(),
+    signedByAccountId: text("signed_by_account_id"),
+    signedAt: timestamp("signed_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address").notNull(),
+    userAgent: text("user_agent").notNull(),
+    electronicConsentGiven: boolean("electronic_consent_given").notNull(),
+    attestedRead: boolean("attested_read").notNull(),
+    ledgerId: text("ledger_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clientIdx: index("signed_document_client_idx").on(t.clientId, t.signedAt),
+    documentIdx: index("signed_document_definition_idx").on(t.documentId, t.version),
+    hashIdx: index("signed_document_hash_idx").on(t.documentSha256),
+  }),
+);
+
+/** Append-only retained render or delivery receipt for a signed document. */
+export const signedDocumentArtifact = pgTable(
+  "signed_document_artifact",
+  {
+    id: text("id").primaryKey(),
+    signedDocumentId: text("signed_document_id").notNull().references(() => signedDocument.id),
+    kind: text("kind").notNull(), // archived-pdf | patient-copy
+    storageProvider: text("storage_provider").notNull(),
+    objectKey: text("object_key").notNull(),
+    mediaType: text("media_type").notNull().default("application/pdf"),
+    artifactSha256: text("artifact_sha256").notNull(),
+    deliveredTo: text("delivered_to"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    documentIdx: index("signed_document_artifact_document_idx").on(t.signedDocumentId, t.createdAt),
+    objectIdx: uniqueIndex("signed_document_artifact_object_idx").on(t.storageProvider, t.objectKey),
+  }),
+);
+
+/* ========================================================================== */
 /* Scheduling, consent, messaging                                              */
 /* ========================================================================== */
 
@@ -524,10 +772,13 @@ export const appointment = pgTable(
   "appointment",
   {
     id: text("id").primaryKey(),
-    clientId: text("client_id").notNull(), // seeded ref -> client
-    staffId: text("staff_id").notNull(), // seeded ref -> staff
-    locationId: text("location_id").notNull(), // seeded ref -> location
+    clientId: text("client_id").notNull(), // authoritative client after cutover
+    /** V1 legitimately permits an unassigned appointment. Preserve that fact. */
+    staffId: text("staff_id"),
+    /** V1 also permits a booking whose clinic has not yet been resolved. */
+    locationId: text("location_id"),
     visitType: text("visit_type").notNull(),
+    modality: text("modality").notNull().default("in-person"),
     startAt: timestamp("start_at", { withTimezone: true }).notNull(),
     endAt: timestamp("end_at", { withTimezone: true }).notNull(),
 
@@ -535,6 +786,8 @@ export const appointment = pgTable(
     arrivedAt: timestamp("arrived_at", { withTimezone: true }),
     roomedAt: timestamp("roomed_at", { withTimezone: true }),
     room: text("room"),
+    reason: text("reason"),
+    notes: text("notes"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     /** Distinguishes a cancellation from a no-show — they release capacity differently. */
@@ -545,12 +798,16 @@ export const appointment = pgTable(
     patientState: text("patient_state"),
     bookedBy: text("booked_by"),
     bookedAt: timestamp("booked_at", { withTimezone: true }).defaultNow().notNull(),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     ledgerId: text("ledger_id"),
   },
   (t) => ({
     dayIdx: index("appt_day_idx").on(t.locationId, t.startAt),
     clientIdx: index("appt_client_idx").on(t.clientId, t.startAt),
     staffIdx: index("appt_staff_idx").on(t.staffId, t.startAt),
+    sourceIdx: uniqueIndex("appt_source_idx").on(t.sourceSystem, t.sourceId),
   }),
 );
 
@@ -588,6 +845,9 @@ export const consent = pgTable(
     granted: boolean("granted").notNull(),
     /** Typed name as the signature. Kept verbatim. */
     signatureName: text("signature_name"),
+    signedByRole: text("signed_by_role"),
+    electronicConsentGiven: boolean("electronic_consent_given"),
+    attestedRead: boolean("attested_read"),
     signedAt: timestamp("signed_at", { withTimezone: true }),
     /** Evidence tuple for an e-signature to mean anything. */
     ipAddress: text("ip_address"),
@@ -623,6 +883,8 @@ export const intakeInvite = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
+    mode: text("mode").notNull().default("self-serve"),
+    capturedBy: text("captured_by"),
     /** Known-at-capture fields the wizard pre-fills (name, email, phone, track). */
     prefill: jsonb("prefill"),
   },
@@ -686,6 +948,36 @@ export const intakeSubmission = pgTable(
     goals: jsonb("goals"),
     symptoms: jsonb("symptoms"),
     history: jsonb("history"),
+    /**
+     * Answers keyed by question id, against `formVersion`.
+     *
+     * Supersedes the free-shaped `history` blob, which recorded WHAT was
+     * answered but never WHICH QUESTIONS WERE ASKED. Both columns exist during
+     * the wizard migration; `history` is legacy and read-only for new writes.
+     */
+    answers: jsonb("answers"),
+    /**
+     * The published form version this submission answered, and a hash of the
+     * questions in it.
+     *
+     * Same argument as `consent.documentVersion` + `consent.textSha256` one
+     * table up: a version string proves nothing if the document behind it can
+     * be edited, and for a medical history "what were they actually asked in
+     * July" is the entire evidentiary value. Paul Kennard's de-duplicated
+     * male/female forms will land as v2 — without this, every earlier
+     * submission would be silently reinterpreted against the new questions.
+     */
+    formVersion: text("form_version"),
+    formSha256: text("form_sha256"),
+    /**
+     * How the intake was taken. "coach-guided" is the decided default
+     * (2026-07-21): a coach sits with the patient because "the quality of the
+     * intake process will be better if it is guided by the coach". The link
+     * path remains for the patient who books a lab draw directly.
+     */
+    mode: text("mode"),
+    /** The staff member who ran a coach-guided intake. Null for self-serve. */
+    capturedBy: text("captured_by"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
@@ -1070,13 +1362,20 @@ export const staff = pgTable(
     entraObjectId: text("entra_object_id"),
     email: text("email").notNull(),
     name: text("name").notNull(),
+    department: text("department"),
+    title: text("title"),
     /** The role that decides capabilities. NULL is not allowed — no default authority. */
     role: text("role").notNull(),
     /** Locations this staff member covers. */
     locationIds: jsonb("location_ids").notNull(),
     credentials: text("credentials"),
     canApprove: boolean("can_approve").default(false).notNull(),
+    /** Corporate, gym, and unresolved roster rows cannot enter the scheduler. */
+    excludeFromScheduling: boolean("exclude_from_scheduling").default(false).notNull(),
     active: boolean("active").default(true).notNull(),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -1092,6 +1391,369 @@ export const staff = pgTable(
     oidIdx: uniqueIndex("staff_oid_idx")
       .on(t.entraObjectId)
       .where(sql`entra_object_id IS NOT NULL`),
+    sourceIdx: uniqueIndex("staff_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
+/** Recurring local working hours. Calendar events only subtract from these. */
+export const staffAvailabilityRule = pgTable(
+  "staff_availability_rule",
+  {
+    id: text("id").primaryKey(),
+    staffId: text("staff_id").notNull(),
+    locationId: text("location_id").notNull(),
+    weekday: integer("weekday").notNull(), // 0 Sunday through 6 Saturday
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    timezone: text("timezone").notNull(),
+    effectiveFrom: text("effective_from").notNull(),
+    effectiveUntil: text("effective_until"),
+    source: text("source").notNull().default("manual"),
+    active: boolean("active").notNull().default(true),
+    updatedBy: text("updated_by").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    staffDayIdx: index("staff_availability_rule_day_idx").on(t.staffId, t.weekday, t.effectiveFrom),
+    locationDayIdx: index("staff_availability_rule_location_idx").on(t.locationId, t.weekday),
+  }),
+);
+
+/** Calendar link metadata. OAuth credentials live only in Key Vault. */
+export const externalCalendar = pgTable(
+  "external_calendar",
+  {
+    id: text("id").primaryKey(),
+    staffId: text("staff_id").notNull(),
+    provider: text("provider").notNull(), // google | microsoft
+    externalCalendarId: text("external_calendar_id").notNull(),
+    credentialSecretName: text("credential_secret_name").notNull(),
+    status: text("status").notNull().default("pending"),
+    syncCursor: text("sync_cursor"),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastErrorCode: text("last_error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    staffProviderIdx: uniqueIndex("external_calendar_staff_provider_idx").on(t.staffId, t.provider),
+  }),
+);
+
+/** Busy time only: no event title, attendee, description, or outside PHI. */
+export const calendarBusyBlock = pgTable(
+  "calendar_busy_block",
+  {
+    id: text("id").primaryKey(),
+    calendarId: text("calendar_id").notNull().references(() => externalCalendar.id),
+    externalEventId: text("external_event_id").notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("busy"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    eventIdx: uniqueIndex("calendar_busy_block_event_idx").on(t.calendarId, t.externalEventId),
+    windowIdx: index("calendar_busy_block_window_idx").on(t.calendarId, t.startAt, t.endAt),
+  }),
+);
+
+/* ========================================================================== */
+/* Encounters — the visit as a thing with parts                                */
+/* ========================================================================== */
+
+/**
+ * An encounter: one visit, made of segments that different people complete.
+ *
+ * WHY `appointment` WAS NOT ENOUGH
+ * --------------------------------
+ * `appointment` has ONE `status` and ONE `completedAt`, which models a visit as
+ * a thing one person does. Matt Chilson described the real shape on 2026-07-21:
+ *
+ *   "The nurse would go and see the name there, she'd open that up... the only
+ *    thing she has to really leave is the vitals, blood pressure, resting heart
+ *    rate, any notes she needs. She will then save it. That is part one of that
+ *    appointment. Our doctor will come in, he will do the history and physical,
+ *    and then he will complete part two, which then completes that entire
+ *    appointment."
+ *
+ * Stephanie Butler's NCV spec adds a third part in front of both — the coach
+ * introduction — and gives each part its own credential requirement.
+ *
+ * So a visit is a parent with ordered segments, each with its own performer,
+ * its own clock and its own completion. THE PARENT COMPLETES WHEN ITS SEGMENTS
+ * DO, never independently. A single status could not express "bloods drawn,
+ * waiting on the provider", which is the state most of these visits are in for
+ * most of the day — and a front desk that cannot see that state ends up asking
+ * the patient.
+ *
+ * NOT A REPLACEMENT FOR `appointment`. The appointment is the CALENDAR fact:
+ * when, where, who was booked. The encounter is the CLINICAL fact: what
+ * actually happened and who did it. They diverge constantly — the booked
+ * provider is out, the nurse ran late, the physical happened tomorrow — and
+ * collapsing them loses whichever one you did not privilege.
+ */
+export const encounter = pgTable(
+  "encounter",
+  {
+    id: text("id").primaryKey(),
+    /** Null for a walk-in that was never booked. That is a real case. */
+    appointmentId: text("appointment_id"),
+    clientId: text("client_id").notNull(), // seeded ref -> client
+    locationId: text("location_id").notNull(), // seeded ref -> location
+    /** "new-client-visit" | "follow-up" | "lab-only" | "walk-in" */
+    kind: text("kind").notNull(),
+    /** How it was delivered. See lib/types.ts on why this is not the location. */
+    modality: text("modality").notNull().default("in-person"),
+    /** "open" | "complete" | "abandoned" */
+    status: text("status").notNull().default("open"),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * Set ONLY by the transition that observes every required segment complete.
+     * Nothing else may write it — a visit marked complete with an unsigned
+     * physical is a billing assertion the record cannot support.
+     */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    abandonedReason: text("abandoned_reason"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    clientIdx: index("encounter_client_idx").on(t.clientId, t.startedAt),
+    apptIdx: index("encounter_appt_idx").on(t.appointmentId),
+    openIdx: index("encounter_open_idx").on(t.locationId, t.status),
+  }),
+);
+
+/**
+ * One part of a visit, with the credential that was required to do it.
+ *
+ * `requiredCredentials` is a SNAPSHOT of the tiers in force when the segment
+ * was created, not a pointer to the current rule. Stephanie's matrix will
+ * change — LPN scope differs by state and that question is still open — and
+ * when it does, an old encounter must still say what was required of it AT THE
+ * TIME. A pointer would silently rewrite the compliance story of every visit
+ * already in the database.
+ *
+ * `performedByCredential` is likewise stored, not derived from the staff row.
+ * A nurse who later qualifies as an NP did not perform last month's draw as an
+ * NP, and `staff.credentials` is mutable.
+ */
+export const encounterSegment = pgTable(
+  "encounter_segment",
+  {
+    id: text("id").primaryKey(),
+    encounterId: text("encounter_id").notNull().references(() => encounter.id),
+    /** "coach-intro" | "lab-draw" | "physical" */
+    component: text("component").notNull(),
+    /** Order within the visit. The spec's sequence is not negotiable. */
+    sequence: integer("sequence").notNull(),
+    /** Tiers in force when this segment was created. See docblock. */
+    requiredCredentials: jsonb("required_credentials"),
+    /** Who it was assigned to at scheduling time. May differ from who did it. */
+    assignedStaffId: text("assigned_staff_id"),
+    /** "pending" | "in-progress" | "complete" | "not-required" */
+    status: text("status").notNull().default("pending"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    performedBy: text("performed_by"),
+    /** The credential class held AT THE TIME. Not a join. */
+    performedByCredential: text("performed_by_credential"),
+    /**
+     * Why a required segment was not required after all.
+     *
+     * A skipped clinical step needs a stated reason or it is indistinguishable
+     * from a forgotten one, and "we never drew the bloods" versus "the patient
+     * had labs from Monday" are different facts about the same visit.
+     */
+    waivedReason: text("waived_reason"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    encounterIdx: index("segment_encounter_idx").on(t.encounterId, t.sequence),
+    /** One row per component per encounter. A visit has one lab draw. */
+    componentIdx: uniqueIndex("segment_component_idx").on(t.encounterId, t.component),
+    queueIdx: index("segment_queue_idx").on(t.component, t.status),
+  }),
+);
+
+/**
+ * Vitals.
+ *
+ * THERE WAS NO VITALS MODEL ANYWHERE IN THIS REPO. `grep systolic` returned
+ * nothing across 200+ modules, which means the nurse's entire contribution to a
+ * New Client Visit — the thing that makes her segment a clinical record rather
+ * than a timestamp — had nowhere to be written.
+ *
+ * BLOOD PRESSURE IS TWO INTEGERS, NOT A STRING. "120/80" as text cannot be
+ * compared, trended, or range-checked, and the first person who needs "show me
+ * everyone over 140 systolic" has to parse free text on a clinical field.
+ *
+ * UNITS ARE FIXED AND NAMED IN THE COLUMN. Not a `unit` column, not a
+ * convention in a comment — a `weightKg` cannot hold pounds, and a mixed-unit
+ * weight series is the kind of defect that survives for years because every
+ * individual row looks plausible.
+ */
+export const vitals = pgTable(
+  "vitals",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(), // seeded ref -> client
+    encounterId: text("encounter_id").references(() => encounter.id),
+    segmentId: text("segment_id").references(() => encounterSegment.id),
+    /** mmHg. Two integers, deliberately. */
+    systolic: integer("systolic"),
+    diastolic: integer("diastolic"),
+    /** Beats per minute, at rest. */
+    heartRate: integer("heart_rate"),
+    respiratoryRate: integer("respiratory_rate"),
+    /** Percent, 0-100. */
+    spo2: integer("spo2"),
+    temperatureC: real("temperature_c"),
+    weightKg: real("weight_kg"),
+    heightCm: real("height_cm"),
+    /** The nurse's own words. Never rewritten by the system. */
+    notes: text("notes"),
+    takenBy: text("taken_by").notNull(),
+    takenByCredential: text("taken_by_credential"),
+    takenAt: timestamp("taken_at", { withTimezone: true }).notNull(),
+    /**
+     * Corrections are append-only, like every other clinical fact.
+     *
+     * A transposed blood pressure gets a NEW row pointing at the old one. The
+     * append-only rule Paul Kennard set on 2026-07-21 — "we always append data,
+     * we never replace data" — is not limited to allergies, and vitals are
+     * exactly where the temptation to just fix the number is strongest.
+     */
+    supersedesId: text("supersedes_id"),
+    correctionReason: text("correction_reason"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    clientIdx: index("vitals_client_idx").on(t.clientId, t.takenAt),
+    encounterIdx: index("vitals_encounter_idx").on(t.encounterId),
+  }),
+);
+
+/**
+ * The History & Physical — the provider's part of the visit.
+ *
+ * SIGNING MAKES IT IMMUTABLE, and that is enforced by there being no update
+ * path: `signHistoryPhysical` is the only writer of `signedAt`, and a signed
+ * row is corrected with an addendum row, never edited. `consultAddendum` above
+ * establishes the same pattern for consults.
+ *
+ * ── THE CONTINUITY RULE ────────────────────────────────────────────────────
+ * Matt Chilson, 2026-07-21: "the H&P has to match the same guy who did the plan
+ * of care. So essentially in Myrtle Beach, Bal handles all the telehealth and
+ * local Myrtle Beach clients — he does the H&P for them, he'll also do the plan
+ * of care for them."
+ *
+ * `providerId` is the anchor for that rule. It is deliberately NOT enforced in
+ * this schema, because Stephanie Butler's scheduling spec says the opposite —
+ * assign whichever NP/PA is available — and the two requirements have not been
+ * reconciled (docs/AUG7_CUTOVER.md §6). Encoding either one silently would
+ * decide it. What this table does is make the question ANSWERABLE: whoever
+ * signs the plan of care can be checked against whoever signed this.
+ */
+export const historyPhysical = pgTable(
+  "history_physical",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(), // seeded ref -> client
+    encounterId: text("encounter_id").references(() => encounter.id),
+    segmentId: text("segment_id").references(() => encounterSegment.id),
+    providerId: text("provider_id").notNull(),
+    /** Credential held at signing. Not a join — see encounterSegment. */
+    providerCredential: text("provider_credential"),
+    chiefComplaint: text("chief_complaint"),
+    /** Narrative history. The provider's words. */
+    historyNarrative: text("history_narrative"),
+    examNarrative: text("exam_narrative"),
+    assessment: text("assessment"),
+    /**
+     * Which labs are indicated — NOT results.
+     *
+     * The sequencing matters and is easy to get backwards. Stephanie's spec
+     * lists "review of laboratory indications" inside the physical, but Matt's
+     * flow has results coming back AFTER the visit, with an admin entering them
+     * and the plan of care following. So this field is what was ORDERED and
+     * why. Results live in the lab record and the plan of care reads both.
+     */
+    labIndications: text("lab_indications"),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    /** The attestation text as shown to the signer, verbatim. */
+    attestation: text("attestation"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    clientIdx: index("hp_client_idx").on(t.clientId, t.startedAt),
+    encounterIdx: uniqueIndex("hp_encounter_idx").on(t.encounterId),
+    providerIdx: index("hp_provider_idx").on(t.providerId),
+  }),
+);
+
+/* ========================================================================== */
+/* Feature flags                                                               */
+/* ========================================================================== */
+
+/**
+ * Feature flags — the owner console's kill switches.
+ *
+ * WHY A TABLE AND NOT A CONFIG FILE
+ * ---------------------------------
+ * The commitment made on the 2026-07-21 sync was "turn features on and off at
+ * will from the owner console — you don't have to do anything in Azure." A
+ * config file cannot honour that: changing it is a deploy, and a deploy is
+ * exactly what the sentence promises not to require. Same argument the `staff`
+ * table docblock makes about prescribing authority — a decision that needs a
+ * commit is not administration, it is engineering.
+ *
+ * TARGET_ID IS NOT NULL, AND GLOBAL IS '*'
+ * ----------------------------------------
+ * The obvious design gives global rows a NULL target. Postgres does not collide
+ * NULLs in a unique index, so that design permits two contradictory global rows
+ * for the same key and resolution becomes plan order — the precise failure the
+ * `staff_oid_idx` comment above exists to prevent. A sentinel makes the unique
+ * index actually unique, so a second global row for a key is a constraint
+ * violation instead of a coin flip.
+ *
+ * ROWS ARE OVERRIDES, NOT STATE
+ * -----------------------------
+ * The absence of a row is meaningful: it means "whatever the release preset
+ * says". Turning a feature back to its default is a DELETE, not an UPDATE to
+ * `true`, because a stored `true` pins the value against a future preset change
+ * and nobody remembers a pin. lib/features/server.ts exposes both operations
+ * and the owner console distinguishes them.
+ *
+ * EVERY CHANGE IS LEDGERED
+ * ------------------------
+ * `updatedBy` and `ledgerId` are not decoration. "Who turned off consent
+ * capture, and when" is an audit question, and a flag that silently changes
+ * what the clinic records is indistinguishable from a bug until someone can
+ * answer it.
+ */
+export const featureFlag = pgTable(
+  "feature_flag",
+  {
+    id: text("id").primaryKey(),
+    /** A key from lib/features/catalog.ts. Unknown keys are ignored on read. */
+    key: text("key").notNull(),
+    /** "global" | "role" | "location" | "staff" | "client" */
+    scope: text("scope").notNull(),
+    /** '*' for global; the role name, location id, staff id or client id otherwise. */
+    targetId: text("target_id").notNull().default("*"),
+    enabled: boolean("enabled").notNull(),
+    /** Free text from the owner. Why this was flipped, in their words. */
+    reason: text("reason"),
+    updatedBy: text("updated_by").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    /** One row per (key, scope, target). See the docblock — this must be unique. */
+    scopeIdx: uniqueIndex("feature_flag_scope_idx").on(t.key, t.scope, t.targetId),
+    keyIdx: index("feature_flag_key_idx").on(t.key),
   }),
 );
 

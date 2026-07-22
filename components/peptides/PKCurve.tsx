@@ -143,7 +143,7 @@ export function PKCurve({
         {/* The missed-dose comparison sits UNDER the normal curve so the gap
             between them is the thing the eye lands on. */}
         {skipped && (
-          <path d={toPath(skipped)} fill="none" stroke="#f87171" strokeWidth="1.6" strokeDasharray="4 3" />
+          <path d={toPath(skipped)} fill="none" stroke="var(--c-high)" strokeWidth="1.6" strokeDasharray="4 3" />
         )}
 
         <path d={toPath(full)} fill="none" stroke={accent} strokeWidth="2" strokeLinejoin="round" />
@@ -156,7 +156,7 @@ export function PKCurve({
               y1={H - PAD.b}
               x2={x(h)}
               y2={H - PAD.b + 5}
-              stroke={missed === i ? "#f87171" : "currentColor"}
+              stroke={missed === i ? "var(--c-high)" : "currentColor"}
               opacity={missed === i ? 1 : 0.35}
             />
             {allowMissedDose && (
@@ -164,7 +164,7 @@ export function PKCurve({
                 cx={x(h)}
                 cy={H - PAD.b + 11}
                 r={4}
-                fill={missed === i ? "#f87171" : "currentColor"}
+                fill={missed === i ? "var(--c-high)" : "currentColor"}
                 opacity={missed === i ? 1 : 0.25}
                 style={{ cursor: "pointer" }}
                 onClick={() => setMissed(missed === i ? null : i)}

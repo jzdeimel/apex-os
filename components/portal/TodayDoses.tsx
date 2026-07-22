@@ -1,5 +1,4 @@
 "use client";
-import { DoseLoggedBurst } from "@/components/portal/DoseLoggedBurst";
 
 import { useState } from "react";
 import {
@@ -18,6 +17,7 @@ import { useMemberLog, INJECTION_SITES, suggestNextSite } from "@/lib/member/log
 import { staffMap } from "@/lib/mock/staff";
 import { formatDate, cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/primitives";
+import { useCelebrations } from "@/components/celebrate/CelebrationProvider";
 
 /**
  * What to take today — and the place you record that you took it.
@@ -109,27 +109,23 @@ function DoseCard({ due }: { due: DueDose }) {
   const [open, setOpen] = useState(false);
   const [choosingSite, setChoosingSite] = useState(false);
   const [skipping, setSkipping] = useState(false);
-  // Fires the celebration once, on the transition into logged.
-  const [burst, setBurst] = useState(false);
   const { rx, draw } = due;
   const { logDose, skipDose, undoDose, isDoseLogged, today } = useMemberLog();
+  const { emit } = useCelebrations();
 
   const logged = isDoseLogged(rx.id);
   const signer = staffMap[rx.signedByStaffId];
 
   const usedSites = today.doses.map((d) => d.site).filter(Boolean) as string[];
   const suggested = suggestNextSite(usedSites);
+  const markTaken = (site?: string) => {
+    logDose(rx.id, rx.name, site ? { site } : undefined);
+    emit({ type: "doseLogged", name: rx.name, libraryKey: rx.libraryKey });
+  };
 
   // ---- Logged state: quiet, reversible ------------------------------------
   if (logged) {
     return (
-      <>
-      <DoseLoggedBurst
-        show={burst}
-        libraryKey={rx.libraryKey}
-        name={rx.name}
-        onDone={() => setBurst(false)}
-      />
       <article
         className={cn(
           "rounded-panel border px-4 py-3",
@@ -164,7 +160,6 @@ function DoseCard({ due }: { due: DueDose }) {
           </button>
         </div>
       </article>
-      </>
     );
   }
 
@@ -221,9 +216,8 @@ function DoseCard({ due }: { due: DueDose }) {
                   key={site}
                   type="button"
                   onClick={() => {
-                    logDose(rx.id, rx.name, { site });
+                    markTaken(site);
                     setChoosingSite(false);
-                    setBurst(true);
                   }}
                   className={cn(
                     "focus-ring rounded-control border px-3 py-2 text-detail transition-colors",
@@ -276,8 +270,7 @@ function DoseCard({ due }: { due: DueDose }) {
               type="button"
               onClick={() => {
                 if (rx.rotateSites) return setChoosingSite(true);
-                logDose(rx.id, rx.name);
-                setBurst(true);
+                markTaken();
               }}
               className="focus-ring flex-1 rounded-control bg-gold-500 px-4 py-2.5 text-body font-medium text-white transition-colors hover:bg-gold-400"
             >

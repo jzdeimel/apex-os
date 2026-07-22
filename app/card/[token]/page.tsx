@@ -1,7 +1,11 @@
 import { AlertTriangle, Phone, ShieldAlert, Clock } from "lucide-react";
-import { CARD_DISCLAIMER, cardForToken, type EmergencyCard } from "@/lib/emergency/card";
+import { CARD_DISCLAIMER, buildEmergencyCard, cardForToken, type EmergencyCard } from "@/lib/emergency/card";
 import { BRAND } from "@/lib/brand";
 import { formatDay } from "@/lib/protocol/runway";
+import { readEmergencyCard } from "@/lib/db/repo";
+import { sha256 } from "@/lib/trace/hash";
+import { IS_DEMO } from "@/lib/config";
+import { headers } from "next/headers";
 
 /**
  * PUBLIC EMERGENCY CARD — /card/<token>
@@ -229,9 +233,23 @@ function CardBody({ card }: { card: EmergencyCard }) {
   );
 }
 
+async function resolveCard(token: string): Promise<EmergencyCard | null> {
+  try {
+    const h = await headers();
+    const row = await readEmergencyCard(sha256(token), new Date().toISOString(), {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-client-ip") ?? undefined,
+      userAgent: h.get("user-agent") ?? undefined,
+    });
+    if (row) return buildEmergencyCard(row.clientId, new Date().toISOString());
+  } catch {
+    if (!IS_DEMO) return null;
+  }
+  return IS_DEMO ? cardForToken(token) : null;
+}
+
 export default async function EmergencyCardPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const card = cardForToken(token);
+  const card = await resolveCard(token);
   if (!card) return <NotFound />;
   return <CardBody card={card} />;
 }

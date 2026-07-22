@@ -36,10 +36,10 @@ import { cn } from "@/lib/utils";
  */
 
 const METRICS = [
-  { id: "bodyFatPct", label: "Body fat", unit: "%", color: "#e93d3d", lowerIsBetter: true },
-  { id: "leanMassKg", label: "Lean mass", unit: "kg", color: "#34d399", lowerIsBetter: false },
-  { id: "alphaScore", label: "Alpha Score", unit: "", color: "#60a5fa", lowerIsBetter: false },
-  { id: "energy", label: "Energy", unit: "/100", color: "#e0bd6e", lowerIsBetter: false },
+  { id: "bodyFatPct", label: "Body fat", unit: "%", color: "var(--chart-brand)", lowerIsBetter: true },
+  { id: "leanMassKg", label: "Lean mass", unit: "kg", color: "var(--c-optimal)", lowerIsBetter: false },
+  { id: "alphaScore", label: "Alpha Score", unit: "", color: "var(--c-low)", lowerIsBetter: false },
+  { id: "energy", label: "Energy", unit: "/100", color: "var(--c-watch)", lowerIsBetter: false },
 ] as const;
 
 type MetricId = (typeof METRICS)[number]["id"];
@@ -334,7 +334,7 @@ function BandChart({
             x2={W - PAD}
             y1={PAD + f * (H - PAD * 2)}
             y2={PAD + f * (H - PAD * 2)}
-            stroke="#23272d"
+            stroke="var(--chart-grid)"
             strokeWidth="1"
           />
         ))}

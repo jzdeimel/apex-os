@@ -26,7 +26,7 @@ export default function AnalyticsPage() {
       <div>
         <p className="label-eyebrow">Business analytics · {locationFilter === "all" ? "all locations" : locationName(locationFilter)}</p>
         <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-white">
             <TrendingUp className="h-5 w-5" />
           </span>
           Analytics &amp; Revenue
@@ -160,10 +160,10 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="mt-1 h-6 w-full overflow-hidden rounded-md bg-ink-800">
                     <div
-                      className="flex h-full items-center rounded-md bg-gradient-to-r from-gold-600 to-gold-400 pl-2"
+                      className="flex h-full items-center rounded-md bg-gold-600 bg-gradient-to-r from-gold-600 to-gold-400 pl-2"
                       style={{ width: `${Math.max(8, f.rate)}%` }}
                     >
-                      {i > 0 && <span className="stat-mono text-micro font-bold text-ink-950">{f.rate}%</span>}
+                      {i > 0 && <span className="stat-mono text-micro font-bold text-white">{f.rate}%</span>}
                     </div>
                   </div>
                 </div>

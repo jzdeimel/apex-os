@@ -126,22 +126,22 @@ function ConsultRow({ consult }: { consult: Consult }) {
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-ink-500">
             <span className="stat-mono">{formatDateTime(consult.startedAt)}</span>
-            <span className="text-ink-700">·</span>
+            <span className="text-ink-500">·</span>
             <span className="stat-mono">{relativeDays(consult.startedAt)}</span>
             {consult.durationMin !== undefined && (
               <>
-                <span className="text-ink-700">·</span>
+                <span className="text-ink-500">·</span>
                 <span className="stat-mono">{consult.durationMin} min</span>
               </>
             )}
-            <span className="text-ink-700">·</span>
+            <span className="text-ink-500">·</span>
             <span className="inline-flex items-center gap-1">
               <FileText className="h-3 w-3" />
               <span className="stat-mono">{findings}</span> finding{findings === 1 ? "" : "s"}
             </span>
             {consult.aiProvenance && (
               <>
-                <span className="text-ink-700">·</span>
+                <span className="text-ink-500">·</span>
                 <span className="stat-mono" title={`Input hash ${consult.aiProvenance.inputHash}`}>
                   {consult.aiProvenance.engine} v{consult.aiProvenance.engineVersion}
                 </span>
@@ -149,7 +149,7 @@ function ConsultRow({ consult }: { consult: Consult }) {
             )}
             {signed && consult.signedBy && (
               <>
-                <span className="text-ink-700">·</span>
+                <span className="text-ink-500">·</span>
                 <span>signed by {staffName(consult.signedBy)}</span>
               </>
             )}

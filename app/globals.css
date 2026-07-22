@@ -2,8 +2,219 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKIN TOKENS
+   ───────────────────────────────────────────────────────────────────────────
+   Every colour in the Tailwind palette resolves through these variables, as
+   space-separated RGB channels so `/70` opacity modifiers keep working.
+
+   WHY. Coaches have spent weeks in Alpha OS V1 (portal.goalphahealth.com),
+   which is a LIGHT application with a DARK SIDEBAR RAIL. Apex is dark canvas
+   throughout. Paul Kennard's requirement for the Aug 7 cutover was that nobody
+   relearns anything — and the first thing anyone notices about an app is
+   whether it is light or dark. That difference alone reads as "new system"
+   before a single label is examined.
+
+   Rather than rewrite 75 pages, the palette became variable and the skin swaps
+   the values. `data-skin="v1"` on <html> re-points the same `ink-*` scale at
+   V1's own tokens, so `bg-ink-950` means "the page canvas" in both skins and
+   every existing class keeps working.
+
+   The scale is SEMANTIC BY POSITION, not by lightness: 950 is always the page
+   canvas, 850 is always a card, 700 is always a hairline, 100 is always body
+   text. Under the V1 skin those invert to light values. Read the numbers as
+   depth, not brightness.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
   color-scheme: dark;
+
+  /* Apex native — deep charcoal canvas. */
+  --ink-50: 245 246 247;
+  --ink-100: 231 233 236;
+  --ink-200: 201 206 212;
+  --ink-300: 163 171 181;
+  --ink-400: 122 131 143;
+  --ink-500: 93 100 111;
+  --ink-600: 71 78 88;
+  --ink-700: 35 39 45;
+  --ink-800: 23 25 30;
+  --ink-850: 18 20 25;
+  --ink-900: 13 15 18;
+  --ink-950: 7 8 9;
+
+  --brand-50: 253 236 238;
+  --brand-100: 251 208 213;
+  --brand-200: 244 163 172;
+  --brand-300: 236 110 126;
+  --brand-400: 236 61 80;
+  --brand-500: 210 31 52;
+  --brand-600: 184 24 40;
+  --brand-700: 143 18 32;
+  --brand-800: 109 15 26;
+  --brand-900: 79 11 19;
+  --brand-950: 50 8 16;
+
+  --status-optimal: 52 211 153;
+  --status-watch: 224 189 110;
+  --status-low: 96 165 250;
+  --status-high: 248 113 113;
+
+  /* The sidebar rail is its own surface in BOTH skins — see the v1 block. */
+  --rail-bg: 7 8 9;
+  --rail-border: 35 39 45;
+
+  /* Ambient canvas wash. Empty in the V1 skin; V1 has no gradient. */
+  --canvas-wash:
+    radial-gradient(60rem 40rem at 12% -8%, rgba(233, 61, 61, 0.08), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 0%, rgba(191, 30, 46, 0.05), transparent 55%);
+
+  --scrollbar-thumb: #23272d;
+  --scrollbar-thumb-hover: #343a42;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  /* ── Charts ───────────────────────────────────────────────────────────────
+     Recharts writes colours straight onto SVG attributes, so it cannot read
+     Tailwind classes. These are the same palette expressed as raw CSS colours;
+     SVG accepts `var()` in fill/stroke, so the charts reskin with everything
+     else instead of staying dark on a white page. */
+  --chart-grid: #23272d;
+  --chart-axis: #6f7884;
+  --chart-tooltip-bg: #17191e;
+  --chart-tooltip-border: #343a42;
+  --chart-tooltip-text: #e7e9ec;
+  --chart-brand: #ec3d50;
+  --chart-brand-soft: #f17d7d;
+  --chart-series-1: #ec3d50;
+  --chart-series-2: #34d399;
+  --chart-series-3: #60a5fa;
+  --chart-series-4: #a78bfa;
+  --chart-series-5: #e0bd6e;
+  --chart-series-6: #2dd4bf;
+  --chart-track: #23272d;
+
+  /* Status colours as raw hex, for the hand-rolled SVG in the clinical mini
+     charts (hematocrit, titration, PK curves). Same semantics as the Tailwind
+     `optimal|watch|low|high` tokens — duplicated here only because SVG
+     attributes cannot take a Tailwind class. */
+  --c-optimal: #34d399;
+  --c-watch: #e0bd6e;
+  --c-low: #60a5fa;
+  --c-high: #f87171;
+
+  /* Text drawn ON a seeded avatar/category colour. Those colours are light in
+     the Apex skin and dark in the V1 skin, so the monogram has to flip with
+     them — a fixed white or a fixed black is unreadable in one skin or the
+     other, which is exactly what the sweep caught ("TB" at 1.9:1). */
+  --on-swatch: #070809;
+}
+
+/* ═══ V1 SKIN — Alpha OS parity ═════════════════════════════════════════════
+   Values taken verbatim from V1's own app/globals.css, including the WCAG
+   notes it carries: --color-ink-faint is #666c76 because #8a8f98 failed AA on
+   white, and the brand red is the exact logo #b81828 which reads 6.6:1 both as
+   white-on-red and red-on-white.
+
+   The rail stays dark. That is not a compromise — it is V1's actual design
+   (`--color-sidebar: #16181c` against a #f7f7f8 page), and it is the single
+   most recognisable thing about the application a coach opens every morning. */
+:root[data-skin="v1"] {
+  color-scheme: light;
+
+  --ink-50: 11 13 16;      /* headings — darkest */
+  --ink-100: 22 24 28;     /* body text (V1 --color-ink) — 15.8:1 */
+  --ink-200: 58 63 71;
+  --ink-300: 75 80 88;     /* V1 --color-ink-soft — 8.1:1 */
+  --ink-400: 97 102 111;   /* 5.8:1 */
+  /* ── 500 and 600 are the two that had to be measured, not guessed ─────────
+     A contrast sweep over 47 routes (scripts/contrast-sweep.mjs) found 6,605
+     failures on these two alone, because both carry SECONDARY TEXT as well as
+     borders and both had been set by analogy with the dark scale.
+
+     The first correction was also wrong: #767c86 measures 4.2:1 on white and
+     3.9:1 on the canvas — it looked plausible and still failed AA. Text sits on
+     white cards far more often than on the canvas, so white is the number that
+     matters.
+
+     Both now clear 4.5:1 against #ffffff. The cost is that 600 is no longer
+     light enough to be an invisible divider — which is correct, because it was
+     never used as one: `border-ink-600` appears on hover states only, where a
+     slightly stronger edge is the intent anyway. Hairlines are 700 and 800. */
+  --ink-500: 102 108 118;  /* #666c76 — V1's own faint, 5.3:1 on white */
+  --ink-600: 97 102 111;   /* #61666f — clears AA on white and the V1 canvas */
+  --ink-700: 227 228 232;  /* V1 --color-border — hairlines */
+  --ink-800: 243 243 245;  /* V1 --color-surface-sunken */
+  --ink-850: 255 255 255;  /* V1 --color-surface — cards are white */
+  --ink-900: 243 243 245;
+  --ink-950: 247 247 248;  /* V1 --background — the page canvas */
+
+  /* ── The whole brand ramp inverts, not just the accent ────────────────────
+     The first pass remapped only 400-700 and left 100-300 at their dark-theme
+     values — pale pinks meant to glow on near-black. The sweep found 513 uses
+     of `text-gold-200` and `text-gold-300` rendering at 2.0:1 and 3.0:1 on
+     white: labels like "Provider", "Marketing" and "Your plan", all of them
+     effectively invisible.
+
+     On light, the ramp runs the other way: the low numbers are the TINTS used
+     for backgrounds and the high numbers are the readable reds. Anything that
+     can hold text lands on the logo red or darker. */
+  --brand-50: 253 236 238;   /* tint backgrounds only */
+  --brand-100: 251 208 213;
+  --brand-200: 210 31 52;    /* #d21f34 — 5.3:1 */
+  --brand-300: 184 24 40;    /* #b81828 — 6.6:1 */
+  --brand-400: 184 24 40;    /* the accent slot — exact logo red */
+  --brand-500: 143 18 32;    /* #8f1220 — 9.2:1, hover/pressed */
+  --brand-600: 184 24 40;
+  --brand-700: 143 18 32;
+
+  /* V1's status palette. Apex's dark-tuned mint/amber are illegible on white. */
+  /* Darker than V1's own #1a7f4e (5.0:1 on white, but 4.4:1 on its own
+     `bg-optimal/12` tint — and Apex puts 11px status text on that tint). V1
+     ships the lighter value and its badges measure just under AA; matching the
+     bug is not the goal. */
+  --status-optimal: 21 104 63;   /* #15683f — 6.8:1 white, 6.0:1 on tint */
+  --status-watch: 141 89 8;      /* #8d5908 — V1's #a5680a measures 4.28:1 on
+                                    white, just under AA. Apex uses this as body
+                                    text, not only on tinted chips. */
+  --status-low: 29 78 216;       /* #1d4ed8 — 6.7:1 */
+  --status-high: 184 24 40;      /* #b81828 */
+
+  --rail-bg: 22 24 28;           /* #16181c — V1's dark sidebar */
+  --rail-border: 51 54 61;       /* #33363d */
+
+  /* V1 has no ambient gradient. A flat canvas is part of why it reads clinical. */
+  --canvas-wash: none;
+
+  --scrollbar-thumb: #d3d5db;
+  --scrollbar-thumb-hover: #b9bcc4;
+  --card-shadow: 0 1px 2px rgba(16, 18, 20, 0.04);
+
+  /* Chart colours for a white plot area. The dark-tuned mint and amber above
+     are illegible on #ffffff, so the series drop to V1's own good/warn values
+     and the tooltip inverts to a light card with a hairline. */
+  --chart-grid: #e3e4e8;
+  --chart-axis: #666c76;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e3e4e8;
+  --chart-tooltip-text: #16181c;
+  --chart-brand: #b81828;
+  --chart-brand-soft: #d21f34;
+  --chart-series-1: #b81828;
+  --chart-series-2: #1a7f4e;
+  --chart-series-3: #2563eb;
+  --chart-series-4: #6d28d9;
+  --chart-series-5: #a5680a;
+  --chart-series-6: #0f766e;
+  --chart-track: #e3e4e8;
+
+  /* V1's good/warn/bad. The dark-tuned mint (#34d399) is 1.9:1 on white — fine
+     as a 6%-opacity band, unreadable as a 1.6px line, and these files use it
+     for both. */
+  --c-optimal: #15683f;
+  --c-watch: #8d5908;
+  --c-low: #1d4ed8;
+  --c-high: #b81828;
+  --on-swatch: #ffffff;
 }
 
 html,
@@ -23,27 +234,51 @@ body {
   @apply bg-ink-950 text-ink-100 font-sans antialiased;
   font-size: 15px;
   line-height: 1.6;
-  background-image:
-    radial-gradient(60rem 40rem at 12% -8%, rgba(233, 61, 61, 0.08), transparent 60%),
-    radial-gradient(50rem 36rem at 100% 0%, rgba(191, 30, 46, 0.05), transparent 55%);
+  background-image: var(--canvas-wash);
   background-attachment: fixed;
+}
+
+
+/* ── The rail keeps its own depth under the V1 skin ─────────────────────────
+   Custom properties cascade, so redefining the ink scale ON the rail element
+   makes everything inside it render dark without a single class changing in
+   Sidebar.tsx. Values are V1's own sidebar tokens: #16181c ground, #24272d
+   raised, #33363d hairline, #d7d9dd text, #8a8f98 dim.
+
+   This is why the palette became variables rather than a second set of
+   `dark:` utilities — one scoping rule reskins a whole subtree. */
+:root[data-skin="v1"] .app-rail {
+  --ink-950: 22 24 28;     /* #16181c — rail ground */
+  --ink-900: 36 39 45;     /* #24272d — raised surfaces in the rail */
+  --ink-850: 36 39 45;     /* active pill */
+  --ink-800: 51 54 61;     /* #33363d — hairlines */
+  --ink-700: 63 67 75;     /* hover border */
+  --ink-600: 138 143 152;  /* section headings */
+  --ink-500: 138 143 152;  /* #8a8f98 — dim text and icons */
+  --ink-400: 138 143 152;
+  --ink-300: 215 217 221;  /* #d7d9dd — nav labels */
+  --ink-200: 215 217 221;
+  --ink-100: 255 255 255;
+  --ink-50: 255 255 255;   /* active label */
+  /* The accent lifts again on a dark ground, exactly as V1's dark tokens do. */
+  --brand-400: 236 61 80;
 }
 
 /* Thin custom scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #343a42 transparent;
+  scrollbar-color: var(--scrollbar-thumb-hover) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #23272d;
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #343a42;
+  background: var(--scrollbar-thumb-hover);
 }
 
 @layer components {

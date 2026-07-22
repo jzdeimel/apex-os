@@ -330,9 +330,9 @@ export default function PortalProgressPage() {
                 <TrendArea
                   data={bodyData}
                   series={[
-                    { key: "weight", label: "Weight (lb)", color: "#60a5fa" },
-                    { key: "muscle", label: "Muscle (lb)", color: "#34d399" },
-                    { key: "bodyFat", label: "Body fat (%)", color: "#e0bd6e" },
+                    { key: "weight", label: "Weight (lb)", color: "var(--c-low)" },
+                    { key: "muscle", label: "Muscle (lb)", color: "var(--c-optimal)" },
+                    { key: "bodyFat", label: "Body fat (%)", color: "var(--c-watch)" },
                   ]}
                   height={280}
                 />

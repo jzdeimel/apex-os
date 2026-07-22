@@ -29,7 +29,7 @@ const NOW = "2026-06-12T09:00:00";
 
 const ZONE_RING: Record<HctZone, string> = {
   "in-range": "text-emerald border-emerald/30 bg-emerald/5",
-  watch: "text-sky-300 border-sky-400/30 bg-sky-400/5",
+  watch: "text-low border-low/30 bg-low/5",
   caution: "text-gold-300 border-gold-400/30 bg-gold-400/5",
   hold: "text-high border-high/40 bg-high/10",
 };
@@ -217,15 +217,15 @@ function HctChart({ view, donations }: { view: ReturnType<typeof hematocritView>
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="text-ink-600" role="img" aria-label="Haematocrit trend">
       {/* hold zone shading above 54 */}
-      <rect x={pad.l} y={y(hi)} width={W - pad.l - pad.r} height={Math.max(0, y(HOLD_HCT) - y(hi))} fill="#f87171" opacity="0.08" />
-      {lineAt(view.refHigh, "#6b7280", `ref ${view.refHigh}`)}
-      {lineAt(CAUTION_HCT, "#e0bd6e", `${CAUTION_HCT}`)}
-      {lineAt(HOLD_HCT, "#f87171", `${HOLD_HCT}`)}
+      <rect x={pad.l} y={y(hi)} width={W - pad.l - pad.r} height={Math.max(0, y(HOLD_HCT) - y(hi))} fill="var(--c-high)" opacity="0.08" />
+      {lineAt(view.refHigh, "var(--chart-axis)", `ref ${view.refHigh}`)}
+      {lineAt(CAUTION_HCT, "var(--c-watch)", `${CAUTION_HCT}`)}
+      {lineAt(HOLD_HCT, "var(--c-high)", `${HOLD_HCT}`)}
 
       <motion.path
         d={path}
         fill="none"
-        stroke="#e0bd6e"
+        stroke="var(--c-watch)"
         strokeWidth="1.8"
         strokeLinejoin="round"
         initial={{ pathLength: 0 }}
@@ -233,7 +233,7 @@ function HctChart({ view, donations }: { view: ReturnType<typeof hematocritView>
         transition={{ duration: 0.7, ease: "easeOut" }}
       />
       {view.series.map((s, i) => (
-        <circle key={i} cx={x(i)} cy={y(s.value)} r={i === last ? 3 : 1.8} fill="#e0bd6e" />
+        <circle key={i} cx={x(i)} cy={y(s.value)} r={i === last ? 3 : 1.8} fill="var(--c-watch)" />
       ))}
     </svg>
   );

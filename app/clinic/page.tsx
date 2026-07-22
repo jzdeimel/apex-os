@@ -263,13 +263,13 @@ export default function DashboardPage() {
     ];
 
     const STATUS_COLOR: Record<string, string> = {
-      "Active Protocol": "#34d399",
-      "Results Ready": "#e93d3d",
-      "Plan Review": "#e0bd6e",
-      "Follow-Up Due": "#f87171",
+      "Active Protocol": "var(--c-optimal)",
+      "Results Ready": "var(--chart-brand)",
+      "Plan Review": "var(--c-watch)",
+      "Follow-Up Due": "var(--c-high)",
       "Labs Ordered": "#38bdf8",
-      "Consult Booked": "#60a5fa",
-      Lead: "#6f7884",
+      "Consult Booked": "var(--c-low)",
+      Lead: "var(--chart-axis)",
       Inactive: "#4b525c",
     };
     const statusMix = Object.entries(

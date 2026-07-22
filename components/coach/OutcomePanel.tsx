@@ -130,7 +130,7 @@ function OutcomeRow({ outcome }: { outcome: MemberOutcome }) {
                   <ol className="space-y-1.5">
                     {outcome.precededBy.map((iv, i) => (
                       <li key={`${iv.source.recordId}-${i}`} className="flex min-w-0 gap-2">
-                        <span className="stat-mono mt-0.5 shrink-0 text-micro text-ink-700">
+                        <span className="stat-mono mt-0.5 shrink-0 text-micro text-ink-500">
                           {formatDate(iv.at)}
                         </span>
                         <div className="min-w-0 flex-1">

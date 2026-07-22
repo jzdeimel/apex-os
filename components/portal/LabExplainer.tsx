@@ -48,9 +48,9 @@ const TONE: Record<WhereItSits, "optimal" | "watch" | "high"> = {
 };
 
 const HEX: Record<WhereItSits, string> = {
-  "in range": "#34d399",
-  "worth watching": "#e0bd6e",
-  "let's discuss": "#f87171",
+  "in range": "var(--c-optimal)",
+  "worth watching": "var(--c-watch)",
+  "let's discuss": "var(--c-high)",
 };
 
 export interface LabExplainerProps {

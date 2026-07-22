@@ -68,9 +68,9 @@ function stateOf(s: SiteStat): SiteState {
 }
 
 const STATE_STYLE: Record<SiteState, { fill: string; ring: string; label: string }> = {
-  overused: { fill: "#f87171", ring: "rgba(248,113,113,0.35)", label: "Overused" },
-  recent: { fill: "#e0bd6e", ring: "rgba(224,189,110,0.30)", label: "Recovering" },
-  rested: { fill: "#34d399", ring: "rgba(52,211,153,0.30)", label: "Rested — good to use" },
+  overused: { fill: "var(--c-high)", ring: "rgba(248,113,113,0.35)", label: "Overused" },
+  recent: { fill: "var(--c-watch)", ring: "rgba(224,189,110,0.30)", label: "Recovering" },
+  rested: { fill: "var(--c-optimal)", ring: "rgba(52,211,153,0.30)", label: "Rested — good to use" },
   unused: { fill: "#4b5563", ring: "rgba(75,85,99,0.25)", label: "Not used recently" },
 };
 
@@ -198,7 +198,7 @@ function BodyFigure({
   return (
     <div className="flex flex-col items-center">
       <p className="mb-2 text-micro uppercase tracking-[0.14em] text-ink-500">{title}</p>
-      <svg viewBox="0 0 100 150" width="100%" className="max-w-[150px] text-ink-700" role="img" aria-label={`Injection sites, ${title.toLowerCase()} view`}>
+      <svg viewBox="0 0 100 150" width="100%" className="max-w-[150px] text-ink-500" role="img" aria-label={`Injection sites, ${title.toLowerCase()} view`}>
         <Silhouette view={view} />
         {hydrated &&
           sites.map((site) => {
@@ -215,7 +215,7 @@ function BodyFigure({
                     cy={geo.y}
                     r="7"
                     fill="none"
-                    stroke="#34d399"
+                    stroke="var(--c-optimal)"
                     strokeWidth="1"
                     initial={{ opacity: 0.2, scale: 0.8 }}
                     animate={{ opacity: [0.2, 0.6, 0.2], scale: [0.85, 1.15, 0.85] }}

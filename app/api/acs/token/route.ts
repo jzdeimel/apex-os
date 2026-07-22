@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { fail, serverError, unavailable } from "@/lib/api/respond";
+import { fail, serverError } from "@/lib/api/respond";
 import { createHash, createHmac } from "crypto";
 import { currentPrincipal } from "@/lib/auth/principal";
+import { actorFromPrincipal } from "@/lib/auth/actor";
+import { can } from "@/lib/authz/capabilities";
 
 /**
  * ACS identity token endpoint — zero-dependency.
@@ -72,7 +74,17 @@ export async function POST() {
   // real credential, so it verifies the caller itself. No principal → no token.
   const principal = await currentPrincipal();
   if (!principal) {
-    return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+    return fail(401, "Not authenticated.");
+  }
+
+  const actor = actorFromPrincipal(principal);
+  if (!actor) {
+    return fail(403, "No staff record for this sign-in.");
+  }
+
+  const decision = can(actor, "write:contact");
+  if (!decision.allowed) {
+    return fail(403, decision.reason);
   }
 
   // Reuse this staff member's identity + token while it is still fresh.
@@ -84,15 +96,12 @@ export async function POST() {
   const cs = process.env.ACS_CONNECTION_STRING;
   if (!cs) {
     // Honest failure: no faked token.
-    return NextResponse.json(
-      { ok: false, error: "ACS is not configured on this deployment (no connection string)." },
-      { status: 503 },
-    );
+    return fail(503, "Calling is not configured on this deployment.");
   }
 
   const parsed = parseConnectionString(cs);
   if (!parsed) {
-    return NextResponse.json({ ok: false, error: "ACS connection string is malformed." }, { status: 500 });
+    return serverError("acs.token.config", new Error("ACS connection string is malformed."), "Calling is temporarily unavailable.");
   }
 
   const { endpoint, accessKey } = parsed;
@@ -124,9 +133,11 @@ export async function POST() {
 
     if (!res.ok) {
       const text = await res.text();
-      return NextResponse.json(
-        { ok: false, error: `ACS identity API returned ${res.status}: ${text.slice(0, 200)}` },
-        { status: 502 },
+      return serverError(
+        "acs.token.upstream",
+        new Error(`ACS identity API returned ${res.status}: ${text.slice(0, 500)}`),
+        "Calling is temporarily unavailable.",
+        502,
       );
     }
 

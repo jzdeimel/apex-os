@@ -70,6 +70,8 @@ export const isConfigured = db !== null;
  * decides "stop", not "pretend".
  */
 let migrationsKicked = false;
+let migrationsReady = !url;
+let migrationError: string | null = null;
 
 /**
  * Kick migrations once, on first database use.
@@ -84,14 +86,25 @@ let migrationsKicked = false;
  * never pays for a migration check, and the first write is a perfectly good
  * moment to insist the schema exists.
  *
- * Deliberately fire-and-forget. Blocking the first write behind a schema
- * migration would make a cold start look like a hang; the write proceeds and
- * fails loudly if the schema genuinely is not there, which is the honest signal.
+ * Kicked in the background, but writes fail fast while the migration is still
+ * pending. A first write racing an unapplied schema produces misleading driver
+ * errors and can leave compound workflows half-explained; a clear "try again in
+ * a moment" is the safer cold-start failure until the repository API becomes
+ * async end-to-end.
  */
 function kickMigrations() {
   if (migrationsKicked) return;
   migrationsKicked = true;
-  void import("@/lib/db/migrate").then((m) => m.runMigrations());
+  void import("@/lib/db/migrate")
+    .then((m) => m.runMigrations())
+    .then((state) => {
+      if (state.status === "failed") migrationError = state.error;
+      migrationsReady = true;
+    })
+    .catch((err) => {
+      migrationError = err instanceof Error ? err.message : String(err);
+      migrationsReady = true;
+    });
 }
 
 export function requireDb() {
@@ -104,6 +117,12 @@ export function requireDb() {
         '--secrets "database-url=postgresql://..." and bind it with --set-env-vars ' +
         "DATABASE_URL=secretref:database-url",
     );
+  }
+  if (!migrationsReady) {
+    throw new Error("Database migrations are still applying. Please retry in a moment.");
+  }
+  if (migrationError) {
+    throw new Error(`Database migrations failed: ${migrationError}`);
   }
   return db;
 }

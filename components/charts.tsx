@@ -27,15 +27,15 @@ import {
 } from "recharts";
 import { formatDateShort } from "@/lib/utils";
 
-const GOLD = "#e93d3d";
-const GOLD_LT = "#f17d7d";
+const GOLD = "var(--chart-brand)";
+const GOLD_LT = "var(--chart-brand-soft)";
 
 const tooltipStyle = {
-  background: "#17191e",
-  border: "1px solid #343a42",
+  background: "var(--chart-tooltip-bg)",
+  border: "1px solid var(--chart-tooltip-border)",
   borderRadius: 10,
   fontSize: 12,
-  color: "#e7e9ec",
+  color: "var(--chart-tooltip-text)",
   padding: "8px 10px",
 };
 
@@ -154,7 +154,7 @@ export function RevenueBars({
 export function PercentLine({
   data,
   height = 200,
-  color = "#34d399",
+  color = "var(--chart-series-2)",
 }: {
   data: { name: string; value: number }[];
   height?: number;
@@ -193,8 +193,8 @@ export function CountBars({
       <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id="barWatch" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f17d7d" />
-            <stop offset="100%" stopColor="#e93d3d" />
+            <stop offset="0%" stopColor="var(--chart-brand-soft)" />
+            <stop offset="100%" stopColor="var(--chart-brand)" />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -211,7 +211,14 @@ export function CountBars({
   );
 }
 
-const DONUT_COLORS = ["#e93d3d", "#34d399", "#60a5fa", "#a78bfa", "#e0bd6e", "#2dd4bf"];
+const DONUT_COLORS = [
+  "var(--chart-series-1)",
+  "var(--chart-series-2)",
+  "var(--chart-series-3)",
+  "var(--chart-series-4)",
+  "var(--chart-series-5)",
+  "var(--chart-series-6)",
+];
 
 export function ServiceDonut({
   data,
@@ -259,7 +266,7 @@ export function RadarStat({
     <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} outerRadius="72%">
         <PolarGrid stroke="rgba(255,255,255,0.08)" />
-        <PolarAngleAxis dataKey="axis" tick={{ fill: "#94a1a6", fontSize: 10 }} />
+        <PolarAngleAxis dataKey="axis" tick={{ fill: "var(--chart-axis)", fontSize: 10 }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Radar dataKey="value" stroke={color} fill={color} fillOpacity={0.3} strokeWidth={2} />
         <Tooltip contentStyle={tooltipStyle} formatter={(v: number | string) => [v, "Score"]} />
@@ -284,12 +291,12 @@ export function ScatterStat({
     <ResponsiveContainer width="100%" height={height}>
       <ScatterChart margin={{ top: 8, right: 16, left: -8, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" dataKey="x" name={xLabel} domain={[0, 100]} tickLine={false} axisLine={false} label={{ value: xLabel, position: "insideBottom", offset: -2, fill: "#6f7884", fontSize: 11 }} />
+        <XAxis type="number" dataKey="x" name={xLabel} domain={[0, 100]} tickLine={false} axisLine={false} label={{ value: xLabel, position: "insideBottom", offset: -2, fill: "var(--chart-axis)", fontSize: 11 }} />
         <YAxis type="number" dataKey="y" name={yLabel} domain={[0, 100]} width={36} tickLine={false} axisLine={false} />
         <ZAxis range={[60, 60]} />
         <Tooltip
           contentStyle={tooltipStyle}
-          cursor={{ strokeDasharray: "3 3", stroke: "#343a42" }}
+          cursor={{ strokeDasharray: "3 3", stroke: "var(--chart-grid)" }}
           formatter={(v: number | string, n: string) => [v, n === "x" ? xLabel : yLabel]}
           labelFormatter={() => ""}
           content={({ payload }) => {
@@ -306,7 +313,7 @@ export function ScatterStat({
         />
         <Scatter data={data} fill={GOLD}>
           {data.map((d, i) => (
-            <Cell key={i} fill={d.y >= 50 ? "#f87171" : d.x >= 50 ? "#e0bd6e" : "#34d399"} />
+            <Cell key={i} fill={d.y >= 50 ? "var(--chart-series-1)" : d.x >= 50 ? "var(--chart-series-5)" : "var(--chart-series-2)"} />
           ))}
         </Scatter>
       </ScatterChart>

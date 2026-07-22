@@ -37,13 +37,13 @@ import { cn, formatDate, formatDateTime, absolute } from "@/lib/utils";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const MARK_COLOR: Record<MarkKind, string> = {
-  join: "#94a1a6",
-  consult: "#60a5fa",
-  lab: "#2dd4bf",
-  order: "#a78bfa",
-  escalation: "#f87171",
-  plan: "#e93d3d",
-  now: "#e0bd6e",
+  join: "var(--chart-axis)",
+  consult: "var(--c-low)",
+  lab: "var(--chart-series-6)",
+  order: "var(--chart-series-4)",
+  escalation: "var(--c-high)",
+  plan: "var(--chart-brand)",
+  now: "var(--c-watch)",
 };
 
 const MARK_LABEL: Record<MarkKind, string> = {

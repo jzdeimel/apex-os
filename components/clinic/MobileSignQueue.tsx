@@ -16,9 +16,10 @@ import {
   Hash,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Badge, Button, Progress, EmptyState } from "@/components/ui/primitives";
+import { Badge, Button, Progress, EmptyState, Textarea } from "@/components/ui/primitives";
 import { SwitchView } from "@/components/motion";
 import { Monogram } from "@/components/Monogram";
+import { SignedSeal } from "@/components/celebrate/SignedSeal";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/store";
 import { consults, commitConsultStatus } from "@/lib/mock/consults";
@@ -81,7 +82,32 @@ interface Decision {
   outcome: "signed" | "declined";
   ledgerId: string;
   hash: string;
+  signedAt: string;
+  durable: "local" | "pending" | "persisted" | "failed";
+  durableLedgerId?: string;
+  durableHash?: string;
+  reason?: string;
 }
+
+const REVIEW_STEPS = [
+  { id: "identity", label: "Member and visit match the note" },
+  { id: "evidence", label: "Evidence and raw notes reviewed" },
+  { id: "risk", label: "Risks or holds make clinical sense" },
+] as const;
+
+type ReviewKey = (typeof REVIEW_STEPS)[number]["id"];
+
+const EMPTY_REVIEW: Record<ReviewKey, boolean> = {
+  identity: false,
+  evidence: false,
+  risk: false,
+};
+
+const DECLINE_REASONS = [
+  "Needs provider follow-up",
+  "Evidence does not support the plan",
+  "Contraindication or safety concern",
+] as const;
 
 /** Risk ordering — the sharpest item should not be the last one reached. */
 const RISK_RANK: Record<string, number> = { high: 0, moderate: 1, low: 2, none: 3 };
@@ -368,11 +394,21 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
   const queue = React.useMemo(() => buildQueue(providerId), [providerId]);
   const [index, setIndex] = React.useState(0);
   const [decisions, setDecisions] = React.useState<Record<string, Decision>>({});
+  const [reviewed, setReviewed] = React.useState<Record<string, Record<ReviewKey, boolean>>>({});
+  const [declineOpen, setDeclineOpen] = React.useState(false);
+  const [declineReason, setDeclineReason] = React.useState<string>(DECLINE_REASONS[0]);
 
   const provider = staffMap[providerId];
   const item = queue[index];
   const decided = item ? decisions[item.id] : undefined;
   const remaining = queue.length - Object.keys(decisions).length;
+  const reviewState = item ? reviewed[item.id] ?? EMPTY_REVIEW : EMPTY_REVIEW;
+  const reviewComplete = REVIEW_STEPS.every((step) => reviewState[step.id]);
+
+  React.useEffect(() => {
+    setDeclineOpen(false);
+    setDeclineReason(DECLINE_REASONS[0]);
+  }, [item?.id]);
 
   const go = React.useCallback(
     (delta: number) => {
@@ -381,9 +417,31 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
     [queue.length],
   );
 
-  const decide = (outcome: "signed" | "declined") => {
+  const toggleReview = (key: ReviewKey) => {
     if (!item || decisions[item.id]) return;
+    setReviewed((state) => ({
+      ...state,
+      [item.id]: {
+        ...EMPTY_REVIEW,
+        ...(state[item.id] ?? {}),
+        [key]: !(state[item.id]?.[key] ?? false),
+      },
+    }));
+  };
 
+  const decide = (outcome: "signed" | "declined", note?: string) => {
+    if (!item || decisions[item.id]) return;
+    if (outcome === "signed" && !reviewComplete) {
+      toast("Review the evidence first", {
+        tone: "warn",
+        desc: "Check all three review items before signing or approving.",
+      });
+      return;
+    }
+
+    const itemId = item.id;
+    const signedAt = new Date().toISOString();
+    const declineNote = note?.trim();
     const row = appendLedger({
       actorId: providerId,
       actorName: provider?.name ?? staffName(providerId),
@@ -394,7 +452,12 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
       subjectId: item.client.id,
       subjectName: clientName(item.client),
       locationId: item.client.locationId,
-      reason: `Mobile co-sign queue — reviewed on device by ${provider?.name ?? staffName(providerId)}`,
+      reason:
+        outcome === "declined"
+          ? `Mobile co-sign queue - declined by ${provider?.name ?? staffName(providerId)}: ${
+              declineNote || DECLINE_REASONS[0]
+            }`
+          : `Mobile co-sign queue - reviewed on device by ${provider?.name ?? staffName(providerId)}`,
       before: {
         status: item.kind === "consult" ? item.consult.status : item.rec.status,
       },
@@ -406,6 +469,7 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
               : "provider approved"
             : "declined",
         surface: "mobile-sign-queue",
+        ...(outcome === "declined" ? { declineReason: declineNote || DECLINE_REASONS[0] } : {}),
       },
     });
 
@@ -418,15 +482,22 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
      * dashboard kept counting them as unsigned. The signature was real in the
      * audit chain and invisible everywhere a human looked.
      */
-    if (item.kind === "consult") {
-      commitConsultStatus(item.consult.id, outcome === "signed" ? "Signed" : "Awaiting review");
-    } else {
+    if (item.kind === "consult" && outcome === "declined") {
+      commitConsultStatus(item.consult.id, "Awaiting review");
+    } else if (item.kind === "recommendation") {
       setRecStatus(item.rec.id, outcome === "signed" ? "provider approved" : "declined");
     }
 
     setDecisions((d) => ({
       ...d,
-      [item.id]: { outcome, ledgerId: row.id, hash: row.hash },
+      [itemId]: {
+        outcome,
+        ledgerId: row.id,
+        hash: row.hash,
+        signedAt,
+        durable: outcome === "signed" && item.kind === "consult" ? "pending" : "local",
+        reason: outcome === "declined" ? declineNote || DECLINE_REASONS[0] : undefined,
+      },
     }));
     toast(outcome === "signed" ? "Signed" : "Declined", {
       desc: `${row.id} · ${shortHash(row.hash)}`,
@@ -443,25 +514,65 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
       void fetch("/api/consults/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consultId: item.consult.id, clientId: item.client.id }),
+        body: JSON.stringify({ consultId: item.consult.id }),
       })
         .then((r) => r.json())
         .then((res) => {
           if (res?.ok && res.durable) {
+            commitConsultStatus(item.consult.id, "Signed");
+            setDecisions((d) =>
+              d[itemId]
+                ? {
+                    ...d,
+                    [itemId]: {
+                      ...d[itemId],
+                      durable: "persisted",
+                      durableLedgerId: res.ledger?.id,
+                      durableHash: res.ledger?.hash,
+                    },
+                  }
+                : d,
+            );
             toast("Written to the durable ledger", {
               desc: `${res.ledger.id} · persisted to Postgres`,
               tone: "success",
             });
+          } else {
+            setDecisions((d) =>
+              d[itemId]
+                ? {
+                    ...d,
+                    [itemId]: {
+                      ...d[itemId],
+                      durable: "failed",
+                    },
+                  }
+                : d,
+            );
           }
         })
         .catch(() => {
+          setDecisions((d) =>
+            d[itemId]
+              ? {
+                  ...d,
+                  [itemId]: {
+                    ...d[itemId],
+                    durable: "failed",
+                  },
+                }
+              : d,
+          );
           /* offline / no DB — the in-memory record above still holds */
         });
     }
 
     // Advance only after a decision is recorded, so the row id is always
-    // committed before the item leaves the screen.
-    if (index < queue.length - 1) window.setTimeout(() => go(1), 320);
+    // committed before the item leaves the screen. Consult signatures stay put:
+    // the durable-ledger receipt is the thing the provider needs to see next.
+    if (!(outcome === "signed" && item.kind === "consult") && index < queue.length - 1) {
+      window.setTimeout(() => go(1), 320);
+    }
   };
 
   if (queue.length === 0) {
@@ -579,7 +690,15 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
                 <X className="h-4 w-4 shrink-0 text-high" />
               )}
               <p className="text-body font-medium text-ink-50">
-                {decided.outcome === "signed" ? "Signed" : "Declined"} — recorded
+                {decided.outcome === "signed"
+                  ? item.kind === "consult"
+                    ? decided.durable === "persisted"
+                      ? "Signed - durable ledger confirmed"
+                      : decided.durable === "failed"
+                        ? "Signature captured locally"
+                        : "Signature captured - confirming ledger"
+                    : "Approved - recorded locally"
+                  : "Declined - recorded locally"}
               </p>
             </div>
             <p className="mt-1.5 flex items-center gap-1.5 text-detail text-ink-400">
@@ -588,25 +707,138 @@ export function MobileSignQueue({ providerId = ME_PROVIDER }: { providerId?: str
               <span className="text-ink-600">·</span>
               <span className="stat-mono truncate">{shortHash(decided.hash)}</span>
             </p>
+            {decided.reason && (
+              <p className="mt-2 rounded-lg border border-high/20 bg-high/5 px-2.5 py-1.5 text-detail leading-relaxed text-ink-300">
+                {decided.reason}
+              </p>
+            )}
+            {decided.outcome === "signed" && item.kind === "consult" && decided.durable === "persisted" && (
+              <SignedSeal
+                trigger
+                ledgerId={decided.durableLedgerId ?? decided.ledgerId}
+                hash={shortHash(decided.durableHash ?? decided.hash)}
+                signedBy={provider?.name ?? staffName(providerId)}
+                signedAt={decided.signedAt}
+                label={item.kind === "consult" ? "Signed" : "Approved"}
+                className="mt-2 border-t border-ink-800/70 pt-3"
+              />
+            )}
+            {decided.durable === "pending" && (
+              <p className="mt-2 flex items-center gap-1.5 text-micro text-gold-300">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Persisting the server ledger row...
+              </p>
+            )}
+            {decided.durable === "persisted" && (
+              <p className="mt-2 flex items-center gap-1.5 text-micro text-optimal">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Durable ledger confirmed.
+              </p>
+            )}
+            {decided.durable === "failed" && (
+              <p className="mt-2 flex items-center gap-1.5 text-micro text-watch">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Local demo record shown. The durable ledger did not confirm this write.
+              </p>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="danger"
-              onClick={() => decide("declined")}
-              className="h-12 w-full text-body"
-            >
-              <X className="h-4 w-4" />
-              Decline
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => decide("signed")}
-              className="h-12 w-full text-body"
-            >
-              <PenLine className="h-4 w-4" />
-              {item.kind === "consult" ? "Sign note" : "Approve"}
-            </Button>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-ink-800 bg-ink-900/55 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-detail font-medium text-ink-200">Evidence reviewed</p>
+                <Badge tone={reviewComplete ? "optimal" : "watch"}>
+                  {REVIEW_STEPS.filter((step) => reviewState[step.id]).length}/{REVIEW_STEPS.length}
+                </Badge>
+              </div>
+              <div className="mt-2 grid gap-1.5">
+                {REVIEW_STEPS.map((step) => {
+                  const checked = reviewState[step.id];
+                  return (
+                    <button
+                      key={step.id}
+                      type="button"
+                      onClick={() => toggleReview(step.id)}
+                      className={cn(
+                        "focus-ring flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-micro transition-colors",
+                        checked
+                          ? "border-optimal/30 bg-optimal/10 text-optimal"
+                          : "border-ink-800 bg-ink-950/35 text-ink-400 hover:border-ink-700 hover:text-ink-100",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
+                          checked ? "border-optimal bg-optimal text-white" : "border-ink-700",
+                        )}
+                      >
+                        {checked && <CheckCircle2 className="h-3 w-3" />}
+                      </span>
+                      {step.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="danger"
+                onClick={() => setDeclineOpen((open) => !open)}
+                className="h-12 w-full text-body"
+              >
+                <X className="h-4 w-4" />
+                Decline
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => decide("signed")}
+                disabled={!reviewComplete}
+                title={reviewComplete ? undefined : "Complete the review checklist before signing."}
+                className="h-12 w-full text-body"
+              >
+                <PenLine className="h-4 w-4" />
+                {item.kind === "consult" ? "Sign note" : "Approve"}
+              </Button>
+            </div>
+
+            {declineOpen && (
+              <div className="rounded-xl border border-high/25 bg-high/5 p-3">
+                <p className="text-detail font-medium text-ink-100">Decline reason</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {DECLINE_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => setDeclineReason(reason)}
+                      className={cn(
+                        "focus-ring rounded-control border px-2.5 py-1 text-micro transition-colors",
+                        declineReason === reason
+                          ? "border-high/40 bg-high/15 text-high"
+                          : "border-ink-800 bg-ink-950/35 text-ink-400 hover:text-ink-100",
+                      )}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={declineReason}
+                  onChange={(event) => setDeclineReason(event.target.value)}
+                  className="mt-2 min-h-20 text-detail"
+                  aria-label="Decline reason"
+                />
+                <Button
+                  variant="danger"
+                  onClick={() => decide("declined", declineReason)}
+                  disabled={!declineReason.trim()}
+                  className="mt-2 h-11 w-full text-body"
+                >
+                  <X className="h-4 w-4" />
+                  Record decline
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

@@ -130,6 +130,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     (fromRoute === null && pathname === "/") ||
     pathname === "/book" ||
     pathname === "/demo" ||
+    pathname === "/patient-sign-in" ||
     pathname.startsWith("/intake/") ||
     pathname.startsWith("/card/");
 

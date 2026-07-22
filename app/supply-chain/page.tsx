@@ -93,9 +93,9 @@ export default function SupplyChainPage() {
           <CardContent>
             <DonutCount
               data={[
-                { name: "In stock", value: scoped.filter((i) => i.status === "in stock").length, color: "#34d399" },
-                { name: "Low", value: scoped.filter((i) => i.status === "low").length, color: "#e0bd6e" },
-                { name: "Expiring", value: scoped.filter((i) => i.status === "expiring soon").length, color: "#f87171" },
+                { name: "In stock", value: scoped.filter((i) => i.status === "in stock").length, color: "var(--c-optimal)" },
+                { name: "Low", value: scoped.filter((i) => i.status === "low").length, color: "var(--c-watch)" },
+                { name: "Expiring", value: scoped.filter((i) => i.status === "expiring soon").length, color: "var(--c-high)" },
                 { name: "Out", value: scoped.filter((i) => i.status === "out of stock").length, color: "#7f1d1d" },
               ].filter((d) => d.value > 0)}
               height={160}

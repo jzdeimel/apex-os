@@ -69,7 +69,7 @@ export default function SchedulePage() {
         <div>
           <p className="label-eyebrow">Team schedule · week of Jun 8–14, 2026</p>
           <h1 className="mt-1 flex items-center gap-2 font-display text-title font-bold tracking-tight text-ink-50">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 text-[color:var(--on-swatch)]">
               <CalendarDays className="h-5 w-5" />
             </span>
             Staff &amp; Coach Schedule
@@ -131,7 +131,7 @@ export default function SchedulePage() {
                               <span className="block text-micro text-ink-500">{locationName(sh.locationId)}</span>
                             </div>
                           ) : (
-                            <span className="text-ink-700">·</span>
+                            <span className="text-ink-500">·</span>
                           )}
                         </td>
                       ))}

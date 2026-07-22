@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Lock, Flame, Check, Shield } from "lucide-react";
 import { buildDailyPlan, ringHistory, hasDose, type Ring, type DailyPlan } from "@/lib/daily/today";
@@ -8,6 +8,8 @@ import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { Stagger, StaggerItem } from "@/components/portal/still";
 import { useMemberLog } from "@/lib/member/logStore";
+import { RingCloseBurst } from "@/components/celebrate/RingCloseBurst";
+import { useCelebrations } from "@/components/celebrate/CelebrationProvider";
 
 /**
  * The daily loop, on one screen.
@@ -33,6 +35,9 @@ export function DailyRings({ clientId }: { clientId: string }) {
   const client = getClient(clientId);
   const reduced = useReducedMotion();
   const [openRing, setOpenRing] = useState<Ring["id"] | null>(null);
+  const [ringBursts, setRingBursts] = useState<Record<string, number>>({});
+  const previousProgress = useRef<Record<string, number> | null>(null);
+  const { emit } = useCelebrations();
 
   /**
    * The member's REAL log, not a seeded guess.
@@ -53,8 +58,6 @@ export function DailyRings({ clientId }: { clientId: string }) {
   );
   const history = useMemo(() => (client ? ringHistory(client, 28) : []), [client]);
 
-  if (!plan) return null;
-
   /** Logged, per the member's own record. Empty until the store hydrates. */
   const takenNow = (id: string) => (hydrated ? !!isDoseLogged(id) : false);
 
@@ -64,20 +67,47 @@ export function DailyRings({ clientId }: { clientId: string }) {
    * the target rather than counted as missed — pausing on medical advice must
    * not read as a failure (see the header note).
    */
-  const actionable = plan.doses.filter((d) => !d.heldReason);
-  const loggedCount = actionable.filter((d) => takenNow(d.id)).length;
-  const rings = plan.rings.map((r) =>
-    r.id === "protocol"
-      ? {
-          ...r,
-          done: loggedCount,
-          target: actionable.length,
-          progress: actionable.length === 0 ? 1 : loggedCount / actionable.length,
-        }
-      : r,
+  const actionable = useMemo(() => plan?.doses.filter((d) => !d.heldReason) ?? [], [plan]);
+  const loggedCount = useMemo(
+    () => actionable.filter((d) => takenNow(d.id)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [actionable, hydrated, isDoseLogged],
+  );
+  const rings = useMemo(
+    () =>
+      (plan?.rings ?? []).map((r) =>
+        r.id === "protocol"
+          ? {
+              ...r,
+              done: loggedCount,
+              target: actionable.length,
+              progress: actionable.length === 0 ? 1 : loggedCount / actionable.length,
+            }
+          : r,
+      ),
+    [actionable.length, loggedCount, plan],
   );
 
   const closed = rings.filter((r) => r.progress >= 1).length;
+  const ringSignature = rings.map((r) => `${r.id}:${r.progress >= 1 ? "closed" : "open"}`).join("|");
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const current = Object.fromEntries(rings.map((r) => [r.id, r.progress]));
+    const previous = previousProgress.current;
+    previousProgress.current = current;
+    if (!previous) return;
+
+    const newlyClosed = rings.filter((r) => (previous[r.id] ?? 0) < 1 && r.progress >= 1);
+    if (newlyClosed.length === 0) return;
+    setRingBursts((state) => {
+      const next = { ...state };
+      for (const ring of newlyClosed) next[ring.id] = (next[ring.id] ?? 0) + 1;
+      return next;
+    });
+  }, [hydrated, ringSignature, rings]);
+
+  if (!plan) return null;
 
   return (
     <div className="space-y-4">
@@ -87,43 +117,44 @@ export function DailyRings({ clientId }: { clientId: string }) {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="flex shrink-0 items-center justify-center gap-4">
               {rings.map((ring, i) => (
-                <button
-                  key={ring.id}
-                  onClick={() => setOpenRing((v) => (v === ring.id ? null : ring.id))}
-                  className="group relative grid place-items-center rounded-panel p-1 focus-ring"
-                  aria-label={`${ring.label}: ${ring.done} of ${ring.target} ${ring.unit}`}
-                >
-                  <svg width="104" height="104" viewBox="0 0 104 104" className="-rotate-90">
-                    <circle
-                      cx="52" cy="52" r={RING_R}
-                      fill="none" stroke="#23272d" strokeWidth="9"
-                    />
-                    <motion.circle
-                      cx="52" cy="52" r={RING_R}
-                      fill="none"
-                      stroke={ring.hex}
-                      strokeWidth="9"
-                      strokeLinecap="round"
-                      strokeDasharray={RING_C}
-                      initial={{ strokeDashoffset: RING_C }}
-                      animate={{ strokeDashoffset: RING_C - RING_C * Math.min(1, ring.progress) }}
-                      transition={
-                        reduced
-                          ? { duration: 0 }
-                          : { duration: 1.05, ease: [0.22, 1, 0.36, 1], delay: 0.12 * i }
-                      }
-                    />
-                  </svg>
-                  <span className="absolute flex flex-col items-center">
-                    <span className="stat-mono text-heading font-semibold text-ink-50">
-                      {Math.round(ring.progress * 100)}
-                      <span className="text-micro text-ink-500">%</span>
+                <RingCloseBurst key={ring.id} trigger={ringBursts[ring.id] ?? 0} hex={ring.hex}>
+                  <button
+                    onClick={() => setOpenRing((v) => (v === ring.id ? null : ring.id))}
+                    className="group relative grid place-items-center rounded-panel p-1 focus-ring"
+                    aria-label={`${ring.label}: ${ring.done} of ${ring.target} ${ring.unit}`}
+                  >
+                    <svg width="104" height="104" viewBox="0 0 104 104" className="-rotate-90">
+                      <circle
+                        cx="52" cy="52" r={RING_R}
+                        fill="none" stroke="var(--chart-grid)" strokeWidth="9"
+                      />
+                      <motion.circle
+                        cx="52" cy="52" r={RING_R}
+                        fill="none"
+                        stroke={ring.hex}
+                        strokeWidth="9"
+                        strokeLinecap="round"
+                        strokeDasharray={RING_C}
+                        initial={{ strokeDashoffset: RING_C }}
+                        animate={{ strokeDashoffset: RING_C - RING_C * Math.min(1, ring.progress) }}
+                        transition={
+                          reduced
+                            ? { duration: 0 }
+                            : { duration: 1.05, ease: [0.22, 1, 0.36, 1], delay: 0.12 * i }
+                        }
+                      />
+                    </svg>
+                    <span className="absolute flex flex-col items-center">
+                      <span className="stat-mono text-heading font-semibold text-ink-50">
+                        {Math.round(ring.progress * 100)}
+                        <span className="text-micro text-ink-500">%</span>
+                      </span>
+                      <span className="text-micro uppercase tracking-wide text-ink-500">
+                        {ring.label}
+                      </span>
                     </span>
-                    <span className="text-micro uppercase tracking-wide text-ink-500">
-                      {ring.label}
-                    </span>
-                  </span>
-                </button>
+                  </button>
+                </RingCloseBurst>
               ))}
             </div>
 
@@ -215,7 +246,12 @@ export function DailyRings({ clientId }: { clientId: string }) {
                             : `Mark ${d.name} as taken`
                       }
                       onClick={() =>
-                        takenNow(d.id) ? undoDose(d.id) : logDose(d.id, d.name)
+                        takenNow(d.id)
+                          ? undoDose(d.id)
+                          : (() => {
+                              logDose(d.id, d.name);
+                              emit({ type: "doseLogged", name: d.name });
+                            })()
                       }
                       className={`focus-ring grid h-7 w-7 shrink-0 place-items-center rounded-control border transition-colors ${
                         takenNow(d.id)

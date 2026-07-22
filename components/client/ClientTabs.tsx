@@ -303,7 +303,7 @@ export function OrdersTab({ id }: { id: string }) {
                     <span className="text-ink-300">{e.status}</span>
                     <span>·</span>
                     <span>{e.actor}</span>
-                    <span className="text-ink-700">({e.source})</span>
+                    <span className="text-ink-500">({e.source})</span>
                   </div>
                 ))}
               </div>

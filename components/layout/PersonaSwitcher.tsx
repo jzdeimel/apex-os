@@ -9,6 +9,7 @@ import { usePortal } from "@/lib/portalStore";
 import { PORTALS } from "@/lib/portals";
 import { ME, useMe, setDemoMember } from "@/components/portal/PortalHeader";
 import { getClient } from "@/lib/mock/clients";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
 
 /**
  * Owner-only persona switcher.
@@ -71,10 +72,10 @@ export function PersonaSwitcher() {
   }, [open]);
 
   // Not the owner: a plain identity chip, no switching affordance at all.
-  if (!VIEWER.canSwitchPersona) {
+  if (!IS_DEMO_UI || !VIEWER.canSwitchPersona) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-micro font-bold text-ink-950">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-gold-500 text-micro font-bold text-white">
           {VIEWER.initials}
         </span>
         <span className="hidden text-detail font-medium text-ink-200 sm:block">{VIEWER.name}</span>
@@ -90,7 +91,7 @@ export function PersonaSwitcher() {
         aria-haspopup="listbox"
         className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5 transition-colors hover:border-ink-700 focus-ring"
       >
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-micro font-bold text-ink-950">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-gold-500 text-micro font-bold text-white">
           {VIEWER.initials}
         </span>
         <span className="hidden min-w-0 text-left sm:block">

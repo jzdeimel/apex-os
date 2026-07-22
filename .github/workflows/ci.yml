@@ -11,7 +11,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
@@ -29,6 +29,23 @@ jobs:
 
       - name: Typecheck
         run: npx tsc --noEmit
+
+      - name: Spec checks
+        # The requirements from the 2026-07-21 sync, as executable rules: the
+        # NCV credential priority, the feature-flag pilot shape, the five intake
+        # must-knows, the three-way order routing, hCG sell-through, the
+        # append-only history. These ran as a scratch harness for a while, which
+        # meant they proved something once and guarded nothing. Node 22 strips
+        # types natively and scripts/alias-hooks.mjs supplies the @/ alias, so
+        # they run against the SAME source the app imports — no framework, no
+        # compiled copy that can drift.
+        run: npm run spec
+
+      - name: Migration journal consistency
+        run: npm run schema:check
+
+      - name: Cutover static safety boundary
+        run: npm run cutover:preflight
 
       - name: Lint
         # GATING. This was `|| true`, and it was hiding three genuine
@@ -52,6 +69,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Docker image builds
+        # The host build proves Next compiles; this proves the production image
+        # actually carries the traced server, static assets, public assets and
+        # runtime migration files the deployed container depends on.
+        run: docker build -t apex-os-ci .
+
       - name: Audit (production deps, high+)
         run: npm audit --omit=dev --audit-level=high
 
@@ -62,3 +85,9 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node scripts/smoke-ui.mjs
+
+      - name: Accessibility contrast gate self-test
+        run: npm run contrast:self-test
+
+      - name: Accessibility contrast gate (all routes)
+        run: npm run contrast

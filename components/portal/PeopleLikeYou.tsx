@@ -48,7 +48,7 @@ import { FadeIn } from "@/components/portal/still";
 
 const BAND_EDGE = "#5b6472";
 const BAND_MID = "#98a2b0";
-const YOU = "#e93d3d";
+const YOU = "var(--chart-brand)";
 
 export function PeopleLikeYou({
   clientId,

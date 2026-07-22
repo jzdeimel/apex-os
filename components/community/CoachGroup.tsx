@@ -59,6 +59,7 @@ export function CoachGroup({
   posts,
   me,
   myHandle,
+  staffHandle,
 }: {
   group: CoachGroupType;
   posts: GroupPost[];
@@ -66,6 +67,8 @@ export function CoachGroup({
   me: Client;
   /** How this member appears to everyone else. */
   myHandle: string;
+  /** When present, posts are made as staff/moderator rather than as the selected member. */
+  staffHandle?: string;
 }) {
   const { toast } = useToast();
   const coach = staffMap[group.coachId];
@@ -80,6 +83,8 @@ export function CoachGroup({
     () => [...sent, ...posts].sort((a, b) => b.postedAt.localeCompare(a.postedAt)),
     [sent, posts],
   );
+  const postingAsStaff = Boolean(staffHandle);
+  const postingHandle = staffHandle ?? myHandle;
 
   /**
    * What the escalation WOULD look like if the member sends it.
@@ -125,8 +130,8 @@ export function CoachGroup({
       {
         id: `gp-new-${s.length + 1}`,
         groupId: group.id,
-        handle: myHandle,
-        author: "member",
+        handle: postingHandle,
+        author: postingAsStaff ? "coach" : "member",
         body: text,
         postedAt: NOW,
         cheers: 0,
@@ -135,7 +140,7 @@ export function CoachGroup({
     ]);
     setDraft("");
     setBlocked(null);
-    toast("Posted to the group", { desc: `${group.name} · you appear as ${myHandle}` });
+    toast("Posted to the group", { desc: `${group.name} · posted as ${postingHandle}` });
   }
 
   function sendToProvider() {
@@ -214,8 +219,16 @@ export function CoachGroup({
               {group.charter}
             </p>
             <p className="mt-2 text-micro text-ink-500">
-              <span className="stat-mono">{group.memberCount}</span> members · you post as{" "}
-              <span className="text-ink-300">{myHandle}</span>
+              <span className="stat-mono">{group.memberCount}</span> members ·{" "}
+              {postingAsStaff ? (
+                <>
+                  staff post as <span className="text-ink-300">{postingHandle}</span>; members use handles
+                </>
+              ) : (
+                <>
+                  you post as <span className="text-ink-300">{myHandle}</span>
+                </>
+              )}
             </p>
           </div>
         </CardContent>
@@ -318,7 +331,7 @@ export function CoachGroup({
       {/* ── Thread ─────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {all.map((p) => (
-          <PostCard key={p.id} post={p} myHandle={myHandle} />
+          <PostCard key={p.id} post={p} myHandle={postingHandle} />
         ))}
       </div>
     </div>
@@ -328,6 +341,8 @@ export function CoachGroup({
 function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
   const [cheered, setCheered] = useState(false);
   const isCoach = post.author === "coach";
+  const moderatorLabel =
+    post.handle.startsWith("Alpha ") && post.handle !== "Alpha Coach Team" ? "Staff" : "Coach";
 
   return (
     <Card className={cn(isCoach && "border-gold-400/25 bg-gold-400/[0.04]")}>
@@ -347,7 +362,7 @@ function PostCard({ post, myHandle }: { post: GroupPost; myHandle: string }) {
               {isCoach && (
                 <Badge tone="gold">
                   <ShieldCheck className="h-3 w-3" />
-                  Coach
+                  {moderatorLabel}
                 </Badge>
               )}
               {post.handle === myHandle && !isCoach && <Badge tone="neutral">You</Badge>}

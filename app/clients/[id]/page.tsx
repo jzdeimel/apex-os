@@ -689,15 +689,15 @@ function ScanTab({ id }: { id: string }) {
             <TrendArea
               data={(scan.history ?? []) as never}
               series={[
-                { key: "weightKg", label: "Weight (kg)", color: "#e93d3d" },
-                { key: "skeletalMuscleKg", label: "Muscle (kg)", color: "#34d399" },
-                { key: "bodyFatPct", label: "Body fat (%)", color: "#60a5fa" },
+                { key: "weightKg", label: "Weight (kg)", color: "var(--chart-brand)" },
+                { key: "skeletalMuscleKg", label: "Muscle (kg)", color: "var(--c-optimal)" },
+                { key: "bodyFatPct", label: "Body fat (%)", color: "var(--c-low)" },
               ]}
             />
             <div className="mt-2 flex flex-wrap gap-3 text-detail">
-              <Legend color="#e93d3d" label="Weight (kg)" />
-              <Legend color="#34d399" label="Skeletal muscle (kg)" />
-              <Legend color="#60a5fa" label="Body fat (%)" />
+              <Legend color="var(--chart-brand)" label="Weight (kg)" />
+              <Legend color="var(--c-optimal)" label="Skeletal muscle (kg)" />
+              <Legend color="var(--c-low)" label="Body fat (%)" />
             </div>
           </CardContent>
         </Card>

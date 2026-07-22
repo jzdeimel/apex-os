@@ -93,7 +93,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       planned: "Passkey or magic link · 30-day rolling · device-bound",
     },
     accent: {
-      hex: "#34d399",
+      hex: "var(--c-optimal)",
       text: "text-optimal",
       bg: "bg-optimal",
       border: "border-optimal/30",
@@ -114,7 +114,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       planned: "MFA enforced · 8-hour · re-auth to sign",
     },
     accent: {
-      hex: "#e93d3d",
+      hex: "var(--chart-brand)",
       text: "text-gold-400",
       bg: "bg-gold-500",
       border: "border-gold-400/30",
@@ -138,7 +138,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       planned: "Google Workspace · domain-locked · 8-hour · least-privilege",
     },
     accent: {
-      hex: "#e0bd6e",
+      hex: "var(--c-watch)",
       text: "text-watch",
       bg: "bg-watch",
       border: "border-watch/30",
@@ -176,7 +176,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       planned: "Shared workstation · badge tap · shift-length",
     },
     accent: {
-      hex: "#60a5fa",
+      hex: "var(--c-low)",
       text: "text-low",
       bg: "bg-low",
       border: "border-low/30",

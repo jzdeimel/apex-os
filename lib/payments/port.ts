@@ -47,7 +47,35 @@
 /** Integer cents. Never a float. */
 export type Cents = number;
 
-export type ProcessorName = "unconfigured" | "braintree" | "adyen" | "authorize-net" | "demo";
+export type ProcessorName =
+  | "unconfigured"
+  /** RESOLVED 2026-07-21. Four merchant accounts approved, one per clinic. */
+  | "clover"
+  | "braintree"
+  | "adyen"
+  | "authorize-net"
+  | "demo";
+
+/**
+ * WHICH MERCHANT ACCOUNT GETS PAID.
+ *
+ * Paul Kennard, 2026-07-21: "all of our merchant accounts have been approved
+ * through Clover... it will need to be done so that when someone is a patient
+ * of a specific clinic, that specific merchant account is used to bill or to
+ * take payment for that patient's service."
+ *
+ * So this is a PARAMETER on every money-moving call, not a global config value.
+ * A single configured merchant would route every clinic's revenue into one
+ * account and the reconciliation would be wrong from the first transaction —
+ * silently, because each individual charge would still succeed.
+ *
+ * It resolves from the patient's HOME CLINIC, not from where the visit
+ * happened and not from `Appointment.locationId`. Those diverge constantly: a
+ * Raleigh member taking one telehealth follow-up is still a Raleigh member, and
+ * before `Appointment.modality` existed they would have been filed under
+ * "telehealth" and billed to the wrong clinic. See lib/types.ts.
+ */
+export type MerchantAccountId = string;
 
 /* -------------------------------------------------------------------------- */
 /* Results                                                                     */
@@ -117,6 +145,8 @@ export interface PaymentPort {
     clientId: string;
     singleUseToken: string;
     idempotencyKey: string;
+    /** The clinic that owns this relationship. See MerchantAccountId. */
+    merchantAccountId: MerchantAccountId;
   }): Promise<VaultedCard>;
 
   /** Remove a stored method. Should be idempotent — removing twice is not an error. */
@@ -135,6 +165,13 @@ export interface PaymentPort {
     amountCents: Cents;
     currency: "USD";
     idempotencyKey: string;
+    /**
+     * REQUIRED, and deliberately not defaulted. An optional merchant account
+     * with a fallback is a global merchant account wearing a disguise: every
+     * call site that forgets it routes revenue to whichever clinic happens to
+     * be first in the config.
+     */
+    merchantAccountId: MerchantAccountId;
     descriptor?: string;
     invoiceId?: string;
   }): Promise<ChargeResult>;
@@ -144,6 +181,8 @@ export interface PaymentPort {
     processorRef: string;
     amountCents: Cents;
     idempotencyKey: string;
+    /** Refunds return to the account that took the money. Never a default. */
+    merchantAccountId: MerchantAccountId;
     reason?: string;
   }): Promise<RefundResult>;
 }

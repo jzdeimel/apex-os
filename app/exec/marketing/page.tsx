@@ -169,7 +169,7 @@ export default function MarketingPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {byStage.map(([stage, n], i) => (
                 <React.Fragment key={stage}>
-                  {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-ink-700" />}
+                  {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-ink-500" />}
                   <div className="rounded-lg border border-ink-700 bg-ink-900/50 px-3 py-2">
                     <p className="stat-mono text-body text-ink-50">{n}</p>
                     <p className="text-micro capitalize text-ink-500">{stage.replace("-", " ")}</p>

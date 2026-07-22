@@ -540,7 +540,7 @@ function CertRing({ percent, compliant }: { percent: number; compliant: boolean 
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (Math.max(0, Math.min(100, percent)) / 100) * circ;
-  const color = compliant ? "#34d399" : percent >= 50 ? "#e0bd6e" : "#e93d3d";
+  const color = compliant ? "var(--c-optimal)" : percent >= 50 ? "var(--c-watch)" : "var(--chart-brand)";
 
   return (
     <div
@@ -548,7 +548,7 @@ function CertRing({ percent, compliant }: { percent: number; compliant: boolean 
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#23272d" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--chart-grid)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}

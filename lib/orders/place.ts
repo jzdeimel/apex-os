@@ -1,4 +1,5 @@
 import type { LocationId, StaffRole } from "@/lib/types";
+import { routeRequest } from "@/lib/orders/routing";
 import type { Membership } from "@/lib/types";
 import type { Order, OrderLine, OrderStatusEvent } from "@/lib/orders/types";
 import type { CatalogItem } from "@/lib/catalog/types";
@@ -104,6 +105,16 @@ export interface PlaceOrderInput {
   discountReason?: string;
   /** The member's plan, if any. Drives the protocol credit. */
   membership?: Membership;
+  /**
+   * On-hand units by SKU, for items being sold through.
+   *
+   * Optional and deliberately passed in rather than read here — this module has
+   * no data-layer imports and stays trivially testable. Absent means "not
+   * known", which for a sell-through item means it is still orderable; the
+   * block only fires on a confirmed zero. Guessing empty from missing data
+   * would strand patients who are owed the last of a batch.
+   */
+  quantityOnHand?: Record<string, number>;
   note?: string;
   /**
    * Overrides for determinism. `at` is the pinned demo clock; `orderId` lets a
@@ -293,6 +304,10 @@ export type ProblemCode =
   | "discount-no-reason"
   | "discount-too-large"
   | "needs-provider-approval"
+  | "external-pharmacy-only"
+  | "discontinued-no-stock"
+  | "state-restricted"
+  | "state-unknown"
   | "unknown-client";
 
 export interface OrderProblem {
@@ -477,6 +492,55 @@ export function validateOrder(
               fix: "Remove the line, or have a provider place this order. Apex does not hold orders for approval — a placed order goes straight to fulfillment, so the signature has to come first.",
             },
       );
+    }
+
+    /**
+     * RULE 5 — the routing gate.
+     *
+     * `routeRequest` is the three-way decision Paul Kennard described on
+     * 2026-07-21: coach-orderable, provider-signature-required, or an outside
+     * pharmacy. It lives in lib/orders/routing.ts as a pure function and is
+     * ENFORCED here, because the previous generation of this rule
+     * (`requiresProviderApproval`) was rendered as fine print and the audit
+     * found the gate never actually asked a question.
+     *
+     * Two of its outcomes are hard errors:
+     *
+     *  · `external-rx` — MedSource does not carry the item (PT-141 is the
+     *    example). Apex has no fulfilment path for it at all, so placing the
+     *    order would produce a record of a shipment that will never exist.
+     *  · `blocked` — retired, discontinued and out of stock, or barred in the
+     *    patient's state. Including the case where the state is UNKNOWN and the
+     *    item has state rules: there is no later check to catch it, because a
+     *    placed order goes straight to fulfilment.
+     */
+    const decision = routeRequest(item, {
+      patientState: input.shipTo?.state,
+      quantityOnHand: input.quantityOnHand?.[item.sku],
+    });
+
+    if (decision.route === "external-rx") {
+      problems.push({
+        code: "external-pharmacy-only",
+        severity: "error",
+        sku: item.sku,
+        message: decision.reason,
+        fix: decision.nextStep,
+      });
+    } else if (decision.route === "blocked") {
+      const code: ProblemCode =
+        item.lifecycle === "sell-through"
+          ? "discontinued-no-stock"
+          : !input.shipTo?.state && (item.allowedStates || item.restrictedStates)
+            ? "state-unknown"
+            : "state-restricted";
+      problems.push({
+        code,
+        severity: "error",
+        sku: item.sku,
+        message: decision.reason,
+        fix: decision.nextStep,
+      });
     }
   }
 

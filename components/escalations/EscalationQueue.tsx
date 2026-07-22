@@ -148,7 +148,7 @@ export function EscalationQueue() {
                   // finger acts on, and the house rule reserves the capsule for
                   // avatars and status dots.
                   "relative shrink-0 rounded-control px-3 py-1.5 text-detail font-medium transition-colors focus-ring",
-                  active ? "text-ink-950" : "text-ink-400 hover:text-ink-100",
+                  active ? "bg-gold-500 text-white" : "text-ink-400 hover:text-ink-100",
                 )}
               >
                 {active && (
