@@ -565,10 +565,16 @@ export default function DashboardPage() {
               <div className="space-y-1">
                 {data.appts.map((a) => {
                   const mineAppt = a.staffId === meId;
+                  const href =
+                    mineAppt && a.type !== "Lab Draw"
+                      ? `/clients/${a.clientId}?tab=consults&new=1`
+                      : a.type === "Lab Draw"
+                        ? "/clinic/lab-draws"
+                        : `/clients/${a.clientId}`;
                   return (
                     <Link
                       key={a.id}
-                      href={`/clients/${a.clientId}`}
+                      href={href}
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-ink-850/70",
                         // A provider scans this list for their own name first.
@@ -585,6 +591,11 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <Badge tone={APPT_TONE[a.status]}>{a.status}</Badge>
+                      {mineAppt && a.type !== "Lab Draw" && (
+                        <span className="hidden shrink-0 items-center gap-1 text-micro font-medium text-gold-300 sm:inline-flex">
+                          <PenLine className="h-3 w-3" /> Start note
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

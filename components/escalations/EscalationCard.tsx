@@ -14,19 +14,13 @@ import {
 } from "lucide-react";
 import type { Escalation, EscalationPriority } from "@/lib/escalations/types";
 import {
-  ME_PROVIDER,
-  NOW,
-  acknowledge,
-  answer as answerEscalation,
   dueAt,
   formatSla,
   isResolved,
   slaState,
-  startReview,
 } from "@/lib/escalations/queue";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { staffMap, staffName } from "@/lib/mock/staff";
-import { appendLedger } from "@/lib/trace/ledger";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Textarea } from "@/components/ui/primitives";
 import { Monogram } from "@/components/Monogram";
@@ -61,79 +55,65 @@ const SLA_STYLE = {
 
 export function EscalationCard({
   escalation,
+  now,
   onChange,
 }: {
   escalation: Escalation;
+  now: string;
   onChange: (next: Escalation) => void;
 }) {
   const { toast } = useToast();
   const [drafting, setDrafting] = React.useState(false);
   const [draft, setDraft] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const client = getClient(escalation.clientId);
   if (!client) return null;
 
   const resolved = isResolved(escalation);
-  const state = slaState(escalation, NOW);
+  const state = slaState(escalation, now);
   const style = SLA_STYLE[state];
   const ClockIcon = style.icon;
-  const me = staffMap[ME_PROVIDER];
 
-  /**
-   * Every transition is a real ledger append — not a toast pretending to be one.
-   * The row id surfaced in the toast is the actual committed id, so a reviewer
-   * can go find it in the ledger and see the same before/after.
-   */
-  function commit(
-    next: Escalation,
-    action: "update" | "approve",
-    reason: string,
-  ) {
-    const row = appendLedger({
-      actorId: ME_PROVIDER,
-      actorName: me?.name ?? ME_PROVIDER,
-      actorRole: me?.role ?? "Medical",
-      action,
-      entity: "recommendation",
-      entityId: escalation.id,
-      subjectId: client!.id,
-      subjectName: clientName(client!),
-      locationId: client!.locationId,
-      reason,
-      before: { status: escalation.status },
-      after: { status: next.status },
-    });
-    onChange(next);
-    toast(`Escalation ${next.status.toLowerCase()}`, {
-      desc: `Ledger ${row.id} · ${shortHash(row.hash)}`,
-      tone: action === "approve" ? "success" : "info",
-    });
+  async function transition(action: "acknowledge" | "start-review" | "answer", answer?: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/escalations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: escalation.id, action, answer }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        setError(body.error || `The escalation update failed (HTTP ${response.status}).`);
+        return false;
+      }
+      onChange(body.escalation);
+      toast(`Escalation ${body.escalation.status.toLowerCase()}`, {
+        desc: `Durable ledger ${body.ledger.id} · ${shortHash(body.ledger.hash)}`,
+        tone: action === "answer" ? "success" : "info",
+      });
+      return true;
+    } catch {
+      setError("The escalation update could not reach the server. Nothing changed.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const onAcknowledge = () =>
-    commit(
-      acknowledge(escalation, ME_PROVIDER, NOW),
-      "update",
-      "Provider acknowledged escalation — ownership taken, SLA clock still running",
-    );
+  const onAcknowledge = () => void transition("acknowledge");
+  const onStartReview = () => void transition("start-review");
 
-  const onStartReview = () =>
-    commit(
-      startReview(escalation, ME_PROVIDER, NOW),
-      "update",
-      "Provider opened the chart to work this escalation",
-    );
-
-  const onAnswer = () => {
+  const onAnswer = async () => {
     const text = draft.trim();
     if (!text) return;
-    commit(
-      answerEscalation(escalation, ME_PROVIDER, text, NOW),
-      "approve",
-      "Provider answered escalation — clinical guidance returned to the coach",
-    );
-    setDrafting(false);
-    setDraft("");
+    if (await transition("answer", text)) {
+      setDrafting(false);
+      setDraft("");
+    }
   };
 
   return (
@@ -202,7 +182,7 @@ export function EscalationCard({
           <ClockIcon className={["h-4 w-4", style.text].join(" ")} />
           <div className="leading-tight">
             <p className={["stat-mono text-body font-semibold", style.text].join(" ")}>
-              {formatSla(escalation, NOW)}
+              {formatSla(escalation, now)}
             </p>
             <p className="text-micro text-ink-500">
               {resolved ? (
@@ -227,8 +207,10 @@ export function EscalationCard({
           </blockquote>
         </div>
         <figcaption className="mt-1.5 pl-5 text-micro text-ink-500">
-          Member&rsquo;s own words, from consult{" "}
-          <span className="stat-mono">{escalation.sourceConsultId ?? "—"}</span>
+          Member&rsquo;s own words, preserved with the audited Medical handoff
+          {escalation.sourceConsultId ? (
+            <> from consult <span className="stat-mono">{escalation.sourceConsultId}</span></>
+          ) : null}
         </figcaption>
       </figure>
 
@@ -264,7 +246,7 @@ export function EscalationCard({
                 placeholder={`Answer ${client.firstName}'s question. This goes back to ${staffName(escalation.raisedByStaffId)} and onto the record.`}
               />
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="primary" onClick={onAnswer} disabled={!draft.trim()}>
+                <Button size="sm" variant="primary" onClick={onAnswer} disabled={!draft.trim() || busy}>
                   <Check className="h-3.5 w-3.5" />
                   Send answer
                 </Button>
@@ -276,13 +258,13 @@ export function EscalationCard({
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               {escalation.status === "Open" && (
-                <Button size="sm" variant="outline" onClick={onAcknowledge}>
+                <Button size="sm" variant="outline" onClick={onAcknowledge} disabled={busy}>
                   <Eye className="h-3.5 w-3.5" />
                   Acknowledge
                 </Button>
               )}
               {escalation.status === "Acknowledged" && (
-                <Button size="sm" variant="outline" onClick={onStartReview}>
+                <Button size="sm" variant="outline" onClick={onStartReview} disabled={busy}>
                   <CornerDownRight className="h-3.5 w-3.5" />
                   Start review
                 </Button>
@@ -291,6 +273,7 @@ export function EscalationCard({
                 size="sm"
                 variant={escalation.status === "In review" ? "primary" : "secondary"}
                 onClick={() => setDrafting(true)}
+                disabled={busy}
               >
                 <Stethoscope className="h-3.5 w-3.5" />
                 Answer
@@ -300,6 +283,7 @@ export function EscalationCard({
               </span>
             </div>
           )}
+          {error && <p className="mt-2 text-micro text-critical">{error}</p>}
         </div>
       )}
     </div>

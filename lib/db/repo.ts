@@ -26,7 +26,12 @@ import {
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import type { Consult } from "@/lib/consult/types";
-import type { ConsultChannel, ConsultKind, ConsultSummary } from "@/lib/consult/types";
+import type {
+  ClinicalNoteFields,
+  ConsultChannel,
+  ConsultKind,
+  ConsultSummary,
+} from "@/lib/consult/types";
 import { normalizeConsultChannel, normalizeConsultKind } from "@/lib/consult/metadata";
 import { stampFor } from "@/lib/consult/summarize";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
@@ -441,6 +446,101 @@ export async function readOpenEscalations() {
     .orderBy(escalationTable.dueAt);
 }
 
+/**
+ * Shared durable escalation read model.
+ *
+ * Medical reads the full queue, while a coach/client chart supplies one of the
+ * filters below. Authorization stays in the API route; the repository only
+ * applies the already-authorized scope.
+ */
+export async function readEscalations(filter: { clientId?: string; raisedByStaffId?: string } = {}) {
+  const db = requireDb();
+  const clientFilter = filter.clientId ? eq(escalationTable.clientId, filter.clientId) : undefined;
+  const coachFilter = filter.raisedByStaffId
+    ? eq(escalationTable.raisedByStaffId, filter.raisedByStaffId)
+    : undefined;
+  const where = clientFilter && coachFilter ? and(clientFilter, coachFilter) : clientFilter ?? coachFilter;
+
+  const base = db.select().from(escalationTable);
+  return where
+    ? base.where(where).orderBy(desc(escalationTable.raisedAt))
+    : base.orderBy(desc(escalationTable.raisedAt));
+}
+
+/** A Medical queue transition and its audit witness commit together. */
+export async function transitionEscalationWithLedger(input: {
+  id: string;
+  nextStatus: "Acknowledged" | "In review" | "Answered";
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  answer?: string;
+  at: string;
+}) {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(escalationTable)
+      .where(eq(escalationTable.id, input.id))
+      .limit(1);
+    if (!current) return null;
+
+    const allowed =
+      (current.status === "Open" && input.nextStatus === "Acknowledged") ||
+      ((current.status === "Open" || current.status === "Acknowledged") &&
+        input.nextStatus === "In review") ||
+      ((current.status === "Open" || current.status === "Acknowledged" || current.status === "In review") &&
+        input.nextStatus === "Answered");
+    if (!allowed) return null;
+    if (input.nextStatus === "Answered" && !input.answer?.trim()) return null;
+
+    const [updated] = await tx
+      .update(escalationTable)
+      .set({
+        status: input.nextStatus,
+        acknowledgedBy:
+          input.nextStatus === "Acknowledged" || input.nextStatus === "In review"
+            ? input.actorId
+            : current.acknowledgedBy,
+        acknowledgedAt:
+          input.nextStatus === "Acknowledged" || input.nextStatus === "In review"
+            ? current.acknowledgedAt ?? at
+            : current.acknowledgedAt,
+        answeredBy: input.nextStatus === "Answered" ? input.actorId : current.answeredBy,
+        answeredAt: input.nextStatus === "Answered" ? at : current.answeredAt,
+        answer: input.nextStatus === "Answered" ? input.answer!.trim() : current.answer,
+      })
+      .where(and(eq(escalationTable.id, input.id), eq(escalationTable.status, current.status)))
+      .returning();
+    if (!updated) return null;
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: input.nextStatus === "Answered" ? "approve" : "update",
+        entity: "recommendation",
+        entityId: input.id,
+        subjectId: current.clientId,
+        reason:
+          input.nextStatus === "Answered"
+            ? "Medical answered escalation; guidance returned to coach"
+            : `Medical moved escalation to ${input.nextStatus}`,
+        before: { status: current.status },
+        after: { status: input.nextStatus },
+      },
+      input.at,
+    );
+
+    return { escalation: updated, ledger };
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Dispensing and recall                                                       */
 /* -------------------------------------------------------------------------- */
@@ -673,8 +773,8 @@ export async function staffByObjectId(objectId: string): Promise<StaffRow | null
  * the "Draft saved {time}" stamp is a real write time, not a client guess.
  *
  * kind/channel/startedAt are NOT NULL. The composer supplies role-constrained
- * metadata on every autosave, so Medical cannot turn an internal chart review
- * into a client encounter and a coach cannot author the Medical review type.
+ * metadata on every autosave: Medical may document a visit or an internal
+ * chart review, while a coach cannot author either Medical note type.
  */
 export async function upsertConsultDraft(input: {
   clientId: string;
@@ -682,6 +782,7 @@ export async function upsertConsultDraft(input: {
   kind: ConsultKind;
   channel: ConsultChannel;
   rawNotes: string;
+  clinicalNote?: ClinicalNoteFields;
   aiSummary?: unknown;
   at: string;
 }): Promise<{ id: string; updatedAt: string }> {
@@ -702,6 +803,10 @@ export async function upsertConsultDraft(input: {
       channel: input.channel,
       startedAt: now,
       status: "Draft",
+      subjective: input.clinicalNote?.subjective ?? null,
+      objective: input.clinicalNote?.objective ?? null,
+      assessment: input.clinicalNote?.assessment ?? null,
+      plan: input.clinicalNote?.plan ?? null,
       rawNotes: input.rawNotes,
       aiSummary: (input.aiSummary as never) ?? null,
       updatedAt: now,
@@ -712,6 +817,10 @@ export async function upsertConsultDraft(input: {
       set: {
         kind: input.kind,
         channel: input.channel,
+        subjective: input.clinicalNote?.subjective ?? null,
+        objective: input.clinicalNote?.objective ?? null,
+        assessment: input.clinicalNote?.assessment ?? null,
+        plan: input.clinicalNote?.plan ?? null,
         rawNotes: input.rawNotes,
         aiSummary: (input.aiSummary as never) ?? null,
         updatedAt: now,
@@ -731,6 +840,7 @@ export async function getConsultDraft(
   kind: string;
   channel: string;
   rawNotes: string;
+  clinicalNote: ClinicalNoteFields;
   aiSummary: unknown;
   updatedAt: string;
 } | null> {
@@ -740,6 +850,10 @@ export async function getConsultDraft(
       id: consultTable.id,
       kind: consultTable.kind,
       channel: consultTable.channel,
+      subjective: consultTable.subjective,
+      objective: consultTable.objective,
+      assessment: consultTable.assessment,
+      plan: consultTable.plan,
       rawNotes: consultTable.rawNotes,
       aiSummary: consultTable.aiSummary,
       updatedAt: consultTable.updatedAt,
@@ -759,6 +873,12 @@ export async function getConsultDraft(
         kind: row.kind,
         channel: row.channel,
         rawNotes: row.rawNotes ?? "",
+        clinicalNote: {
+          subjective: row.subjective ?? "",
+          objective: row.objective ?? "",
+          assessment: row.assessment ?? "",
+          plan: row.plan ?? "",
+        },
         aiSummary: row.aiSummary,
         updatedAt: row.updatedAt.toISOString(),
       }
@@ -806,6 +926,15 @@ export async function listConsultsForClient(
       endedAt: row.endedAt?.toISOString(),
       durationMin: row.durationMin ?? undefined,
       rawNotes,
+      clinicalNote:
+        row.subjective || row.objective || row.assessment || row.plan
+          ? {
+              subjective: row.subjective ?? "",
+              objective: row.objective ?? "",
+              assessment: row.assessment ?? "",
+              plan: row.plan ?? "",
+            }
+          : undefined,
       aiSummary,
       aiProvenance: aiSummary && rawNotes ? stampFor(rawNotes, startedAt) : undefined,
       finalSummary: signed ? aiSummary : undefined,

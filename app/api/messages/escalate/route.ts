@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 
+import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { raiseEscalationWithLedger } from "@/lib/db/repo";
 import { nowIso } from "@/lib/clock";
 import { SLA_HOURS } from "@/lib/escalations/queue";
 import type { EscalationKind, EscalationPriority } from "@/lib/escalations/types";
+import { getClient } from "@/lib/mock/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -49,11 +52,13 @@ const KINDS = new Set<EscalationKind>([
 ]);
 
 const PRIORITIES = new Set<EscalationPriority>(["Urgent", "Prompt", "Routine"]);
+const MAX_QUESTION_LENGTH = 10_000;
+const MAX_MEMBER_QUOTE_LENGTH = 20_000;
+const MAX_SOURCE_ID_LENGTH = 256;
 
 export async function POST(req: Request) {
   let body: {
     clientId?: string;
-    coachId?: string;
     kind?: string;
     priority?: string;
     question?: string;
@@ -66,12 +71,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Body must be JSON." }, { status: 400 });
   }
 
-  if (!body.clientId) {
+  if (typeof body.clientId !== "string" || !body.clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
+  if (body.question !== undefined && typeof body.question !== "string") {
+    return fail(400, "question must be text.");
+  }
 
-  // Guarded on the member, so scope is checked rather than assumed.
-  const g = await guard("escalate:provider", { coachId: body.coachId });
+  const client = getClient(body.clientId);
+  if (!client) {
+    return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
+  }
+
+  // Scope comes from the server-owned chart, never a coachId supplied by the
+  // caller. Otherwise a coach could pair their own id with somebody else's
+  // clientId and create clinical work outside their book.
+  const g = await guard("escalate:provider", {
+    coachId: client.coachId,
+    providerId: client.providerId,
+    locationId: client.locationId,
+  });
   if (!g.ok) return g.res;
 
   const kind = (body.kind ?? "Clinical question") as EscalationKind;
@@ -93,9 +112,24 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  if (question.length > MAX_QUESTION_LENGTH) {
+    return fail(400, `The Medical question cannot exceed ${MAX_QUESTION_LENGTH.toLocaleString()} characters.`);
+  }
+  if (body.memberQuote !== undefined && typeof body.memberQuote !== "string") {
+    return fail(400, "memberQuote must be text.");
+  }
+  if ((body.memberQuote?.length ?? 0) > MAX_MEMBER_QUOTE_LENGTH) {
+    return fail(400, `The quoted member message cannot exceed ${MAX_MEMBER_QUOTE_LENGTH.toLocaleString()} characters.`);
+  }
+  if (body.messageId !== undefined && typeof body.messageId !== "string") {
+    return fail(400, "messageId must be text.");
+  }
+  if ((body.messageId?.length ?? 0) > MAX_SOURCE_ID_LENGTH) {
+    return fail(400, "messageId is too long.");
+  }
 
   const at = nowIso();
-  const id = `esc-${g.actor.id}-${body.clientId}-${Date.parse(at)}`;
+  const id = `esc-${randomUUID()}`;
   // The SLA is a clinical commitment, not a preference — see lib/escalations/queue.ts.
   const dueAt = new Date(Date.parse(at) + SLA_HOURS[priority] * 3600_000).toISOString();
 
@@ -128,9 +162,10 @@ export async function POST(req: Request) {
       memberUpdate: `Your coach asked the medical team about this. They'll come back by ${new Date(dueAt).toISOString()}.`,
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Escalation failed." },
-      { status: 500 },
+    return unavailable(
+      "escalation.raise",
+      err,
+      "The Medical handoff could not be saved. Nothing was sent; please try again.",
     );
   }
 }

@@ -135,13 +135,14 @@ eq(
   ["raleigh", "raleigh-boutique", "southern-pines", "myrtle-beach", "telehealth"],
 );
 eq("a coach note defaults to a coach consult", defaultConsultKind("Coach"), "Coach consult");
-eq("a medical note defaults to an internal chart review", defaultConsultKind("Medical"), "Medical chart review");
-eq("a medical note defaults to a non-client channel", defaultConsultChannel("Medical"), "Chart review");
+eq("a medical note defaults to a documented clinical visit", defaultConsultKind("Medical"), "Medical visit");
+eq("a medical visit defaults to in person", defaultConsultChannel("Medical"), "In person");
 eq("a coach cannot author a medical chart review", isConsultKindAllowedForRole("Medical chart review", "Coach"), false);
 eq("Medical cannot author a coach consult", isConsultKindAllowedForRole("Coach consult", "Medical"), false);
-eq("Medical cannot select a client visit channel", isConsultChannelAllowedForRole("In person", "Medical"), false);
-eq("a legacy Medical visit draft upgrades before signing", consultKindForRole("Provider visit", "Medical"), "Medical chart review");
-eq("a legacy Medical visit channel upgrades before signing", consultChannelForRole("In person", "Medical"), "Chart review");
+eq("Medical can document an in-person clinical visit", isConsultChannelAllowedForRole("In person", "Medical"), true);
+eq("Medical cannot turn a clinical visit into a member message", isConsultChannelAllowedForRole("Messaging", "Medical"), false);
+eq("a legacy Medical visit draft upgrades before signing", consultKindForRole("Provider visit", "Medical"), "Medical visit");
+eq("a legacy Medical visit keeps its real channel", consultChannelForRole("In person", "Medical"), "In person");
 eq("legacy coaching drafts remain readable", normalizeConsultKind("coaching"), "Coach consult");
 eq("legacy medical drafts become internal reviews", normalizeConsultKind("medical"), "Medical chart review");
 eq("legacy in-person drafts remain readable", normalizeConsultChannel("in-person"), "In person");

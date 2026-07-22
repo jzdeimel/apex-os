@@ -65,6 +65,7 @@ try {
 
   await expectStatus("GET", "/api/me", 401);
   await expectStatus("GET", "/api/audit", 403);
+  await expectStatus("GET", "/api/escalations", 401);
   await expectStatus("POST", "/api/acs/token", 401);
 
   // Every mutating endpoint fails closed without a principal.
@@ -112,6 +113,49 @@ try {
     console.log("ok  /api/me (provider) => Medical st-001");
   }
   {
+    // The client scope is resolved from the server-owned chart. A coach cannot
+    // smuggle another member into their own Medical handoff by supplying ids.
+    const r = await fetch(`${BASE}/api/messages/escalate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks"),
+      },
+      body: JSON.stringify({
+        clientId: "c-002",
+        kind: "Clinical question",
+        priority: "Prompt",
+        question: "Please review this member's question.",
+        memberQuote: "Can my coach ask the clinical team?",
+      }),
+    });
+    if (r.status !== 403) fail(`off-book Medical handoff => ${r.status}, expected 403`);
+    console.log("ok  POST /api/messages/escalate (off-book coach) => 403 refused");
+  }
+  {
+    // A valid handoff reaches the database boundary. CI intentionally has no
+    // database, so the route must fail honestly without exposing internals.
+    const r = await fetch(`${BASE}/api/messages/escalate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks"),
+      },
+      body: JSON.stringify({
+        clientId: "c-001",
+        kind: "Clinical question",
+        priority: "Prompt",
+        question: "Please review this member's question.",
+        memberQuote: "Can my coach ask the clinical team?",
+      }),
+    });
+    const body = await r.json();
+    if (r.status !== 503 || !body.correlationId || /DATABASE_URL|postgresql:/i.test(body.error ?? "")) {
+      fail(`Medical handoff database failure was not safely contained (${r.status} ${JSON.stringify(body).slice(0, 180)})`);
+    }
+    console.log("ok  POST /api/messages/escalate DB failure => 503, generic and traceable");
+  }
+  {
     // A COACH must be refused sign:encounter — 403 with the capability reason,
     // not a silent success. This is the audit's core invariant.
     const r = await fetch(`${BASE}/api/consults/sign`, {
@@ -138,9 +182,8 @@ try {
     console.log("ok  PUT /api/consults/draft (off-care-team) => 403 refused");
   }
   {
-    // STEWARD WORKFLOW: Medical is on c-001's care team, so this reaches the
-    // role-specific metadata gate. Medical may review the chart internally but
-    // cannot record a direct client coach encounter.
+    // STEWARD WORKFLOW: Medical is on c-001's care team, but cannot forge a
+    // coach-authored contact note.
     const r = await fetch(`${BASE}/api/consults/draft`, {
       method: "PUT",
       headers: {
@@ -156,6 +199,26 @@ try {
     });
     if (r.status !== 400) fail(`Medical direct-client consult => ${r.status}, expected 400`);
     console.log("ok  PUT /api/consults/draft (Medical direct-client note) => 400 refused");
+  }
+  {
+    // Medical documents visits, but Messaging is deliberately not a Medical
+    // encounter channel. Patient communication stays with the coach.
+    const r = await fetch(`${BASE}/api/consults/draft`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("m.vale@alphahealth.demo", "vale"),
+      },
+      body: JSON.stringify({
+        clientId: "c-001",
+        kind: "Medical visit",
+        channel: "Messaging",
+        rawNotes: "probe",
+        clinicalNote: { subjective: "s", objective: "o", assessment: "a", plan: "p" },
+      }),
+    });
+    if (r.status !== 400) fail(`Medical messaging visit => ${r.status}, expected 400`);
+    console.log("ok  PUT /api/consults/draft (Medical Messaging channel) => 400 refused");
   }
   {
     // The inverse is also enforced: the coach cannot author the internal

@@ -3,18 +3,15 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
-import type { Escalation } from "@/lib/escalations/types";
-import { escalations as seedEscalations } from "@/lib/mock/escalations";
 import {
-  ME_PROVIDER,
-  NOW,
   answeredThisWeek,
   isOverdue,
   isResolved,
   sortQueue,
 } from "@/lib/escalations/queue";
-import { staffName } from "@/lib/mock/staff";
 import { EscalationCard } from "@/components/escalations/EscalationCard";
+import { useEscalations } from "@/components/escalations/useEscalations";
+import { useCurrentStaff } from "@/lib/auth/useCurrentStaff";
 import { SwitchView } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
@@ -78,20 +75,16 @@ function Tile({
 }
 
 export function EscalationQueue() {
-  // Local state so demo transitions persist across re-render. The ledger append
-  // that accompanies each transition is real and lives in EscalationCard.
-  const [items, setItems] = React.useState<Escalation[]>(seedEscalations);
   const [filter, setFilter] = React.useState<FilterId>("all");
-
-  const update = React.useCallback((next: Escalation) => {
-    setItems((prev) => prev.map((e) => (e.id === next.id ? next : e)));
-  }, []);
+  const staff = useCurrentStaff();
+  const { items, now, loading, error, update } = useEscalations();
+  const mineId = staff?.id ?? "unmapped";
 
   const open = React.useMemo(() => items.filter((e) => !isResolved(e)), [items]);
-  const overdue = React.useMemo(() => open.filter((e) => isOverdue(e, NOW)), [open]);
+  const overdue = React.useMemo(() => open.filter((e) => isOverdue(e, now)), [open, now]);
   const urgent = React.useMemo(() => open.filter((e) => e.priority === "Urgent"), [open]);
   const answered = React.useMemo(() => items.filter(isResolved), [items]);
-  const weekAnswered = React.useMemo(() => answeredThisWeek(items, NOW), [items]);
+  const weekAnswered = React.useMemo(() => answeredThisWeek(items, now), [items, now]);
 
   const visible = React.useMemo(() => {
     const base =
@@ -102,21 +95,27 @@ export function EscalationQueue() {
           : filter === "urgent"
             ? urgent
             : filter === "mine"
-              ? open.filter((e) => e.assignedToStaffId === ME_PROVIDER)
+              ? open.filter((e) => e.assignedToStaffId === mineId)
               : open;
-    return sortQueue(base, NOW);
-  }, [filter, answered, overdue, urgent, open]);
+    return sortQueue(base, now);
+  }, [filter, answered, overdue, urgent, open, mineId, now]);
 
   const counts: Record<FilterId, number> = {
     all: open.length,
     overdue: overdue.length,
     urgent: urgent.length,
-    mine: open.filter((e) => e.assignedToStaffId === ME_PROVIDER).length,
+    mine: open.filter((e) => e.assignedToStaffId === mineId).length,
     answered: answered.length,
   };
 
   return (
     <div className="space-y-5">
+      {error && (
+        <div className="rounded-xl border border-critical/35 bg-critical/10 px-4 py-3 text-detail text-critical">
+          <strong>Medical queue unavailable.</strong> {error} No demo items are substituted.
+        </div>
+      )}
+      {loading && <p className="text-detail text-ink-500">Loading the durable Medical queue…</p>}
       {/* ── SLA strip ─────────────────────────────────────────────────────
           One card divided into four, not four cards. Four separate bordered
           boxes for four related numbers reads as a grid of equal things; a
@@ -180,7 +179,7 @@ export function EscalationQueue() {
           <div className="space-y-3">
             {visible.map((e) => (
               <div key={e.id}>
-                <EscalationCard escalation={e} onChange={update} />
+                <EscalationCard escalation={e} now={now} onChange={update} />
               </div>
             ))}
           </div>
@@ -210,7 +209,7 @@ function EmptyQueue({ filter }: { filter: FilterId }) {
       hint: "Nothing has been flagged as a possible safety event.",
     },
     mine: {
-      title: `Nothing assigned to ${staffName(ME_PROVIDER)}`,
+      title: "Nothing assigned to you",
       hint: "Your queue is clear. Switch to All open to pick up unclaimed work.",
     },
     answered: {

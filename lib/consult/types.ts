@@ -20,8 +20,11 @@ export type ConsultKind =
   | "Coach consult"
   | "Check-in"
   | "Intake"
+  | "Medical visit"
+  | "Medical follow-up"
+  | "Medical telehealth"
   | "Medical chart review"
-  /** Historical only. New Medical notes use "Medical chart review". */
+  /** Historical import value. New Medical notes use the explicit Medical kinds above. */
   | "Provider visit"
   | "Follow-up"
   | "Telehealth";
@@ -35,6 +38,20 @@ export type ConsultStatus =
   | "Signed";
 
 export type ConsultChannel = "In person" | "Phone" | "Video" | "Messaging" | "Chart review";
+
+/**
+ * The clinician-authored record of a Medical encounter.
+ *
+ * These fields are not inferred from the AI summary. They are written by the
+ * clinician, autosaved with the working narrative, and locked by the same
+ * signature as the rest of the consult.
+ */
+export interface ClinicalNoteFields {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
 
 /** A single AI-extracted structured field, each traceable to its source text. */
 export interface ExtractedItem {
@@ -95,7 +112,7 @@ export interface ConsultAddendum {
 export interface Consult {
   id: string;
   clientId: string;
-  /** Coach who met with the member, or Medical author of an internal chart review. */
+  /** Coach who met with the member, or Medical author of a clinical encounter/review. */
   authorId: string;
   kind: ConsultKind;
   channel: ConsultChannel;
@@ -107,6 +124,9 @@ export interface Consult {
 
   /** Immutable. The coach's own words, exactly as typed. */
   rawNotes: string;
+
+  /** Authored SOAP fields for Medical notes. Never synthesized by the AI. */
+  clinicalNote?: ClinicalNoteFields;
 
   /** What the model produced. Null until summarization runs. */
   aiSummary?: ConsultSummary;

@@ -27,15 +27,22 @@ contrast sweep.
   next relevant event, the member's location challenge, their moderated coach
   group and recent pseudonymous wins while preserving the existing clinical
   content guard and private escalation path.
-- The coach is the client's steward and single point of contact. Coach consults
-  collect the member-contact type/channel, autosave raw notes server-side, build
-  a source-traceable AI summary for human review, sign atomically into the audit
-  ledger, and read the durable signed record back into the client's Consults
-  profile. Medical authors an internal chart review only; the signed review is
-  visible to the care team and labeled for the coach to communicate, without
-  sending a direct client message. The API enforces this role split, not just
-  the UI. Upcoming
-  appointments link directly into the coach note workflow.
+- The coach is the client's steward and single messaging contact. Coach
+  consults collect the member-contact type/channel, autosave raw notes
+  server-side, build a source-traceable AI summary for human review, sign
+  atomically into the audit ledger, and read the durable signed record back
+  into the client's Consults profile. Medical now documents real in-person,
+  phone, video, follow-up and telehealth visits plus internal chart reviews.
+  Medical notes include clinician-authored Subjective, Objective, Assessment
+  and Plan fields; the AI summary cannot fill those fields, and required
+  sections are enforced before signature. Medical never receives a Messaging
+  encounter channel. Clinic appointments link directly into the Medical note
+  workflow, while lab draws retain their dedicated queue.
+- A coach can push a consult finding or inbound clinical message to Medical.
+  The escalation, SLA, acknowledgement, review state, Medical answer and audit
+  witness are database-backed and survive reload. The answer returns to the
+  coach's client record for the coach to relay; it does not create a direct
+  patient-to-Medical thread.
 - V1 visual skin and accessibility repairs.
 - Public booking and intake entry, with narrowly scoped EasyAuth exclusions and
   intake credentials carried only in a browser fragment/header rather than a
@@ -72,6 +79,9 @@ contrast sweep.
 - The broad demonstration `/portal/*` experience still reads seeded data and
   remains behind staff EasyAuth. It must not replace the database-only patient
   pilot until each enabled feature has an authoritative read model.
+- The database-only `/patient` pilot is still read-only. Real two-way patient
+  messaging to the coach, durable appointment create/reschedule/cancel, and
+  their live notification transports remain launch blockers for those features.
 - The importer does not yet move the full historical V1 clinical/financial
   graph; V1 history must remain read-only-accessible unless that scope is added.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are

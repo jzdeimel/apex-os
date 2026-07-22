@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { Siren, Clock, CheckCircle2, ArrowUpRight } from "lucide-react";
 import {
-  escalationsForClient,
-  escalationsRaisedBy,
   slaState,
   formatSla,
   isResolved,
 } from "@/lib/escalations/queue";
+import type { Escalation } from "@/lib/escalations/types";
+import { useEscalations } from "@/components/escalations/useEscalations";
 import { staffName } from "@/lib/mock/staff";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
@@ -28,7 +28,7 @@ import { formatDateTime } from "@/lib/utils";
  * /clinic/escalations, and the coach watches it here, with the same clock.
  */
 
-function StateBadge({ e }: { e: ReturnType<typeof escalationsForClient>[number] }) {
+function StateBadge({ e, now }: { e: Escalation; now: string }) {
   if (isResolved(e)) {
     return (
       <Badge tone="optimal">
@@ -37,18 +37,27 @@ function StateBadge({ e }: { e: ReturnType<typeof escalationsForClient>[number] 
       </Badge>
     );
   }
-  const state = slaState(e);
+  const state = slaState(e, now);
   return (
     <Badge tone={state === "overdue" ? "high" : state === "due-soon" ? "watch" : "neutral"}>
       <Clock className="h-3 w-3" />
-      {formatSla(e)}
+      {formatSla(e, now)}
     </Badge>
   );
 }
 
 /** Escalations raised on one member — rendered on the client 360. */
 export function ClientEscalations({ clientId }: { clientId: string }) {
-  const list = escalationsForClient(clientId);
+  const { items: list, now, loading, error } = useEscalations({ clientId });
+
+  if (loading) return <p className="text-detail text-ink-500">Loading escalation history…</p>;
+  if (error) {
+    return (
+      <p className="rounded-lg border border-critical/35 bg-critical/10 px-3 py-2 text-detail text-critical">
+        Escalation history unavailable: {error}
+      </p>
+    );
+  }
 
   if (list.length === 0) {
     return (
@@ -73,7 +82,7 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
                       {e.priority}
                     </Badge>
                     <Badge tone="neutral">{e.kind}</Badge>
-                    <StateBadge e={e} />
+                    <StateBadge e={e} now={now} />
                   </div>
                   <p className="mt-2 text-body text-ink-100">{e.question}</p>
                   {e.sourceQuote && (
@@ -126,10 +135,11 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
 
 /** Compact strip for the coach's Today page: what I'm still waiting on. */
 export function CoachWaitingOn({ coachId }: { coachId: string }) {
-  const open = escalationsRaisedBy(coachId).filter((e) => !isResolved(e));
-  const answered = escalationsRaisedBy(coachId).filter((e) => e.status === "Answered");
+  const { items, now, loading, error } = useEscalations({ raisedBy: coachId });
+  const open = items.filter((e) => !isResolved(e));
+  const answered = items.filter((e) => e.status === "Answered");
 
-  if (open.length === 0 && answered.length === 0) return null;
+  if (loading || error || (open.length === 0 && answered.length === 0)) return null;
 
   return (
     <Card>
@@ -155,7 +165,7 @@ export function CoachWaitingOn({ coachId }: { coachId: string }) {
                   href={`/clients/${e.clientId}`}
                   className="flex items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2 transition-colors hover:border-ink-700 focus-ring"
                 >
-                  <StateBadge e={e} />
+                  <StateBadge e={e} now={now} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-body text-ink-100">
                       {client ? clientName(client) : e.clientId}

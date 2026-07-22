@@ -5,6 +5,9 @@ export const CONSULT_KINDS = [
   "Coach consult",
   "Check-in",
   "Intake",
+  "Medical visit",
+  "Medical follow-up",
+  "Medical telehealth",
   "Medical chart review",
   "Provider visit",
   "Follow-up",
@@ -28,6 +31,9 @@ const COACH_CONSULT_KINDS = [
 ] as const satisfies readonly ConsultKind[];
 
 const MEDICAL_CONSULT_KINDS = [
+  "Medical visit",
+  "Medical follow-up",
+  "Medical telehealth",
   "Medical chart review",
 ] as const satisfies readonly ConsultKind[];
 
@@ -39,6 +45,9 @@ const COACH_CONSULT_CHANNELS = [
 ] as const satisfies readonly ConsultChannel[];
 
 const MEDICAL_CONSULT_CHANNELS = [
+  "In person",
+  "Phone",
+  "Video",
   "Chart review",
 ] as const satisfies readonly ConsultChannel[];
 
@@ -50,13 +59,13 @@ export function isConsultChannel(value: unknown): value is ConsultChannel {
   return typeof value === "string" && (CONSULT_CHANNELS as readonly string[]).includes(value);
 }
 
-/** The coach owns member conversations; Medical contributes an internal review. */
+/** The coach owns messaging; Medical documents clinical encounters and chart reviews. */
 export function defaultConsultKind(role: StaffRole | null): ConsultKind {
-  return role === "Medical" ? "Medical chart review" : "Coach consult";
+  return role === "Medical" ? "Medical visit" : "Coach consult";
 }
 
-export function defaultConsultChannel(role: StaffRole | null): ConsultChannel {
-  return role === "Medical" ? "Chart review" : "In person";
+export function defaultConsultChannel(_role: StaffRole | null): ConsultChannel {
+  return "In person";
 }
 
 export function consultKindsForRole(role: StaffRole | null): readonly ConsultKind[] {
@@ -97,7 +106,7 @@ export function consultChannelForRole(value: unknown, role: StaffRole | null): C
 
 /** Normalize the two legacy database values written before metadata was collected. */
 export function normalizeConsultKind(value: unknown, role: StaffRole | null = null): ConsultKind {
-  if (role === "Medical" && value === "Provider visit") return "Medical chart review";
+  if (role === "Medical" && value === "Provider visit") return "Medical visit";
   if (isConsultKind(value)) return value;
   if (value === "medical") return "Medical chart review";
   if (value === "provider") return "Provider visit";
@@ -109,7 +118,6 @@ export function normalizeConsultChannel(
   value: unknown,
   role: StaffRole | null = null,
 ): ConsultChannel {
-  if (role === "Medical" && value !== undefined && value !== null) return "Chart review";
   if (isConsultChannel(value)) return value;
   if (value === "in-person") return "In person";
   if (value === "phone") return "Phone";

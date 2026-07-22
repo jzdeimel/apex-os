@@ -30,7 +30,14 @@ if (existsSync(".next/standalone")) {
 }
 
 const server = spawn("node", [".next/standalone/server.js"], {
-  env: { ...process.env, PORT, HOSTNAME: "127.0.0.1", TZ: "UTC" },
+  env: {
+    ...process.env,
+    PORT,
+    HOSTNAME: "127.0.0.1",
+    TZ: "UTC",
+    APEX_FEATURE_PRESET: "full",
+    APEX_UI_SKIN: "alpha-dark",
+  },
   stdio: "inherit",
 });
 
@@ -199,13 +206,29 @@ try {
     await p.close();
   }
 
-  // Medical contributes internally and cannot be presented with a client
-  // encounter channel. The coach remains the communication owner.
+  // Medical documents real clinical visits with authored SOAP fields. The
+  // coach remains the communication owner; Medical never gets Messaging as a
+  // visit channel.
   {
     const p = await ctx.newPage();
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
+    await p.setExtraHTTPHeaders({
+      "x-ms-client-principal": principal("m.vale@alphahealth.demo", "Marcus Vale", "oid-st-001"),
+    });
     await p.route("**/api/consults/draft*", async (route) => {
+      if (route.request().method() === "PUT") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            durable: true,
+            id: "con-medical-smoke",
+            updatedAt: "2026-07-22T12:00:00.000Z",
+          }),
+        });
+      }
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,
@@ -213,10 +236,10 @@ try {
         body: JSON.stringify({
           ok: true,
           authorRole: "Medical",
-          allowedKinds: ["Medical chart review"],
-          allowedChannels: ["Chart review"],
-          suggestedKind: "Medical chart review",
-          suggestedChannel: "Chart review",
+          allowedKinds: ["Medical visit", "Medical follow-up", "Medical telehealth", "Medical chart review"],
+          allowedChannels: ["In person", "Phone", "Video", "Chart review"],
+          suggestedKind: "Medical visit",
+          suggestedChannel: "In person",
           draft: null,
         }),
       });
@@ -227,15 +250,31 @@ try {
     });
     const text = (await p.evaluate(() => document.body.innerText)).trim().toLowerCase();
     if (
-      !text.includes("internal medical chart review") ||
+      !text.includes("medical visit documentation") ||
       !text.includes("coach remains") ||
-      !text.includes("review channel") ||
-      !text.includes("chart review")
+      !text.includes("clinical note · soap") ||
+      !text.includes("subjective") ||
+      !text.includes("assessment") ||
+      !text.includes("visit channel")
     ) {
-      done(1, "SMOKE-UI FAIL: Medical rendered as a direct client encounter");
+      done(1, "SMOKE-UI FAIL: Medical visit note or coach-owned messaging boundary did not render");
     }
-    if (errors.length) done(1, `SMOKE-UI FAIL: Medical review errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log("ok  Medical review: internal-only workflow with coach communication ownership rendered");
+    const channelOptions = await p.getByLabel("Visit channel").locator("option").allTextContents();
+    if (channelOptions.includes("Messaging")) {
+      done(1, "SMOKE-UI FAIL: Medical was offered a direct Messaging encounter channel");
+    }
+    const signButton = p.getByRole("button", { name: "Sign Medical note" });
+    await p.getByRole("button", { name: "Load a sample Medical note" }).click();
+    if (!(await signButton.isDisabled())) {
+      done(1, "SMOKE-UI FAIL: a dirty Medical note could be signed before its latest autosave");
+    }
+    await p.waitForFunction(() => {
+      const button = [...document.querySelectorAll("button")]
+        .find((candidate) => candidate.textContent?.includes("Sign Medical note"));
+      return button && !button.disabled;
+    }, null, { timeout: 5000 });
+    if (errors.length) done(1, `SMOKE-UI FAIL: Medical note errors: ${errors.slice(0, 3).join(" | ")}`);
+    console.log("ok  Medical visit: authored SOAP, durable draft and coach-owned messaging rendered");
     await p.close();
   }
 

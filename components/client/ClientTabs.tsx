@@ -13,6 +13,7 @@ import { isStuck, clientFacingStatus, progressPercent } from "@/lib/orders/lifec
 import { contactLogForClient } from "@/lib/mock/contactLog";
 import { ConsultComposer } from "@/components/consult/ConsultComposer";
 import { ConsultCard } from "@/components/consult/ConsultCard";
+import { MessageEscalation } from "@/components/escalations/MessageEscalation";
 import type { Consult } from "@/lib/consult/types";
 import { ProvenanceDrawer, WhyButton } from "@/components/trace/ProvenanceDrawer";
 import {
@@ -433,6 +434,13 @@ function ContactLogList({
                 </div>
                 {e.body && (
                   <p className="mt-1 text-detail leading-relaxed text-ink-300">{e.body}</p>
+                )}
+                {e.direction === "inbound" && e.consentScopeUsed === "clinical" && e.body && (
+                  <MessageEscalation
+                    clientId={e.clientId}
+                    messageId={e.id}
+                    memberQuote={e.body}
+                  />
                 )}
                 <p className="mt-1 text-micro text-ink-600">
                   <span className="stat-mono">{formatDateTime(e.at)}</span> · consent:{" "}
