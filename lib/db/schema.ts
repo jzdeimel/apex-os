@@ -1412,6 +1412,12 @@ export const staff = pgTable(
     title: text("title"),
     /** The role that decides capabilities. NULL is not allowed — no default authority. */
     role: text("role").notNull(),
+    /**
+     * Job-specific authorization profile. Clinical credential and job access
+     * are deliberately separate: an RN and an NP may both have role Medical,
+     * while only the NP profile may prescribe. `unassigned` fails closed.
+     */
+    accessProfile: text("access_profile").notNull().default("unassigned"),
     /** Locations this staff member covers. */
     locationIds: jsonb("location_ids").notNull(),
     credentials: text("credentials"),

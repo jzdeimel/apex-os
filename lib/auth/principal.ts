@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import type { StaffRole } from "@/lib/types";
 import { staff } from "@/lib/mock/staff";
 import { IS_DEMO } from "@/lib/config";
+import { inferAccessProfile, isAccessProfile, type AccessProfile } from "@/lib/authz/profiles";
 
 /**
  * The signed-in user, from Container Apps EasyAuth.
@@ -45,6 +46,8 @@ export interface Principal {
   staffId: string | null;
   /** Role from the mapped staff record. Null when unmapped — never a default. */
   role: StaffRole | null;
+  /** Job-specific server authorization profile. */
+  accessProfile: AccessProfile | null;
   /** Location scope from the mapped staff row. Empty means no member scope. */
   locationIds: string[];
   /** Credential text captured on the staff row, for signatures and display. */
@@ -119,6 +122,7 @@ export async function currentPrincipal(): Promise<Principal | null> {
     name,
     staffId: mapped?.id ?? null,
     role: mapped?.role ?? null,
+    accessProfile: mapped?.accessProfile ?? null,
     locationIds: mapped?.locationIds ?? [],
     credentials: mapped?.credentials ?? null,
     canApprove: mapped?.canApprove ?? false,
@@ -150,6 +154,7 @@ async function mapToStaff(
 ): Promise<{
   id: string;
   role: StaffRole;
+  accessProfile: AccessProfile;
   locationIds: string[];
   credentials: string | null;
   canApprove: boolean;
@@ -173,6 +178,7 @@ async function mapToStaff(
         ? {
             id: row.id,
             role: row.role as StaffRole,
+            accessProfile: isAccessProfile(row.accessProfile) ? row.accessProfile : "unassigned",
             locationIds: row.locationIds,
             credentials: row.credentials,
             canApprove: row.canApprove,
@@ -207,6 +213,12 @@ async function mapToStaff(
     ? {
         id: hit.id,
         role: hit.role,
+        accessProfile: inferAccessProfile({
+          id: hit.id,
+          role: hit.role,
+          credentials: hit.credentials,
+          title: hit.bio,
+        }),
         locationIds: hit.locationIds ?? [],
         credentials: hit.credentials ?? null,
         canApprove: hit.canApprove ?? false,

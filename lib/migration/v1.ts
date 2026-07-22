@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { ROSTER } from "@/lib/mock/roster";
+import { inferAccessProfile } from "@/lib/authz/profiles";
 
 export const V1_SOURCE_SYSTEM = "alpha-v1";
 
@@ -218,6 +219,12 @@ export function mapStaff(row: V1StaffRow) {
     : roster?.department === "Medical"
       ? "Medical"
       : role(row.role);
+  const accessProfile = inferAccessProfile({
+    role: clinicalRole,
+    credentials: roster?.credentialClass ?? row.title,
+    title: row.title ?? roster?.notes ?? null,
+    department: roster?.department ?? null,
+  });
   return mapped("staff", row.id, row.createdAt, {
     id,
     email: row.email.trim().toLowerCase(),
@@ -225,6 +232,7 @@ export function mapStaff(row: V1StaffRow) {
     department: roster?.department ?? (clinicalRole === "Medical" ? "Medical" : clinicalRole === "Coach" ? "Coaching" : null),
     title: row.title ?? roster?.notes ?? null,
     role: clinicalRole,
+    access_profile: accessProfile,
     location_ids: locationIds,
     credentials: roster?.credentialClass ?? row.title,
     can_approve: row.role === "PROVIDER",

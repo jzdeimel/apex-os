@@ -115,13 +115,6 @@ export async function PATCH(req: Request) {
 
   const g = await guard("triage:escalation");
   if (!g.ok) return g.res;
-  if (g.actor.role !== "Medical") {
-    return NextResponse.json(
-      { ok: false, error: "Only Medical staff can acknowledge, review, or answer clinical escalations." },
-      { status: 403 },
-    );
-  }
-
   const nextStatus =
     body.action === "acknowledge"
       ? "Acknowledged"

@@ -1,4 +1,5 @@
 import type { StaffRole } from "@/lib/types";
+import type { AccessProfile } from "@/lib/authz/profiles";
 
 /**
  * Who can do what in Apex.
@@ -39,6 +40,13 @@ export type Capability =
   | "read:financial"        // purchases, invoices, LTV
   | "read:ledger"           // the audit ledger
   | "read:all-clients"      // beyond one's own assigned book
+  | "read:location-clients" // operational minimum within assigned locations
+  | "read:directory"        // minimum patient identity needed for operations
+  | "read:all-schedules"    // clinic-wide schedule, not only the actor's own
+  | "read:orders"
+  | "read:inventory"
+  | "read:crm"
+  | "read:messages"
   /**
    * Acquisition and channel performance across the business. OWNER ONLY, and
    * deliberately NOT read:financial — a coach holds that so they can discuss a
@@ -64,6 +72,12 @@ export type Capability =
   | "write:order"           // place or reorder
   | "write:membership"      // change plan, pause, resume
   | "write:refund"
+  | "write:inventory"
+  | "write:fulfillment"
+  | "write:crm"
+  | "write:communications"
+  | "write:quality"
+  | "override:schedule"
 
   // ── Licensed authorship — provider only ────────────────────────────────
   | "write:prescription"    // THE DOSE. Never delegable.
@@ -81,6 +95,7 @@ export type Capability =
   | "admin:roles"
   | "admin:rule-sets"       // publish a clinical rule-set version
   | "admin:locations"
+  | "admin:calendars"
   | "admin:export"          // export the ledger / a member's record
   | "admin:break-glass";    // emergency read outside assignment
 
@@ -93,9 +108,9 @@ export type Capability =
  * a prescription. Here, `write:prescription` is granted to exactly one role,
  * and no amount of seniority substitutes for a license.
  */
-const GRANTS: Record<StaffRole, Capability[]> = {
-  Medical: [
-    "read:chart", "read:clinical", "read:financial", "read:ledger",
+const GRANTS: Record<AccessProfile, Capability[]> = {
+  provider: [
+    "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
     "read:schedule", "write:schedule",
@@ -105,10 +120,13 @@ const GRANTS: Record<StaffRole, Capability[]> = {
     "order:labs", "sign:labs", "override:contraindication",
     "triage:escalation",
   ],
-
-  Coach: [
+  nursing: [
+    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages",
+    "write:consult", "write:clinical-history", "write:contact", "write:task",
+  ],
+  coach: [
     // Full read on their own book. This is the deliberate inversion.
-    "read:chart", "read:clinical", "read:financial",
+    "read:chart", "read:clinical", "read:financial", "read:messages",
     // Coaching is authorship, not data entry — nutrition and training are the
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
@@ -116,16 +134,45 @@ const GRANTS: Record<StaffRole, Capability[]> = {
     "read:schedule", "write:schedule",
     "escalate:provider",
   ],
-
-  Admin: [
-    "read:chart", "read:financial", "read:ledger", "read:all-clients",
-    "write:contact", "write:demographics", "write:task",
-    "read:schedule", "write:schedule",
-    "write:order", "write:membership", "write:refund",
-    "read:business-metrics",
-    "admin:roles", "admin:locations", "admin:export", "admin:break-glass",
-    "triage:escalation",
+  "front-desk": [
+    "read:directory", "read:location-clients", "read:schedule", "read:all-schedules",
+    "write:contact", "write:demographics", "write:task", "write:schedule",
   ],
+  billing: [
+    "read:directory", "read:financial", "read:all-clients",
+    "write:membership", "write:refund",
+  ],
+  fulfillment: [
+    "read:directory", "read:location-clients", "read:orders", "read:inventory",
+    "write:inventory", "write:fulfillment",
+  ],
+  marketing: [
+    "read:crm", "read:business-metrics", "write:crm", "write:communications",
+  ],
+  operations: [
+    "read:directory", "read:location-clients", "read:financial", "read:ledger", "read:all-clients",
+    "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "write:contact", "write:demographics", "write:task",
+    "write:schedule", "override:schedule", "write:order", "write:membership",
+    "write:inventory", "write:fulfillment", "write:crm", "write:quality",
+    "read:business-metrics",
+    "admin:locations", "admin:calendars", "admin:export", "admin:break-glass",
+  ],
+  executive: [
+    "read:financial", "read:ledger", "read:business-metrics", "admin:export",
+  ],
+  "system-admin": [
+    "read:ledger", "admin:roles", "admin:locations", "admin:calendars", "admin:export",
+  ],
+  owner: [
+    "read:directory", "read:financial", "read:ledger", "read:all-clients",
+    "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:business-metrics", "write:schedule", "override:schedule", "write:membership",
+    "write:refund", "write:inventory", "write:fulfillment", "write:crm",
+    "write:communications", "write:quality", "admin:roles", "admin:locations",
+    "admin:calendars", "admin:export", "admin:break-glass",
+  ],
+  unassigned: [],
 };
 
 /** Roles that may hold a clinical license. Used for credential gating. */
@@ -134,6 +181,8 @@ export const LICENSED_ROLES: StaffRole[] = ["Medical"];
 export interface Actor {
   id: string;
   role: StaffRole;
+  /** Server-resolved job profile. `unassigned` has no capabilities. */
+  accessProfile: AccessProfile;
   /** Location ids this actor covers. Empty = no scope; fails closed. */
   locationIds: string[];
   /** True while an approved break-glass window is open. */
@@ -160,12 +209,12 @@ export function can(
   capability: Capability,
   subject?: { coachId?: string; providerId?: string; locationId?: string },
 ): Decision {
-  const grants = GRANTS[actor.role] ?? [];
+  const grants = GRANTS[actor.accessProfile] ?? [];
 
   if (!grants.includes(capability)) {
     return {
       allowed: false,
-      reason: `${actor.role} cannot ${capability.replace(":", " ")}.`,
+      reason: `${actor.accessProfile} cannot ${capability.replace(":", " ")}.`,
       resolveVia: resolveHint(capability),
     };
   }
@@ -192,7 +241,23 @@ export function can(
     const inLocation =
       !subject.locationId || actor.locationIds.includes(subject.locationId);
 
-    if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients")) {
+    const locationOperational =
+      grants.includes("read:location-clients") &&
+      inLocation &&
+      [
+        "read:directory",
+        "read:schedule",
+        "write:schedule",
+        "write:contact",
+        "write:demographics",
+        "write:task",
+        "read:orders",
+        "read:inventory",
+        "write:inventory",
+        "write:fulfillment",
+      ].includes(capability);
+
+    if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients") && !locationOperational) {
       if (actor.breakGlass) {
         return {
           allowed: true,
@@ -231,12 +296,12 @@ function resolveHint(capability: Capability): string | undefined {
   return undefined;
 }
 
-export function capabilitiesFor(role: StaffRole): Capability[] {
-  return GRANTS[role] ?? [];
+export function capabilitiesFor(profile: AccessProfile): Capability[] {
+  return GRANTS[profile] ?? [];
 }
 
-export function hasCapability(role: StaffRole, capability: Capability): boolean {
-  return (GRANTS[role] ?? []).includes(capability);
+export function hasCapability(profile: AccessProfile, capability: Capability): boolean {
+  return (GRANTS[profile] ?? []).includes(capability);
 }
 
 /**

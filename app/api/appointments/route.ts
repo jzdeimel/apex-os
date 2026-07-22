@@ -11,6 +11,7 @@ import {
   readClientCareScope,
 } from "@/lib/db/repo";
 import { appointmentRequestId } from "@/lib/scheduling/lifecycle";
+import { can, hasCapability } from "@/lib/authz/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,9 @@ export async function GET(request: NextRequest) {
     if (clientId) {
       const scope = await readClientCareScope(clientId);
       if (!scope || scope.status !== "active") return fail(404, "Unknown active patient.");
-      const scoped = await guard("read:chart", careSubject(scope));
-      if (!scoped.ok) return scoped.res;
-    } else if (g.actor.role !== "Admin") {
+      const scoped = can(g.actor, "read:schedule", careSubject(scope));
+      if (!scoped.allowed) return fail(403, scoped.reason);
+    } else if (!hasCapability(g.actor.accessProfile, "read:all-schedules")) {
       // Non-admin schedule reads are deliberately self-only. Team availability
       // can be exposed later without patient names through a separate free/busy API.
       staffId = g.actor.id;
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     const g = await guard("write:schedule", careSubject(scope));
     if (!g.ok) return g.res;
     const overrideReason = typeof body.overrideReason === "string" ? body.overrideReason.trim() : "";
-    if (overrideReason && g.actor.role !== "Admin") return fail(403, "Only Admin can approve a scheduling override.");
+    if (overrideReason && !hasCapability(g.actor.accessProfile, "override:schedule")) return fail(403, "Your job profile cannot approve a scheduling override.");
     if (startAt < new Date(Date.now() - 5 * 60_000) && !overrideReason) return fail(400, "New appointments cannot be booked in the past.");
 
     const result = await bookAppointmentWithLedger({
@@ -140,8 +141,8 @@ export async function PATCH(request: NextRequest) {
     });
     if (!g.ok) return g.res;
     const overrideReason = typeof body.overrideReason === "string" ? body.overrideReason.trim() : "";
-    if (overrideReason && g.actor.role !== "Admin") return fail(403, "Only Admin can approve a scheduling override.");
-    if (body.action === "reopen" && g.actor.role !== "Admin") return fail(403, "Only Admin can reopen a closed appointment.");
+    if (overrideReason && !hasCapability(g.actor.accessProfile, "override:schedule")) return fail(403, "Your job profile cannot approve a scheduling override.");
+    if (body.action === "reopen" && !hasCapability(g.actor.accessProfile, "override:schedule")) return fail(403, "Your job profile cannot reopen a closed appointment.");
     const result = await changeAppointmentWithLedger({
       id: body.id,
       action: body.action as "arrive" | "room" | "complete" | "no-show" | "cancel" | "reopen" | "reschedule" | "reassign",
@@ -164,4 +165,3 @@ export async function PATCH(request: NextRequest) {
     return unavailable("appointments.change", error, "The appointment change was not confirmed. Please retry.");
   }
 }
-

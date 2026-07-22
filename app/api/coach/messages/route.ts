@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
-import { can } from "@/lib/authz/capabilities";
+import { can, hasCapability } from "@/lib/authz/capabilities";
 import { nowIso } from "@/lib/clock";
 import {
   createCoachPatientMessageWithLedger,
@@ -24,10 +24,10 @@ function sameOrigin(request: NextRequest) {
   try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
 }
 
-async function authorizedCoachScope(clientId: string, capability: "read:chart" | "write:contact") {
+async function authorizedCoachScope(clientId: string, capability: "read:messages" | "write:contact") {
   const g = await guard(capability);
   if (!g.ok) return { error: g.res } as const;
-  if (g.actor.role !== "Coach" && g.actor.role !== "Admin") {
+  if (g.actor.accessProfile !== "coach" && !hasCapability(g.actor.accessProfile, "read:all-clients")) {
     return { error: fail(403, "Medical staff do not use the patient-to-coach channel.") } as const;
   }
   const scope = await readClientCareScope(clientId);
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   try {
     const clientId = request.nextUrl.searchParams.get("clientId");
     if (clientId) {
-      const auth = await authorizedCoachScope(clientId, "read:chart");
+      const auth = await authorizedCoachScope(clientId, "read:messages");
       if ("error" in auth) return auth.error;
       const messages = await readPatientCoachMessages(clientId);
       return NextResponse.json({
@@ -59,12 +59,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const g = await guard("write:contact");
+    const g = await guard("read:messages");
     if (!g.ok) return g.res;
-    if (g.actor.role !== "Coach" && g.actor.role !== "Admin") {
-      return fail(403, "Medical staff do not use the patient-to-coach inbox.");
-    }
-    const threads = await readCoachInbox(g.actor.id, g.actor.role === "Admin");
+    const threads = await readCoachInbox(g.actor.id, hasCapability(g.actor.accessProfile, "read:all-clients"));
     return NextResponse.json({ ok: true, threads });
   } catch (error) {
     return unavailable("coach.messages.list", error, "The coach inbox is temporarily unavailable.");
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await authorizedCoachScope(body.clientId, "write:contact");
     if ("error" in auth) return auth.error;
-    if (auth.g.actor.role !== "Coach" || auth.scope.assignedCoachId !== auth.g.actor.id) {
+    if (auth.g.actor.accessProfile !== "coach" || auth.scope.assignedCoachId !== auth.g.actor.id) {
       return fail(403, "Only the patient's assigned coach can reply in this channel.");
     }
     const at = nowIso();
@@ -119,7 +116,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const auth = await authorizedCoachScope(body.clientId, "write:contact");
     if ("error" in auth) return auth.error;
-    if (auth.g.actor.role !== "Coach" || auth.scope.assignedCoachId !== auth.g.actor.id) {
+    if (auth.g.actor.accessProfile !== "coach" || auth.scope.assignedCoachId !== auth.g.actor.id) {
       return fail(403, "Only the patient's assigned coach can acknowledge this thread.");
     }
     const result = await markPatientMessagesReadWithLedger({

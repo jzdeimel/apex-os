@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const auth = await scopeAndGuard(clientId, "read:clinical");
     if ("error" in auth) return auth.error;
     const fundamentals = await readChartFundamentals(clientId);
-    return NextResponse.json({ ok: true, fundamentals, canEdit: auth.g.actor.role === "Medical" });
+    return NextResponse.json({ ok: true, fundamentals, canEdit: auth.g.actor.accessProfile === "provider" || auth.g.actor.accessProfile === "nursing" });
   } catch (error) {
     return unavailable("chart.fundamentals.list", error, "Chart reconciliation data is temporarily unavailable.");
   }
@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await scopeAndGuard(body.clientId, "write:clinical-history");
     if ("error" in auth) return auth.error;
-    if (auth.g.actor.role !== "Medical") return fail(403, "Only Medical can reconcile clinical history.");
     const result = await changeChartFundamentalsWithLedger({
       id: typeof body.id === "string" ? body.id : `cf-${randomUUID()}`,
       clientId: body.clientId,

@@ -21,13 +21,17 @@ browser-only data is not counted as built.
   physical; the lowest appropriate verified license is used.
 - Clinical corrections append. Signed notes and prior patient statements are
   never silently overwritten.
+- Job access is separate from clinical persona. Front desk, nursing, provider,
+  coach, billing, fulfillment, marketing, operations, executive and system
+  administration no longer inherit one another's powers from the old three-role
+  model; ambiguous assignments fail closed.
 
 ## P0 — required before Apex can replace the operating systems
 
 | Capability | Current state | Exit criterion |
 | --- | --- | --- |
 | Authoritative client identity and complete V1 history | Foundation importer, dry-run inventory and reconciliation exist. Full clinical, commercial and financial history has not been migrated or accepted. | SELECT-only V1 credential; accepted migration scope; two repeatable rehearsals; final delta; documented read-only legacy-history fallback for anything intentionally not migrated. |
-| Real roster, credentials and availability | The workbook has 34 people, five gym-only rows marked to ignore, and 29 relevant rows. It does not supply working hours, license number/state/expiry, RN vs LPN classification, supervision or DEA facts. | Effective-dated approved roster, state scope rules, Google Calendar IDs/consent, work hours, PTO/busy sync and conflict acceptance by clinic. |
+| Real roster, credentials and availability | Job-specific access profiles and fail-closed RN/LPN/provider separation now exist. The workbook has 34 people, five gym-only rows marked to ignore, and 29 relevant rows, but it does not supply working hours, license number/state/expiry, RN vs LPN classification, supervision or DEA facts. | Effective-dated approved roster and access-profile assignment, state scope rules, Google Calendar IDs/consent, work hours, PTO/busy sync and conflict acceptance by clinic. |
 | Scheduling system of record | Durable appointment create/reschedule/reassign/cancel, arrival, rooming, completion and no-show transitions now commit with their audit witness. Staff/patient/location conflicts and approved-hours rules fail closed. Composite NCV booking, room/equipment resources, patient self-service, notifications and live Google acceptance remain incomplete. | Atomic three-component NCV booking, resource/room constraints, patient self-service, notification delivery, Google reconciliation and rollback-safe ownership. |
 | Patient-to-coach messaging | The patient-session-scoped writer, assigned-coach inbox, replies, read state and exact-message Medical escalation are durable. Urgent language is detected without pretending to provide emergency triage. Attachments, retention/export policy and live notification delivery remain incomplete. | Accepted coach coverage/SLA, attachments policy, retention/export, urgent-message operating policy and live ACS/email notification transport. No direct patient-to-Medical thread. |
 | Billing and membership money movement | Clover routing, idempotency and failure boundaries are modelled; database entities exist. No accepted live invoice, payment-method, capture/refund, recurring billing or reconciliation workflow operates end to end. | Four merchant configurations; vault migration or card recollection; invoice/receipt ledger; auth/capture/void/refund; dunning and card update; pause/cancel/proration; daily settlement reconciliation by clinic. |

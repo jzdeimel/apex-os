@@ -15,10 +15,7 @@ export const dynamic = "force-dynamic";
 const credentials = () => process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON;
 
 async function admin() {
-  const g = await guard("admin:locations");
-  if (!g.ok) return g;
-  if (g.actor.role !== "Admin") return { ok: false as const, res: fail(403, "Calendar synchronization is Admin-only.") };
-  return g;
+  return guard("admin:calendars");
 }
 
 export async function GET() {
@@ -97,4 +94,3 @@ export async function POST() {
     return unavailable("calendar.sync", error, "Google Calendar synchronization did not complete.");
   }
 }
-

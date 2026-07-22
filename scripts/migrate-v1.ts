@@ -196,7 +196,8 @@ async function upsertStaff(tx: TransactionSql, records: MappedRecord<Record<stri
       insert into staff ${tx(batch)}
       on conflict (id) do update set
         email = excluded.email, name = excluded.name, department = excluded.department,
-        title = excluded.title, role = excluded.role, location_ids = excluded.location_ids,
+        title = excluded.title, role = excluded.role, access_profile = excluded.access_profile,
+        location_ids = excluded.location_ids,
         credentials = excluded.credentials, can_approve = excluded.can_approve,
         exclude_from_scheduling = excluded.exclude_from_scheduling, active = excluded.active,
         source_system = excluded.source_system, source_id = excluded.source_id,

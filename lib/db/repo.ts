@@ -68,6 +68,7 @@ import {
   normalizedAppointmentState,
   type AppointmentState,
 } from "@/lib/scheduling/lifecycle";
+import { inferAccessProfile } from "@/lib/authz/profiles";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -1505,6 +1506,12 @@ export async function seedStaff(): Promise<number> {
         email: s.email ?? `${s.id}@alphahealth.demo`,
         name: s.name,
         role: s.role,
+        accessProfile: inferAccessProfile({
+          id: s.id,
+          role: s.role,
+          credentials: s.credentials,
+          title: s.bio,
+        }),
         locationIds: s.locationIds ?? [],
         credentials: s.credentials ?? null,
         canApprove: s.canApprove ?? false,
@@ -1533,6 +1540,7 @@ export interface StaffRow {
   email: string;
   name: string;
   role: string;
+  accessProfile: string;
   locationIds: string[];
   credentials: string | null;
   canApprove: boolean;
@@ -1546,6 +1554,7 @@ function toRow(r: typeof staffTable.$inferSelect): StaffRow {
     email: r.email,
     name: r.name,
     role: r.role,
+    accessProfile: r.accessProfile,
     locationIds: (r.locationIds as string[]) ?? [],
     credentials: r.credentials,
     canApprove: r.canApprove,

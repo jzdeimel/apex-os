@@ -16,10 +16,11 @@ import type { Actor } from "@/lib/authz/capabilities";
  * against two different staff records.
  */
 export function actorFromPrincipal(p: Principal): Actor | null {
-  if (!p.staffId || !p.role) return null;
+  if (!p.staffId || !p.role || !p.accessProfile) return null;
   return {
     id: p.staffId,
     role: p.role,
+    accessProfile: p.accessProfile,
     locationIds: p.locationIds,
   };
 }

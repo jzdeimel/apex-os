@@ -70,6 +70,8 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
+import { can } from "@/lib/authz/capabilities";
+import { inferAccessProfile } from "@/lib/authz/profiles";
 import { staff } from "@/lib/mock/staff";
 import {
   consultChannelForRole,
@@ -794,6 +796,37 @@ eq(
     3,
   ).length,
   0,
+);
+
+section("Job-specific authorization");
+const actor = (accessProfile: Parameters<typeof can>[0]["accessProfile"], role: Parameters<typeof can>[0]["role"] = "Admin") => ({
+  id: "staff-1",
+  role,
+  accessProfile,
+  locationIds: ["raleigh"],
+});
+eq("front desk may run the schedule", can(actor("front-desk"), "write:schedule").allowed, true);
+eq(
+  "front desk may schedule an assigned-location patient without reading the chart",
+  can(actor("front-desk"), "write:schedule", { coachId: "coach-2", providerId: "provider-2", locationId: "raleigh" }).allowed,
+  true,
+);
+eq(
+  "front desk cannot schedule outside assigned locations",
+  can(actor("front-desk"), "write:schedule", { coachId: "coach-2", providerId: "provider-2", locationId: "myrtle-beach" }).allowed,
+  false,
+);
+eq("front desk cannot refund", can(actor("front-desk"), "write:refund").allowed, false);
+eq("front desk cannot read a clinical chart", can(actor("front-desk"), "read:clinical").allowed, false);
+eq("an RN may reconcile history", can(actor("nursing", "Medical"), "write:clinical-history").allowed, true);
+eq("an RN cannot prescribe", can(actor("nursing", "Medical"), "write:prescription").allowed, false);
+eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
+eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
+eq("an unassigned profile has no authority", can(actor("unassigned"), "read:schedule").allowed, false);
+eq(
+  "an ambiguous Nurse title fails closed",
+  inferAccessProfile({ role: "Medical", credentials: "Nurse" }),
+  "unassigned",
 );
 
 section("Payment fail-safes");

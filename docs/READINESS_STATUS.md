@@ -49,6 +49,11 @@ contrast sweep.
   request path.
 - Feature flags and clinic release preset.
 - Real staff actor mapping and database-backed write paths.
+- Job-specific server authorization profiles separate owner, system admin,
+  executive, operations, provider, nursing, coach, front desk, billing,
+  fulfillment and marketing authority. Ambiguous staff receive no authority;
+  front desk scheduling is location-scoped and does not grant chart access; a
+  nursing profile cannot prescribe.
 - NCV credential tiers, resolution, segments, coverage, queue, vitals, and H&P.
 - Versioned five-must-know intake with guided provenance.
 - Append-only clinical facts and immutable signature/archive evidence.
