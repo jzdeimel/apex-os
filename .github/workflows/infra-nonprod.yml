@@ -27,7 +27,7 @@ jobs:
     environment: nonprod
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Sign in to Azure with environment-scoped OIDC
         uses: azure/login@v2

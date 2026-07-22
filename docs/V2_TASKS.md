@@ -314,7 +314,7 @@ order routing and Clover slip to the commerce cutover without breaking anything 
 
 ## The V1 skin — what was measured, and what is left
 
-`npm run contrast` sweeps 47 routes and reports every text node under WCAG AA
+`npm run contrast` sweeps 49 routes and reports every text node under WCAG AA
 against its real background. **Validate it first** — `npm run contrast:self-test`
 injects deliberately illegible text and asserts the detector catches it. A sweep
 that cannot fail proves nothing; the blank-screen bug in this repo survived three
@@ -326,10 +326,11 @@ that cannot fail proves nothing; the blank-screen bug in this repo survived thre
 | Token correction | 902 | `ink-500`/`ink-600` measured against **white**, not the canvas — the first guess (`#767c86`, 4.2:1) looked plausible and still failed. Whole brand ramp inverted; 100–300 had been left as pale on-dark pinks rendering at 2–3:1 |
 | Literal sweep | 146 | 184 hardcoded hex values across `app/`, `components/` and `lib/` moved onto tokens — charts, clinical mini-charts, status dots |
 | Semantics | **142** | `text-ink-700` (the hairline colour) was being used as text in 25 places at ~1.2:1; `--on-swatch` added so a monogram flips with the seeded colour underneath it |
+| Final component repair | **0** | Saturated chips, dark badges, chart labels, and remaining routed surfaces now use verified foreground/background pairs; the 49-route sweep is clean |
 
-**142 remain, ~3 per page.** They are text on saturated or dark chips, where the
-background is a brand/status colour rather than a surface token — each needs a
-per-component decision, not a token change. Run `npm run contrast` for the list.
+**No contrast failures remain.** CI still runs both the deliberately failing
+self-test and the complete 49-route sweep so a broken detector cannot produce a
+false clean result.
 
 Two findings from this that no type check or build could have produced: the
 stat-tile captions were unreadable, and `/clinic/coverage` 404'd because its

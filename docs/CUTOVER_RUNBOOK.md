@@ -24,7 +24,7 @@ production traffic decision.
 - Isolated non-production Azure foundation and authenticated `ca-apex-dev`.
 - GitHub OIDC deployment without a stored Azure client secret.
 - Green infrastructure CI, including build, audit, API smoke, and UI smoke.
-- V1-skin accessibility gate: zero contrast failures across 47 routed screens.
+- V1-skin accessibility gate: zero contrast failures across 49 routed screens.
 - Credential-based NCV resolver and the three ordered encounter segments.
 - Nurse lab-draw queue, NCV coverage view, vitals, H&P signing, and append-only
   clinical facts.
