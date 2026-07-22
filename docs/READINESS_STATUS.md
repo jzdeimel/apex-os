@@ -15,6 +15,14 @@ contrast sweep.
 - Production-like nonprod posture: server demo behavior is explicitly disabled,
   so unknown staff, seeded identity fallback, and legacy intake query/path
   credentials fail closed during rehearsal.
+- Nonprod product review uses the full feature preset, including Community and
+  the owner-added engagement/automation surfaces, with an Alpha-dark skin that
+  is independent from feature availability.
+- A separate `clinic-v2` launch preset keeps the high-value V2 surfaces on by
+  default while direct provider messaging, emergency-card sharing and
+  self-booking stay off until their operating controls are ready. Admins can
+  override any flag globally for everyone from Owner / Features; every change
+  is audited and takes effect on the next page load.
 - V1 visual skin and accessibility repairs.
 - Public booking and intake entry, with narrowly scoped EasyAuth exclusions and
   intake credentials carried only in a browser fragment/header rather than a

@@ -97,6 +97,7 @@ function ToggleItem({ row }: { row: ToggleRow }) {
           ) : (
             <Badge tone="neutral">release default</Badge>
           )}
+          <Badge tone="info">global · everyone</Badge>
           {row.overrideCount > 1 && (
             <Badge tone="info">{row.overrideCount} scoped rules</Badge>
           )}

@@ -57,5 +57,22 @@ export const IS_PRODUCTION_BEHAVIOUR = !IS_DEMO;
  * Unknown or unset resolves to `clinic-v1` — the smaller surface. An
  * environment typo must not silently ship the full product to a clinic.
  */
-export const FEATURE_PRESET: "clinic-v1" | "full" =
-  process.env.APEX_FEATURE_PRESET === "full" ? "full" : "clinic-v1";
+export const FEATURE_PRESET: "clinic-v1" | "clinic-v2" | "full" =
+  process.env.APEX_FEATURE_PRESET === "full"
+    ? "full"
+    : process.env.APEX_FEATURE_PRESET === "clinic-v2"
+      ? "clinic-v2"
+      : "clinic-v1";
+
+/**
+ * Visual skin is deliberately independent from the feature preset.
+ *
+ * A feature decision answers what the clinic can use. A skin decision answers
+ * how those features look. Coupling the two made the nonprod full-product
+ * preview disappear behind the smaller clinic preset and also turned the
+ * entire application white. Alpha staff already use the dark Alpha OS theme,
+ * so dark is the safe default; the legacy light skin remains available only
+ * through an explicit environment setting.
+ */
+export const UI_SKIN: "alpha-dark" | "v1-light" =
+  process.env.APEX_UI_SKIN === "v1-light" ? "v1-light" : "alpha-dark";

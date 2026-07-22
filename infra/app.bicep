@@ -139,6 +139,19 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APEX_ENVIRONMENT'
               value: 'nonprod'
             }
+            {
+              // Nonprod is the product-review environment: show the surfaces
+              // the owner built instead of silently applying the cutover's
+              // smaller V1-parity preset.
+              name: 'APEX_FEATURE_PRESET'
+              value: 'full'
+            }
+            {
+              // Theme and feature availability are separate decisions. Keep
+              // the shared review environment on Alpha's dark treatment.
+              name: 'APEX_UI_SKIN'
+              value: 'alpha-dark'
+            }
           ]
           resources: {
             cpu: json('1.0')

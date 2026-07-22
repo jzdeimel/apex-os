@@ -46,20 +46,27 @@ import type { PortalId } from "@/lib/portals";
 /**
  * Release presets.
  *
- * `clinic-v1` is the Aug 7 cutover posture: Apex underneath, the surface area
- * the coaches already know, and everything Apex added dark. `full` is the whole
- * product, which is what the demo and the internal build run.
+ * `clinic-v1` is the original parity posture: Apex underneath, the surface area
+ * the coaches already know, and everything Apex added dark. `clinic-v2` is the
+ * intended launch posture: the highest-value Apex additions are available while
+ * the three surfaces with unresolved workflow or disclosure risk stay dark.
+ * `full` is the whole product, which is what development and internal review run.
  *
  * A preset supplies DEFAULTS ONLY. A stored flag row always wins — the preset
  * is where a key starts, not where it is pinned.
  */
-export type PresetId = "clinic-v1" | "full";
+export type PresetId = "clinic-v1" | "clinic-v2" | "full";
 
 export const PRESETS: Record<PresetId, { label: string; description: string }> = {
   "clinic-v1": {
     label: "Clinic (V1 parity)",
     description:
       "The Aug 7 posture. Everything the coaches already learned, nothing they didn't ask for.",
+  },
+  "clinic-v2": {
+    label: "Clinic (V2 launch)",
+    description:
+      "Most Apex features on. Direct provider messaging, emergency cards and self-booking stay off until their operating controls are ready.",
   },
   full: {
     label: "Full product",
@@ -110,7 +117,7 @@ const DEFS = [
       "Whether patients can sign in at all. Scope this to individual members to run a pilot.",
     portals: ["patient"],
     routes: [],
-    defaults: { "clinic-v1": true, full: true },
+    defaults: { "clinic-v1": true, "clinic-v2": true, full: true },
     caution:
       "Global ON exposes the portal to every member. The Aug 7 plan is a ~10-person pilot: leave this global OFF and enable it per client.",
   },
@@ -121,7 +128,7 @@ const DEFS = [
       "A second message thread straight to the assigned provider, bypassing the coach.",
     portals: ["patient", "clinic"],
     routes: [],
-    defaults: { "clinic-v1": false, full: false },
+    defaults: { "clinic-v1": false, "clinic-v2": false, full: false },
     caution:
       "Decided against on 2026-07-21: the coach is the front door and escalates. Some providers are available four hours a month; a direct thread reaches nobody and the member watches their clinical question sit unanswered.",
   },
@@ -131,7 +138,7 @@ const DEFS = [
     description: "Member-facing education articles and the peptide reference library.",
     portals: ["patient"],
     routes: ["/portal/learn", "/portal/library"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "member-explore",
@@ -139,7 +146,7 @@ const DEFS = [
     description: "Merchandising surface showing services the member is not yet on.",
     portals: ["patient"],
     routes: ["/portal/explore"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "member-nutrition",
@@ -147,7 +154,7 @@ const DEFS = [
     description: "Member meal guidance and training programming.",
     portals: ["patient"],
     routes: ["/portal/food", "/portal/train"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "member-referrals",
@@ -155,7 +162,7 @@ const DEFS = [
     description: "Member referral flow and reward tracking.",
     portals: ["patient"],
     routes: ["/portal/refer"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "gamification",
@@ -164,7 +171,7 @@ const DEFS = [
       "The engagement layer over the member's own pages. Not a page of its own.",
     portals: ["patient"],
     routes: [],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
     caution:
       "Members can already opt out individually (member_prefs.gamification_enabled). This is the clinic-wide switch.",
   },
@@ -184,7 +191,7 @@ const DEFS = [
       "/desk/community",
       "/exec/community",
     ],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
     caution:
       "Member-to-member visibility. Every post is a potential disclosure between patients — moderation load is real and falls on staff.",
   },
@@ -196,7 +203,7 @@ const DEFS = [
     description: "Ranked list of lapsed members with outreach prompts.",
     portals: ["coach"],
     routes: ["/coach/winback"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "population-insights",
@@ -204,7 +211,7 @@ const DEFS = [
     description: "Cross-member pattern detection and cohort trajectories.",
     portals: ["coach", "clinic"],
     routes: ["/insights"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "ai-recommendations",
@@ -213,7 +220,7 @@ const DEFS = [
       "Generated protocol suggestions queued for provider sign-off.",
     portals: ["coach", "clinic"],
     routes: ["/recommendations"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
     caution:
       "A suggestion still requires a licensed signature before it reaches a member. Turning this off removes the queue, not the requirement.",
   },
@@ -223,7 +230,7 @@ const DEFS = [
     description: "Conversational assistant over the record.",
     portals: ["coach", "clinic", "desk", "exec"],
     routes: ["/agent"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "background-agents",
@@ -231,7 +238,7 @@ const DEFS = [
     description: "Long-running automation workers and their run history.",
     portals: ["coach", "exec"],
     routes: ["/swarm"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
   {
     key: "automations",
@@ -239,7 +246,7 @@ const DEFS = [
     description: "Rule-driven member outreach and lifecycle triggers.",
     portals: ["coach", "exec"],
     routes: ["/automations"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": true, full: true },
   },
 
   // ── Operations ─────────────────────────────────────────────────────────
@@ -250,7 +257,7 @@ const DEFS = [
       "Scannable card exposing medications, allergies and care team to a first responder.",
     portals: ["patient", "desk"],
     routes: ["/card"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": false, full: true },
     caution:
       "A live emergency card is PHI reachable by whoever holds the link. Grants expire and are revocable; the feature switch is the blunt instrument above that.",
   },
@@ -260,7 +267,7 @@ const DEFS = [
     description: "Members book their own visits against real availability.",
     portals: ["patient"],
     routes: ["/portal/book-visit", "/book"],
-    defaults: { "clinic-v1": false, full: true },
+    defaults: { "clinic-v1": false, "clinic-v2": false, full: true },
     caution:
       "A New Client Visit needs a coach, a lab draw and a provider on the same day. Do not enable member self-booking until the NCV resolver is live, or members will book visits the clinic cannot staff.",
   },

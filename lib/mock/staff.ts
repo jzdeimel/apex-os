@@ -2,6 +2,23 @@ import type { StaffMember } from "@/lib/types";
 
 export const staff: StaffMember[] = [
   {
+    id: "st-owner",
+    name: "Zack Deimel",
+    role: "Admin",
+    credentialClass: "Admin",
+    locationIds: [
+      "raleigh",
+      "raleigh-boutique",
+      "southern-pines",
+      "myrtle-beach",
+      "telehealth",
+    ],
+    email: "zack@goalphahealth.com",
+    canApprove: false,
+    avatarInitials: "ZD",
+    bio: "Owner. Global product and clinic administration.",
+  },
+  {
     id: "st-001",
     name: "Dr. Marcus Vale",
     role: "Medical",

@@ -67,6 +67,18 @@ export default async function FeaturesPage() {
           with your name on it.
         </p>
 
+        <div className="mt-4 rounded-lg border border-gold-400/30 bg-gold-400/5 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gold-300">
+            Global controls
+          </div>
+          <p className="mt-1 text-sm leading-relaxed text-ink-200">
+            Every switch below turns that feature on or off for everyone in the
+            clinic. Only Admins can change these switches. Scoped pilot rules
+            can still make a narrower exception for a role, location, staff
+            member or patient.
+          </p>
+        </div>
+
         <div className="mt-4 rounded-lg border border-ink-700/60 bg-ink-900/40 p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-ink-400">
             Release preset

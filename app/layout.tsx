@@ -7,6 +7,7 @@ import { PortalProvider } from "@/lib/portalStore";
 import { ToastProvider } from "@/components/ui/Toast";
 import { FeatureProvider } from "@/lib/features/client";
 import { featuresForCurrentUser, activePreset } from "@/lib/features/server";
+import { UI_SKIN } from "@/lib/config";
 
 /**
  * Fonts are VENDORED (app/fonts/*.woff2), loaded via next/font/local — not
@@ -64,21 +65,21 @@ export default async function RootLayout({
 }) {
   const features = await featuresForCurrentUser();
   const preset = activePreset();
+  const lightSkin = UI_SKIN === "v1-light";
 
   return (
     <html
       lang="en"
       /**
-       * `data-skin` selects the palette. Under the `clinic-v1` release preset
-       * Apex wears Alpha OS V1's look — light canvas, dark rail, V1's status
-       * colours — so the Aug 7 cutover does not also ask coaches to relearn
-       * what the software looks like. See app/globals.css.
+       * `data-skin` selects the palette independently from the feature preset.
+       * Alpha staff use the dark Alpha OS theme, so the shared environment is
+       * dark even when an owner later subtracts an individual feature.
        *
-       * The `dark` class stays bound to the Apex-native skin only. It was
-       * previously hardcoded, which is what made the palette unswappable.
+       * The legacy light skin remains available for deliberate comparison and
+       * accessibility testing, but changing features can no longer select it.
        */
-      data-skin={preset === "clinic-v1" ? "v1" : "apex"}
-      className={`${preset === "clinic-v1" ? "" : "dark"} ${sans.variable} ${display.variable} ${mono.variable}`}
+      data-skin={lightSkin ? "v1" : "apex"}
+      className={`${lightSkin ? "" : "dark"} ${sans.variable} ${display.variable} ${mono.variable}`}
     >
       <body>
         <FeatureProvider value={features} preset={preset}>

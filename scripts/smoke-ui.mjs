@@ -70,7 +70,36 @@ try {
     const text = (await p.evaluate(() => document.body.innerText)).trim();
     if (text.length < 200) done(1, `SMOKE-UI FAIL: /coach rendered only ${text.length} chars`);
     if (errors.length) done(1, `SMOKE-UI FAIL: /coach errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log(`ok  /coach: ${text.length} chars, no page errors`);
+    const reviewPosture = await p.evaluate(() => ({
+      skin: document.documentElement.dataset.skin,
+      darkClass: document.documentElement.classList.contains("dark"),
+      communityLinks: Array.from(document.querySelectorAll("a")).filter((a) =>
+        a.getAttribute("href") === "/coach/community",
+      ).length,
+    }));
+    if (reviewPosture.skin !== "apex" || !reviewPosture.darkClass) {
+      done(1, `SMOKE-UI FAIL: shared review skin is not dark (${JSON.stringify(reviewPosture)})`);
+    }
+    if (reviewPosture.communityLinks < 1) {
+      done(1, "SMOKE-UI FAIL: Community is hidden from the full coach navigation");
+    }
+    console.log(`ok  /coach: ${text.length} chars, dark skin, Community visible, no page errors`);
+    await p.close();
+  }
+
+  // The owner-reported regression: Community existed in source but the review
+  // preset turned its route and navigation off. Exercise the actual page so a
+  // future preset change cannot pass by testing only the dashboard.
+  {
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(`${BASE}/coach/community`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, { timeout: 10000 });
+    const text = (await p.evaluate(() => document.body.innerText)).trim();
+    if (!text.includes("Community")) done(1, "SMOKE-UI FAIL: /coach/community did not render Community");
+    if (errors.length) done(1, `SMOKE-UI FAIL: Community page errors: ${errors.slice(0, 3).join(" | ")}`);
+    console.log(`ok  /coach/community: ${text.length} chars, no page errors`);
     await p.close();
   }
 

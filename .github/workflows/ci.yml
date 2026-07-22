@@ -14,6 +14,10 @@ jobs:
     timeout-minutes: 30
     env:
       NEXT_TELEMETRY_DISABLED: "1"
+      # CI exercises the same product-review posture as shared nonprod. The
+      # smaller cutover preset is still covered by executable flag tests.
+      APEX_FEATURE_PRESET: "full"
+      APEX_UI_SKIN: "alpha-dark"
     steps:
       - uses: actions/checkout@v5
 

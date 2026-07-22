@@ -35,8 +35,12 @@
   --ink-200: 201 206 212;
   --ink-300: 163 171 181;
   --ink-400: 122 131 143;
-  --ink-500: 93 100 111;
-  --ink-600: 71 78 88;
+  /* Alpha-dark secondary text. The old #5d646f/#474e58 pair was tuned as
+     decorative depth but is also used for 11-15px labels throughout Apex; it
+     measured as low as 2.38:1 on the dark canvas. These match Alpha OS's dark
+     faint-text range and clear AA without turning hierarchy into white noise. */
+  --ink-500: 138 144 154;
+  --ink-600: 122 131 143;
   --ink-700: 35 39 45;
   --ink-800: 23 25 30;
   --ink-850: 18 20 25;

@@ -1,5 +1,5 @@
 /**
- * CONTRAST SWEEP — does the V1 skin stay legible on every page?
+ * CONTRAST SWEEP — does the deployed skin stay legible on every page?
  *
  * WHY THIS EXISTS
  * ---------------
@@ -109,6 +109,15 @@ const ROUTES = [
   "/portal", "/portal/labs", "/portal/protocol", "/portal/messages", "/portal/progress",
   "/portal/consents", "/portal/receipts", "/portal/journal", "/portal/team", "/portal/costs",
   "/patient-sign-in", "/patient",
+  // Full-product review surfaces. These were previously absent from the sweep
+  // because CI inherited the clinic-v1 preset—the same mistake that hid them
+  // from the owner in nonprod.
+  "/portal/food", "/portal/train", "/portal/explore", "/portal/learn",
+  "/portal/library", "/portal/refer", "/portal/book-visit",
+  "/community", "/portal/community", "/coach/community",
+  "/clinic/community", "/desk/community", "/exec/community",
+  "/coach/winback", "/insights", "/recommendations", "/agent", "/swarm",
+  "/automations",
 ];
 
 const PROBE = `(() => {
@@ -197,11 +206,13 @@ if (selfTest) {
 }
 
 let total = 0;
+let routeFailures = 0;
 const worst = [];
 for (const route of ROUTES) {
   try {
     const res = await page.goto(base + route, { waitUntil: "networkidle", timeout: 20000 });
     if (!res || res.status() >= 400) {
+      routeFailures += 1;
       console.log(`  ${String(res?.status() ?? "ERR").padEnd(4)} ${route}`);
       continue;
     }
@@ -218,11 +229,13 @@ for (const route of ROUTES) {
       worst.push(...fails.map((f) => ({ ...f, route })));
     }
   } catch (err) {
+    routeFailures += 1;
     console.log(`  ERR  ${route} — ${err.message.split("\n")[0]}`);
   }
 }
 
 console.log(`\n${total} contrast failures across ${ROUTES.length} routes`);
+console.log(`${routeFailures} route render failures`);
 if (worst.length) {
   const byColor = {};
   for (const w of worst) byColor[w.color] = (byColor[w.color] ?? 0) + 1;
@@ -234,4 +247,4 @@ if (worst.length) {
 
 await browser.close();
 cleanup();
-process.exit(total > 0 ? 1 : 0);
+process.exit(total > 0 || routeFailures > 0 ? 1 : 0);

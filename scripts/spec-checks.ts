@@ -67,6 +67,7 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
+import { staff } from "@/lib/mock/staff";
 
 let failures = 0;
 let checks = 0;
@@ -101,6 +102,27 @@ eq(
   "community ships dark in the clinic release",
   evaluateFeatures([], {}, P).community,
   false,
+);
+
+const V2 = evaluateFeatures([], {}, "clinic-v2");
+eq("community ships on in the V2 launch", V2.community, true);
+eq("member education ships on in the V2 launch", V2["member-education"], true);
+eq("member nutrition ships on in the V2 launch", V2["member-nutrition"], true);
+eq("AI recommendations ship on in the V2 launch", V2["ai-recommendations"], true);
+eq("automations ship on in the V2 launch", V2.automations, true);
+eq(
+  "direct provider messaging stays off in the V2 launch",
+  V2["member-provider-thread"],
+  false,
+);
+eq("emergency cards stay off in the V2 launch", V2["emergency-card"], false);
+eq("self-booking stays off in the V2 launch", V2["self-booking"], false);
+const owner = staff.find((member) => member.email === "zack@goalphahealth.com");
+eq("the owner account maps to an Admin staff identity", owner?.role, "Admin");
+eq(
+  "the owner account can administer every clinic location",
+  owner?.locationIds,
+  ["raleigh", "raleigh-boutique", "southern-pines", "myrtle-beach", "telehealth"],
 );
 
 // The Aug 7 pilot shape: "we can put it into production and we can do a small

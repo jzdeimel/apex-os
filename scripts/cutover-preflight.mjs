@@ -80,6 +80,8 @@ const deployMigrationScript = existsSync(resolve(root, "scripts/deploy-nonprod-m
   ? readFileSync(resolve(root, "scripts/deploy-nonprod-migration-job.ps1"), "utf8")
   : "";
 const demoModeDisabled = /name:\s*'APEX_DEMO_MODE'[\s\S]{0,300}?value:\s*'false'/.test(appTemplate);
+const fullNonprodPreset = /name:\s*'APEX_FEATURE_PRESET'[\s\S]{0,200}?value:\s*'full'/.test(appTemplate);
+const darkNonprodSkin = /name:\s*'APEX_UI_SKIN'[\s\S]{0,200}?value:\s*'alpha-dark'/.test(appTemplate);
 const deploymentBoundaryFailures = [
   !appTemplate.includes("if (!empty(entraClientSecret))") &&
     "routine app deployments can still rewrite the EasyAuth client secret",
@@ -91,6 +93,8 @@ const deploymentBoundaryFailures = [
     "routine deployments cannot verify the existing EasyAuth secret by metadata",
   !deployAppScript.includes("--enable-id-token-issuance true") &&
     "the Entra web registration does not enable the ID token required by EasyAuth login",
+  !fullNonprodPreset && "the Apex review environment hides owner-built features behind the clinic-v1 preset",
+  !darkNonprodSkin && "the Apex review environment is not pinned to the Alpha dark skin",
   !migrationTemplate.includes("value: 'false'") || !migrationTemplate.includes("triggerType: 'Manual'")
     ? "the migration job is not manual and hard-disabled by default"
     : false,
