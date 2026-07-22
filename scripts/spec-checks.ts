@@ -63,6 +63,9 @@ import {
   tokenSha256,
 } from "@/lib/auth/patientTokens";
 import { staffPatientPilotPolicy } from "@/lib/auth/pilotPolicy";
+import { authoritativeMessageId, containsUrgentLanguage } from "@/lib/messaging/authoritative";
+import { appointmentRequestId, appointmentTransitionAllowed } from "@/lib/scheduling/lifecycle";
+import { parseGoogleServiceAccount } from "@/lib/calendar/google";
 import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
@@ -723,7 +726,23 @@ eq(
   null,
 );
 
+section("Patient-to-coach messaging");
+const patientRequest = authoritativeMessageId("patient-to-coach", "client-1", "request-12345678");
+eq("a retried patient message keeps the same id", patientRequest, authoritativeMessageId("patient-to-coach", "client-1", "request-12345678"));
+eq("the same browser request cannot collide across patients", patientRequest === authoritativeMessageId("patient-to-coach", "client-2", "request-12345678"), false);
+eq("a coach reply cannot collide with a patient send", patientRequest === authoritativeMessageId("coach-to-patient", "client-1", "request-12345678", "coach-1"), false);
+eq("urgent chest symptoms are detected", containsUrgentLanguage("I have chest pressure and feel dizzy"), true);
+eq("ordinary scheduling language is not labeled urgent", containsUrgentLanguage("Can we move my appointment to Friday?"), false);
+
 section("Calendar capacity");
+const appointmentRequest = appointmentRequestId("client-1", "request-12345678");
+eq("a retried booking keeps the same opaque appointment id", appointmentRequest, appointmentRequestId("client-1", "request-12345678"));
+eq("appointment ids do not expose the patient id", appointmentRequest.includes("client-1"), false);
+eq("a scheduled visit may arrive", appointmentTransitionAllowed("Scheduled", "Arrived"), true);
+eq("a completed visit cannot be marked no-show", appointmentTransitionAllowed("Completed", "No Show"), false);
+let missingGoogleCredentialsRefused = false;
+try { parseGoogleServiceAccount(undefined); } catch { missingGoogleCredentialsRefused = true; }
+eq("calendar sync refuses missing credentials", missingGoogleCredentialsRefused, true);
 eq("an empty calendar without working hours offers nothing", freeWindows([], []).length, 0);
 eq(
   "busy time is subtracted from working hours",

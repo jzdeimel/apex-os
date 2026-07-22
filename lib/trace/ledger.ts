@@ -46,6 +46,9 @@ export type LedgerEntity =
   | "consent"
   | "document"
   | "session"
+  | "message"
+  | "appointment"
+  | "calendar"
   | "rule-set"
   /**
    * A feature flag change. Distinct from "rule-set", which versions CLINICAL

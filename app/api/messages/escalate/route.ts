@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 
 import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
-import { raiseEscalationWithLedger } from "@/lib/db/repo";
+import { raiseEscalationWithLedger, readClientCareScope } from "@/lib/db/repo";
 import { nowIso } from "@/lib/clock";
+import { isConfigured } from "@/lib/db/client";
 import { SLA_HOURS } from "@/lib/escalations/queue";
 import type { EscalationKind, EscalationPriority } from "@/lib/escalations/types";
 import { getClient } from "@/lib/mock/clients";
@@ -78,18 +79,32 @@ export async function POST(req: Request) {
     return fail(400, "question must be text.");
   }
 
-  const client = getClient(body.clientId);
-  if (!client) {
-    return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
+  let client;
+  try {
+    if (isConfigured) {
+      client = await readClientCareScope(body.clientId);
+    } else {
+      const seeded = getClient(body.clientId);
+      client = seeded ? {
+        id: seeded.id,
+        assignedCoachId: seeded.coachId,
+        assignedProviderId: seeded.providerId,
+        locationId: seeded.locationId,
+        status: "active",
+      } : null;
+    }
+  } catch (error) {
+    return unavailable("escalation.scope", error, "The patient assignment could not be verified.");
   }
+  if (!client || client.status !== "active") return fail(404, "Unknown active patient.");
 
   // Scope comes from the server-owned chart, never a coachId supplied by the
   // caller. Otherwise a coach could pair their own id with somebody else's
   // clientId and create clinical work outside their book.
   const g = await guard("escalate:provider", {
-    coachId: client.coachId,
-    providerId: client.providerId,
-    locationId: client.locationId,
+    coachId: client.assignedCoachId ?? undefined,
+    providerId: client.assignedProviderId ?? undefined,
+    locationId: client.locationId ?? undefined,
   });
   if (!g.ok) return g.res;
 

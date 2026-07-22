@@ -66,6 +66,8 @@ try {
   await expectStatus("GET", "/api/me", 401);
   await expectStatus("GET", "/api/audit", 403);
   await expectStatus("GET", "/api/escalations", 401);
+  await expectStatus("GET", "/api/coach/messages", 401);
+  await expectStatus("GET", "/api/patient/messages", 401);
   await expectStatus("POST", "/api/acs/token", 401);
 
   // Every mutating endpoint fails closed without a principal.

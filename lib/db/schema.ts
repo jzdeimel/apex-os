@@ -1095,12 +1095,51 @@ export const contactEntry = pgTable(
  * processor is being selected this week and the adapter must be swappable
  * without a migration. See lib/payments/port.ts.
  */
+/** Durable membership contract and recurring-billing cadence. */
+export const membership = pgTable(
+  "membership",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(),
+    planCode: text("plan_code").notNull(),
+    planName: text("plan_name").notNull(),
+    status: text("status").notNull().default("active"),
+    monthlyRateCents: integer("monthly_rate_cents").notNull(),
+    startedOn: text("started_on").notNull(),
+    currentPeriodStart: text("current_period_start"),
+    currentPeriodEnd: text("current_period_end"),
+    nextBillOn: text("next_bill_on"),
+    homeLocationId: text("home_location_id").notNull(),
+    merchantAccountId: text("merchant_account_id").notNull(),
+    paymentMethodId: text("payment_method_id"),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    pauseReason: text("pause_reason"),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelReason: text("cancel_reason"),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    ledgerId: text("ledger_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clientIdx: index("membership_client_idx").on(t.clientId, t.status),
+    currentIdx: uniqueIndex("membership_current_idx")
+      .on(t.clientId)
+      .where(sql`status IN ('active','paused','past_due')`),
+    sourceIdx: uniqueIndex("membership_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
 export const paymentMethod = pgTable(
   "payment_method",
   {
     id: text("id").primaryKey(),
     clientId: text("client_id").notNull(), // seeded ref -> client
     processor: text("processor").notNull(),
+    /** Vault tokens are scoped to the merchant account that created them. */
+    merchantAccountId: text("merchant_account_id"),
     /** The processor's vault token. Never a card number. */
     processorToken: text("processor_token").notNull(),
     brand: text("brand"),
@@ -1120,6 +1159,7 @@ export const invoice = pgTable(
   {
     id: text("id").primaryKey(),
     clientId: text("client_id").notNull(), // seeded ref -> client
+    membershipId: text("membership_id").references(() => membership.id),
     number: text("number").notNull(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }),
@@ -1169,7 +1209,10 @@ export const paymentAttempt = pgTable(
     clientId: text("client_id").notNull(),
     paymentMethodId: text("payment_method_id"),
     processor: text("processor").notNull(),
+    merchantAccountId: text("merchant_account_id"),
+    idempotencyKey: text("idempotency_key"),
     processorRef: text("processor_ref"),
+    originalPaymentAttemptId: text("original_payment_attempt_id"),
     amountCents: integer("amount_cents").notNull(),
     /** "succeeded" | "failed" | "pending" | "refunded" */
     status: text("status").notNull(),
@@ -1178,11 +1221,14 @@ export const paymentAttempt = pgTable(
     attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
     /** Which dunning attempt this was. 0 = original charge. */
     dunningAttempt: integer("dunning_attempt").default(0).notNull(),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
     ledgerId: text("ledger_id"),
   },
   (t) => ({
     invoiceIdx: index("payment_invoice_idx").on(t.invoiceId),
     failedIdx: index("payment_failed_idx").on(t.status, t.attemptedAt),
+    idempotencyIdx: uniqueIndex("payment_idempotency_idx").on(t.idempotencyKey),
   }),
 );
 

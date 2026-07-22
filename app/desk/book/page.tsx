@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { locationMap } from "@/lib/mock/locations";
-import { LocationSwitcher } from "@/components/frontdesk/LocationSwitcher";
-import { PhoneBooking } from "@/components/frontdesk/PhoneBooking";
-import { useDeskScope } from "@/lib/frontdesk/useDesk";
+import { LiveBookingForm } from "@/components/frontdesk/LiveBookingForm";
 
 /**
  * Front desk · Book a caller.
@@ -20,10 +17,6 @@ import { useDeskScope } from "@/lib/frontdesk/useDesk";
  * reading this screen is the person those calls ring through to.
  */
 export default function DeskBookPage() {
-  const [scope] = useDeskScope();
-  const phone =
-    scope === "all" ? locationMap.telehealth.phone : (locationMap[scope]?.phone ?? "833-549-9993");
-
   return (
     <div>
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -39,17 +32,11 @@ export default function DeskBookPage() {
             Book a caller
           </h1>
         </div>
-        <p className="text-micro text-ink-500">
-          Line: <span className="stat-mono text-ink-300">{phone}</span>
-        </p>
+        <p className="text-micro text-ink-500">Line: <span className="stat-mono text-ink-300">833-549-9993</span></p>
       </header>
 
       <section className="mt-4">
-        <LocationSwitcher />
-      </section>
-
-      <section className="mt-4">
-        <PhoneBooking />
+        <LiveBookingForm />
       </section>
     </div>
   );

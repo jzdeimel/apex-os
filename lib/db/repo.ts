@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, isNull, ne, or, sql as raw } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNull, lt, ne, or, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   ledger as ledgerTable,
@@ -23,6 +23,16 @@ import {
   historyPhysical,
   signedDocument as signedDocumentTable,
   signedDocumentArtifact,
+  message as messageTable,
+  client as clientTable,
+  clinicLocation as clinicLocationTable,
+  appointment as appointmentTable,
+  staffAvailabilityRule,
+  externalCalendar,
+  calendarBusyBlock,
+  allergy as allergyTable,
+  problem as problemTable,
+  medication as medicationTable,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import type { Consult } from "@/lib/consult/types";
@@ -53,6 +63,11 @@ import {
   type SignableDocument,
   type SignatureEvidence,
 } from "@/lib/documents/signing";
+import {
+  appointmentTransitionAllowed,
+  normalizedAppointmentState,
+  type AppointmentState,
+} from "@/lib/scheduling/lifecycle";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -353,6 +368,820 @@ export async function logContact(input: {
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Authoritative patient <-> coach messaging                                  */
+/* -------------------------------------------------------------------------- */
+
+export async function readClientCareScope(clientId: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      id: clientTable.id,
+      firstName: clientTable.firstName,
+      lastName: clientTable.lastName,
+      preferredName: clientTable.preferredName,
+      assignedCoachId: clientTable.assignedCoachId,
+      assignedProviderId: clientTable.assignedProviderId,
+      locationId: clientTable.homeLocationId,
+      locationName: clinicLocationTable.name,
+      coachName: staffTable.name,
+      coachActive: staffTable.active,
+      status: clientTable.status,
+    })
+    .from(clientTable)
+    .leftJoin(clinicLocationTable, eq(clientTable.homeLocationId, clinicLocationTable.id))
+    .leftJoin(staffTable, eq(clientTable.assignedCoachId, staffTable.id))
+    .where(eq(clientTable.id, clientId))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Patient message and audit witness commit together, with retry idempotency. */
+export async function createPatientCoachMessageWithLedger(input: {
+  id: string;
+  clientId: string;
+  patientName: string;
+  coachId: string;
+  body: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(messageTable)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        thread: "coach",
+        senderId: input.clientId,
+        senderKind: "member",
+        recipientId: input.coachId,
+        recipientRole: "Coach",
+        body: input.body,
+        sentAt: new Date(input.at),
+      })
+      .onConflictDoNothing({ target: messageTable.id })
+      .returning();
+
+    if (!inserted) {
+      const [existing] = await tx
+        .select()
+        .from(messageTable)
+        .where(and(eq(messageTable.id, input.id), eq(messageTable.clientId, input.clientId)))
+        .limit(1);
+      return existing ? { message: existing, ledger: null, duplicate: true } : null;
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.clientId,
+        actorName: input.patientName,
+        actorRole: "Client",
+        action: "deliver",
+        entity: "message",
+        entityId: input.id,
+        subjectId: input.clientId,
+        reason: "Patient sent a secure portal message to assigned coach",
+        after: { thread: "coach", recipientId: input.coachId },
+      },
+      input.at,
+    );
+    return { message: inserted, ledger, duplicate: false };
+  });
+}
+
+export async function createCoachPatientMessageWithLedger(input: {
+  id: string;
+  clientId: string;
+  coachId: string;
+  coachName: string;
+  body: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(messageTable)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        thread: "coach",
+        senderId: input.coachId,
+        senderKind: "coach",
+        recipientId: input.clientId,
+        recipientRole: "Client",
+        body: input.body,
+        sentAt: new Date(input.at),
+      })
+      .onConflictDoNothing({ target: messageTable.id })
+      .returning();
+
+    if (!inserted) {
+      const [existing] = await tx
+        .select()
+        .from(messageTable)
+        .where(and(eq(messageTable.id, input.id), eq(messageTable.clientId, input.clientId)))
+        .limit(1);
+      return existing ? { message: existing, ledger: null, duplicate: true } : null;
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.coachId,
+        actorName: input.coachName,
+        actorRole: "Coach",
+        action: "deliver",
+        entity: "message",
+        entityId: input.id,
+        subjectId: input.clientId,
+        reason: "Assigned coach replied through secure patient messaging",
+        after: { thread: "coach", recipientId: input.clientId },
+      },
+      input.at,
+    );
+    return { message: inserted, ledger, duplicate: false };
+  });
+}
+
+export async function readPatientCoachMessages(clientId: string, limit = 100) {
+  const db = requireDb();
+  const rows = await db
+    .select()
+    .from(messageTable)
+    .where(and(eq(messageTable.clientId, clientId), eq(messageTable.thread, "coach")))
+    .orderBy(desc(messageTable.sentAt))
+    .limit(Math.max(1, Math.min(limit, 250)));
+  return rows.reverse();
+}
+
+export async function readCoachInbox(coachId: string, includeAll = false) {
+  const db = requireDb();
+  const assigned = includeAll ? undefined : eq(clientTable.assignedCoachId, coachId);
+  const clientRows = await db
+    .select({
+      id: clientTable.id,
+      firstName: clientTable.firstName,
+      lastName: clientTable.lastName,
+      preferredName: clientTable.preferredName,
+      assignedCoachId: clientTable.assignedCoachId,
+      locationId: clientTable.homeLocationId,
+    })
+    .from(clientTable)
+    .where(assigned ? and(eq(clientTable.status, "active"), assigned) : eq(clientTable.status, "active"));
+
+  const summaries = await Promise.all(
+    clientRows.map(async (person) => {
+      const [latest] = await db
+        .select()
+        .from(messageTable)
+        .where(and(eq(messageTable.clientId, person.id), eq(messageTable.thread, "coach")))
+        .orderBy(desc(messageTable.sentAt))
+        .limit(1);
+      if (!latest) return null;
+      const [unread] = await db
+        .select({ count: raw<number>`count(*)::int` })
+        .from(messageTable)
+        .where(
+          and(
+            eq(messageTable.clientId, person.id),
+            eq(messageTable.thread, "coach"),
+            eq(messageTable.senderKind, "member"),
+            isNull(messageTable.readAt),
+          ),
+        );
+      return { ...person, latest, unreadCount: unread?.count ?? 0 };
+    }),
+  );
+
+  return summaries
+    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .sort((a, b) => b.latest.sentAt.getTime() - a.latest.sentAt.getTime());
+}
+
+export async function markPatientMessagesReadWithLedger(input: {
+  clientId: string;
+  coachId: string;
+  coachName: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(messageTable)
+      .set({ readAt: new Date(input.at) })
+      .where(
+        and(
+          eq(messageTable.clientId, input.clientId),
+          eq(messageTable.thread, "coach"),
+          eq(messageTable.senderKind, "member"),
+          isNull(messageTable.readAt),
+        ),
+      )
+      .returning({ id: messageTable.id });
+    if (!rows.length) return { count: 0, ledger: null };
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.coachId,
+        actorName: input.coachName,
+        actorRole: "Coach",
+        action: "view",
+        entity: "message",
+        entityId: rows[rows.length - 1].id,
+        subjectId: input.clientId,
+        reason: `Assigned coach read ${rows.length} patient message${rows.length === 1 ? "" : "s"}`,
+        after: { readCount: rows.length },
+      },
+      input.at,
+    );
+    return { count: rows.length, ledger };
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Authoritative appointments and front-desk encounter clock                  */
+/* -------------------------------------------------------------------------- */
+
+type SlotInput = {
+  clientId: string;
+  staffId: string;
+  locationId: string;
+  startAt: Date;
+  endAt: Date;
+  excludeAppointmentId?: string;
+};
+
+function localSlot(date: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    weekday: weekdays[value("weekday")],
+    minute: Number(value("hour")) * 60 + Number(value("minute")),
+  };
+}
+
+async function slotConflicts(tx: DbTx, input: SlotInput): Promise<string[]> {
+  const issues: string[] = [];
+  const [person] = await tx
+    .select({ id: clientTable.id, status: clientTable.status })
+    .from(clientTable)
+    .where(eq(clientTable.id, input.clientId))
+    .limit(1);
+  if (!person || person.status !== "active") issues.push("The patient is not active in Apex.");
+
+  const [worker] = await tx
+    .select({
+      id: staffTable.id,
+      active: staffTable.active,
+      excluded: staffTable.excludeFromScheduling,
+      locationIds: staffTable.locationIds,
+    })
+    .from(staffTable)
+    .where(eq(staffTable.id, input.staffId))
+    .limit(1);
+  const locations = Array.isArray(worker?.locationIds) ? worker.locationIds as string[] : [];
+  if (!worker || !worker.active || worker.excluded) issues.push("The selected staff member is not schedulable.");
+  else if (!locations.includes(input.locationId)) issues.push("The selected staff member does not cover this clinic.");
+
+  const [clinic] = await tx
+    .select({ timezone: clinicLocationTable.timezone, active: clinicLocationTable.active })
+    .from(clinicLocationTable)
+    .where(eq(clinicLocationTable.id, input.locationId))
+    .limit(1);
+  if (!clinic?.active) issues.push("The selected clinic is not active.");
+
+  const omit = input.excludeAppointmentId ? ne(appointmentTable.id, input.excludeAppointmentId) : undefined;
+  const activeStatus = raw`${appointmentTable.status} NOT IN ('Cancelled','Canceled','No Show')`;
+  const overlap = and(lt(appointmentTable.startAt, input.endAt), gt(appointmentTable.endAt, input.startAt), activeStatus, omit);
+  const [staffOverlap, patientOverlap] = await Promise.all([
+    tx.select({ id: appointmentTable.id }).from(appointmentTable).where(and(eq(appointmentTable.staffId, input.staffId), overlap)).limit(1),
+    tx.select({ id: appointmentTable.id }).from(appointmentTable).where(and(eq(appointmentTable.clientId, input.clientId), overlap)).limit(1),
+  ]);
+  if (staffOverlap.length) issues.push("The staff member already has an Apex appointment in this time.");
+  if (patientOverlap.length) issues.push("The patient already has an appointment in this time.");
+
+  const calendarOverlap = await tx
+    .select({ id: calendarBusyBlock.id })
+    .from(calendarBusyBlock)
+    .innerJoin(externalCalendar, eq(calendarBusyBlock.calendarId, externalCalendar.id))
+    .where(
+      and(
+        eq(externalCalendar.staffId, input.staffId),
+        eq(externalCalendar.status, "connected"),
+        lt(calendarBusyBlock.startAt, input.endAt),
+        gt(calendarBusyBlock.endAt, input.startAt),
+        ne(calendarBusyBlock.status, "cancelled"),
+      ),
+    )
+    .limit(1);
+  if (calendarOverlap.length) issues.push("The staff member's connected calendar is busy in this time.");
+
+  if (clinic) {
+    const start = localSlot(input.startAt, clinic.timezone);
+    const end = localSlot(input.endAt, clinic.timezone);
+    const rules = await tx
+      .select()
+      .from(staffAvailabilityRule)
+      .where(
+        and(
+          eq(staffAvailabilityRule.staffId, input.staffId),
+          eq(staffAvailabilityRule.locationId, input.locationId),
+          eq(staffAvailabilityRule.active, true),
+        ),
+      );
+    const covered = start.date === end.date && rules.some((rule) =>
+      rule.weekday === start.weekday &&
+      rule.effectiveFrom <= start.date &&
+      (!rule.effectiveUntil || rule.effectiveUntil >= start.date) &&
+      start.minute >= rule.startMinute &&
+      end.minute <= rule.endMinute
+    );
+    if (!covered) issues.push("No approved working-hours rule covers this slot.");
+  }
+  return issues;
+}
+
+export async function readAppointments(input: {
+  from: string;
+  to: string;
+  clientId?: string;
+  staffId?: string;
+  locationId?: string;
+}) {
+  const db = requireDb();
+  const filters = [
+    gte(appointmentTable.startAt, new Date(input.from)),
+    lt(appointmentTable.startAt, new Date(input.to)),
+    input.clientId ? eq(appointmentTable.clientId, input.clientId) : undefined,
+    input.staffId ? eq(appointmentTable.staffId, input.staffId) : undefined,
+    input.locationId ? eq(appointmentTable.locationId, input.locationId) : undefined,
+  ];
+  return db
+    .select({
+      id: appointmentTable.id,
+      clientId: appointmentTable.clientId,
+      clientFirstName: clientTable.firstName,
+      clientLastName: clientTable.lastName,
+      clientPreferredName: clientTable.preferredName,
+      staffId: appointmentTable.staffId,
+      staffName: staffTable.name,
+      locationId: appointmentTable.locationId,
+      locationName: clinicLocationTable.name,
+      visitType: appointmentTable.visitType,
+      modality: appointmentTable.modality,
+      startAt: appointmentTable.startAt,
+      endAt: appointmentTable.endAt,
+      status: appointmentTable.status,
+      arrivedAt: appointmentTable.arrivedAt,
+      roomedAt: appointmentTable.roomedAt,
+      room: appointmentTable.room,
+      completedAt: appointmentTable.completedAt,
+      cancelledAt: appointmentTable.cancelledAt,
+      cancelReason: appointmentTable.cancelReason,
+      reason: appointmentTable.reason,
+    })
+    .from(appointmentTable)
+    .innerJoin(clientTable, eq(appointmentTable.clientId, clientTable.id))
+    .leftJoin(staffTable, eq(appointmentTable.staffId, staffTable.id))
+    .leftJoin(clinicLocationTable, eq(appointmentTable.locationId, clinicLocationTable.id))
+    .where(and(...filters))
+    .orderBy(asc(appointmentTable.startAt));
+}
+
+export async function readSchedulingReference() {
+  const db = requireDb();
+  const [clients, staffRows, locations] = await Promise.all([
+    db
+      .select({
+        id: clientTable.id,
+        firstName: clientTable.firstName,
+        lastName: clientTable.lastName,
+        preferredName: clientTable.preferredName,
+        homeLocationId: clientTable.homeLocationId,
+      })
+      .from(clientTable)
+      .where(eq(clientTable.status, "active"))
+      .orderBy(clientTable.lastName, clientTable.firstName),
+    db
+      .select({
+        id: staffTable.id,
+        name: staffTable.name,
+        role: staffTable.role,
+        title: staffTable.title,
+        locationIds: staffTable.locationIds,
+      })
+      .from(staffTable)
+      .where(and(eq(staffTable.active, true), eq(staffTable.excludeFromScheduling, false)))
+      .orderBy(staffTable.name),
+    db
+      .select({ id: clinicLocationTable.id, name: clinicLocationTable.name, timezone: clinicLocationTable.timezone })
+      .from(clinicLocationTable)
+      .where(eq(clinicLocationTable.active, true))
+      .orderBy(clinicLocationTable.name),
+  ]);
+  return { clients, staff: staffRows, locations };
+}
+
+export async function readGoogleCalendarsForSync() {
+  const db = requireDb();
+  return db
+    .select({
+      id: externalCalendar.id,
+      staffId: externalCalendar.staffId,
+      staffEmail: staffTable.email,
+      staffName: staffTable.name,
+      externalCalendarId: externalCalendar.externalCalendarId,
+      status: externalCalendar.status,
+      lastSyncedAt: externalCalendar.lastSyncedAt,
+      lastErrorCode: externalCalendar.lastErrorCode,
+    })
+    .from(externalCalendar)
+    .innerJoin(staffTable, eq(externalCalendar.staffId, staffTable.id))
+    .where(and(eq(externalCalendar.provider, "google"), eq(staffTable.active, true)))
+    .orderBy(staffTable.name);
+}
+
+export async function replaceCalendarBusyWindow(input: {
+  calendarId: string;
+  staffId: string;
+  from: string;
+  to: string;
+  busy: Array<{ id: string; start: string; end: string }>;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx
+      .delete(calendarBusyBlock)
+      .where(
+        and(
+          eq(calendarBusyBlock.calendarId, input.calendarId),
+          lt(calendarBusyBlock.startAt, new Date(input.to)),
+          gt(calendarBusyBlock.endAt, new Date(input.from)),
+        ),
+      );
+    if (input.busy.length) {
+      await tx.insert(calendarBusyBlock).values(input.busy.map((window) => ({
+        id: window.id,
+        calendarId: input.calendarId,
+        externalEventId: window.id,
+        startAt: new Date(window.start),
+        endAt: new Date(window.end),
+        status: "busy",
+        lastSeenAt: new Date(input.at),
+      })));
+    }
+    await tx
+      .update(externalCalendar)
+      .set({ status: "connected", lastSyncedAt: new Date(input.at), lastErrorCode: null })
+      .where(eq(externalCalendar.id, input.calendarId));
+    return appendLedgerInTx(
+      tx,
+      {
+        actorId: "system-google-calendar-sync",
+        actorName: "Google Calendar sync",
+        actorRole: "System",
+        action: "update",
+        entity: "calendar",
+        entityId: input.calendarId,
+        reason: "Refreshed busy-only Google Calendar cache",
+        after: { staffId: input.staffId, from: input.from, to: input.to, busyBlockCount: input.busy.length, phiImported: false },
+      },
+      input.at,
+    );
+  });
+}
+
+export async function markCalendarSyncError(calendarId: string, code: string) {
+  const db = requireDb();
+  await db
+    .update(externalCalendar)
+    .set({ status: "error", lastErrorCode: code.slice(0, 120) })
+    .where(eq(externalCalendar.id, calendarId));
+}
+
+export async function readChartFundamentals(clientId: string) {
+  const db = requireDb();
+  const [allergies, problems, medications] = await Promise.all([
+    db.select().from(allergyTable).where(eq(allergyTable.clientId, clientId)).orderBy(desc(allergyTable.recordedAt)),
+    db.select().from(problemTable).where(eq(problemTable.clientId, clientId)).orderBy(desc(problemTable.recordedAt)),
+    db.select().from(medicationTable).where(eq(medicationTable.clientId, clientId)).orderBy(desc(medicationTable.recordedAt)),
+  ]);
+  return { allergies, problems, medications };
+}
+
+export async function changeChartFundamentalsWithLedger(input: {
+  id: string;
+  clientId: string;
+  kind: "allergy" | "problem" | "medication" | "reconcile";
+  operation: "add" | "end" | "reconcile";
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+  substance?: string;
+  reaction?: string;
+  severity?: string;
+  noKnownAllergies?: boolean;
+  label?: string;
+  icd10?: string;
+  onsetOn?: string;
+  name?: string;
+  dose?: string;
+  frequency?: string;
+  prescriber?: string;
+  startedOn?: string;
+  reason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [person] = await tx.select({ id: clientTable.id }).from(clientTable).where(and(eq(clientTable.id, input.clientId), eq(clientTable.status, "active"))).limit(1);
+    if (!person) return { status: "missing" as const };
+    const at = new Date(input.at);
+    const day = input.at.slice(0, 10);
+    let before: Record<string, unknown> = {};
+    let after: Record<string, unknown> = {};
+    let entityId = input.id;
+    let reason = input.reason?.trim() || `${input.kind} ${input.operation}`;
+
+    if (input.kind === "allergy" && input.operation === "add") {
+      if (input.noKnownAllergies) {
+        const active = await tx.select({ id: allergyTable.id }).from(allergyTable).where(and(eq(allergyTable.clientId, input.clientId), isNull(allergyTable.endedAt), eq(allergyTable.noKnownAllergies, false)));
+        if (active.length) return { status: "conflict" as const, reason: "Active allergies must be ended before documenting no known allergies." };
+      } else {
+        await tx.update(allergyTable).set({ endedAt: at }).where(and(eq(allergyTable.clientId, input.clientId), eq(allergyTable.noKnownAllergies, true), isNull(allergyTable.endedAt)));
+      }
+      await tx.insert(allergyTable).values({
+        id: input.id,
+        clientId: input.clientId,
+        substance: input.noKnownAllergies ? "No known allergies" : input.substance!.trim(),
+        reaction: input.reaction?.trim() || null,
+        severity: input.noKnownAllergies ? "unknown" : input.severity ?? "unknown",
+        noKnownAllergies: input.noKnownAllergies ?? false,
+        recordedBy: input.actorId,
+        recordedAt: at,
+      });
+      after = { kind: "allergy", substance: input.noKnownAllergies ? "No known allergies" : input.substance, severity: input.severity ?? "unknown", active: true };
+      reason = input.noKnownAllergies ? "Medical documented no known allergies" : "Medical added allergy";
+    } else if (input.kind === "allergy" && input.operation === "end") {
+      const [row] = await tx.update(allergyTable).set({ endedAt: at }).where(and(eq(allergyTable.id, input.id), eq(allergyTable.clientId, input.clientId), isNull(allergyTable.endedAt))).returning();
+      if (!row) return { status: "conflict" as const, reason: "The allergy is missing or already inactive." };
+      before = { active: true, substance: row.substance }; after = { active: false, endedAt: input.at };
+      reason = input.reason?.trim() || "Medical inactivated allergy after reconciliation";
+    } else if (input.kind === "problem" && input.operation === "add") {
+      await tx.insert(problemTable).values({ id: input.id, clientId: input.clientId, label: input.label!.trim(), icd10: input.icd10?.trim() || null, status: "active", onsetOn: input.onsetOn || null, recordedBy: input.actorId, recordedAt: at });
+      after = { kind: "problem", label: input.label, icd10: input.icd10 || null, status: "active" }; reason = "Medical added problem-list entry";
+    } else if (input.kind === "problem" && input.operation === "end") {
+      const [row] = await tx.update(problemTable).set({ status: "resolved", resolvedOn: day }).where(and(eq(problemTable.id, input.id), eq(problemTable.clientId, input.clientId), ne(problemTable.status, "resolved"))).returning();
+      if (!row) return { status: "conflict" as const, reason: "The problem is missing or already resolved." };
+      before = { status: row.status, label: row.label }; after = { status: "resolved", resolvedOn: day }; reason = input.reason?.trim() || "Medical resolved problem-list entry";
+    } else if (input.kind === "medication" && input.operation === "add") {
+      await tx.insert(medicationTable).values({ id: input.id, clientId: input.clientId, name: input.name!.trim(), external: true, dose: input.dose?.trim() || null, frequency: input.frequency?.trim() || null, startedOn: input.startedOn || null, prescriber: input.prescriber?.trim() || null, recordedBy: input.actorId, recordedAt: at });
+      after = { kind: "medication", name: input.name, dose: input.dose || null, frequency: input.frequency || null, external: true, active: true }; reason = "Medical added outside medication";
+    } else if (input.kind === "medication" && input.operation === "end") {
+      const [row] = await tx.update(medicationTable).set({ stoppedOn: day }).where(and(eq(medicationTable.id, input.id), eq(medicationTable.clientId, input.clientId), isNull(medicationTable.stoppedOn))).returning();
+      if (!row) return { status: "conflict" as const, reason: "The medication is missing or already stopped." };
+      before = { active: true, name: row.name }; after = { active: false, stoppedOn: day }; reason = input.reason?.trim() || "Medical marked outside medication stopped";
+    } else if (input.kind === "reconcile" && input.operation === "reconcile") {
+      entityId = `reconciliation-${input.clientId}-${input.at}`;
+      const [allergyRows, problemRows, medicationRows] = await Promise.all([
+        tx.select({ id: allergyTable.id }).from(allergyTable).where(and(eq(allergyTable.clientId, input.clientId), isNull(allergyTable.endedAt))),
+        tx.select({ id: problemTable.id }).from(problemTable).where(and(eq(problemTable.clientId, input.clientId), eq(problemTable.status, "active"))),
+        tx.select({ id: medicationTable.id }).from(medicationTable).where(and(eq(medicationTable.clientId, input.clientId), isNull(medicationTable.stoppedOn))),
+      ]);
+      after = { reconciledAt: input.at, allergiesReviewed: allergyRows.length, problemsReviewed: problemRows.length, medicationsReviewed: medicationRows.length };
+      reason = input.reason?.trim() || "Medical reconciled allergies, problems, and medications";
+    } else return { status: "invalid" as const, reason: "Unsupported chart-fundamentals operation." };
+
+    const ledger = await appendLedgerInTx(tx, {
+      actorId: input.actorId,
+      actorName: input.actorName,
+      actorRole: input.actorRole,
+      action: input.operation === "add" ? "create" : "update",
+      entity: "chart",
+      entityId,
+      subjectId: input.clientId,
+      reason,
+      before,
+      after,
+    }, input.at);
+    return { status: "ok" as const, ledger };
+  });
+}
+
+export async function readAppointmentCareScope(id: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      appointment: appointmentTable,
+      assignedCoachId: clientTable.assignedCoachId,
+      assignedProviderId: clientTable.assignedProviderId,
+      homeLocationId: clientTable.homeLocationId,
+    })
+    .from(appointmentTable)
+    .innerJoin(clientTable, eq(appointmentTable.clientId, clientTable.id))
+    .where(eq(appointmentTable.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function bookAppointmentWithLedger(input: {
+  id: string;
+  clientId: string;
+  staffId: string;
+  locationId: string;
+  visitType: string;
+  modality: string;
+  startAt: string;
+  endAt: string;
+  reason?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+  overrideReason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx.execute(raw`SELECT pg_advisory_xact_lock(4250)`);
+    const [existing] = await tx.select().from(appointmentTable).where(eq(appointmentTable.id, input.id)).limit(1);
+    if (existing) return { appointment: existing, ledger: null, duplicate: true, issues: [] as string[] };
+    const issues = await slotConflicts(tx, {
+      clientId: input.clientId,
+      staffId: input.staffId,
+      locationId: input.locationId,
+      startAt: new Date(input.startAt),
+      endAt: new Date(input.endAt),
+    });
+    if (issues.length && !input.overrideReason) return { appointment: null, ledger: null, duplicate: false, issues };
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "appointment",
+        entityId: input.id,
+        subjectId: input.clientId,
+        locationId: input.locationId as LedgerDraft["locationId"],
+        reason: input.overrideReason ? `Appointment booked with operational override: ${input.overrideReason}` : "Appointment booked",
+        after: { staffId: input.staffId, startAt: input.startAt, endAt: input.endAt, visitType: input.visitType, modality: input.modality, overrideIssues: issues },
+      },
+      input.at,
+    );
+    const [appointment] = await tx
+      .insert(appointmentTable)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        staffId: input.staffId,
+        locationId: input.locationId,
+        visitType: input.visitType,
+        modality: input.modality,
+        startAt: new Date(input.startAt),
+        endAt: new Date(input.endAt),
+        status: "Scheduled",
+        reason: input.reason ?? null,
+        bookedBy: input.actorId,
+        bookedAt: new Date(input.at),
+        ledgerId: ledger.id,
+      })
+      .returning();
+    return { appointment, ledger, duplicate: false, issues };
+  });
+}
+
+export async function changeAppointmentWithLedger(input: {
+  id: string;
+  action: "arrive" | "room" | "complete" | "no-show" | "cancel" | "reopen" | "reschedule" | "reassign";
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+  room?: string;
+  reason?: string;
+  startAt?: string;
+  endAt?: string;
+  staffId?: string;
+  locationId?: string;
+  overrideReason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx.execute(raw`SELECT pg_advisory_xact_lock(4250)`);
+    const [current] = await tx.select().from(appointmentTable).where(eq(appointmentTable.id, input.id)).limit(1);
+    if (!current) return { status: "missing" as const };
+    const from = normalizedAppointmentState(current.status);
+    if (!from) return { status: "conflict" as const, reason: "Unknown current appointment state." };
+
+    let to: AppointmentState = from;
+    if (input.action === "arrive") to = "Arrived";
+    if (input.action === "room") to = "Roomed";
+    if (input.action === "complete") to = "Completed";
+    if (input.action === "no-show") to = "No Show";
+    if (input.action === "cancel") to = "Cancelled";
+    if (input.action === "reopen") to = "Scheduled";
+    const stateChange = to !== from;
+    if (stateChange && !appointmentTransitionAllowed(from, to)) {
+      return { status: "conflict" as const, reason: `${from} cannot move to ${to}. Refresh the appointment.` };
+    }
+    if (input.action === "room" && !input.room?.trim()) return { status: "invalid" as const, reason: "A room is required." };
+    if ((input.action === "cancel" || input.action === "reopen") && !input.reason?.trim()) {
+      return { status: "invalid" as const, reason: "A reason is required for this change." };
+    }
+
+    const scheduleChange = input.action === "reschedule" || input.action === "reassign";
+    if (scheduleChange && from !== "Scheduled") {
+      return { status: "conflict" as const, reason: "Only a scheduled appointment can be moved or reassigned." };
+    }
+    const nextStaffId = input.staffId ?? current.staffId;
+    const nextLocationId = input.locationId ?? current.locationId;
+    const nextStartAt = input.startAt ? new Date(input.startAt) : current.startAt;
+    const nextEndAt = input.endAt ? new Date(input.endAt) : current.endAt;
+    if (scheduleChange) {
+      if (!nextStaffId || !nextLocationId) return { status: "invalid" as const, reason: "Staff and clinic are required." };
+      const issues = await slotConflicts(tx, {
+        clientId: current.clientId,
+        staffId: nextStaffId,
+        locationId: nextLocationId,
+        startAt: nextStartAt,
+        endAt: nextEndAt,
+        excludeAppointmentId: current.id,
+      });
+      if (issues.length && !input.overrideReason) return { status: "invalid" as const, reason: issues.join(" "), issues };
+    }
+
+    const at = new Date(input.at);
+    const changes: Partial<typeof appointmentTable.$inferInsert> = {
+      status: to,
+      staffId: nextStaffId,
+      locationId: nextLocationId,
+      startAt: nextStartAt,
+      endAt: nextEndAt,
+    };
+    if (to === "Arrived") {
+      changes.arrivedAt = current.arrivedAt ?? at;
+      changes.roomedAt = null;
+      changes.room = null;
+      changes.completedAt = null;
+    } else if (to === "Roomed") {
+      changes.roomedAt = at;
+      changes.room = input.room!.trim();
+    } else if (to === "Completed") changes.completedAt = at;
+    else if (to === "Cancelled") {
+      changes.cancelledAt = at;
+      changes.cancelledBy = input.actorId;
+      changes.cancelReason = input.reason!.trim();
+    } else if (to === "Scheduled" && stateChange) {
+      changes.arrivedAt = null;
+      changes.roomedAt = null;
+      changes.room = null;
+      changes.completedAt = null;
+      changes.cancelledAt = null;
+      changes.cancelledBy = null;
+      changes.cancelReason = null;
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "appointment",
+        entityId: input.id,
+        subjectId: current.clientId,
+        locationId: (nextLocationId ?? current.locationId ?? undefined) as LedgerDraft["locationId"],
+        reason: input.overrideReason
+          ? `${input.action} with operational override: ${input.overrideReason}`
+          : input.reason?.trim() || `Appointment ${input.action}`,
+        before: { status: from, staffId: current.staffId, locationId: current.locationId, startAt: current.startAt.toISOString(), endAt: current.endAt.toISOString(), room: current.room },
+        after: { status: to, staffId: nextStaffId, locationId: nextLocationId, startAt: nextStartAt.toISOString(), endAt: nextEndAt.toISOString(), room: changes.room ?? current.room },
+      },
+      input.at,
+    );
+    changes.ledgerId = ledger.id;
+    const [appointment] = await tx.update(appointmentTable).set(changes).where(eq(appointmentTable.id, input.id)).returning();
+    return { status: "ok" as const, appointment, ledger };
+  });
+}
+
 /**
  * Raise an escalation so a provider actually receives it.
  *
@@ -432,6 +1261,18 @@ export async function raiseEscalationWithLedger(input: {
       dueAt: new Date(input.dueAt),
       ledgerId: ledger.id,
     });
+    if (input.messageId) {
+      await tx
+        .update(messageTable)
+        .set({ escalatedAt: new Date(input.raisedAt), escalationId: input.id })
+        .where(
+          and(
+            eq(messageTable.id, input.messageId),
+            eq(messageTable.clientId, input.clientId),
+            eq(messageTable.thread, "coach"),
+          ),
+        );
+    }
     return { escalationId: input.id, ledger };
   });
 }

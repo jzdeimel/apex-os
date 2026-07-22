@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/primitives";
-import { LocationSwitcher } from "@/components/frontdesk/LocationSwitcher";
-import { DeskBoard } from "@/components/frontdesk/DeskBoard";
+import { LiveDeskBoard } from "@/components/frontdesk/LiveDeskBoard";
 
 /**
  * Front desk · The day.
@@ -44,11 +43,7 @@ export default function DeskDayPage() {
       </header>
 
       <section className="mt-4">
-        <LocationSwitcher />
-      </section>
-
-      <section className="mt-4">
-        <DeskBoard />
+        <LiveDeskBoard />
       </section>
     </div>
   );

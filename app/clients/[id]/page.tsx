@@ -68,6 +68,7 @@ import { canViewClient, staffIdForPortal } from "@/lib/access/clientScope";
 import { ShieldAlert } from "lucide-react";
 import { BreakGlassChallenge, BreakGlassBanner } from "@/components/access/BreakGlass";
 import { useBreakGlass } from "@/lib/access/breakGlass";
+import { ChartFundamentals } from "@/components/clinical/ChartFundamentals";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -85,6 +86,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "plan", label: "Plan of Care" },
   { id: "consults", label: "Consults" },
+  { id: "history", label: "Meds & History" },
   { id: "escalations", label: "Escalations" },
   { id: "labs", label: "Labs" },
   { id: "scan", label: "Body Scan" },
@@ -232,6 +234,7 @@ export default function ClientProfilePage() {
         {tab === "consults" && (
           <ConsultsTab id={id} autoStart={searchParams.get("new") === "1"} />
         )}
+        {tab === "history" && <ChartFundamentals clientId={id} />}
         {tab === "escalations" && <ClientEscalations clientId={id} />}
         {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}

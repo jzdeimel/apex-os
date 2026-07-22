@@ -168,6 +168,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "My Day",
       items: [
         { href: "/coach", label: "Today", icon: Gauge, spotlight: true },
+        { href: "/coach/messages", label: "Patient messages", icon: MessageSquare, spotlight: true },
         { href: "/coach/roster", label: "My members", icon: Users },
         { href: "/coach/gaps", label: "Care gaps", icon: LifeBuoy, spotlight: true },
         { href: "/coach/consults", label: "Consults", icon: ClipboardList },

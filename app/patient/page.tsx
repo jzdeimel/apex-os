@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CalendarDays, FileCheck2, MessageSquare, ShieldCheck, Stethoscope } from "lucide-react";
+import { CalendarDays, FileCheck2, ShieldCheck, Stethoscope } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/primitives";
 import { PatientSignOut } from "@/components/patient/PatientSignOut";
+import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
 import { patientPortalSummary, patientSubjectForToken } from "@/lib/auth/patientRepo";
 import { PATIENT_SESSION_COOKIE } from "@/lib/auth/patientTokens";
 
@@ -28,6 +29,7 @@ export default async function PatientPilotPage() {
   if (!summary) redirect("/patient-sign-in");
 
   const displayName = summary.patient.preferredName || summary.patient.firstName;
+  const coach = summary.careTeam.find((member) => member.relationship === "coach");
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
       <header className="flex flex-col gap-5 border-b border-ink-700/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
@@ -97,26 +99,23 @@ export default async function PatientPilotPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <MessageSquare className="h-5 w-5 text-blue-300" aria-hidden />
-              <h2 className="font-display text-title text-ink-50">Recent messages</h2>
-            </div>
-            {summary.messages.length ? (
-              <ol className="mt-5 space-y-4">
-                {summary.messages.map((entry) => (
-                  <li key={entry.id} className="border-l-2 border-blue-400/60 pl-4">
-                    <p className="text-body leading-relaxed text-ink-200">{entry.body}</p>
-                    <p className="mt-1 text-detail capitalize text-ink-500">
-                      {entry.thread} · {formatDateTime(entry.sentAt, summary.patient.timezone)}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="mt-5 text-body text-ink-400">No portal messages have been recorded yet.</p>
-            )}
+            <PatientCoachMessages
+              coachName={coach?.name ?? null}
+              timezone={summary.patient.timezone}
+              initialMessages={summary.messages
+                .filter((entry) => entry.thread === "coach")
+                .reverse()
+                .map((entry) => ({
+                  id: entry.id,
+                  senderKind: entry.senderKind,
+                  body: entry.body,
+                  sentAt: entry.sentAt.toISOString(),
+                  readAt: entry.readAt?.toISOString() ?? null,
+                  escalationId: entry.escalationId,
+                }))}
+            />
           </CardContent>
         </Card>
 
@@ -146,7 +145,7 @@ export default async function PatientPilotPage() {
       </section>
 
       <aside className="mt-8 rounded-panel border border-gold-400/30 bg-gold-400/5 p-5 text-detail leading-relaxed text-ink-300">
-        This pilot is read-only. For urgent symptoms or a medical emergency, do not wait for a portal reply; call 911 or seek immediate care. For routine help, contact your Alpha Health clinic through its established phone or messaging channel.
+        This patient pilot now supports authoritative messaging to your assigned coach. Appointments, documents, and the rest of the chart remain read-only while those workflows complete validation.
       </aside>
     </main>
   );

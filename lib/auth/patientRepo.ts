@@ -63,6 +63,8 @@ export interface PatientPortalSummary {
     senderKind: string;
     body: string;
     sentAt: Date;
+    readAt: Date | null;
+    escalationId: string | null;
   }>;
   signedDocuments: Array<{
     id: string;
@@ -309,11 +311,13 @@ export async function patientPortalSummary(
         senderKind: message.senderKind,
         body: message.body,
         sentAt: message.sentAt,
+        readAt: message.readAt,
+        escalationId: message.escalationId,
       })
       .from(message)
       .where(eq(message.clientId, clientId))
       .orderBy(desc(message.sentAt))
-      .limit(5),
+      .limit(100),
     db
       .select({
         id: signedDocument.id,

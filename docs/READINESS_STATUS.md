@@ -68,6 +68,20 @@ contrast sweep.
   explicit redeploy with `-SourceSecretAvailable` binds the source only after a
   V1 read-only credential is supplied through Key Vault.
 - Working-hours/calendar busy model and payment/messaging fail-safe boundaries.
+- Patient-session-scoped messages to the assigned coach, a durable coach inbox,
+  replies/read state, and exact-message escalation into the internal Medical
+  queue. The patient cannot address Medical directly.
+- Durable staff booking, reschedule, reassignment, cancel, arrival, rooming,
+  completion and no-show transitions with conflict checks and an atomic audit
+  witness. This is the single-appointment foundation; composite NCV booking and
+  patient self-service remain separate work.
+- Medical-only append-preserving allergy, problem and outside-medication
+  reconciliation, with coach read access inside care-team scope.
+- A Google busy-only adapter that imports no titles, attendees or clinical
+  content and refuses to run without approved service-account configuration.
+- Durable membership and payment-reconciliation schema foundations. The Clover
+  transport still refuses every money-moving operation until sandbox and
+  merchant acceptance are complete.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
 - A source-to-evidence acceptance ledger in
@@ -79,9 +93,10 @@ contrast sweep.
 - The broad demonstration `/portal/*` experience still reads seeded data and
   remains behind staff EasyAuth. It must not replace the database-only patient
   pilot until each enabled feature has an authoritative read model.
-- The database-only `/patient` pilot is still read-only. Real two-way patient
-  messaging to the coach, durable appointment create/reschedule/cancel, and
-  their live notification transports remain launch blockers for those features.
+- The database-only `/patient` pilot now supports authoritative messaging to the
+  assigned coach. Patient self-book/reschedule/cancel, attachments, coverage
+  operations and live notification transports remain launch blockers for those
+  features.
 - The importer does not yet move the full historical V1 clinical/financial
   graph; V1 history must remain read-only-accessible unless that scope is added.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are

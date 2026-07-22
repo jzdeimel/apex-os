@@ -214,6 +214,7 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
         '/patient/*'
         '/api/patient-auth/exchange'
         '/api/patient-auth/logout'
+        '/api/patient/messages'
       ]
     }
     identityProviders: {

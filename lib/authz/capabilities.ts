@@ -56,6 +56,9 @@ export type Capability =
   | "write:contact"         // log a touch, message the member
   | "write:demographics"    // fix a phone number, address, email
   | "write:task"
+  | "write:clinical-history"
+  | "read:schedule"
+  | "write:schedule"
 
   // ── Commerce ───────────────────────────────────────────────────────────
   | "write:order"           // place or reorder
@@ -95,6 +98,8 @@ const GRANTS: Record<StaffRole, Capability[]> = {
     "read:chart", "read:clinical", "read:financial", "read:ledger",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
+    "read:schedule", "write:schedule",
+    "write:clinical-history",
     // The licensed set — this row is the entire reason the role exists.
     "write:prescription", "sign:plan-of-care", "sign:encounter",
     "order:labs", "sign:labs", "override:contraindication",
@@ -108,12 +113,14 @@ const GRANTS: Record<StaffRole, Capability[]> = {
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
+    "read:schedule", "write:schedule",
     "escalate:provider",
   ],
 
   Admin: [
     "read:chart", "read:financial", "read:ledger", "read:all-clients",
     "write:contact", "write:demographics", "write:task",
+    "read:schedule", "write:schedule",
     "write:order", "write:membership", "write:refund",
     "read:business-metrics",
     "admin:roles", "admin:locations", "admin:export", "admin:break-glass",
