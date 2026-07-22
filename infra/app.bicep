@@ -23,7 +23,9 @@ var environmentName = 'cae-apex-nonprod'
 var registryName = 'acrapexnpfcfde'
 var keyVaultName = 'kv-apex-np-fcfde'
 var webAuthClientSecretName = 'web-auth-client-secret'
-var webAuthClientSecretUrl = 'https://${keyVaultName}.${environment().suffixes.keyvaultDns}/secrets/${webAuthClientSecretName}'
+// Azure cloud suffixes include their leading dot (for example
+// `.vault.azure.net`), so concatenate rather than inserting another separator.
+var webAuthClientSecretUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${webAuthClientSecretName}'
 var runtimeIdentityName = 'id-apex-nonprod-runtime'
 var tags = {
   application: 'apex-os'
