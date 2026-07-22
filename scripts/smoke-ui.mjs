@@ -248,6 +248,11 @@ try {
       waitUntil: "networkidle",
       timeout: 30000,
     });
+    await p.waitForFunction(
+      () => document.body.innerText.toLowerCase().includes("medical visit documentation"),
+      null,
+      { timeout: 10000 },
+    );
     const text = (await p.evaluate(() => document.body.innerText)).trim().toLowerCase();
     if (
       !text.includes("medical visit documentation") ||
