@@ -57,6 +57,7 @@ const patientBoundaryFailures = [
   appTemplate.includes("'/api/patient-auth/pilot-link'") && "staff-only pilot link issuer was made public",
   appTemplate.includes("'/portal") && "seeded staff preview portal was made public",
   patientPage.includes("@/lib/mock/") && "database-only patient pilot imports seeded data",
+  !patientPage.includes("patientPortalSummary(subject.clientId)") && "patient pilot is not scoped from the authenticated session",
 ].filter(Boolean);
 const approvals = Object.entries(requiredApprovals).map(([key, label]) => ({
   key,

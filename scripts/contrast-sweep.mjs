@@ -107,6 +107,7 @@ const ROUTES = [
   "/admin/roster", "/admin/quality", "/admin/daily-report", "/admin/capacity",
   "/portal", "/portal/labs", "/portal/protocol", "/portal/messages", "/portal/progress",
   "/portal/consents", "/portal/receipts", "/portal/journal", "/portal/team", "/portal/costs",
+  "/patient-sign-in", "/patient",
 ];
 
 const PROBE = `(() => {
