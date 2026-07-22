@@ -96,13 +96,31 @@ if ([string]::IsNullOrWhiteSpace($WebClientId)) {
   }
   else {
     $createdOrResolvedApp = $apps[0]
-    Invoke-AzCli ad app update --id $createdOrResolvedApp.id --web-redirect-uris $redirectUri | Out-Null
+    if ($Mode -eq 'Apply') {
+      Invoke-AzCli ad app update --id $createdOrResolvedApp.id --web-redirect-uris $redirectUri | Out-Null
+    }
+    else {
+      $parsedRedirects = ConvertFrom-AzJson (
+        Invoke-AzCli ad app show --id $createdOrResolvedApp.id --query web.redirectUris --output json
+      )
+      $redirects = @($parsedRedirects)
+      if ($redirectUri -notin $redirects) {
+        throw "Entra app redirect URI is not configured. Apply mode is required to add '$redirectUri'."
+      }
+    }
   }
   $WebClientId = $createdOrResolvedApp.appId
 
-  $servicePrincipals = @(@(ConvertFrom-AzJson (
+  # Assign before filtering. In Windows PowerShell 5.1, wrapping this function
+  # call directly inside @(@(...)) can preserve the returned JSON array as one
+  # nested value; the property filter then sees the array rather than its
+  # service-principal element and incorrectly reports zero matches.
+  $parsedServicePrincipals = ConvertFrom-AzJson (
     Invoke-AzCli ad sp list --filter "appId eq '$WebClientId'" --output json
-  )) | Where-Object { $null -ne $_ -and $_.PSObject.Properties.Name -contains 'appId' })
+  )
+  $servicePrincipals = @(@($parsedServicePrincipals) | Where-Object {
+    $null -ne $_ -and $_.PSObject.Properties.Name -contains 'appId'
+  })
   if ($servicePrincipals.Count -eq 0) {
     Invoke-AzCli ad sp create --id $WebClientId --query id --output tsv | Out-Null
   }
@@ -125,18 +143,32 @@ $existingAppId = Invoke-AzCliOptional containerapp show `
 
 if ([string]::IsNullOrWhiteSpace($clientSecret)) {
   if (-not [string]::IsNullOrWhiteSpace($existingAppId)) {
-    throw 'The dev app exists but this caller cannot read its EasyAuth secret; refusing to rotate it.'
+    # Routine deployers should not need secret-read permission. Verify the
+    # existing Container App points at the expected Key Vault secret by
+    # metadata only, then let Bicep retain it through a versionless reference.
+    $authSecretRef = (Invoke-AzCli containerapp secret list `
+      --resource-group $resourceGroupName `
+      --name $appName `
+      --query "[?name=='aad-client-secret'].keyVaultUrl | [0]" `
+      --output tsv).Trim()
+    $expectedSecretPrefix = "https://$keyVaultName.vault.azure.net/secrets/$clientSecretName"
+    if (-not $authSecretRef.StartsWith($expectedSecretPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+      throw 'The existing app does not reference the expected EasyAuth Key Vault secret.'
+    }
+    $clientSecret = ''
   }
-  if ($Mode -ne 'Apply' -or $null -eq $createdOrResolvedApp) {
+  elseif ($Mode -ne 'Apply' -or $null -eq $createdOrResolvedApp) {
     throw 'The first app deployment requires -Mode Apply under an identity allowed to create Entra credentials.'
   }
-  $clientSecret = (Invoke-AzCli ad app credential reset `
-    --id $createdOrResolvedApp.id `
-    --append `
-    --display-name 'container-app-easyauth' `
-    --years 1 `
-    --query password `
-    --output tsv).Trim()
+  else {
+    $clientSecret = (Invoke-AzCli ad app credential reset `
+      --id $createdOrResolvedApp.id `
+      --append `
+      --display-name 'container-app-easyauth' `
+      --years 1 `
+      --query password `
+      --output tsv).Trim()
+  }
 }
 
 try {
@@ -145,9 +177,11 @@ try {
     "expectedResourceGroupName=$resourceGroupName"
     "image=$Image"
     "entraClientId=$WebClientId"
-    "entraClientSecret=$clientSecret"
     "tenantId=$($account.tenantId)"
   )
+  if (-not [string]::IsNullOrWhiteSpace($clientSecret)) {
+    $parameters += "entraClientSecret=$clientSecret"
+  }
 
   if ($Mode -eq 'Validate') {
     Invoke-AzCli deployment group what-if `

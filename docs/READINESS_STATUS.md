@@ -8,6 +8,9 @@ contrast sweep.
 ## Completed in code
 
 - Nonprod Azure/OIDC/EasyAuth/CI foundation.
+- Repeatable app deployment that verifies the existing Entra/Key Vault secret
+  reference by metadata and does not require a routine deployer to read or
+  rewrite the authentication credential.
 - Production-like nonprod posture: server demo behavior is explicitly disabled,
   so unknown staff, seeded identity fallback, and legacy intake query/path
   credentials fail closed during rehearsal.

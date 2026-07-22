@@ -8,6 +8,7 @@ const staticEvidence = [
   "infra/main.bicep",
   "infra/app.bicep",
   "infra/migration-job.bicep",
+  "scripts/deploy-nonprod-app.ps1",
   ".github/workflows/deploy-nonprod-app.yml",
   ".github/workflows/publish-nonprod-image.yml",
   ".github/workflows/deploy-nonprod-migration-job.yml",
@@ -69,7 +70,20 @@ const staffLeadsRoute = existsSync(resolve(root, "app/api/leads/route.ts"))
 const publicLeadsRoute = existsSync(resolve(root, "app/api/public/leads/route.ts"))
   ? readFileSync(resolve(root, "app/api/public/leads/route.ts"), "utf8")
   : "";
+const deployAppScript = existsSync(resolve(root, "scripts/deploy-nonprod-app.ps1"))
+  ? readFileSync(resolve(root, "scripts/deploy-nonprod-app.ps1"), "utf8")
+  : "";
 const demoModeDisabled = /name:\s*'APEX_DEMO_MODE'[\s\S]{0,300}?value:\s*'false'/.test(appTemplate);
+const deploymentBoundaryFailures = [
+  !appTemplate.includes("if (!empty(entraClientSecret))") &&
+    "routine app deployments can still rewrite the EasyAuth client secret",
+  appTemplate.includes("webAuthClientSecret.properties.secretUriWithVersion") &&
+    "routine app deployments are coupled to a newly written EasyAuth secret version",
+  !deployAppScript.includes("$parsedServicePrincipals") &&
+    "Windows PowerShell may misread the existing Entra service principal as absent",
+  !deployAppScript.includes("containerapp secret list") &&
+    "routine deployments cannot verify the existing EasyAuth secret by metadata",
+].filter(Boolean);
 const patientBoundaryFailures = [
   !appTemplate.includes("'/patient-sign-in'") && "patient sign-in is still intercepted by staff EasyAuth",
   !appTemplate.includes("'/api/patient-auth/exchange'") && "patient link exchange is still intercepted by staff EasyAuth",
@@ -115,6 +129,7 @@ const report = {
   verdict:
     missingFiles.length ||
     unsafeInfraReferences.length ||
+    deploymentBoundaryFailures.length ||
     patientBoundaryFailures.length ||
     publicJourneyFailures.length ||
     (goLive && missingApprovals.length)
@@ -127,6 +142,7 @@ const report = {
     evidenceFiles: staticEvidence.length,
     missingFiles,
     unsafeInfraReferences,
+    deploymentBoundaryFailures,
     patientBoundaryFailures,
     publicJourneyFailures,
   },

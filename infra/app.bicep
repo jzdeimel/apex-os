@@ -13,8 +13,7 @@ param image string
 param entraClientId string
 
 @secure()
-@minLength(16)
-param entraClientSecret string
+param entraClientSecret string = ''
 
 param tenantId string = '1e7ed424-6240-48b5-a836-9db1c38eb00b'
 param location string = 'eastus2'
@@ -23,6 +22,8 @@ var appName = 'ca-apex-dev'
 var environmentName = 'cae-apex-nonprod'
 var registryName = 'acrapexnpfcfde'
 var keyVaultName = 'kv-apex-np-fcfde'
+var webAuthClientSecretName = 'web-auth-client-secret'
+var webAuthClientSecretUrl = 'https://${keyVaultName}.${environment().suffixes.keyvaultDns}/secrets/${webAuthClientSecretName}'
 var runtimeIdentityName = 'id-apex-nonprod-runtime'
 var tags = {
   application: 'apex-os'
@@ -51,9 +52,12 @@ resource databaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existi
   name: 'database-url'
 }
 
-resource webAuthClientSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+// Secret creation/rotation is a bootstrap-only operation. Routine app
+// deployments use the existing versionless Key Vault reference and therefore
+// do not need permission to read or rewrite the Entra credential.
+resource webAuthClientSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(entraClientSecret)) {
   parent: keyVault
-  name: 'web-auth-client-secret'
+  name: webAuthClientSecretName
   properties: {
     value: entraClientSecret
     attributes: {
@@ -107,7 +111,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         }
         {
           name: 'aad-client-secret'
-          keyVaultUrl: webAuthClientSecret.properties.secretUriWithVersion
+          keyVaultUrl: webAuthClientSecretUrl
           identity: runtimeIdentity.id
         }
       ]
