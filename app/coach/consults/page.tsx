@@ -52,6 +52,7 @@ const CHANNEL_ICON: Record<ConsultChannel, React.ElementType> = {
   Phone: Phone,
   Video: Video,
   Messaging: MessageSquare,
+  "Chart review": FileText,
 };
 
 /**
@@ -304,7 +305,20 @@ export default function CoachConsultsPage() {
             </div>
 
           {prepFor && (
+            <div className="space-y-2">
               <ConsultPrepBrief clientId={prepFor} coachId={ME_COACH} />
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold-400/25 bg-gold-400/[0.05] px-3 py-2.5">
+                <p className="text-detail text-ink-300">
+                  Take notes during the visit. Apex autosaves, creates the AI summary, and
+                  adds the signed record to this member&apos;s profile.
+                </p>
+                <Link href={`/clients/${prepFor}?tab=consults&new=1`}>
+                  <Button size="sm" variant="primary">
+                    <PenLine className="h-3.5 w-3.5" /> Start visit note
+                  </Button>
+                </Link>
+              </div>
+            </div>
           )}
         </>
       )}

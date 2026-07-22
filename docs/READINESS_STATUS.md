@@ -23,6 +23,19 @@ contrast sweep.
   self-booking stay off until their operating controls are ready. Admins can
   override any flag globally for everyone from Owner / Features; every change
   is audited and takes effect on the next page load.
+- Community now opens on a personalized `For you` view that prioritizes the
+  next relevant event, the member's location challenge, their moderated coach
+  group and recent pseudonymous wins while preserving the existing clinical
+  content guard and private escalation path.
+- The coach is the client's steward and single point of contact. Coach consults
+  collect the member-contact type/channel, autosave raw notes server-side, build
+  a source-traceable AI summary for human review, sign atomically into the audit
+  ledger, and read the durable signed record back into the client's Consults
+  profile. Medical authors an internal chart review only; the signed review is
+  visible to the care team and labeled for the coach to communicate, without
+  sending a direct client message. The API enforces this role split, not just
+  the UI. Upcoming
+  appointments link directly into the coach note workflow.
 - V1 visual skin and accessibility repairs.
 - Public booking and intake entry, with narrowly scoped EasyAuth exclusions and
   intake credentials carried only in a browser fragment/header rather than a

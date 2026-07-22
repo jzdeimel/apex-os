@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Lock, Plus, StickyNote, Boxes, Mail } from "lucide-react";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { CallPatient } from "@/components/comms/CallPatient";
@@ -13,6 +13,7 @@ import { isStuck, clientFacingStatus, progressPercent } from "@/lib/orders/lifec
 import { contactLogForClient } from "@/lib/mock/contactLog";
 import { ConsultComposer } from "@/components/consult/ConsultComposer";
 import { ConsultCard } from "@/components/consult/ConsultCard";
+import type { Consult } from "@/lib/consult/types";
 import { ProvenanceDrawer, WhyButton } from "@/components/trace/ProvenanceDrawer";
 import {
   Card,
@@ -207,9 +208,44 @@ function MacroTile({ label, value, unit }: { label: string; value: string; unit:
 // ---------------------------------------------------------------------------
 // Consults
 // ---------------------------------------------------------------------------
-export function ConsultsTab({ id }: { id: string }) {
-  const [composing, setComposing] = useState(false);
-  const list = consultsForClient(id);
+export function ConsultsTab({ id, autoStart = false }: { id: string; autoStart?: boolean }) {
+  const [composing, setComposing] = useState(autoStart);
+  const [stored, setStored] = useState<Consult[]>([]);
+  const [loadingStored, setLoadingStored] = useState(true);
+  const [storedError, setStoredError] = useState<string | null>(null);
+
+  const loadStored = useCallback(async () => {
+    setLoadingStored(true);
+    try {
+      const response = await fetch(`/api/consults?clientId=${encodeURIComponent(id)}`, {
+        headers: { Accept: "application/json" },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        setStoredError(body.error ?? "Saved consult history is unavailable.");
+        return;
+      }
+      setStored(Array.isArray(body.consults) ? body.consults : []);
+      setStoredError(null);
+    } catch {
+      setStoredError("Saved consult history is unavailable.");
+    } finally {
+      setLoadingStored(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void loadStored();
+  }, [loadStored]);
+
+  const list = useMemo(() => {
+    // A seeded note may have been mirrored into Postgres when it was co-signed.
+    // The durable version wins and ids are de-duplicated at this boundary.
+    const byId = new Map<string, Consult>();
+    for (const consult of consultsForClient(id)) byId.set(consult.id, consult);
+    for (const consult of stored) byId.set(consult.id, consult);
+    return [...byId.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  }, [id, stored]);
 
   return (
     <div className="space-y-4">
@@ -225,7 +261,24 @@ export function ConsultsTab({ id }: { id: string }) {
         </Button>
       </div>
 
-      {composing && <ConsultComposer clientId={id} onSigned={() => setComposing(false)} />}
+      {composing && (
+        <ConsultComposer
+          clientId={id}
+          onSigned={() => {
+            setComposing(false);
+            void loadStored();
+          }}
+        />
+      )}
+
+      {loadingStored && (
+        <p className="text-micro text-ink-500">Loading signed notes from Apex…</p>
+      )}
+      {storedError && (
+        <p className="rounded-lg border border-watch/30 bg-watch/[0.06] px-3 py-2 text-micro text-watch">
+          {storedError} Seeded rehearsal notes are still shown below.
+        </p>
+      )}
 
       {list.length === 0 ? (
         <EmptyState

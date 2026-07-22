@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, isNull, ne, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, ne, or, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   ledger as ledgerTable,
@@ -26,6 +26,9 @@ import {
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import type { Consult } from "@/lib/consult/types";
+import type { ConsultChannel, ConsultKind, ConsultSummary } from "@/lib/consult/types";
+import { normalizeConsultChannel, normalizeConsultKind } from "@/lib/consult/metadata";
+import { stampFor } from "@/lib/consult/summarize";
 import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
 import {
   segmentPlanFor,
@@ -656,7 +659,7 @@ export async function staffByObjectId(objectId: string): Promise<StaffRow | null
 /* -------------------------------------------------------------------------- */
 
 /**
- * Save (or update) a clinician's working draft of a consult note.
+ * Save (or update) a care-team member's working draft of a consult note.
  *
  * WHY THIS IS A DATABASE ROW, NOT localStorage. The draft is unsigned clinical
  * PHI. Kept in the browser it survives sign-out on a shared clinic workstation
@@ -669,13 +672,15 @@ export async function staffByObjectId(objectId: string): Promise<StaffRow | null
  * autosaves UPDATE the same row rather than pile up. The server owns updatedAt —
  * the "Draft saved {time}" stamp is a real write time, not a client guess.
  *
- * kind/channel/startedAt are NOT NULL on the table but the composer collects
- * none of them; sensible defaults are supplied on first insert and never
- * touched again, so signing later can refine them without losing the draft.
+ * kind/channel/startedAt are NOT NULL. The composer supplies role-constrained
+ * metadata on every autosave, so Medical cannot turn an internal chart review
+ * into a client encounter and a coach cannot author the Medical review type.
  */
 export async function upsertConsultDraft(input: {
   clientId: string;
   authorId: string;
+  kind: ConsultKind;
+  channel: ConsultChannel;
   rawNotes: string;
   aiSummary?: unknown;
   at: string;
@@ -693,8 +698,8 @@ export async function upsertConsultDraft(input: {
       id: candidateId,
       clientId: input.clientId,
       authorId: input.authorId,
-      kind: "coaching",
-      channel: "in-person",
+      kind: input.kind,
+      channel: input.channel,
       startedAt: now,
       status: "Draft",
       rawNotes: input.rawNotes,
@@ -705,6 +710,8 @@ export async function upsertConsultDraft(input: {
       target: [consultTable.authorId, consultTable.clientId],
       targetWhere: raw`status = 'Draft'`,
       set: {
+        kind: input.kind,
+        channel: input.channel,
         rawNotes: input.rawNotes,
         aiSummary: (input.aiSummary as never) ?? null,
         updatedAt: now,
@@ -719,11 +726,20 @@ export async function upsertConsultDraft(input: {
 export async function getConsultDraft(
   authorId: string,
   clientId: string,
-): Promise<{ id: string; rawNotes: string; aiSummary: unknown; updatedAt: string } | null> {
+): Promise<{
+  id: string;
+  kind: string;
+  channel: string;
+  rawNotes: string;
+  aiSummary: unknown;
+  updatedAt: string;
+} | null> {
   const db = requireDb();
   const [row] = await db
     .select({
       id: consultTable.id,
+      kind: consultTable.kind,
+      channel: consultTable.channel,
       rawNotes: consultTable.rawNotes,
       aiSummary: consultTable.aiSummary,
       updatedAt: consultTable.updatedAt,
@@ -738,8 +754,67 @@ export async function getConsultDraft(
     )
     .limit(1);
   return row
-    ? { id: row.id, rawNotes: row.rawNotes ?? "", aiSummary: row.aiSummary, updatedAt: row.updatedAt.toISOString() }
+    ? {
+        id: row.id,
+        kind: row.kind,
+        channel: row.channel,
+        rawNotes: row.rawNotes ?? "",
+        aiSummary: row.aiSummary,
+        updatedAt: row.updatedAt.toISOString(),
+      }
     : null;
+}
+
+/**
+ * Durable consult history for a chart.
+ *
+ * Signed notes are part of the shared chart. An unsigned draft is visible only
+ * to its author, which keeps another staff member from reading working PHI that
+ * has not been reviewed or signed. Seeded consults are merged at the UI boundary
+ * until the full V1 history migration replaces them.
+ */
+export async function listConsultsForClient(
+  clientId: string,
+  viewerStaffId: string,
+): Promise<Consult[]> {
+  const db = requireDb();
+  const rows = await db
+    .select()
+    .from(consultTable)
+    .where(
+      and(
+        eq(consultTable.clientId, clientId),
+        or(eq(consultTable.status, "Signed"), eq(consultTable.authorId, viewerStaffId)),
+      ),
+    )
+    .orderBy(desc(consultTable.startedAt), desc(consultTable.updatedAt));
+
+  return rows.map((row) => {
+    const rawNotes = row.rawNotes ?? "";
+    const aiSummary = (row.aiSummary as ConsultSummary | null) ?? undefined;
+    const signed = row.status === "Signed";
+    const startedAt = row.startedAt.toISOString();
+
+    return {
+      id: row.id,
+      clientId: row.clientId,
+      authorId: row.authorId,
+      kind: normalizeConsultKind(row.kind),
+      channel: normalizeConsultChannel(row.channel),
+      status: signed ? "Signed" : "In progress",
+      startedAt,
+      endedAt: row.endedAt?.toISOString(),
+      durationMin: row.durationMin ?? undefined,
+      rawNotes,
+      aiSummary,
+      aiProvenance: aiSummary && rawNotes ? stampFor(rawNotes, startedAt) : undefined,
+      finalSummary: signed ? aiSummary : undefined,
+      signedAt: row.signedAt?.toISOString(),
+      signedBy: row.signedBy ?? undefined,
+      addenda: [],
+      visibleToClient: row.visibleToClient,
+    } satisfies Consult;
+  });
 }
 
 /**

@@ -26,8 +26,10 @@ import { PhotoWall } from "@/components/community/PhotoWall";
 import { Squads } from "@/components/community/Squads";
 import { Mentors } from "@/components/community/Mentors";
 import { CommunityRoleBrief } from "@/components/community/CommunityRoleBrief";
+import { CommunityToday } from "@/components/community/CommunityToday";
 
 const TABS = [
+  { id: "today", label: "For you" },
   { id: "milestones", label: "Milestones" },
   { id: "photos", label: "Photos" },
   { id: "squads", label: "Squads" },
@@ -52,7 +54,7 @@ export function CommunityHome() {
   const { portal } = usePortal();
   const meId = useMe();
   const client = useMeClient();
-  const [tab, setTab] = useState("milestones");
+  const [tab, setTab] = useState("today");
 
   const myHandle = handleFor(meId);
   const group = groupFor(meId);
@@ -100,6 +102,18 @@ export function CommunityHome() {
       />
 
       <SwitchView k={tab}>
+        {tab === "today" && (
+          <CommunityToday
+            portalId={portal.id}
+            myLocationId={client.locationId}
+            groupName={group?.name ?? "Coach-hosted group"}
+            wins={wins}
+            challenges={challenges}
+            events={meetups}
+            posts={posts}
+            onOpen={setTab}
+          />
+        )}
         {tab === "milestones" && <Milestones clientId={meId} personal={isMember} />}
         {tab === "photos" && (
           <PhotoWall

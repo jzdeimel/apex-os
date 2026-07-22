@@ -229,7 +229,9 @@ export default function ClientProfilePage() {
         )}
         {tab === "tasks" && <TasksTab id={id} />}
         {tab === "plan" && <PlanTab id={id} />}
-        {tab === "consults" && <ConsultsTab id={id} />}
+        {tab === "consults" && (
+          <ConsultsTab id={id} autoStart={searchParams.get("new") === "1"} />
+        )}
         {tab === "escalations" && <ClientEscalations clientId={id} />}
         {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}

@@ -137,6 +137,45 @@ try {
     if (r.status !== 403) fail(`off-care-team draft PUT => ${r.status}, expected 403`);
     console.log("ok  PUT /api/consults/draft (off-care-team) => 403 refused");
   }
+  {
+    // STEWARD WORKFLOW: Medical is on c-001's care team, so this reaches the
+    // role-specific metadata gate. Medical may review the chart internally but
+    // cannot record a direct client coach encounter.
+    const r = await fetch(`${BASE}/api/consults/draft`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("m.vale@alphahealth.demo", "vale"),
+      },
+      body: JSON.stringify({
+        clientId: "c-001",
+        kind: "Coach consult",
+        channel: "In person",
+        rawNotes: "probe",
+      }),
+    });
+    if (r.status !== 400) fail(`Medical direct-client consult => ${r.status}, expected 400`);
+    console.log("ok  PUT /api/consults/draft (Medical direct-client note) => 400 refused");
+  }
+  {
+    // The inverse is also enforced: the coach cannot author the internal
+    // Medical review type, even by bypassing the select control.
+    const r = await fetch(`${BASE}/api/consults/draft`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks"),
+      },
+      body: JSON.stringify({
+        clientId: "c-001",
+        kind: "Medical chart review",
+        channel: "Chart review",
+        rawNotes: "probe",
+      }),
+    });
+    if (r.status !== 400) fail(`coach Medical review => ${r.status}, expected 400`);
+    console.log("ok  PUT /api/consults/draft (coach Medical review) => 400 refused");
+  }
 
   // PUBLIC endpoints: reachable without auth (they sit outside EasyAuth), but
   // they must validate, not just accept. A public write that trusts its input

@@ -27,6 +27,7 @@ const CHANNEL_ICON: Record<ConsultChannel, React.ComponentType<{ className?: str
   Phone: Phone,
   Video: Video,
   Messaging: MessageSquare,
+  "Chart review": FileText,
 };
 
 /**
@@ -53,7 +54,10 @@ export function ConsultCard({
   const summary = consult.finalSummary ?? consult.aiSummary;
   const edited = editedFields(consult);
   const signed = consult.status === "Signed";
+  const statusLabel = signed ? "Signed" : consult.status;
   const ChannelIcon = CHANNEL_ICON[consult.channel];
+  const internalMedicalReview =
+    consult.kind === "Medical chart review" || consult.channel === "Chart review";
 
   return (
     <>
@@ -73,8 +77,11 @@ export function ConsultCard({
                 {consult.kind}
               </span>
               <Badge tone={signed ? "optimal" : "watch"}>
-                {signed ? "Signed" : "Awaiting review"}
+                {statusLabel}
               </Badge>
+              {internalMedicalReview && (
+                <Badge tone="info">Internal review · coach communicates</Badge>
+              )}
               {summary && summary.escalations.length > 0 && (
                 <Badge tone="high">
                   {summary.escalations.length} flagged
@@ -108,7 +115,7 @@ export function ConsultCard({
               {edited.length > 0 && (
                 <Badge tone="info" className="gap-1">
                   <Pencil className="h-2.5 w-2.5" />
-                  coach edited: {edited.join(", ")}
+                  author edited: {edited.join(", ")}
                 </Badge>
               )}
               {consult.addenda.length > 0 && (
@@ -229,8 +236,8 @@ export function ConsultCard({
             ? `${findingCount(summary)} findings classified: ${summary.subjective.length} subjective, ${summary.objective.length} objective, ${summary.actionItems.length} actions, ${summary.escalations.length} escalations.`
             : "No summary has been generated yet.",
           edited.length > 0
-            ? `A coach overrode the engine on: ${edited.join(", ")}.`
-            : "The coach accepted the engine's output without edits.",
+            ? `The author overrode the engine on: ${edited.join(", ")}.`
+            : "The author accepted the engine's output without edits.",
           signed
             ? `Signed by ${staffName(consult.signedBy)} on ${formatDateTime(consult.signedAt)} — immutable from that point.`
             : "Not yet signed. This is an AI draft and carries no clinical weight until a human signs it.",

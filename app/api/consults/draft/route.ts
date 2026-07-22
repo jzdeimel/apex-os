@@ -5,6 +5,16 @@ import { currentPrincipal } from "@/lib/auth/principal";
 import { getConsultDraft, upsertConsultDraft, signConsultDraft } from "@/lib/db/repo";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
+import {
+  consultChannelsForRole,
+  consultChannelForRole,
+  consultKindForRole,
+  consultKindsForRole,
+  defaultConsultChannel,
+  defaultConsultKind,
+  isConsultChannelAllowedForRole,
+  isConsultKindAllowedForRole,
+} from "@/lib/consult/metadata";
 
 /**
  * Consult drafts — server-side, so unsigned clinical PHI never persists on a
@@ -49,7 +59,21 @@ export async function GET(req: Request) {
 
   try {
     const draft = await getConsultDraft(g.actor.id, clientId);
-    return NextResponse.json({ ok: true, draft });
+    return NextResponse.json({
+      ok: true,
+      authorRole: g.actor.role,
+      allowedKinds: consultKindsForRole(g.actor.role),
+      allowedChannels: consultChannelsForRole(g.actor.role),
+      suggestedKind: defaultConsultKind(g.actor.role),
+      suggestedChannel: defaultConsultChannel(g.actor.role),
+      draft: draft
+        ? {
+            ...draft,
+            kind: consultKindForRole(draft.kind, g.actor.role),
+            channel: consultChannelForRole(draft.channel, g.actor.role),
+          }
+        : null,
+    });
   } catch (err) {
     return unavailable("consult.draft", err, 'The draft store is unavailable. Your notes are not backed up.');
   }
@@ -59,7 +83,13 @@ export async function PUT(req: Request) {
   if (!(await currentPrincipal())) {
     return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
   }
-  let body: { clientId?: string; rawNotes?: string; aiSummary?: unknown };
+  let body: {
+    clientId?: string;
+    kind?: unknown;
+    channel?: unknown;
+    rawNotes?: string;
+    aiSummary?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -74,10 +104,30 @@ export async function PUT(req: Request) {
   const g = await guard("write:consult", s.subject);
   if (!g.ok) return g.res;
 
+  const kind = body.kind === undefined ? defaultConsultKind(g.actor.role) : body.kind;
+  const channel = body.channel === undefined ? defaultConsultChannel(g.actor.role) : body.channel;
+  if (
+    !isConsultKindAllowedForRole(kind, g.actor.role) ||
+    !isConsultChannelAllowedForRole(channel, g.actor.role)
+  ) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          g.actor.role === "Medical"
+            ? "Medical notes must be internal chart reviews. The coach remains the member's point of contact."
+            : "Coach notes must use a member-contact consult type and channel.",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     const saved = await upsertConsultDraft({
       clientId: body.clientId,
       authorId: g.actor.id,
+      kind,
+      channel,
       rawNotes: body.rawNotes,
       aiSummary: body.aiSummary,
       at: new Date().toISOString(),
@@ -109,6 +159,29 @@ export async function POST(req: Request) {
 
   const me = staffMap[g.actor.id];
   try {
+    // Old unsigned drafts predate the steward workflow and may carry a
+    // provider-visit/client channel combination. Upgrade that draft before it
+    // can be signed; signed historical records are never rewritten.
+    const draft = await getConsultDraft(g.actor.id, body.clientId);
+    if (!draft) {
+      return NextResponse.json(
+        { ok: false, error: "No draft to sign — it may already be signed." },
+        { status: 409 },
+      );
+    }
+    const kind = consultKindForRole(draft.kind, g.actor.role);
+    const channel = consultChannelForRole(draft.channel, g.actor.role);
+    if (kind !== draft.kind || channel !== draft.channel) {
+      await upsertConsultDraft({
+        clientId: body.clientId,
+        authorId: g.actor.id,
+        kind,
+        channel,
+        rawNotes: draft.rawNotes,
+        aiSummary: draft.aiSummary,
+        at: new Date().toISOString(),
+      });
+    }
     const result = await signConsultDraft({
       authorId: g.actor.id,
       clientId: body.clientId,

@@ -1,7 +1,7 @@
 import type { Goal, Symptom } from "@/lib/types";
 
 /**
- * Consults — the record of a coach or provider actually talking to a member.
+ * Consults — the longitudinal record that supports the coach-led relationship.
  *
  * The design rule that everything else follows from: **the coach's raw typing
  * is never thrown away.** AI produces a summary, the coach edits it, the coach
@@ -20,6 +20,8 @@ export type ConsultKind =
   | "Coach consult"
   | "Check-in"
   | "Intake"
+  | "Medical chart review"
+  /** Historical only. New Medical notes use "Medical chart review". */
   | "Provider visit"
   | "Follow-up"
   | "Telehealth";
@@ -32,7 +34,7 @@ export type ConsultStatus =
   /** Human reviewed and signed. Immutable from here — corrections are addenda. */
   | "Signed";
 
-export type ConsultChannel = "In person" | "Phone" | "Video" | "Messaging";
+export type ConsultChannel = "In person" | "Phone" | "Video" | "Messaging" | "Chart review";
 
 /** A single AI-extracted structured field, each traceable to its source text. */
 export interface ExtractedItem {
@@ -93,7 +95,7 @@ export interface ConsultAddendum {
 export interface Consult {
   id: string;
   clientId: string;
-  /** Coach or provider who ran the consult. */
+  /** Coach who met with the member, or Medical author of an internal chart review. */
   authorId: string;
   kind: ConsultKind;
   channel: ConsultChannel;

@@ -118,6 +118,7 @@ const ROUTES = [
   "/clinic/community", "/desk/community", "/exec/community",
   "/coach/winback", "/insights", "/recommendations", "/agent", "/swarm",
   "/automations",
+  "/clients/c-001?tab=consults&new=1",
 ];
 
 const PROBE = `(() => {

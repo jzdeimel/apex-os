@@ -13,7 +13,12 @@ import {
   Check,
   RotateCcw,
 } from "lucide-react";
-import type { ConsultSummary, ExtractedItem } from "@/lib/consult/types";
+import type {
+  ConsultChannel,
+  ConsultKind,
+  ConsultSummary,
+  ExtractedItem,
+} from "@/lib/consult/types";
 import { summarizeConsult, stampFor, findingCount, ENGINE_VERSION } from "@/lib/consult/summarize";
 import { appendLedger } from "@/lib/trace/ledger";
 import { getClient, clientName } from "@/lib/mock/clients";
@@ -36,13 +41,26 @@ const NOW = "2026-06-12T09:00:00";
 
 const DEBOUNCE_MS = 450;
 
-const PLACEHOLDER = `type the way you actually type — this is not a form
+const COACH_PLACEHOLDER = `type the way you actually type — this is not a form
 
 weighed in at 214, down 3.2 from last month
 energy better in the mornings, still crashes ~3pm
 sleep is the problem, waking 2-3x
 asked about a peptide for sleep — flagging for the provider
 rebook 4 weeks`;
+
+const MEDICAL_PLACEHOLDER = `internal chart review — the coach communicates with the client
+
+reviewed recent labs, medications and coach consult
+assessment and clinical decision
+monitoring or order changes
+questions the coach should cover with the client
+timing for next internal review`;
+
+const MEDICAL_SAMPLE = `Reviewed the member's recent labs and coach consult.
+No urgent contraindication identified in the available record.
+Continue the current plan pending repeat labs in 6 weeks.
+Coach to review adherence, expected monitoring, and follow-up timing with the member.`;
 
 /** Slower than the summarizer: the summary is local and free, a PUT is neither. */
 const SAVE_DEBOUNCE_MS = 1200;
@@ -78,11 +96,16 @@ export function ConsultComposer({
   onSigned,
 }: {
   clientId: string;
-  onSigned?: (raw: string) => void;
+  onSigned?: (consultId: string) => void;
 }) {
   const { toast } = useToast();
 
   const [raw, setRaw] = React.useState("");
+  const [kind, setKind] = React.useState<ConsultKind>("Coach consult");
+  const [channel, setChannel] = React.useState<ConsultChannel>("In person");
+  const [allowedKinds, setAllowedKinds] = React.useState<ConsultKind[]>(["Coach consult"]);
+  const [allowedChannels, setAllowedChannels] = React.useState<ConsultChannel[]>(["In person"]);
+  const [authorRole, setAuthorRole] = React.useState<"Coach" | "Medical" | null>(null);
   const [summary, setSummary] = React.useState<ConsultSummary | null>(null);
   const [summarizing, setSummarizing] = React.useState(false);
   const [hovered, setHovered] = React.useState<ExtractedItem | null>(null);
@@ -99,6 +122,9 @@ export function ConsultComposer({
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedAt, setSavedAt] = React.useState<string | null>(null);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  // Incremented only by a human edit. Save-state changes must not retrigger the
+  // debounce, or a successful autosave becomes an endless save loop.
+  const [saveRevision, setSaveRevision] = React.useState(0);
 
   const textRef = React.useRef<HTMLTextAreaElement>(null);
   const highlightRef = React.useRef<HTMLDivElement>(null);
@@ -109,10 +135,14 @@ export function ConsultComposer({
   const dirtyAfterSave = React.useRef(false);
   const rawRef = React.useRef("");
   const summaryRef = React.useRef<ConsultSummary | null>(null);
+  const kindRef = React.useRef<ConsultKind>(kind);
+  const channelRef = React.useRef<ConsultChannel>(channel);
   React.useEffect(() => {
     rawRef.current = raw;
     summaryRef.current = summary;
-  }, [raw, summary]);
+    kindRef.current = kind;
+    channelRef.current = channel;
+  }, [raw, summary, kind, channel]);
 
   // -- Restore -------------------------------------------------------------
   // Fetch the caller's server-side draft on mount. Never reads localStorage —
@@ -128,12 +158,24 @@ export function ConsultComposer({
         });
         const res = await r.json().catch(() => ({}));
         if (cancelled) return;
+        const kinds = Array.isArray(res.allowedKinds) ? res.allowedKinds as ConsultKind[] : [];
+        const channels = Array.isArray(res.allowedChannels) ? res.allowedChannels as ConsultChannel[] : [];
+        if (kinds.length > 0) setAllowedKinds(kinds);
+        if (channels.length > 0) setAllowedChannels(channels);
+        if (res.authorRole === "Coach" || res.authorRole === "Medical") {
+          setAuthorRole(res.authorRole);
+        }
         if (r.ok && res.ok && res.draft?.rawNotes) {
           setRaw(res.draft.rawNotes);
           setSummary(summarizeConsult(res.draft.rawNotes));
+          setKind(res.draft.kind ?? res.suggestedKind ?? "Coach consult");
+          setChannel(res.draft.channel ?? res.suggestedChannel ?? "In person");
           setSavedAt(res.draft.updatedAt ?? null);
           setSaveStatus("saved");
           setRestored(true);
+        } else if (r.ok && res.ok && res.suggestedKind) {
+          setKind(res.suggestedKind);
+          setChannel(res.suggestedChannel ?? "In person");
         }
       } catch {
         // Offline / no DB — start empty. The "not saving" state below will show
@@ -179,6 +221,8 @@ export function ConsultComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId,
+          kind: kindRef.current,
+          channel: channelRef.current,
           rawNotes: rawRef.current,
           aiSummary: summaryRef.current ?? undefined,
         }),
@@ -206,13 +250,12 @@ export function ConsultComposer({
   }, [clientId]);
 
   React.useEffect(() => {
-    // Nothing to save while hydrating, after signing, or before the first
-    // keystroke against an empty draft.
-    if (hydrating || signed) return;
-    if (!raw && saveStatus === "idle") return;
+    // Only a human edit schedules an autosave. `saveStatus` is deliberately not
+    // a dependency: saving → saved is an outcome, not another change to persist.
+    if (hydrating || signed || saveRevision === 0) return;
     const t = window.setTimeout(() => void persist(), SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [raw, hydrating, signed, saveStatus, persist]);
+  }, [saveRevision, hydrating, signed, persist]);
 
   // Keep the highlight underlay scrolled in lockstep with the textarea, or the
   // highlight drifts off the word it is supposed to be marking.
@@ -225,12 +268,19 @@ export function ConsultComposer({
 
   const stamp = React.useMemo(() => (raw ? stampFor(raw, NOW) : null), [raw]);
 
+  function markDirty() {
+    setSaveStatus("idle");
+    setSaveError(null);
+    setSaveRevision((revision) => revision + 1);
+  }
+
   function loadSample() {
-    const sample = NOTE_TEMPLATE_SAMPLES[0];
+    const sample = authorRole === "Medical" ? MEDICAL_SAMPLE : NOTE_TEMPLATE_SAMPLES[0];
     setRaw(sample);
     setSummary(summarizeConsult(sample));
     setSummarizing(false);
     setRestored(false);
+    markDirty();
     textRef.current?.focus();
   }
 
@@ -239,9 +289,12 @@ export function ConsultComposer({
     setSummary(null);
     setRestored(false);
     setSigned(false);
+    rawRef.current = "";
+    summaryRef.current = null;
     // Persist the cleared state so a navigate-away doesn't restore old notes.
     // Empty is a legitimate draft; the effect above will PUT rawNotes: "".
     setSaveStatus("saving");
+    setSaveRevision((revision) => revision + 1);
     void persist();
   }
 
@@ -267,10 +320,10 @@ export function ConsultComposer({
       const res = await r.json().catch(() => ({}));
       if (r.ok && res.ok) {
         setSigned(true);
-        toast("Consult signed", {
+        toast(authorRole === "Medical" ? "Medical review signed" : "Consult signed", {
           desc: `Immutable. Recorded durably as ${res.ledger.id} · ${shortHash(res.ledger.hash)}`,
         });
-        onSigned?.(raw);
+        onSigned?.(res.consultId);
       } else if (r.status === 409) {
         // No live draft on the server — usually because the autosave never
         // reached it. Say so plainly instead of forging a signature.
@@ -308,13 +361,65 @@ export function ConsultComposer({
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={loadSample}>
               <FileText className="h-3.5 w-3.5" />
-              Load a sample consult
+              {authorRole === "Medical" ? "Load a sample review" : "Load a sample consult"}
             </Button>
             {raw && (
               <Button size="sm" variant="ghost" onClick={clearDraft} aria-label="Clear draft">
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
             )}
+          </div>
+        </div>
+
+        <div className="border-b border-ink-800 bg-ink-950/25 px-4 py-3">
+          <div className="mb-3 rounded-lg border border-gold-500/25 bg-gold-500/5 px-3 py-2 text-detail leading-relaxed text-ink-300">
+            {authorRole === null ? (
+              <span className="text-ink-500">Loading note permissions…</span>
+            ) : authorRole === "Medical" ? (
+              <>
+                <strong className="text-ink-100">Internal medical chart review.</strong>{" "}
+                The coach remains the member&apos;s steward and point of contact, and communicates the signed plan.
+              </>
+            ) : (
+              <>
+                <strong className="text-ink-100">You are this member&apos;s steward.</strong>{" "}
+                This note captures the client conversation and keeps the coach as the single point of contact.
+              </>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-micro font-medium uppercase tracking-wide text-ink-500">
+              Note type
+              <select
+                value={kind}
+                disabled={signed || authorRole === null}
+                onChange={(event) => {
+                  setKind(event.target.value as ConsultKind);
+                  markDirty();
+                }}
+                className="focus-ring mt-1 block w-full rounded-control border border-ink-700 bg-ink-900 px-3 py-2 text-detail normal-case tracking-normal text-ink-100"
+              >
+                {allowedKinds.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-micro font-medium uppercase tracking-wide text-ink-500">
+              {authorRole === "Medical" ? "Review channel" : "Visit channel"}
+              <select
+                value={channel}
+                disabled={signed || authorRole === null}
+                onChange={(event) => {
+                  setChannel(event.target.value as ConsultChannel);
+                  markDirty();
+                }}
+                className="focus-ring mt-1 block w-full rounded-control border border-ink-700 bg-ink-900 px-3 py-2 text-detail normal-case tracking-normal text-ink-100"
+              >
+                {allowedChannels.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
@@ -336,11 +441,14 @@ export function ConsultComposer({
             <textarea
               ref={textRef}
               value={raw}
-              onChange={(e) => setRaw(e.target.value)}
+              onChange={(e) => {
+                setRaw(e.target.value);
+                markDirty();
+              }}
               onScroll={syncScroll}
               spellCheck={false}
               disabled={signed}
-              placeholder={PLACEHOLDER}
+              placeholder={authorRole === "Medical" ? MEDICAL_PLACEHOLDER : COACH_PLACEHOLDER}
               className={cn(
                 // Transparent background so the highlight underlay shows through;
                 // the underlay owns the border and fill.
@@ -397,7 +505,7 @@ export function ConsultComposer({
             <div>
               <p className="label-eyebrow">Structured summary</p>
               <p className="mt-0.5 text-detail text-ink-500">
-                Hover any item to see the words it came from.
+                AI draft · review and sign before it becomes part of the chart.
               </p>
             </div>
           </div>
@@ -442,7 +550,9 @@ export function ConsultComposer({
                 <section>
                   <div className="mb-2 flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 text-high" />
-                    <p className="label-eyebrow text-high">Escalate to provider</p>
+                    <p className="label-eyebrow text-high">
+                      {authorRole === "Medical" ? "Coach communication points" : "Escalate internally to Medical"}
+                    </p>
                   </div>
                   {/*
                     Scope stated up front, because the toast below says "in
@@ -453,8 +563,17 @@ export function ConsultComposer({
                     here is cheaper than a coach discovering it.
                   */}
                   <p className="mb-2 text-micro leading-relaxed text-ink-600">
-                    Routes to the member&apos;s provider with an SLA clock. Prototype: the queue is
-                    held in memory and resets on reload.
+                    {authorRole === "Medical" ? (
+                      <>
+                        These stay in the signed internal review for the coach to communicate.
+                        No client message is sent from this screen.
+                      </>
+                    ) : (
+                      <>
+                        Routes internally to the member&apos;s Medical queue with an SLA clock.
+                        Prototype: the queue is held in memory and resets on reload.
+                      </>
+                    )}
                   </p>
                   <ul className="space-y-2">
                     {summary.escalations.map((e, i) => {
@@ -473,7 +592,7 @@ export function ConsultComposer({
                             <span className="stat-mono text-micro text-ink-500">
                               conf {(e.confidence * 100).toFixed(0)}%
                             </span>
-                            <Button
+                            {authorRole === "Coach" ? <Button
                               size="sm"
                               variant={escalated[key] ? "success" : "danger"}
                               onClick={() => {
@@ -572,7 +691,9 @@ export function ConsultComposer({
                                   Escalate
                                 </>
                               )}
-                            </Button>
+                            </Button> : (
+                              <Badge tone="info">Included for coach communication</Badge>
+                            )}
                           </div>
                         </li>
                       );
@@ -753,11 +874,11 @@ export function ConsultComposer({
               >
                 <Button
                   variant="primary"
-                  disabled={!summary || signing || saveStatus === "error" || saveStatus === "saving"}
+                  disabled={!summary || summarizing || signing || saveStatus !== "saved"}
                   onClick={() => setConfirmSign(true)}
                 >
                   <PenLine className="h-4 w-4" />
-                  {signing ? "Signing…" : "Sign consult"}
+                  {signing ? "Signing…" : authorRole === "Medical" ? "Sign review" : "Sign consult"}
                 </Button>
                 <Button variant="outline" disabled={!raw || saveStatus === "saving"} onClick={saveDraft}>
                   <Save className="h-4 w-4" />

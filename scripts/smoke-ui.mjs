@@ -14,6 +14,16 @@ import { chromium } from "playwright";
 const PORT = process.env.SMOKE_PORT || "4101";
 const BASE = `http://127.0.0.1:${PORT}`;
 
+const principal = (email, name, oid) => Buffer.from(
+  JSON.stringify({
+    claims: [
+      { typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", val: email },
+      { typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", val: name },
+      { typ: "http://schemas.microsoft.com/identity/claims/objectidentifier", val: oid },
+    ],
+  }),
+).toString("base64");
+
 if (existsSync(".next/standalone")) {
   try { cpSync(".next/static", ".next/standalone/.next/static", { recursive: true }); } catch {}
   try { if (existsSync("public")) cpSync("public", ".next/standalone/public", { recursive: true }); } catch {}
@@ -98,8 +108,134 @@ try {
     await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, { timeout: 10000 });
     const text = (await p.evaluate(() => document.body.innerText)).trim();
     if (!text.includes("Community")) done(1, "SMOKE-UI FAIL: /coach/community did not render Community");
+    if (!text.includes("For you") || !text.toLowerCase().includes("next event")) {
+      done(
+        1,
+        `SMOKE-UI FAIL: Community personalized landing view did not render (${JSON.stringify({
+          hasForYou: text.includes("For you"),
+          hasNextEvent: text.toLowerCase().includes("next event"),
+          excerpt: text.slice(0, 500),
+        })})`,
+      );
+    }
     if (errors.length) done(1, `SMOKE-UI FAIL: Community page errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log(`ok  /coach/community: ${text.length} chars, no page errors`);
+    console.log(`ok  /coach/community: ${text.length} chars, personalized landing view, no page errors`);
+    await p.close();
+  }
+
+  // A visit note must be reachable from the client profile for both Coach and
+  // Medical workflows. Exercise the deep link used by the upcoming-call CTA.
+  {
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.setExtraHTTPHeaders({
+      "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "Tyler Brooks", "oid-st-005"),
+    });
+    // This smoke owns the UI contract, not a local Postgres instance. Supply
+    // the same role-constrained metadata the authenticated draft endpoint
+    // returns; executable specs separately verify the server-side rules.
+    await p.route("**/api/consults/draft*", async (route) => {
+      if (route.request().method() === "PUT") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            durable: true,
+            id: "con-smoke",
+            updatedAt: "2026-07-22T12:00:00.000Z",
+          }),
+        });
+      }
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          authorRole: "Coach",
+          allowedKinds: ["Coach consult", "Check-in", "Intake", "Follow-up", "Telehealth"],
+          allowedChannels: ["In person", "Phone", "Video", "Messaging"],
+          suggestedKind: "Coach consult",
+          suggestedChannel: "In person",
+          draft: null,
+        }),
+      });
+    });
+    await p.goto(`${BASE}/clients/c-001?tab=consults&new=1`, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
+    await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, {
+      timeout: 10000,
+    });
+    const text = (await p.evaluate(() => document.body.innerText)).trim();
+    if (!text.toLowerCase().includes("structured summary")) {
+      done(
+        1,
+        `SMOKE-UI FAIL: consult composer did not open (${JSON.stringify({ excerpt: text.slice(-700) })})`,
+      );
+    }
+    const normalizedText = text.toLowerCase();
+    if (!normalizedText.includes("note type") || !normalizedText.includes("visit channel")) {
+      done(1, "SMOKE-UI FAIL: consult metadata controls did not render");
+    }
+    if (!normalizedText.includes("steward") || !normalizedText.includes("ai draft") || !normalizedText.includes("sign consult")) {
+      done(1, "SMOKE-UI FAIL: AI review/sign workflow did not render");
+    }
+    const signButton = p.getByRole("button", { name: "Sign consult" });
+    await p.getByRole("button", { name: "Load a sample consult" }).click();
+    if (!(await signButton.isDisabled())) {
+      done(1, "SMOKE-UI FAIL: a dirty note could be signed before its latest autosave");
+    }
+    await p.waitForFunction(() => {
+      const button = [...document.querySelectorAll("button")]
+        .find((candidate) => candidate.textContent?.includes("Sign consult"));
+      return button && !button.disabled;
+    }, null, { timeout: 5000 });
+    if (errors.length) done(1, `SMOKE-UI FAIL: consult composer errors: ${errors.slice(0, 3).join(" | ")}`);
+    console.log(`ok  client consult: note metadata, AI review and signature workflow rendered`);
+    await p.close();
+  }
+
+  // Medical contributes internally and cannot be presented with a client
+  // encounter channel. The coach remains the communication owner.
+  {
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.route("**/api/consults/draft*", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          authorRole: "Medical",
+          allowedKinds: ["Medical chart review"],
+          allowedChannels: ["Chart review"],
+          suggestedKind: "Medical chart review",
+          suggestedChannel: "Chart review",
+          draft: null,
+        }),
+      });
+    });
+    await p.goto(`${BASE}/clients/c-001?tab=consults&new=1`, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
+    const text = (await p.evaluate(() => document.body.innerText)).trim().toLowerCase();
+    if (
+      !text.includes("internal medical chart review") ||
+      !text.includes("coach remains") ||
+      !text.includes("review channel") ||
+      !text.includes("chart review")
+    ) {
+      done(1, "SMOKE-UI FAIL: Medical rendered as a direct client encounter");
+    }
+    if (errors.length) done(1, `SMOKE-UI FAIL: Medical review errors: ${errors.slice(0, 3).join(" | ")}`);
+    console.log("ok  Medical review: internal-only workflow with coach communication ownership rendered");
     await p.close();
   }
 

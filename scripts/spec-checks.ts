@@ -68,6 +68,16 @@ import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/schedulin
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
 import { staff } from "@/lib/mock/staff";
+import {
+  consultChannelForRole,
+  consultKindForRole,
+  defaultConsultChannel,
+  defaultConsultKind,
+  isConsultChannelAllowedForRole,
+  isConsultKindAllowedForRole,
+  normalizeConsultChannel,
+  normalizeConsultKind,
+} from "@/lib/consult/metadata";
 
 let failures = 0;
 let checks = 0;
@@ -124,6 +134,17 @@ eq(
   owner?.locationIds,
   ["raleigh", "raleigh-boutique", "southern-pines", "myrtle-beach", "telehealth"],
 );
+eq("a coach note defaults to a coach consult", defaultConsultKind("Coach"), "Coach consult");
+eq("a medical note defaults to an internal chart review", defaultConsultKind("Medical"), "Medical chart review");
+eq("a medical note defaults to a non-client channel", defaultConsultChannel("Medical"), "Chart review");
+eq("a coach cannot author a medical chart review", isConsultKindAllowedForRole("Medical chart review", "Coach"), false);
+eq("Medical cannot author a coach consult", isConsultKindAllowedForRole("Coach consult", "Medical"), false);
+eq("Medical cannot select a client visit channel", isConsultChannelAllowedForRole("In person", "Medical"), false);
+eq("a legacy Medical visit draft upgrades before signing", consultKindForRole("Provider visit", "Medical"), "Medical chart review");
+eq("a legacy Medical visit channel upgrades before signing", consultChannelForRole("In person", "Medical"), "Chart review");
+eq("legacy coaching drafts remain readable", normalizeConsultKind("coaching"), "Coach consult");
+eq("legacy medical drafts become internal reviews", normalizeConsultKind("medical"), "Medical chart review");
+eq("legacy in-person drafts remain readable", normalizeConsultChannel("in-person"), "In person");
 
 // The Aug 7 pilot shape: "we can put it into production and we can do a small
 // pilot, maybe 10 patients" — Paul Kennard, 01:02:24.
