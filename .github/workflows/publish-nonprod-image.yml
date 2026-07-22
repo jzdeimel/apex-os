@@ -1,0 +1,54 @@
+name: Publish Apex non-production image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: apex-nonprod-image
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: nonprod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to isolated Apex non-production
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify registry target
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $subscription = az account show --query id -o tsv
+          if ($subscription -ne '${{ vars.AZURE_SUBSCRIPTION_ID }}') {
+            throw 'Azure subscription does not match the nonprod environment.'
+          }
+
+          $resourceGroup = az acr show --name acrapexnpfcfde --query resourceGroup -o tsv
+          if ($resourceGroup -ne 'apex-nonprod') {
+            throw "Registry is not in apex-nonprod: $resourceGroup"
+          }
+
+      - name: Build and push immutable image
+        shell: pwsh
+        run: |
+          $tag = 'git-${{ github.sha }}'
+          $image = "acrapexnpfcfde.azurecr.io/apex-os:$tag"
+          az acr login --name acrapexnpfcfde
+          if ($LASTEXITCODE -ne 0) { throw 'ACR login failed.' }
+          docker build --tag $image .
+          if ($LASTEXITCODE -ne 0) { throw 'Container image build failed.' }
+          docker push $image
+          if ($LASTEXITCODE -ne 0) { throw 'Container image push failed.' }
+          "Published $image" >> $env:GITHUB_STEP_SUMMARY
