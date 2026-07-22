@@ -46,15 +46,10 @@ $publishedTag = (Invoke-AzCli acr repository show-tags `
   --output tsv).Trim()
 if ([string]::IsNullOrWhiteSpace($publishedTag)) { throw "Migration image '$Image' is not published." }
 
-# Metadata-only checks. Secret values are never read into this process.
-foreach ($secretName in @('database-url', 'v1-readonly-database-url')) {
-  $secretId = (Invoke-AzCli keyvault secret show `
-    --vault-name $keyVaultName `
-    --name $secretName `
-    --query id `
-    --output tsv).Trim()
-  if ([string]::IsNullOrWhiteSpace($secretId)) { throw "Required Key Vault secret '$secretName' is absent." }
-}
+# Do not read either database secret. Routine deployers need only RG-scoped
+# deployment rights; the versionless Key Vault references may be installed
+# before the V1 SELECT-only credential exists. MIGRATION_AUTHORIZED=false and a
+# manual trigger keep the dormant job incapable of applying a migration.
 
 Invoke-AzCli bicep build --file $templateFile --stdout | Out-Null
 $parameters = @(

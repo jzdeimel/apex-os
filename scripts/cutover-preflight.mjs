@@ -52,6 +52,9 @@ const unsafeInfraReferences = ["rg-alphaos-prod", "apex-prod"].filter((name) => 
 const appTemplate = existsSync(resolve(root, "infra/app.bicep"))
   ? readFileSync(resolve(root, "infra/app.bicep"), "utf8")
   : "";
+const migrationTemplate = existsSync(resolve(root, "infra/migration-job.bicep"))
+  ? readFileSync(resolve(root, "infra/migration-job.bicep"), "utf8")
+  : "";
 const patientPage = existsSync(resolve(root, "app/patient/page.tsx"))
   ? readFileSync(resolve(root, "app/patient/page.tsx"), "utf8")
   : "";
@@ -73,6 +76,9 @@ const publicLeadsRoute = existsSync(resolve(root, "app/api/public/leads/route.ts
 const deployAppScript = existsSync(resolve(root, "scripts/deploy-nonprod-app.ps1"))
   ? readFileSync(resolve(root, "scripts/deploy-nonprod-app.ps1"), "utf8")
   : "";
+const deployMigrationScript = existsSync(resolve(root, "scripts/deploy-nonprod-migration-job.ps1"))
+  ? readFileSync(resolve(root, "scripts/deploy-nonprod-migration-job.ps1"), "utf8")
+  : "";
 const demoModeDisabled = /name:\s*'APEX_DEMO_MODE'[\s\S]{0,300}?value:\s*'false'/.test(appTemplate);
 const deploymentBoundaryFailures = [
   !appTemplate.includes("if (!empty(entraClientSecret))") &&
@@ -83,6 +89,13 @@ const deploymentBoundaryFailures = [
     "Windows PowerShell may misread the existing Entra service principal as absent",
   !deployAppScript.includes("containerapp secret list") &&
     "routine deployments cannot verify the existing EasyAuth secret by metadata",
+  !migrationTemplate.includes("value: 'false'") || !migrationTemplate.includes("triggerType: 'Manual'")
+    ? "the migration job is not manual and hard-disabled by default"
+    : false,
+  migrationTemplate.includes("sourceDatabaseUrl.properties.secretUriWithVersion") &&
+    "installing the dormant migration job still requires the V1 secret to exist",
+  deployMigrationScript.includes("keyvault secret show") &&
+    "routine migration-job deployment still reads Key Vault secret metadata",
 ].filter(Boolean);
 const patientBoundaryFailures = [
   !appTemplate.includes("'/patient-sign-in'") && "patient sign-in is still intercepted by staff EasyAuth",

@@ -35,7 +35,8 @@ contrast sweep.
   the remaining history scope can be accepted or expanded from evidence.
 - Immutable web and migration images plus a dormant, manual-triggered Container
   Apps migration job in `apex-nonprod`; it defaults to a source-read-only dry run
-  and cannot start until a V1 read-only credential is supplied through Key Vault.
+  and can be installed without secret-read permission. It cannot resolve its
+  source until a V1 read-only credential is supplied through Key Vault.
 - Working-hours/calendar busy model and payment/messaging fail-safe boundaries.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.

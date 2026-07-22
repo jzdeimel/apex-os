@@ -15,6 +15,11 @@ var jobName = 'job-apex-v1-rehearsal'
 var environmentName = 'cae-apex-nonprod'
 var registryName = 'acrapexnpfcfde'
 var keyVaultName = 'kv-apex-np-fcfde'
+var sourceDatabaseSecretName = 'v1-readonly-database-url'
+var targetDatabaseSecretName = 'database-url'
+var keyVaultSecretBaseUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets'
+var sourceDatabaseSecretUrl = '${keyVaultSecretBaseUrl}/${sourceDatabaseSecretName}'
+var targetDatabaseSecretUrl = '${keyVaultSecretBaseUrl}/${targetDatabaseSecretName}'
 var runtimeIdentityName = 'id-apex-nonprod-runtime'
 var tags = {
   application: 'apex-os'
@@ -32,20 +37,6 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: registryName
-}
-
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
-  name: keyVaultName
-}
-
-resource sourceDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
-  parent: keyVault
-  name: 'v1-readonly-database-url'
-}
-
-resource targetDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
-  parent: keyVault
-  name: 'database-url'
 }
 
 resource runtimeIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
@@ -81,12 +72,15 @@ resource migrationJob 'Microsoft.App/jobs@2024-03-01' = {
       secrets: [
         {
           name: 'v1-database-url'
-          keyVaultUrl: sourceDatabaseUrl.properties.secretUriWithVersion
+          // The source credential is intentionally allowed to be absent while
+          // the job is installed. The job is manual and hard-disabled; once a
+          // SELECT-only V1 secret is supplied, the same reference resolves it.
+          keyVaultUrl: sourceDatabaseSecretUrl
           identity: runtimeIdentity.id
         }
         {
           name: 'apex-migration-database-url'
-          keyVaultUrl: targetDatabaseUrl.properties.secretUriWithVersion
+          keyVaultUrl: targetDatabaseSecretUrl
           identity: runtimeIdentity.id
         }
       ]
