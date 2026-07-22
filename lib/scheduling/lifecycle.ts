@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type AppointmentState = "Scheduled" | "Arrived" | "Roomed" | "Completed" | "No Show" | "Cancelled";
 
 const TRANSITIONS: Record<AppointmentState, AppointmentState[]> = {
@@ -23,5 +25,9 @@ export function appointmentRequestId(clientId: string, requestId: string) {
   const digest = createHash("sha256").update(`apex-appointment-v1\0${clientId}\0${requestId}`).digest("hex");
   return `appt-${digest.slice(0, 40)}`;
 }
-import { createHash } from "node:crypto";
 
+/** One idempotent parent id for the three appointments in an NCV. */
+export function ncvRequestId(clientId: string, requestId: string) {
+  const digest = createHash("sha256").update(`apex-ncv-v1\0${clientId}\0${requestId}`).digest("hex");
+  return `ncv-${digest.slice(0, 40)}`;
+}

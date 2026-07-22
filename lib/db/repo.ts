@@ -33,6 +33,7 @@ import {
   allergy as allergyTable,
   problem as problemTable,
   medication as medicationTable,
+  staffCredential,
 } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
 import type { Consult } from "@/lib/consult/types";
@@ -69,6 +70,8 @@ import {
   type AppointmentState,
 } from "@/lib/scheduling/lifecycle";
 import { inferAccessProfile } from "@/lib/authz/profiles";
+import { NCV_COMPONENTS, type NcvComponentId } from "@/lib/scheduling/ncv";
+import { parseCredential } from "@/lib/scheduling/credentials";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -715,6 +718,16 @@ async function slotConflicts(tx: DbTx, input: SlotInput): Promise<string[]> {
   return issues;
 }
 
+const OVERRIDEABLE_SLOT_ISSUES = new Set([
+  "No approved working-hours rule covers this slot.",
+]);
+
+/** An override may document an hours exception; it may never erase a collision or invalid identity. */
+function blockingSlotIssues(issues: string[], overrideReason?: string) {
+  if (!overrideReason?.trim()) return issues;
+  return issues.filter((issue) => !OVERRIDEABLE_SLOT_ISSUES.has(issue));
+}
+
 export async function readAppointments(input: {
   from: string;
   to: string;
@@ -742,6 +755,8 @@ export async function readAppointments(input: {
       locationId: appointmentTable.locationId,
       locationName: clinicLocationTable.name,
       visitType: appointmentTable.visitType,
+      bookingGroupId: appointmentTable.bookingGroupId,
+      component: appointmentTable.component,
       modality: appointmentTable.modality,
       startAt: appointmentTable.startAt,
       endAt: appointmentTable.endAt,
@@ -999,6 +1014,23 @@ export async function readAppointmentCareScope(id: string) {
   return row ?? null;
 }
 
+export async function readNcvGroupCareScope(groupId: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      clientId: appointmentTable.clientId,
+      locationId: appointmentTable.locationId,
+      assignedCoachId: clientTable.assignedCoachId,
+      assignedProviderId: clientTable.assignedProviderId,
+      homeLocationId: clientTable.homeLocationId,
+    })
+    .from(appointmentTable)
+    .innerJoin(clientTable, eq(appointmentTable.clientId, clientTable.id))
+    .where(eq(appointmentTable.bookingGroupId, groupId))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function bookAppointmentWithLedger(input: {
   id: string;
   clientId: string;
@@ -1027,7 +1059,8 @@ export async function bookAppointmentWithLedger(input: {
       startAt: new Date(input.startAt),
       endAt: new Date(input.endAt),
     });
-    if (issues.length && !input.overrideReason) return { appointment: null, ledger: null, duplicate: false, issues };
+    const blocking = blockingSlotIssues(issues, input.overrideReason);
+    if (blocking.length) return { appointment: null, ledger: null, duplicate: false, issues: blocking };
 
     const ledger = await appendLedgerInTx(
       tx,
@@ -1067,6 +1100,418 @@ export async function bookAppointmentWithLedger(input: {
   });
 }
 
+/**
+ * Book the three required parts of a New Client Visit as one transaction.
+ *
+ * No partial booking is possible: staffing, licence, location policy, working
+ * hours, Apex collisions, and Google busy time are resolved before any row is
+ * inserted. A retry returns the existing group. Clinical credentials come from
+ * effective staff_credential rows, never the display string on staff.
+ */
+export async function bookNcvWithLedger(input: {
+  groupId: string;
+  clientId: string;
+  locationId: string;
+  startAt: string;
+  gapMinutes?: number;
+  preferProviderId?: string;
+  reason?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+  overrideReason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx.execute(raw`SELECT pg_advisory_xact_lock(4250)`);
+    const existing = await tx
+      .select()
+      .from(appointmentTable)
+      .where(eq(appointmentTable.bookingGroupId, input.groupId))
+      .orderBy(asc(appointmentTable.startAt));
+    if (existing.length) return { status: "ok" as const, duplicate: true, appointments: existing, assignments: [], ledger: null };
+
+    const [person] = await tx
+      .select({ id: clientTable.id, status: clientTable.status })
+      .from(clientTable)
+      .where(eq(clientTable.id, input.clientId))
+      .limit(1);
+    if (!person || person.status !== "active") return { status: "invalid" as const, reason: "The patient is not active in Apex." };
+
+    const [clinic] = await tx
+      .select({
+        id: clinicLocationTable.id,
+        active: clinicLocationTable.active,
+        state: clinicLocationTable.state,
+        timezone: clinicLocationTable.timezone,
+        lpnLabDrawApproved: clinicLocationTable.lpnLabDrawApproved,
+      })
+      .from(clinicLocationTable)
+      .where(eq(clinicLocationTable.id, input.locationId))
+      .limit(1);
+    if (!clinic?.active) return { status: "invalid" as const, reason: "The selected clinic is not active." };
+    if (!clinic.state) return { status: "invalid" as const, reason: "The clinic needs a verified state before an NCV can be staffed." };
+
+    const [workers, credentials] = await Promise.all([
+      tx
+        .select({
+          id: staffTable.id,
+          name: staffTable.name,
+          accessProfile: staffTable.accessProfile,
+          locationIds: staffTable.locationIds,
+          active: staffTable.active,
+          excluded: staffTable.excludeFromScheduling,
+        })
+        .from(staffTable)
+        .where(and(eq(staffTable.active, true), eq(staffTable.excludeFromScheduling, false)))
+        .orderBy(staffTable.name),
+      tx
+        .select()
+        .from(staffCredential)
+        .where(and(eq(staffCredential.status, "active"), eq(staffCredential.state, clinic.state))),
+    ]);
+    const eligibleWorkers = workers.filter((worker) =>
+      Array.isArray(worker.locationIds) && (worker.locationIds as string[]).includes(input.locationId),
+    );
+    const localDay = localSlot(new Date(input.startAt), clinic.timezone).date;
+    const credentialsByStaff = new Map<string, CredentialClass[]>();
+    for (const row of credentials) {
+      if (!row.licenseNumber || !row.expiresOn || row.expiresOn < localDay) continue;
+      const parsed = parseCredential(row.credential);
+      if (!parsed || parsed === "Coach" || parsed === "Admin") continue;
+      if (parsed === "LPN" && !clinic.lpnLabDrawApproved) continue;
+      const current = credentialsByStaff.get(row.staffId) ?? [];
+      if (!current.includes(parsed)) current.push(parsed);
+      credentialsByStaff.set(row.staffId, current);
+    }
+
+    const gap = Math.max(0, Math.min(input.gapMinutes ?? 0, 30));
+    let cursor = new Date(input.startAt);
+    const assignments: Array<{
+      component: NcvComponentId;
+      staffId: string;
+      staffName: string;
+      credential: CredentialClass;
+      tier: number;
+      startAt: Date;
+      endAt: Date;
+      issues: string[];
+    }> = [];
+
+    for (const component of [...NCV_COMPONENTS].sort((a, b) => a.sequence - b.sequence)) {
+      const startAt = new Date(cursor);
+      const endAt = new Date(startAt.getTime() + component.durationMin * 60_000);
+      let chosen: (typeof assignments)[number] | null = null;
+      const rejectedIssues = new Set<string>();
+
+      for (let tier = 0; tier < component.tiers.length && !chosen; tier++) {
+        const accepted = component.tiers[tier];
+        const ordered = [...eligibleWorkers].sort((a, b) => {
+          if (input.preferProviderId) {
+            if (a.id === input.preferProviderId) return -1;
+            if (b.id === input.preferProviderId) return 1;
+          }
+          return a.name.localeCompare(b.name);
+        });
+        for (const worker of ordered) {
+          let credential: CredentialClass | undefined;
+          if (accepted.includes("Coach") && worker.accessProfile === "coach") credential = "Coach";
+          else {
+            credential = (credentialsByStaff.get(worker.id) ?? []).find((item) => accepted.includes(item));
+            const correctProfile = credential && (
+              (["MD", "DO", "NP", "PA"] as CredentialClass[]).includes(credential)
+                ? worker.accessProfile === "provider"
+                : (["RN", "LPN"] as CredentialClass[]).includes(credential)
+                  ? worker.accessProfile === "nursing"
+                  : false
+            );
+            if (!correctProfile) credential = undefined;
+          }
+          if (!credential) continue;
+
+          const issues = await slotConflicts(tx, {
+            clientId: input.clientId,
+            staffId: worker.id,
+            locationId: input.locationId,
+            startAt,
+            endAt,
+          });
+          const blocking = blockingSlotIssues(issues, input.overrideReason);
+          if (blocking.length) {
+            blocking.forEach((issue) => rejectedIssues.add(issue));
+            continue;
+          }
+          chosen = {
+            component: component.id,
+            staffId: worker.id,
+            staffName: worker.name,
+            credential,
+            tier,
+            startAt,
+            endAt,
+            issues,
+          };
+          break;
+        }
+      }
+
+      if (!chosen) {
+        return {
+          status: "blocked" as const,
+          blockedOn: component.id,
+          wouldNeed: component.tiers.flatMap((tier) => [...tier]),
+          issues: [...rejectedIssues],
+        };
+      }
+      assignments.push(chosen);
+      cursor = new Date(chosen.endAt.getTime() + gap * 60_000);
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "appointment",
+        entityId: input.groupId,
+        subjectId: input.clientId,
+        locationId: input.locationId as LedgerDraft["locationId"],
+        reason: input.overrideReason
+          ? `Atomic NCV booked with approved-hours exception: ${input.overrideReason}`
+          : "Atomic three-component New Client Visit booked",
+        after: {
+          kind: "new-client-visit",
+          assignments: assignments.map((row) => ({
+            component: row.component,
+            staffId: row.staffId,
+            credential: row.credential,
+            tier: row.tier,
+            startAt: row.startAt.toISOString(),
+            endAt: row.endAt.toISOString(),
+          })),
+        },
+      },
+      input.at,
+    );
+
+    const appointmentRows = await tx
+      .insert(appointmentTable)
+      .values(assignments.map((row) => ({
+        id: `${input.groupId}-${row.component}`,
+        bookingGroupId: input.groupId,
+        component: row.component,
+        clientId: input.clientId,
+        staffId: row.staffId,
+        locationId: input.locationId,
+        visitType: `NCV - ${NCV_COMPONENTS.find((part) => part.id === row.component)!.label}`,
+        modality: "in-person",
+        startAt: row.startAt,
+        endAt: row.endAt,
+        status: "Scheduled",
+        reason: input.reason ?? null,
+        bookedBy: input.actorId,
+        bookedAt: new Date(input.at),
+        ledgerId: ledger.id,
+      })))
+      .returning();
+
+    const encounterId = `enc-${input.groupId}`;
+    await tx.insert(encounter).values({
+      id: encounterId,
+      appointmentId: `${input.groupId}-coach-intro`,
+      clientId: input.clientId,
+      locationId: input.locationId,
+      kind: "new-client-visit",
+      modality: "in-person",
+      status: "open",
+      startedAt: assignments[0].startAt,
+      ledgerId: ledger.id,
+    });
+    await tx.insert(encounterSegment).values(assignments.map((row) => {
+      const definition = NCV_COMPONENTS.find((part) => part.id === row.component)!;
+      return {
+        id: `${encounterId}-${row.component}`,
+        encounterId,
+        component: row.component,
+        sequence: definition.sequence,
+        requiredCredentials: definition.tiers as never,
+        assignedStaffId: row.staffId,
+        status: "pending",
+        ledgerId: ledger.id,
+      };
+    }));
+
+    return { status: "ok" as const, duplicate: false, appointments: appointmentRows, assignments, encounterId, ledger };
+  });
+}
+
+/** Cancel or move an entire NCV; never leave one of its three parts behind. */
+export async function changeNcvGroupWithLedger(input: {
+  groupId: string;
+  action: "cancel" | "reschedule" | "no-show";
+  startAt?: string;
+  reason: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+  overrideReason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    await tx.execute(raw`SELECT pg_advisory_xact_lock(4250)`);
+    const rows = await tx
+      .select()
+      .from(appointmentTable)
+      .where(eq(appointmentTable.bookingGroupId, input.groupId))
+      .orderBy(asc(appointmentTable.startAt));
+    if (!rows.length) return { status: "missing" as const };
+    if (rows.length !== NCV_COMPONENTS.length || rows.some((row) => !row.component)) {
+      return { status: "conflict" as const, reason: "The NCV booking group is incomplete and requires operational review." };
+    }
+    if (rows.some((row) => normalizedAppointmentState(row.status) !== "Scheduled")) {
+      return { status: "conflict" as const, reason: "Only an entirely scheduled NCV can be cancelled or rescheduled as a group." };
+    }
+    const at = new Date(input.at);
+
+    if (input.action === "cancel" || input.action === "no-show") {
+      if (!input.reason.trim()) return { status: "invalid" as const, reason: "A reason is required." };
+      const terminalStatus = input.action === "cancel" ? "Cancelled" : "No Show";
+      await tx
+        .update(appointmentTable)
+        .set(input.action === "cancel"
+          ? {
+              status: terminalStatus,
+              cancelledAt: at,
+              cancelledBy: input.actorId,
+              cancelReason: input.reason.trim(),
+            }
+          : { status: terminalStatus })
+        .where(eq(appointmentTable.bookingGroupId, input.groupId));
+      const [linkedEncounter] = await tx
+        .select({ id: encounter.id })
+        .from(encounter)
+        .where(eq(encounter.appointmentId, `${input.groupId}-coach-intro`))
+        .limit(1);
+      if (linkedEncounter) {
+        await tx
+          .update(encounter)
+          .set({ status: "abandoned", abandonedAt: at, abandonedReason: `${terminalStatus}: ${input.reason.trim()}` })
+          .where(eq(encounter.id, linkedEncounter.id));
+      }
+      const ledger = await appendLedgerInTx(tx, {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "appointment",
+        entityId: input.groupId,
+        subjectId: rows[0].clientId,
+        locationId: rows[0].locationId as LedgerDraft["locationId"],
+        reason: `Entire NCV ${input.action === "cancel" ? "cancelled" : "marked no-show"}: ${input.reason.trim()}`,
+        before: { status: "Scheduled", components: rows.map((row) => row.component) },
+        after: { status: terminalStatus, endedAt: input.at },
+      }, input.at);
+      return { status: "ok" as const, appointments: rows.map((row) => ({ ...row, status: terminalStatus })), ledger };
+    }
+
+    if (!input.startAt) return { status: "invalid" as const, reason: "A new start time is required." };
+    const nextStart = new Date(input.startAt);
+    if (Number.isNaN(nextStart.getTime())) return { status: "invalid" as const, reason: "The new start time is invalid." };
+    const delta = nextStart.getTime() - rows[0].startAt.getTime();
+    const proposed = rows.map((row) => ({
+      row,
+      startAt: new Date(row.startAt.getTime() + delta),
+      endAt: new Date(row.endAt.getTime() + delta),
+    }));
+    for (const item of proposed) {
+      if (!item.row.staffId || !item.row.locationId) return { status: "conflict" as const, reason: "Every NCV component must have assigned staff and a clinic." };
+      const definition = NCV_COMPONENTS.find((part) => part.id === item.row.component);
+      if (!definition) return { status: "conflict" as const, reason: "The NCV contains an unknown component." };
+      const [[clinicPolicy], [worker], credentialRows] = await Promise.all([
+        tx
+          .select({ state: clinicLocationTable.state, timezone: clinicLocationTable.timezone, lpnLabDrawApproved: clinicLocationTable.lpnLabDrawApproved })
+          .from(clinicLocationTable)
+          .where(eq(clinicLocationTable.id, item.row.locationId))
+          .limit(1),
+        tx
+          .select({ accessProfile: staffTable.accessProfile })
+          .from(staffTable)
+          .where(eq(staffTable.id, item.row.staffId))
+          .limit(1),
+        tx
+          .select()
+          .from(staffCredential)
+          .where(and(eq(staffCredential.staffId, item.row.staffId), eq(staffCredential.status, "active"))),
+      ]);
+      const required = definition.tiers.flatMap((tier) => [...tier]);
+      const localDay = clinicPolicy ? localSlot(item.startAt, clinicPolicy.timezone).date : "";
+      const qualified = definition.id === "coach-intro"
+        ? worker?.accessProfile === "coach"
+        : credentialRows.some((row) => {
+            const credential = parseCredential(row.credential);
+            if (!credential || !required.includes(credential)) return false;
+            if (!clinicPolicy?.state || row.state !== clinicPolicy.state || !row.licenseNumber || !row.expiresOn || row.expiresOn < localDay) return false;
+            if (credential === "LPN" && !clinicPolicy.lpnLabDrawApproved) return false;
+            return (["MD", "DO", "NP", "PA"] as CredentialClass[]).includes(credential)
+              ? worker?.accessProfile === "provider"
+              : (["RN", "LPN"] as CredentialClass[]).includes(credential) && worker?.accessProfile === "nursing";
+          });
+      if (!qualified) {
+        return { status: "blocked" as const, component: item.row.component, issues: ["The assigned staff member lacks an active, in-state credential for the new date."] };
+      }
+      const issues = await slotConflicts(tx, {
+        clientId: item.row.clientId,
+        staffId: item.row.staffId,
+        locationId: item.row.locationId,
+        startAt: item.startAt,
+        endAt: item.endAt,
+        excludeAppointmentId: item.row.id,
+      });
+      const blocking = blockingSlotIssues(issues, input.overrideReason);
+      if (blocking.length) return { status: "blocked" as const, component: item.row.component, issues: blocking };
+    }
+
+    for (const item of proposed) {
+      await tx
+        .update(appointmentTable)
+        .set({ startAt: item.startAt, endAt: item.endAt })
+        .where(eq(appointmentTable.id, item.row.id));
+    }
+    const [linkedEncounter] = await tx
+      .select({ id: encounter.id })
+      .from(encounter)
+      .where(eq(encounter.appointmentId, `${input.groupId}-coach-intro`))
+      .limit(1);
+    if (linkedEncounter) {
+      await tx.update(encounter).set({ startedAt: nextStart }).where(eq(encounter.id, linkedEncounter.id));
+    }
+    const ledger = await appendLedgerInTx(tx, {
+      actorId: input.actorId,
+      actorName: input.actorName,
+      actorRole: input.actorRole,
+      action: "update",
+      entity: "appointment",
+      entityId: input.groupId,
+      subjectId: rows[0].clientId,
+      locationId: rows[0].locationId as LedgerDraft["locationId"],
+      reason: input.overrideReason
+        ? `Entire NCV rescheduled with approved-hours exception: ${input.overrideReason}`
+        : `Entire NCV rescheduled: ${input.reason.trim()}`,
+      before: { startAt: rows[0].startAt.toISOString() },
+      after: { startAt: nextStart.toISOString() },
+    }, input.at);
+    return {
+      status: "ok" as const,
+      appointments: proposed.map((item) => ({ ...item.row, startAt: item.startAt, endAt: item.endAt })),
+      ledger,
+    };
+  });
+}
+
 export async function changeAppointmentWithLedger(input: {
   id: string;
   action: "arrive" | "room" | "complete" | "no-show" | "cancel" | "reopen" | "reschedule" | "reassign";
@@ -1087,6 +1532,9 @@ export async function changeAppointmentWithLedger(input: {
     await tx.execute(raw`SELECT pg_advisory_xact_lock(4250)`);
     const [current] = await tx.select().from(appointmentTable).where(eq(appointmentTable.id, input.id)).limit(1);
     if (!current) return { status: "missing" as const };
+    if (current.bookingGroupId && ["cancel", "no-show", "reopen", "reschedule", "reassign"].includes(input.action)) {
+      return { status: "conflict" as const, reason: `This appointment belongs to NCV group ${current.bookingGroupId}; use the group workflow so every component stays consistent.` };
+    }
     const from = normalizedAppointmentState(current.status);
     if (!from) return { status: "conflict" as const, reason: "Unknown current appointment state." };
 
@@ -1124,7 +1572,8 @@ export async function changeAppointmentWithLedger(input: {
         endAt: nextEndAt,
         excludeAppointmentId: current.id,
       });
-      if (issues.length && !input.overrideReason) return { status: "invalid" as const, reason: issues.join(" "), issues };
+      const blocking = blockingSlotIssues(issues, input.overrideReason);
+      if (blocking.length) return { status: "invalid" as const, reason: blocking.join(" "), issues: blocking };
     }
 
     const at = new Date(input.at);

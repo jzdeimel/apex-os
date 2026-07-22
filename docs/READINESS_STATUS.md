@@ -78,8 +78,11 @@ contrast sweep.
   queue. The patient cannot address Medical directly.
 - Durable staff booking, reschedule, reassignment, cancel, arrival, rooming,
   completion and no-show transitions with conflict checks and an atomic audit
-  witness. This is the single-appointment foundation; composite NCV booking and
-  patient self-service remain separate work.
+  witness. Staff can also create, reschedule, or cancel a complete NCV as one
+  three-component transaction. The NCV fails closed unless the coach, draw, and
+  physical can all be staffed from verified access profiles, in-state licenses,
+  clinic policy, approved hours, Apex conflicts, and connected-calendar busy
+  time. Patient self-service remains separate work.
 - Medical-only append-preserving allergy, problem and outside-medication
   reconciliation, with coach read access inside care-team scope.
 - A Google busy-only adapter that imports no titles, attendees or clinical
@@ -108,6 +111,9 @@ contrast sweep.
   not present in the repository and cannot be inferred.
 - The employee roster does not contain working hours, license numbers, license
   expiry, state scope, or supervision relationships.
+- Atomic NCV code is therefore intentionally unable to offer a real slot until
+  those approved roster facts are loaded; an hours exception cannot override a
+  collision, missing credential, inactive staff record, or wrong clinic.
 - The four conflicting/unspecified scheduling policies in the runbook require
   an owner decision.
 

@@ -571,6 +571,8 @@ export const clinicLocation = pgTable(
     zip: text("zip"),
     timezone: text("timezone").notNull().default("America/New_York"),
     active: boolean("active").notNull().default(true),
+    /** LPN draws are disabled until clinic/state policy explicitly approves them. */
+    lpnLabDrawApproved: boolean("lpn_lab_draw_approved").notNull().default(false),
     /** Clover merchant id is not a secret; API secrets remain in Key Vault. */
     merchantAccountId: text("merchant_account_id"),
     sourceSystem: text("source_system"),
@@ -778,6 +780,10 @@ export const appointment = pgTable(
     /** V1 also permits a booking whose clinic has not yet been resolved. */
     locationId: text("location_id"),
     visitType: text("visit_type").notNull(),
+    /** Atomic composite booking identifier; null for ordinary appointments. */
+    bookingGroupId: text("booking_group_id"),
+    /** NCV component within a composite booking. */
+    component: text("component"),
     modality: text("modality").notNull().default("in-person"),
     startAt: timestamp("start_at", { withTimezone: true }).notNull(),
     endAt: timestamp("end_at", { withTimezone: true }).notNull(),
@@ -807,6 +813,7 @@ export const appointment = pgTable(
     dayIdx: index("appt_day_idx").on(t.locationId, t.startAt),
     clientIdx: index("appt_client_idx").on(t.clientId, t.startAt),
     staffIdx: index("appt_staff_idx").on(t.staffId, t.startAt),
+    groupIdx: index("appt_booking_group_idx").on(t.bookingGroupId, t.startAt),
     sourceIdx: uniqueIndex("appt_source_idx").on(t.sourceSystem, t.sourceId),
   }),
 );

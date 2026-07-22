@@ -13,6 +13,8 @@ type LiveAppointment = {
   staffName: string | null;
   locationName: string | null;
   visitType: string;
+  bookingGroupId: string | null;
+  component: string | null;
   modality: string;
   startAt: string;
   endAt: string;
@@ -21,7 +23,7 @@ type LiveAppointment = {
   reason: string | null;
 };
 
-type PendingAction = { row: LiveAppointment; action: "room" | "cancel" | "reschedule" | "reopen" };
+type PendingAction = { row: LiveAppointment; action: "room" | "cancel" | "reschedule" | "reopen" | "no-show" };
 
 function bounds() {
   const now = new Date();
@@ -82,10 +84,11 @@ export function LiveDeskBoard() {
     setBusyId(row.id);
     setError(null);
     try {
-      const response = await fetch("/api/appointments", {
+      const groupAction = Boolean(row.bookingGroupId && ["cancel", "no-show", "reschedule"].includes(action));
+      const response = await fetch(groupAction ? "/api/appointments/ncv" : "/api/appointments", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: row.id, action, ...extra }),
+        body: JSON.stringify(groupAction ? { groupId: row.bookingGroupId, action, ...extra } : { id: row.id, action, ...extra }),
       });
       const payload = await response.json() as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "The appointment change was not confirmed.");
@@ -137,10 +140,10 @@ export function LiveDeskBoard() {
                     <td className="p-3 text-detail text-ink-300">{row.staffName ?? "Unassigned"}<span className="block text-micro text-ink-600">{row.locationName ?? "Clinic pending"}</span></td>
                     <td className="p-3"><Badge tone={row.status === "Completed" ? "optimal" : row.status === "Cancelled" || row.status === "No Show" ? "neutral" : row.status === "Roomed" ? "gold" : "info"}>{row.status}{row.room ? ` · ${row.room}` : ""}</Badge></td>
                     <td className="p-3"><div className="flex flex-wrap justify-end gap-2">
-                      {row.status === "Scheduled" && <><Button size="sm" onClick={() => void move(row, "arrive")} disabled={waiting}><UserCheck className="h-3.5 w-3.5" /> Arrived</Button><Button size="sm" variant="outline" onClick={() => open(row, "reschedule")}><CalendarClock className="h-3.5 w-3.5" /> Move</Button><Button size="sm" variant="ghost" onClick={() => void move(row, "no-show")}><UserX className="h-3.5 w-3.5" /> No show</Button><Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}><X className="h-3.5 w-3.5" /> Cancel</Button></>}
-                      {(row.status === "Arrived" || row.status === "Checked In") && <><Button size="sm" onClick={() => open(row, "room")}><DoorOpen className="h-3.5 w-3.5" /> Room</Button><Button size="sm" variant="outline" onClick={() => void move(row, "complete")}><Check className="h-3.5 w-3.5" /> Complete</Button><Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}>Cancel</Button></>}
-                      {row.status === "Roomed" && <><Button size="sm" onClick={() => void move(row, "complete")}><Check className="h-3.5 w-3.5" /> Check out</Button><Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}>Cancel</Button></>}
-                      {(row.status === "Cancelled" || row.status === "No Show") && <Button size="sm" variant="outline" onClick={() => open(row, "reopen")}>Reopen</Button>}
+                      {row.status === "Scheduled" && <><Button size="sm" onClick={() => void move(row, "arrive")} disabled={waiting}><UserCheck className="h-3.5 w-3.5" /> Arrived</Button>{(!row.bookingGroupId || row.component === "coach-intro") && <><Button size="sm" variant="outline" onClick={() => open(row, "reschedule")}><CalendarClock className="h-3.5 w-3.5" /> {row.bookingGroupId ? "Move NCV" : "Move"}</Button><Button size="sm" variant="ghost" onClick={() => row.bookingGroupId ? open(row, "no-show") : void move(row, "no-show")}><UserX className="h-3.5 w-3.5" /> No show</Button><Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}><X className="h-3.5 w-3.5" /> {row.bookingGroupId ? "Cancel NCV" : "Cancel"}</Button></>}</>}
+                      {(row.status === "Arrived" || row.status === "Checked In") && <><Button size="sm" onClick={() => open(row, "room")}><DoorOpen className="h-3.5 w-3.5" /> Room</Button><Button size="sm" variant="outline" onClick={() => void move(row, "complete")}><Check className="h-3.5 w-3.5" /> Complete</Button>{!row.bookingGroupId && <Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}>Cancel</Button>}</>}
+                      {row.status === "Roomed" && <><Button size="sm" onClick={() => void move(row, "complete")}><Check className="h-3.5 w-3.5" /> Check out</Button>{!row.bookingGroupId && <Button size="sm" variant="ghost" onClick={() => open(row, "cancel")}>Cancel</Button>}</>}
+                      {(row.status === "Cancelled" || row.status === "No Show") && !row.bookingGroupId && <Button size="sm" variant="outline" onClick={() => open(row, "reopen")}>Reopen</Button>}
                     </div></td>
                   </tr>
                 );
@@ -152,15 +155,15 @@ export function LiveDeskBoard() {
 
       {pending && (
         <div className="rounded-panel border border-gold-400/30 bg-ink-900 p-5">
-          <h3 className="font-display text-heading text-ink-50">{pending.action === "room" ? "Assign a room" : pending.action === "reschedule" ? "Move appointment" : pending.action === "reopen" ? "Correct a closed appointment" : "Cancel appointment"}</h3>
+          <h3 className="font-display text-heading text-ink-50">{pending.action === "room" ? "Assign a room" : pending.action === "reschedule" ? pending.row.bookingGroupId ? "Move complete NCV" : "Move appointment" : pending.action === "reopen" ? "Correct a closed appointment" : pending.action === "no-show" ? "Mark complete NCV no-show" : pending.row.bookingGroupId ? "Cancel complete NCV" : "Cancel appointment"}</h3>
           <p className="mt-1 text-detail text-ink-400">{pending.row.clientPreferredName || pending.row.clientFirstName} · {pending.row.visitType}</p>
           {pending.action === "room" && <Input className="mt-4" value={room} onChange={(event) => setRoom(event.target.value)} placeholder="Room name or number" />}
-          {pending.action === "reschedule" && <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-detail text-ink-300">Start<Input type="datetime-local" className="mt-1" value={newStart} onChange={(event) => setNewStart(event.target.value)} /></label><label className="text-detail text-ink-300">End<Input type="datetime-local" className="mt-1" value={newEnd} onChange={(event) => setNewEnd(event.target.value)} /></label></div>}
-          {(pending.action === "cancel" || pending.action === "reopen") && <Textarea className="mt-4 min-h-20" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={pending.action === "reopen" ? "Correction reason (required)" : "Cancellation reason (required)"} />}
-          <div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setPending(null)}>Back</Button><Button onClick={() => void move(pending.row, pending.action, pending.action === "room" ? { room } : pending.action === "reschedule" ? { startAt: new Date(newStart).toISOString(), endAt: new Date(newEnd).toISOString() } : { reason })} disabled={busyId === pending.row.id || (pending.action === "room" && !room.trim()) || ((pending.action === "cancel" || pending.action === "reopen") && !reason.trim())}>{busyId === pending.row.id ? "Saving…" : "Confirm"}</Button></div>
+          {pending.action === "reschedule" && <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-detail text-ink-300">Start<Input type="datetime-local" className="mt-1" value={newStart} onChange={(event) => setNewStart(event.target.value)} /></label>{!pending.row.bookingGroupId && <label className="text-detail text-ink-300">End<Input type="datetime-local" className="mt-1" value={newEnd} onChange={(event) => setNewEnd(event.target.value)} /></label>}</div>}
+          {pending.action === "reschedule" && pending.row.bookingGroupId && <Textarea className="mt-4 min-h-20" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why the complete NCV is moving (required)" />}
+          {(pending.action === "cancel" || pending.action === "reopen" || pending.action === "no-show") && <Textarea className="mt-4 min-h-20" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={pending.action === "reopen" ? "Correction reason (required)" : pending.action === "no-show" ? "No-show reason (required)" : "Cancellation reason (required)"} />}
+          <div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setPending(null)}>Back</Button><Button onClick={() => void move(pending.row, pending.action, pending.action === "room" ? { room } : pending.action === "reschedule" ? pending.row.bookingGroupId ? { startAt: new Date(newStart).toISOString(), reason } : { startAt: new Date(newStart).toISOString(), endAt: new Date(newEnd).toISOString() } : { reason })} disabled={busyId === pending.row.id || (pending.action === "room" && !room.trim()) || (pending.action === "reschedule" && (!newStart || (!pending.row.bookingGroupId && !newEnd) || (Boolean(pending.row.bookingGroupId) && !reason.trim()))) || ((pending.action === "cancel" || pending.action === "reopen" || pending.action === "no-show") && !reason.trim())}>{busyId === pending.row.id ? "Saving…" : "Confirm"}</Button></div>
         </div>
       )}
     </div>
   );
 }
-

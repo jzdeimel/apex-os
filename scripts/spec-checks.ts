@@ -64,7 +64,7 @@ import {
 } from "@/lib/auth/patientTokens";
 import { staffPatientPilotPolicy } from "@/lib/auth/pilotPolicy";
 import { authoritativeMessageId, containsUrgentLanguage } from "@/lib/messaging/authoritative";
-import { appointmentRequestId, appointmentTransitionAllowed } from "@/lib/scheduling/lifecycle";
+import { appointmentRequestId, appointmentTransitionAllowed, ncvRequestId } from "@/lib/scheduling/lifecycle";
 import { parseGoogleServiceAccount } from "@/lib/calendar/google";
 import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
@@ -739,6 +739,9 @@ eq("ordinary scheduling language is not labeled urgent", containsUrgentLanguage(
 section("Calendar capacity");
 const appointmentRequest = appointmentRequestId("client-1", "request-12345678");
 eq("a retried booking keeps the same opaque appointment id", appointmentRequest, appointmentRequestId("client-1", "request-12345678"));
+const ncvRequest = ncvRequestId("client-1", "request-12345678");
+eq("a retried NCV keeps one opaque group id", ncvRequest, ncvRequestId("client-1", "request-12345678"));
+eq("an NCV id cannot collide with a single appointment id", ncvRequest === appointmentRequest, false);
 eq("appointment ids do not expose the patient id", appointmentRequest.includes("client-1"), false);
 eq("a scheduled visit may arrive", appointmentTransitionAllowed("Scheduled", "Arrived"), true);
 eq("a completed visit cannot be marked no-show", appointmentTransitionAllowed("Completed", "No Show"), false);

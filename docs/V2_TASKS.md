@@ -51,14 +51,14 @@ task at the bottom of this list.
 | T17 | **Migration `0009`** — Postgres triggers making allergy/problem append-only, vitals and signed H&Ps immutable, and the ledger un-editable. Plus `lib/clinical/history.ts`, which answers Paul's penicillin question directly |
 | T16 | `lib/documents/signing.ts` — one model for consent, contract and attestation; document hashing, the E-SIGN evidence tuple, an audit certificate, and tamper detection on read |
 | T4 | `Client.locationId` documented as the owning clinic (telehealth is a valid *panel*); `billingLocationFor` refuses to guess which clinic a telehealth patient's money belongs to |
-| CI | **`npm run spec` — 69 checks, gating.** No test framework: Node 22 strips types and `scripts/alias-hooks.mjs` supplies `@/` in 30 lines, so they run against the same source the app imports |
+| CI | **`npm run spec` — 149 checks, gating.** No test framework: Node strips types and `scripts/register-alias.mjs` supplies `@/`, so checks run against the same source the app imports. |
 
 ### Still open
 
 | Task | Why it is not done |
 | --- | --- |
 | T14 · Coach-guided intake runner UI | Schema and validation are complete (`mode`, `captured_by`, server-side must-know enforcement). The **wizard UI** is not built — it is a substantial form-rendering job against the versioned definition |
-| T8 · NCV as a bookable composite | The resolver, the credential tiers and the encounter segments all exist and are verified. What is missing is the **booking screen** that calls them |
+| T8 · NCV as a bookable composite | **Implemented in candidate code.** `/schedule` calls an all-or-nothing NCV API backed by migration `0017`; real use is deliberately blocked until approved hours, access profiles, license number/state/expiry and clinic LPN policy are loaded and accepted. |
 | T6 · The pinned clock | `lib/clock.ts` exists; the 52 modules still anchored to `const NOW = "2026-06-12"` have not migrated. Deliberate — most are seeded-read modules whose fixtures are pinned to that date, and cutting them loose before their data moves to Postgres produces screens that are live and meaningless |
 | Contrast residual | 142, ~3 per page, all text on saturated or dark chips. Each needs a per-component decision rather than a token change. `npm run contrast` lists them |
 
