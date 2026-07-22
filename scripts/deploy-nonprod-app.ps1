@@ -168,6 +168,39 @@ try {
         --output json
     )
     $result | ConvertTo-Json -Depth 8
+
+    # Container Apps auth runs in a sidecar. Auth-config changes are persisted
+    # immediately but an already-started sidecar can keep the prior excluded
+    # paths until its revision restarts. Make that reload part of deployment so
+    # patient sign-in cannot remain accidentally trapped behind staff EasyAuth.
+    $latestRevision = (Invoke-AzCli containerapp show `
+      --resource-group $resourceGroupName `
+      --name $appName `
+      --query properties.latestRevisionName `
+      --output tsv).Trim()
+    if ([string]::IsNullOrWhiteSpace($latestRevision)) {
+      throw 'Deployment returned no latest Container Apps revision.'
+    }
+    Invoke-AzCli containerapp revision restart `
+      --resource-group $resourceGroupName `
+      --name $appName `
+      --revision $latestRevision | Out-Null
+
+    $ready = $false
+    for ($attempt = 1; $attempt -le 60; $attempt++) {
+      $revisionState = ConvertFrom-AzJson (Invoke-AzCli containerapp revision show `
+        --resource-group $resourceGroupName `
+        --name $appName `
+        --revision $latestRevision `
+        --query '{health:properties.healthState,running:properties.runningState}' `
+        --output json)
+      if ($revisionState.health -eq 'Healthy' -and $revisionState.running -eq 'Running') {
+        $ready = $true
+        break
+      }
+      Start-Sleep -Seconds 5
+    }
+    if (-not $ready) { throw "Revision '$latestRevision' did not become healthy after auth reload." }
   }
 }
 finally {

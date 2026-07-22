@@ -80,7 +80,9 @@ that has CONNECT and SELECT only. Its default command is the rehearsal dry run;
 deploying the job does not start it.
 
 1. Deploy the readiness image to `ca-apex-dev`. Confirm `/api/health` reports
-   database configured and migrations applied.
+   database configured and migrations applied. The deployment automation
+   restarts the new revision after the EasyAuth update so patient exclusions are
+   loaded before health verification.
 2. Dry-run a full extract. This requires only the V1 read-only URL and emits
    counts/checksums, never names, email addresses, or raw source IDs. The report
    also inventories every unmapped clinical, commercial, operations, reference,

@@ -52,5 +52,18 @@ jobs:
         shell: pwsh
         run: |
           $fqdn = az containerapp show -g apex-nonprod -n ca-apex-dev --query properties.configuration.ingress.fqdn -o tsv
-          $health = Invoke-RestMethod "https://$fqdn/api/health"
-          if ($health.status -ne 'ok') { throw "Health check failed: $($health | ConvertTo-Json -Compress)" }
+          $lastError = $null
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+            try {
+              $health = Invoke-RestMethod "https://$fqdn/api/health" -TimeoutSec 30
+              if ($health.status -eq 'ok' -and $health.database -eq 'configured' -and $health.migration -eq 'applied') {
+                exit 0
+              }
+              $lastError = "Unexpected response: $($health | ConvertTo-Json -Compress)"
+            }
+            catch {
+              $lastError = $_.Exception.Message
+            }
+            Start-Sleep -Seconds 10
+          }
+          throw "Health check failed after retries: $lastError"
