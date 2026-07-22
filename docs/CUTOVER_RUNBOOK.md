@@ -22,6 +22,8 @@ production traffic decision.
 ## What is ready
 
 - Isolated non-production Azure foundation and authenticated `ca-apex-dev`.
+  Its deployment setup registers the exact EasyAuth callback and enables Entra
+  ID-token issuance required by the confidential web login flow.
 - Nonprod explicitly runs with `APEX_DEMO_MODE=false`; a rehearsal cannot use
   seeded identity fallback or legacy server-side demo token handling.
 - GitHub OIDC deployment without a stored Azure client secret.

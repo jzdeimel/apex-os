@@ -89,6 +89,8 @@ const deploymentBoundaryFailures = [
     "Windows PowerShell may misread the existing Entra service principal as absent",
   !deployAppScript.includes("containerapp secret list") &&
     "routine deployments cannot verify the existing EasyAuth secret by metadata",
+  !deployAppScript.includes("--enable-id-token-issuance true") &&
+    "the Entra web registration does not enable the ID token required by EasyAuth login",
   !migrationTemplate.includes("value: 'false'") || !migrationTemplate.includes("triggerType: 'Manual'")
     ? "the migration job is not manual and hard-disabled by default"
     : false,

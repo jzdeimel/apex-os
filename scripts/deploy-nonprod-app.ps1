@@ -91,13 +91,17 @@ if ([string]::IsNullOrWhiteSpace($WebClientId)) {
         --display-name $displayName `
         --sign-in-audience AzureADMyOrg `
         --web-redirect-uris $redirectUri `
+        --enable-id-token-issuance true `
         --output json
     )
   }
   else {
     $createdOrResolvedApp = $apps[0]
     if ($Mode -eq 'Apply') {
-      Invoke-AzCli ad app update --id $createdOrResolvedApp.id --web-redirect-uris $redirectUri | Out-Null
+      Invoke-AzCli ad app update `
+        --id $createdOrResolvedApp.id `
+        --web-redirect-uris $redirectUri `
+        --enable-id-token-issuance true | Out-Null
     }
     else {
       $parsedRedirects = ConvertFrom-AzJson (
@@ -106,6 +110,13 @@ if ([string]::IsNullOrWhiteSpace($WebClientId)) {
       $redirects = @($parsedRedirects)
       if ($redirectUri -notin $redirects) {
         throw "Entra app redirect URI is not configured. Apply mode is required to add '$redirectUri'."
+      }
+      $idTokenIssuanceEnabled = (Invoke-AzCli ad app show `
+        --id $createdOrResolvedApp.id `
+        --query web.implicitGrantSettings.enableIdTokenIssuance `
+        --output tsv).Trim()
+      if ($idTokenIssuanceEnabled -ne 'true') {
+        throw 'Entra app ID-token issuance is disabled. Apply mode is required for the EasyAuth web login flow.'
       }
     }
   }
