@@ -85,12 +85,9 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     home: "/portal",
     prefixes: ["/portal"],
     identity: {
-      // Members cannot sign in at all today: EasyAuth is single-tenant and a
-      // patient has no @goalphahealth.com account. This portal is reachable
-      // only by staff previewing it.
-      method: "Staff preview only",
-      session: "No patient sign-in yet",
-      planned: "Passkey or magic link · 30-day rolling · device-bound",
+      method: "Single-use magic link · pilot cohort",
+      session: "15-minute idle · 12-hour absolute · server-enforced",
+      planned: "External ID or passkey · device-bound · recovery policy",
     },
     accent: {
       hex: "var(--c-optimal)",
@@ -110,7 +107,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     prefixes: ["/clinic"],
     identity: {
       method: "Entra ID · Alpha Health tenant",
-      session: "Platform session · no re-auth on sign yet",
+      session: "EasyAuth · fixed 8-hour · no re-auth on sign yet",
       planned: "MFA enforced · 8-hour · re-auth to sign",
     },
     accent: {
@@ -134,7 +131,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     prefixes: ["/coach"],
     identity: {
       method: "Entra ID · Alpha Health tenant",
-      session: "Platform session",
+      session: "EasyAuth · fixed 8-hour",
       planned: "Google Workspace · domain-locked · 8-hour · least-privilege",
     },
     accent: {
@@ -172,7 +169,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       // Deliberately NOT "auto-locks at the counter". No idle lock exists
       // anywhere in Apex (GAP_ANALYSIS, COMPLIANCE, "Session timeout" — P0) and
       // a shared reception terminal is the single worst place to imply one.
-      session: "Platform session",
+      session: "EasyAuth · fixed 8-hour · no idle lock",
       planned: "Shared workstation · badge tap · shift-length",
     },
     accent: {
@@ -217,7 +214,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       // No claim of an idle lock: none exists anywhere in Apex (GAP_ANALYSIS,
       // COMPLIANCE, "Session timeout" — P0), and this console renders
       // clinic-wide financials.
-      session: "Platform session · no idle lock",
+      session: "EasyAuth · fixed 8-hour · no idle lock",
       planned: "MFA enforced · 8-hour · owner account",
     },
     accent: {

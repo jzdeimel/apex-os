@@ -10,15 +10,18 @@ import {
   patientSession,
   signedDocument,
   staff,
+  staffPatientLink,
 } from "@/lib/db/schema";
 import {
   MAGIC_LINK_TTL_MS,
+  PATIENT_SESSION_IDLE_TTL_MS,
   PATIENT_SESSION_TTL_MS,
   authRecordId,
   normalizePatientEmail,
   opaqueToken,
   tokenSha256,
 } from "@/lib/auth/patientTokens";
+import { staffPatientPilotPolicy } from "@/lib/auth/pilotPolicy";
 
 export interface PatientSessionSubject {
   identityId: string;
@@ -77,17 +80,50 @@ export interface PatientPortalSummary {
 export async function issuePatientMagicLink(
   clientId: string,
   issuedBy: string,
+  staffId?: string,
   now = new Date(),
 ) {
   const db = requireDb();
   return db.transaction(async (tx) => {
     const [person] = await tx
-      .select({ id: client.id, email: client.email, status: client.status })
+      .select({ id: client.id, email: client.email, status: client.status, synthetic: client.synthetic })
       .from(client)
       .where(eq(client.id, clientId))
       .limit(1);
     if (!person || person.status !== "active") throw new Error("Client is not eligible for portal access.");
     if (!person.email) throw new Error("Client has no email address for portal identity.");
+
+    let linkedStaff: { id: string; active: boolean } | undefined;
+    if (staffId) {
+      [linkedStaff] = await tx
+        .select({ id: staff.id, active: staff.active })
+        .from(staff)
+        .where(eq(staff.id, staffId))
+        .limit(1);
+    }
+    const policyProblem = staffPatientPilotPolicy({
+      clientSynthetic: person.synthetic,
+      staffId,
+      staffActive: linkedStaff?.active,
+    });
+    if (policyProblem) throw new Error(policyProblem);
+    if (staffId) {
+      const [existingLink] = await tx
+        .select({ staffId: staffPatientLink.staffId })
+        .from(staffPatientLink)
+        .where(eq(staffPatientLink.clientId, person.id))
+        .limit(1);
+      if (existingLink && existingLink.staffId !== staffId) {
+        throw new Error("This synthetic client is already linked to another staff identity.");
+      }
+      if (!existingLink) {
+        await tx.insert(staffPatientLink).values({
+          staffId,
+          clientId: person.id,
+          createdBy: issuedBy,
+        });
+      }
+    }
 
     const email = normalizePatientEmail(person.email);
     await tx
@@ -170,29 +206,44 @@ export async function patientSubjectForToken(
 ): Promise<PatientSessionSubject | null> {
   if (!rawToken) return null;
   const db = requireDb();
-  const [row] = await db
-    .select({
-      identityId: patientIdentity.id,
-      clientId: client.id,
-      email: patientIdentity.emailNormalized,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      expiresAt: patientSession.expiresAt,
-    })
-    .from(patientSession)
-    .innerJoin(patientIdentity, eq(patientSession.identityId, patientIdentity.id))
-    .innerJoin(client, eq(patientIdentity.clientId, client.id))
-    .where(
-      and(
-        eq(patientSession.tokenSha256, tokenSha256(rawToken)),
-        isNull(patientSession.revokedAt),
-        gt(patientSession.expiresAt, now),
-        eq(patientIdentity.status, "active"),
-        eq(client.status, "active"),
-      ),
-    )
-    .limit(1);
-  return row ?? null;
+  const idleCutoff = new Date(now.getTime() - PATIENT_SESSION_IDLE_TTL_MS);
+  return db.transaction(async (tx) => {
+    // The conditional update is the session claim: an absolute-expired,
+    // revoked, or idle-expired session cannot be refreshed back to life.
+    const [activeSession] = await tx
+      .update(patientSession)
+      .set({ lastSeenAt: now })
+      .where(
+        and(
+          eq(patientSession.tokenSha256, tokenSha256(rawToken)),
+          isNull(patientSession.revokedAt),
+          gt(patientSession.expiresAt, now),
+          gt(patientSession.lastSeenAt, idleCutoff),
+        ),
+      )
+      .returning({ identityId: patientSession.identityId, expiresAt: patientSession.expiresAt });
+    if (!activeSession) return null;
+
+    const [row] = await tx
+      .select({
+        identityId: patientIdentity.id,
+        clientId: client.id,
+        email: patientIdentity.emailNormalized,
+        firstName: client.firstName,
+        lastName: client.lastName,
+      })
+      .from(patientIdentity)
+      .innerJoin(client, eq(patientIdentity.clientId, client.id))
+      .where(
+        and(
+          eq(patientIdentity.id, activeSession.identityId),
+          eq(patientIdentity.status, "active"),
+          eq(client.status, "active"),
+        ),
+      )
+      .limit(1);
+    return row ? { ...row, expiresAt: activeSession.expiresAt } : null;
+  });
 }
 
 /**

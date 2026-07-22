@@ -124,7 +124,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APEX_DEMO_MODE'
-              value: 'true'
+              // Rehearsal must exercise the same fail-closed identity and
+              // bearer-token rules as cutover. Demo behavior is never enabled
+              // in the shared Azure environment.
+              value: 'false'
             }
             {
               name: 'APEX_ENVIRONMENT'
@@ -183,6 +186,10 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
       redirectToProvider: 'azureactivedirectory'
       excludedPaths: [
         '/api/health'
+        '/book'
+        '/intake'
+        '/api/public/leads'
+        '/api/public/intake'
         '/patient-sign-in'
         '/patient'
         '/patient/*'
@@ -208,6 +215,10 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
     }
     login: {
       preserveUrlFragmentsForLogins: false
+      cookieExpiration: {
+        convention: 'FixedTime'
+        timeToExpiration: '08:00:00'
+      }
     }
     httpSettings: {
       requireHttps: true

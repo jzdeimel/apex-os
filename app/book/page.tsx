@@ -509,14 +509,22 @@ function Confirmation({
   intakePath: string;
 }) {
   const [copied, setCopied] = React.useState(false);
+  const [copyFailed, setCopyFailed] = React.useState(false);
   const chosen = locations.find((l) => l.id === form.locationId);
   const link = intakePath;
 
-  const copy = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(link).catch(() => undefined);
+  const copy = async () => {
+    if (typeof window === "undefined" || !navigator.clipboard) {
+      setCopyFailed(true);
+      return;
     }
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(new URL(link, window.location.origin).toString());
+      setCopied(true);
+      setCopyFailed(false);
+    } catch {
+      setCopyFailed(true);
+    }
   };
 
   return (
@@ -540,20 +548,29 @@ function Confirmation({
         <div className="card mt-7 p-5">
           <p className="label-eyebrow">Your private intake link</p>
           <p className="mt-2 text-body leading-relaxed text-ink-400">
-            We're sending this to <span className="text-ink-100">{form.email}</span> and{" "}
-            <span className="stat-mono text-ink-100">{form.phone}</span>. Fill it in before
-            your call and the clinician reads it beforehand.
+            Continue securely on this device, or copy the link for later. Alpha Health will
+            follow up at <span className="text-ink-100">{form.email}</span> or{" "}
+            <span className="stat-mono text-ink-100">{form.phone}</span> to finish scheduling.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <code className="stat-mono min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-ink-700 bg-ink-950/70 px-3 py-2 text-detail text-ink-300">
               {link}
             </code>
-            <Button variant="outline" size="sm" onClick={copy} className="gap-1.5">
+            <Link href={link}>
+              <Button variant="primary" size="sm">Continue intake</Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={() => void copy()} className="gap-1.5">
               <Copy className="h-3.5 w-3.5" />
               {copied ? "Copied" : "Copy"}
             </Button>
           </div>
+
+          {copyFailed && (
+            <p className="mt-2 text-detail text-high" role="alert">
+              Copy was blocked by this browser. Use Continue intake on this device.
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-detail text-ink-500">
             <span>Expires in {INTAKE_TTL_HOURS} hours</span>

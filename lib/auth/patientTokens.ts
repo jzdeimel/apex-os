@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 export const PATIENT_SESSION_COOKIE = "apex_patient_session";
 export const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 export const PATIENT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+export const PATIENT_SESSION_IDLE_TTL_MS = 15 * 60 * 1000;
 
 export function opaqueToken(): string {
   return randomBytes(32).toString("base64url");
@@ -18,6 +19,16 @@ export function authRecordId(prefix: "identity" | "link" | "session"): string {
 
 export function normalizePatientEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/** Server-side sliding-idle plus absolute-lifetime decision. */
+export function patientSessionIsActive(
+  lastSeenAt: Date,
+  expiresAt: Date,
+  now = new Date(),
+): boolean {
+  return expiresAt.getTime() > now.getTime() &&
+    lastSeenAt.getTime() > now.getTime() - PATIENT_SESSION_IDLE_TTL_MS;
 }
 
 /** The token lives in the fragment, so proxies and server access logs never see it. */

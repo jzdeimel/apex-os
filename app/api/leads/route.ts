@@ -3,7 +3,7 @@ import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { createLeadWithInvite, readLeads } from "@/lib/db/repo";
-import { mintIntakeToken } from "@/lib/intake/mint";
+import { intakeEntryPath, mintIntakeToken } from "@/lib/intake/mint";
 import { sha256 } from "@/lib/trace/hash";
 
 /**
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       durable: true,
       leadId,
       // Hand the tablet over, or text this. The raw token exists only here.
-      intakePath: `/intake/${minted.token}`,
+      intakePath: intakeEntryPath(minted.token),
       expiresAt: minted.expiresAt,
     });
   } catch (err) {

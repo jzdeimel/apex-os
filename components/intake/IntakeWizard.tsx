@@ -56,9 +56,9 @@ import {
  *  3. CONSENTS ARE FOUR SEPARATE CHECKBOXES. Marketing has its own box, its own
  *     record, and no bearing on whether you can submit. See lib/intake/types.ts.
  *
- * Demo-shaped, not live: `onFinish` writes nothing and calls nothing. The finish
- * screen renders exactly what WOULD be created, including the ledger draft, so
- * the mechanism is legible without any of it being real.
+ * Submission is durable: the public intake API atomically consumes the invite,
+ * stores the versioned answers and signature evidence, advances the lead, and
+ * appends the audit record. The raw invite token stays only in browser memory.
  */
 
 const STEPS: { id: IntakeStepId; label: string; short: string; icon: React.ElementType }[] = [

@@ -97,6 +97,7 @@ const PRINCIPAL = Buffer.from(
 ).toString("base64");
 
 const ROUTES = [
+  "/book", "/intake",
   "/coach", "/coach/roster", "/coach/consults", "/coach/order", "/coach/orders",
   "/coach/subscriptions", "/coach/gaps", "/coach/documents", "/coach/handoff", "/coach/training",
   "/clinic", "/clinic/sign", "/clinic/escalations", "/clinic/ledger", "/clinic/population",

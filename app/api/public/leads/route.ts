@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { createLeadWithInvite } from "@/lib/db/repo";
-import { mintIntakeToken } from "@/lib/intake/mint";
+import { intakeEntryPath, mintIntakeToken } from "@/lib/intake/mint";
 import { sha256 } from "@/lib/trace/hash";
 import { rateLimit, clientIp } from "@/lib/api/rateLimit";
 
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       ok: true,
       durable: true,
       leadId,
-      intakePath: `/intake/${minted.token}`,
+      intakePath: intakeEntryPath(minted.token),
       expiresAt: minted.expiresAt,
     });
   } catch (err) {

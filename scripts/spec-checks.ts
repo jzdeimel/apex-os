@@ -58,9 +58,12 @@ import {
 import {
   normalizePatientEmail,
   opaqueToken,
+  patientSessionIsActive,
   patientSignInUrl,
   tokenSha256,
 } from "@/lib/auth/patientTokens";
+import { staffPatientPilotPolicy } from "@/lib/auth/pilotPolicy";
+import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
@@ -628,6 +631,53 @@ eq("patient emails normalize case and whitespace", normalizePatientEmail(" Patie
 const signInUrl = new URL(patientSignInUrl("https://apex.example", patientToken));
 eq("magic-link credentials are never in the server-visible query", signInUrl.search, "");
 eq("magic-link credentials are carried in the browser-only fragment", signInUrl.hash.startsWith("#token="), true);
+const intakePath = intakeEntryPath(patientToken);
+eq("intake credentials are not in the request path", intakePath.split("#")[0], "/intake");
+eq("intake credentials are carried in the browser-only fragment", intakePath.includes("#token="), true);
+
+const sessionNow = new Date("2026-07-22T16:00:00.000Z");
+eq(
+  "an active patient session refreshes inside the idle window",
+  patientSessionIsActive(
+    new Date("2026-07-22T15:45:01.000Z"),
+    new Date("2026-07-23T00:00:00.000Z"),
+    sessionNow,
+  ),
+  true,
+);
+eq(
+  "a patient session expires after 15 minutes idle",
+  patientSessionIsActive(
+    new Date("2026-07-22T15:45:00.000Z"),
+    new Date("2026-07-23T00:00:00.000Z"),
+    sessionNow,
+  ),
+  false,
+);
+eq(
+  "the absolute session cap wins even when recently active",
+  patientSessionIsActive(
+    new Date("2026-07-22T15:59:00.000Z"),
+    new Date("2026-07-22T16:00:00.000Z"),
+    sessionNow,
+  ),
+  false,
+);
+eq(
+  "a staff-as-patient identity requires a synthetic client",
+  staffPatientPilotPolicy({ clientSynthetic: false, staffId: "st-1", staffActive: true }) !== null,
+  true,
+);
+eq(
+  "a staff-as-patient identity requires an active staff record",
+  staffPatientPilotPolicy({ clientSynthetic: true, staffId: "st-1", staffActive: false }) !== null,
+  true,
+);
+eq(
+  "an active staff identity may link only to its synthetic patient record",
+  staffPatientPilotPolicy({ clientSynthetic: true, staffId: "st-1", staffActive: true }),
+  null,
+);
 
 section("Calendar capacity");
 eq("an empty calendar without working hours offers nothing", freeWindows([], []).length, 0);

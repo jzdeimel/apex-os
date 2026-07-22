@@ -19,7 +19,10 @@ const staticEvidence = [
   "scripts/contrast-sweep.mjs",
   "app/patient/page.tsx",
   "lib/auth/patientRepo.ts",
+  "app/intake/page.tsx",
+  "components/intake/SecureIntakeEntry.tsx",
   "docs/CUTOVER_RUNBOOK.md",
+  "docs/CUTOVER_REQUIREMENTS_MATRIX.md",
 ];
 
 const requiredApprovals = {
@@ -51,6 +54,22 @@ const appTemplate = existsSync(resolve(root, "infra/app.bicep"))
 const patientPage = existsSync(resolve(root, "app/patient/page.tsx"))
   ? readFileSync(resolve(root, "app/patient/page.tsx"), "utf8")
   : "";
+const patientRepo = existsSync(resolve(root, "lib/auth/patientRepo.ts"))
+  ? readFileSync(resolve(root, "lib/auth/patientRepo.ts"), "utf8")
+  : "";
+const pilotLinkRoute = existsSync(resolve(root, "app/api/patient-auth/pilot-link/route.ts"))
+  ? readFileSync(resolve(root, "app/api/patient-auth/pilot-link/route.ts"), "utf8")
+  : "";
+const secureIntakeEntry = existsSync(resolve(root, "components/intake/SecureIntakeEntry.tsx"))
+  ? readFileSync(resolve(root, "components/intake/SecureIntakeEntry.tsx"), "utf8")
+  : "";
+const staffLeadsRoute = existsSync(resolve(root, "app/api/leads/route.ts"))
+  ? readFileSync(resolve(root, "app/api/leads/route.ts"), "utf8")
+  : "";
+const publicLeadsRoute = existsSync(resolve(root, "app/api/public/leads/route.ts"))
+  ? readFileSync(resolve(root, "app/api/public/leads/route.ts"), "utf8")
+  : "";
+const demoModeDisabled = /name:\s*'APEX_DEMO_MODE'[\s\S]{0,300}?value:\s*'false'/.test(appTemplate);
 const patientBoundaryFailures = [
   !appTemplate.includes("'/patient-sign-in'") && "patient sign-in is still intercepted by staff EasyAuth",
   !appTemplate.includes("'/api/patient-auth/exchange'") && "patient link exchange is still intercepted by staff EasyAuth",
@@ -58,6 +77,32 @@ const patientBoundaryFailures = [
   appTemplate.includes("'/portal") && "seeded staff preview portal was made public",
   patientPage.includes("@/lib/mock/") && "database-only patient pilot imports seeded data",
   !patientPage.includes("patientPortalSummary(subject.clientId)") && "patient pilot is not scoped from the authenticated session",
+  !patientRepo.includes("PATIENT_SESSION_IDLE_TTL_MS") && "patient sessions have no server-enforced idle timeout",
+  !patientRepo.includes("gt(patientSession.lastSeenAt, idleCutoff)") && "idle-expired patient sessions can be refreshed",
+  !pilotLinkRoute.includes("staffId") && "staff-as-patient pilot issuance cannot create an explicit identity link",
+  !patientRepo.includes("tx.insert(staffPatientLink)") && "staff-as-patient identity mapping is not persisted",
+  !appTemplate.includes("convention: 'FixedTime'") && "staff EasyAuth has no explicit absolute session cap",
+  !appTemplate.includes("timeToExpiration: '08:00:00'") && "staff EasyAuth session cap is not eight hours",
+  !demoModeDisabled && "the shared Azure deployment still enables or omits the fail-closed server demo-mode boundary",
+].filter(Boolean);
+const requiredPublicPaths = [
+  "'/book'",
+  "'/intake'",
+  "'/api/public/leads'",
+  "'/api/public/intake'",
+];
+const publicJourneyFailures = [
+  ...requiredPublicPaths
+    .filter((path) => !appTemplate.includes(path))
+    .map((path) => `${path.slice(1, -1)} is still intercepted by staff EasyAuth`),
+  appTemplate.includes("'/intake/*'") && "legacy path-carried intake credentials are publicly reachable",
+  !secureIntakeEntry.includes("window.location.hash") && "intake bearer token is not read from a browser-only fragment",
+  !secureIntakeEntry.includes('window.history.replaceState(null, "", window.location.pathname)') &&
+    "intake bearer token remains visible in the address bar",
+  !secureIntakeEntry.includes('"x-apex-intake-token": token') &&
+    "intake resolve does not carry the credential in a request header",
+  staffLeadsRoute.includes("`/intake/${minted.token}`") && "staff intake issuer puts the bearer token in a request path",
+  publicLeadsRoute.includes("`/intake/${minted.token}`") && "public intake issuer puts the bearer token in a request path",
 ].filter(Boolean);
 const approvals = Object.entries(requiredApprovals).map(([key, label]) => ({
   key,
@@ -68,7 +113,11 @@ const missingApprovals = approvals.filter((item) => !item.approved);
 
 const report = {
   verdict:
-    missingFiles.length || unsafeInfraReferences.length || patientBoundaryFailures.length || (goLive && missingApprovals.length)
+    missingFiles.length ||
+    unsafeInfraReferences.length ||
+    patientBoundaryFailures.length ||
+    publicJourneyFailures.length ||
+    (goLive && missingApprovals.length)
       ? "NO-GO"
       : goLive
         ? "GO-EVIDENCE-PRESENT"
@@ -79,6 +128,7 @@ const report = {
     missingFiles,
     unsafeInfraReferences,
     patientBoundaryFailures,
+    publicJourneyFailures,
   },
   approvals: {
     required: approvals.length,

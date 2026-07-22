@@ -8,15 +8,23 @@ contrast sweep.
 ## Completed in code
 
 - Nonprod Azure/OIDC/EasyAuth/CI foundation.
+- Production-like nonprod posture: server demo behavior is explicitly disabled,
+  so unknown staff, seeded identity fallback, and legacy intake query/path
+  credentials fail closed during rehearsal.
 - V1 visual skin and accessibility repairs.
+- Public booking and intake entry, with narrowly scoped EasyAuth exclusions and
+  intake credentials carried only in a browser fragment/header rather than a
+  request path.
 - Feature flags and clinic release preset.
 - Real staff actor mapping and database-backed write paths.
 - NCV credential tiers, resolution, segments, coverage, queue, vitals, and H&P.
 - Versioned five-must-know intake with guided provenance.
 - Append-only clinical facts and immutable signature/archive evidence.
 - Patient magic-link/session data model, staff-only pilot issuing path, and a
-  read-only `/patient` pilot that is scoped from the session and reads only the
-  authoritative database.
+  read-only `/patient` pilot that is scoped from the session, enforces a
+  15-minute idle timeout plus 12-hour absolute cap, and reads only the
+  authoritative database. Staff testing as patients requires an explicit
+  active-staff-to-synthetic-patient mapping.
 - Authoritative patient/location/staff/appointment schema and controlled V1
   importer with baseline, delta, dry-run, provenance, and reconciliation.
 - The dry run inventories counts for every other V1 clinical, commercial,
@@ -28,6 +36,9 @@ contrast sweep.
 - Working-hours/calendar busy model and payment/messaging fail-safe boundaries.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
+- A source-to-evidence acceptance ledger in
+  `docs/CUTOVER_REQUIREMENTS_MATRIX.md`; static readiness cannot be confused
+  with vendor, roster, rehearsal, pilot, or go-live approval.
 
 ## Not ready to enable
 

@@ -22,9 +22,12 @@ production traffic decision.
 ## What is ready
 
 - Isolated non-production Azure foundation and authenticated `ca-apex-dev`.
+- Nonprod explicitly runs with `APEX_DEMO_MODE=false`; a rehearsal cannot use
+  seeded identity fallback or legacy server-side demo token handling.
 - GitHub OIDC deployment without a stored Azure client secret.
 - Green infrastructure CI, including build, audit, API smoke, and UI smoke.
-- V1-skin accessibility gate: zero contrast failures across 49 routed screens.
+- V1-skin accessibility gate: zero contrast failures across 51 routed screens,
+  including the unauthenticated booking and secure-intake entry surfaces.
 - Credential-based NCV resolver and the three ordered encounter segments.
 - Nurse lab-draw queue, NCV coverage view, vitals, H&P signing, and append-only
   clinical facts.
@@ -33,8 +36,13 @@ production traffic decision.
 - Explicit typed signature, read attestation, E-SIGN consent, exact document
   hashing, immutable retained signed records, artifact/delivery receipts.
 - Patient magic-link primitives: 256-bit token, hash-only persistence, 15-minute
-  single-use link, 12-hour HttpOnly session, staff-only pilot issuance, explicit
-  staff-to-patient dual-identity table.
+  single-use link, a server-enforced 15-minute idle timeout and 12-hour absolute
+  HttpOnly session, staff-only pilot issuance, and an explicit
+  staff-to-synthetic-patient dual-identity table.
+- Public booking/intake routes are narrowly excluded from staff EasyAuth. The
+  private intake credential is placed in a browser-only URL fragment, removed
+  from the address bar before resolution, and sent to the public resolver in a
+  header so it does not enter the request path or infrastructure access logs.
 - A separate read-only `/patient` pilot is protected by that patient session and
   reads demographics, care team, appointments, messages, and signed-document
   metadata only from the authenticated Apex client id. The seeded `/portal/*`

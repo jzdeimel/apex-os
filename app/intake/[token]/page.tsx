@@ -10,6 +10,7 @@ import { BRAND } from "@/lib/brand";
 import { Button, Badge } from "@/components/ui/primitives";
 import { locationName } from "@/lib/mock/locations";
 import { IS_DEMO } from "@/lib/config";
+import { redirect } from "next/navigation";
 
 /**
  * Public intake — /intake/<token>
@@ -186,6 +187,9 @@ async function resolveInvite(
 
 export default async function IntakeTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // Path-carried bearer tokens are a demo-only compatibility route. A real
+  // token belongs in /intake#token=... so it never reaches access logs.
+  if (!IS_DEMO) redirect("/intake");
   const { invite, verdict } = await resolveInvite(decodeURIComponent(token));
 
   return (

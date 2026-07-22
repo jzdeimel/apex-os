@@ -9,14 +9,16 @@
 // Two consequences shape the types below:
 //
 //  1. The link IS the credential. There is no password on an intake form, so the
-//     token in the URL is the entire authorisation story. See lib/intake/tokens.ts
-//     for what that has to be worth in bits, and what the audited system got wrong.
+//     token carried in the browser-only URL fragment is the entire authorisation
+//     story. The fragment is removed before any API request and is never sent in
+//     a path/query that infrastructure logs can retain.
 //  2. Consent is not a boolean. The regimes are genuinely different — treatment
 //     consent is clinical, telehealth consent is state-licensure, and marketing
 //     contact is TCPA. Modelling them as one `agreedToTerms: boolean` is how
 //     clinics end up unable to prove which one a member actually gave.
 //
-// Demo-shaped, not live: nothing here submits anywhere. See IntakeWizard.
+// IntakeWizard submits through the durable public intake API. The raw token is
+// retained only in browser memory for that one journey.
 
 import type { Goal, Symptom, LocationId } from "@/lib/types";
 
