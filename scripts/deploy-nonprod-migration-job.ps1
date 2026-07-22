@@ -7,6 +7,8 @@ param(
   [ValidatePattern('^acrapexnpfcfde\.azurecr\.io/apex-os-migration:[A-Za-z0-9._-]+$')]
   [string]$Image,
 
+  [switch]$SourceSecretAvailable,
+
   [string]$ExpectedSubscriptionId = 'fcfde7e1-0df9-405c-99a5-a64979187661'
 )
 
@@ -55,6 +57,7 @@ Invoke-AzCli bicep build --file $templateFile --stdout | Out-Null
 $parameters = @(
   "expectedResourceGroupName=$resourceGroupName"
   "image=$Image"
+  "sourceSecretAvailable=$($SourceSecretAvailable.IsPresent.ToString().ToLowerInvariant())"
 )
 
 if ($Mode -eq 'Validate') {

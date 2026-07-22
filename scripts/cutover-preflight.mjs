@@ -94,6 +94,10 @@ const deploymentBoundaryFailures = [
     : false,
   migrationTemplate.includes("sourceDatabaseUrl.properties.secretUriWithVersion") &&
     "installing the dormant migration job still requires the V1 secret to exist",
+  !migrationTemplate.includes("param sourceSecretAvailable bool = false") &&
+    "the dormant migration job binds the V1 source before explicit approval",
+  !migrationTemplate.includes("sourceSecretAvailable ?") &&
+    "the V1 source secret is not conditionally bound",
   deployMigrationScript.includes("keyvault secret show") &&
     "routine migration-job deployment still reads Key Vault secret metadata",
 ].filter(Boolean);

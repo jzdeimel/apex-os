@@ -9,6 +9,9 @@ param expectedResourceGroupName string = 'apex-nonprod'
 @description('Immutable migration image in the dedicated non-production registry.')
 param image string
 
+@description('Bind the V1 source only after its approved SELECT-only Key Vault secret exists.')
+param sourceSecretAvailable bool = false
+
 param location string = 'eastus2'
 
 var jobName = 'job-apex-v1-rehearsal'
@@ -69,21 +72,22 @@ resource migrationJob 'Microsoft.App/jobs@2024-03-01' = {
           identity: runtimeIdentity.id
         }
       ]
-      secrets: [
-        {
+      secrets: concat(
+        sourceSecretAvailable ? [
+          {
           name: 'v1-database-url'
-          // The source credential is intentionally allowed to be absent while
-          // the job is installed. The job is manual and hard-disabled; once a
-          // SELECT-only V1 secret is supplied, the same reference resolves it.
           keyVaultUrl: sourceDatabaseSecretUrl
           identity: runtimeIdentity.id
-        }
-        {
-          name: 'apex-migration-database-url'
-          keyVaultUrl: targetDatabaseSecretUrl
-          identity: runtimeIdentity.id
-        }
-      ]
+          }
+        ] : [],
+        [
+          {
+            name: 'apex-migration-database-url'
+            keyVaultUrl: targetDatabaseSecretUrl
+            identity: runtimeIdentity.id
+          }
+        ]
+      )
     }
     template: {
       containers: [
@@ -101,28 +105,32 @@ resource migrationJob 'Microsoft.App/jobs@2024-03-01' = {
             'scripts/migrate-v1.ts'
             '--mode=rehearsal'
           ]
-          env: [
-            {
+          env: concat(
+            sourceSecretAvailable ? [
+              {
               name: 'V1_DATABASE_URL'
               secretRef: 'v1-database-url'
-            }
-            {
-              name: 'APEX_MIGRATION_DATABASE_URL'
-              secretRef: 'apex-migration-database-url'
-            }
-            {
-              name: 'MIGRATION_AUTHORIZED'
-              value: 'false'
-            }
-            {
-              name: 'MIGRATION_TARGET_LABEL'
-              value: 'apex-nonprod-rehearsal'
-            }
-            {
-              name: 'MIGRATION_INITIATED_BY'
-              value: 'job-apex-v1-rehearsal'
-            }
-          ]
+              }
+            ] : [],
+            [
+              {
+                name: 'APEX_MIGRATION_DATABASE_URL'
+                secretRef: 'apex-migration-database-url'
+              }
+              {
+                name: 'MIGRATION_AUTHORIZED'
+                value: 'false'
+              }
+              {
+                name: 'MIGRATION_TARGET_LABEL'
+                value: 'apex-nonprod-rehearsal'
+              }
+              {
+                name: 'MIGRATION_INITIATED_BY'
+                value: 'job-apex-v1-rehearsal'
+              }
+            ]
+          )
           resources: {
             cpu: json('1.0')
             memory: '2Gi'
