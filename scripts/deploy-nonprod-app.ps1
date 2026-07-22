@@ -26,7 +26,9 @@ $templateFile = Join-Path $PSScriptRoot '..\infra\app.bicep'
 function Invoke-AzCli {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
   $output = & az @Arguments
-  if ($LASTEXITCODE -ne 0) { throw "Azure CLI failed: az $($Arguments -join ' ')" }
+  if ($LASTEXITCODE -ne 0) {
+    throw "Azure CLI failed during '$($Arguments[0]) $($Arguments[1])'. Secure arguments were redacted."
+  }
   return $output
 }
 

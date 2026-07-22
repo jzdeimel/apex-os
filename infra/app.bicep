@@ -203,9 +203,6 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
     }
     login: {
       preserveUrlFragmentsForLogins: false
-      tokenStore: {
-        enabled: true
-      }
     }
     httpSettings: {
       requireHttps: true
