@@ -25,6 +25,12 @@ interface Options {
   targetLabel: string | null;
 }
 
+interface ContinuityInventoryRow {
+  domain: "clinical" | "commercial" | "operations" | "medsource" | "reference" | "discard-auth";
+  entity: string;
+  count: number;
+}
+
 function parseDate(value: string, flag: string): Date {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error(`${flag} must be an ISO-8601 timestamp`);
@@ -118,9 +124,48 @@ async function extractV1(source: Sql, from: Date | null, forceFull: boolean) {
           order by id
         `) as unknown as V1AppointmentRow[];
 
+    // Counts only: no patient values or source ids leave the read-only
+    // transaction. These rows make the historical-continuity decision explicit
+    // instead of treating the four actively mapped entities as the whole V1.
+    const continuityInventory = await tx<ContinuityInventoryRow[]>`
+      select 'clinical' as domain, 'Encounter' as entity, count(*)::int as count from clinic."Encounter"
+      union all select 'clinical', 'Assessment', count(*)::int from clinic."Assessment"
+      union all select 'clinical', 'InBodyScan', count(*)::int from clinic."InBodyScan"
+      union all select 'clinical', 'PlanOfCare', count(*)::int from clinic."PlanOfCare"
+      union all select 'clinical', 'Prescription', count(*)::int from clinic."Prescription"
+      union all select 'clinical', 'ContraindicationScreen', count(*)::int from clinic."ContraindicationScreen"
+      union all select 'clinical', 'Consent', count(*)::int from clinic."Consent"
+      union all select 'clinical', 'LabOrder', count(*)::int from clinic."LabOrder"
+      union all select 'clinical', 'LabResult', count(*)::int from clinic."LabResult"
+      union all select 'clinical', 'Document', count(*)::int from clinic."Document"
+      union all select 'commercial', 'Order', count(*)::int from clinic."Order"
+      union all select 'commercial', 'OrderItem', count(*)::int from clinic."OrderItem"
+      union all select 'commercial', 'Invoice', count(*)::int from clinic."Invoice"
+      union all select 'commercial', 'InvoiceLine', count(*)::int from clinic."InvoiceLine"
+      union all select 'commercial', 'Payment', count(*)::int from clinic."Payment"
+      union all select 'commercial', 'Subscription', count(*)::int from clinic."Subscription"
+      union all select 'operations', 'Notification', count(*)::int from clinic."Notification"
+      union all select 'operations', 'Reminder', count(*)::int from clinic."Reminder"
+      union all select 'operations', 'AuditLog', count(*)::int from clinic."AuditLog"
+      union all select 'operations', 'MarketingContact', count(*)::int from clinic."MarketingContact"
+      union all select 'reference', 'FormularyItem', count(*)::int from clinic."FormularyItem"
+      union all select 'reference', 'Product', count(*)::int from clinic."Product"
+      union all select 'discard-auth', 'Session', count(*)::int from clinic."Session"
+      union all select 'medsource', 'MsProduct', count(*)::int from medsource."MsProduct"
+      union all select 'medsource', 'Lot', count(*)::int from medsource."Lot"
+      union all select 'medsource', 'InventoryEvent', count(*)::int from medsource."InventoryEvent"
+      union all select 'medsource', 'QCRecord', count(*)::int from medsource."QCRecord"
+      union all select 'medsource', 'Vendor', count(*)::int from medsource."Vendor"
+      union all select 'medsource', 'VendorPrice', count(*)::int from medsource."VendorPrice"
+      union all select 'medsource', 'Fulfillment', count(*)::int from medsource."Fulfillment"
+      union all select 'medsource', 'FulfillmentLine', count(*)::int from medsource."FulfillmentLine"
+      order by domain, entity
+    `;
+
     return {
       extract: { locations, staff, people, appointments } satisfies V1Extract,
       nextWatermark: new Date(nextWatermark),
+      continuityInventory,
     };
   });
 }
@@ -337,7 +382,7 @@ async function main() {
   const target = targetUrl ? connection(targetUrl) : null;
   try {
     const forceFull = options.mode !== "delta" || options.reconcileOnly;
-    const { extract, nextWatermark } = await extractV1(source, options.watermark, forceFull);
+    const { extract, nextWatermark, continuityInventory } = await extractV1(source, options.watermark, forceFull);
     const summary = extractSummary(extract);
     if ((options.apply || options.reconcileOnly) && summary.counts.people === 0) {
       throw new Error("source contains zero people; refusing a cutover operation against an empty extract");
@@ -396,6 +441,7 @@ async function main() {
       nextWatermark: nextWatermark.toISOString(),
       counts: summary.counts,
       checksum: summary.checksum,
+      continuityInventory,
       reconciliation,
     };
     console.log(JSON.stringify(report, null, 2));

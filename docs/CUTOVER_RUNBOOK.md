@@ -82,7 +82,9 @@ deploying the job does not start it.
 1. Deploy the readiness image to `ca-apex-dev`. Confirm `/api/health` reports
    database configured and migrations applied.
 2. Dry-run a full extract. This requires only the V1 read-only URL and emits
-   counts/checksums, never names, email addresses, or raw source IDs:
+   counts/checksums, never names, email addresses, or raw source IDs. The report
+   also inventories every unmapped clinical, commercial, operations, reference,
+   and MedSource table so continuity scope cannot be approved from guesswork:
 
    ```powershell
    npm run migrate:v1 -- --mode=rehearsal

@@ -19,6 +19,9 @@ contrast sweep.
   authoritative database.
 - Authoritative patient/location/staff/appointment schema and controlled V1
   importer with baseline, delta, dry-run, provenance, and reconciliation.
+- The dry run inventories counts for every other V1 clinical, commercial,
+  operations, reference, and MedSource table without emitting row contents, so
+  the remaining history scope can be accepted or expanded from evidence.
 - Immutable web and migration images plus a dormant, manual-triggered Container
   Apps migration job in `apex-nonprod`; it defaults to a source-read-only dry run
   and cannot start until a V1 read-only credential is supplied through Key Vault.
