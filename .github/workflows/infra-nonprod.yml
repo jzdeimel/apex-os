@@ -1,0 +1,53 @@
+name: Apex non-production infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate with what-if or apply to apex-nonprod
+        required: true
+        default: Validate
+        type: choice
+        options:
+          - Validate
+          - Apply
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: apex-nonprod-infrastructure
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ${{ inputs.mode }} apex-nonprod
+    runs-on: ubuntu-latest
+    environment: nonprod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure with environment-scoped OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify target and deploy
+        shell: pwsh
+        run: >-
+          ./scripts/deploy-nonprod.ps1
+          -Mode '${{ inputs.mode }}'
+          -ExpectedSubscriptionId '${{ vars.AZURE_SUBSCRIPTION_ID }}'
+          -ResourceGroupName 'apex-nonprod'
+          -Location 'eastus2'
+
+      - name: Verify isolation after apply
+        if: inputs.mode == 'Apply'
+        shell: pwsh
+        run: >-
+          ./scripts/validate-nonprod-isolation.ps1
+          -ExpectedSubscriptionId '${{ vars.AZURE_SUBSCRIPTION_ID }}'
