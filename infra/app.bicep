@@ -183,6 +183,11 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
       redirectToProvider: 'azureactivedirectory'
       excludedPaths: [
         '/api/health'
+        '/patient-sign-in'
+        '/patient'
+        '/patient/*'
+        '/api/patient-auth/exchange'
+        '/api/patient-auth/logout'
       ]
     }
     identityProviders: {

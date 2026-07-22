@@ -7,13 +7,18 @@ const goLive = process.argv.includes("--go-live");
 const staticEvidence = [
   "infra/main.bicep",
   "infra/app.bicep",
+  "infra/migration-job.bicep",
   ".github/workflows/deploy-nonprod-app.yml",
+  ".github/workflows/publish-nonprod-image.yml",
+  ".github/workflows/deploy-nonprod-migration-job.yml",
   "lib/db/migrations/0010_cutover-identity-foundation.sql",
   "lib/db/migrations/0011_immutable-signed-document-archive.sql",
   "lib/db/migrations/0014_staff-calendar-capacity.sql",
   "scripts/migrate-v1.ts",
   "scripts/spec-checks.ts",
   "scripts/contrast-sweep.mjs",
+  "app/patient/page.tsx",
+  "lib/auth/patientRepo.ts",
   "docs/CUTOVER_RUNBOOK.md",
 ];
 
@@ -35,11 +40,24 @@ const requiredApprovals = {
 };
 
 const missingFiles = staticEvidence.filter((file) => !existsSync(resolve(root, file)));
-const infraText = ["infra/main.bicep", "infra/app.bicep"]
+const infraText = ["infra/main.bicep", "infra/app.bicep", "infra/migration-job.bicep"]
   .filter((file) => existsSync(resolve(root, file)))
   .map((file) => readFileSync(resolve(root, file), "utf8"))
   .join("\n");
 const unsafeInfraReferences = ["rg-alphaos-prod", "apex-prod"].filter((name) => infraText.includes(name));
+const appTemplate = existsSync(resolve(root, "infra/app.bicep"))
+  ? readFileSync(resolve(root, "infra/app.bicep"), "utf8")
+  : "";
+const patientPage = existsSync(resolve(root, "app/patient/page.tsx"))
+  ? readFileSync(resolve(root, "app/patient/page.tsx"), "utf8")
+  : "";
+const patientBoundaryFailures = [
+  !appTemplate.includes("'/patient-sign-in'") && "patient sign-in is still intercepted by staff EasyAuth",
+  !appTemplate.includes("'/api/patient-auth/exchange'") && "patient link exchange is still intercepted by staff EasyAuth",
+  appTemplate.includes("'/api/patient-auth/pilot-link'") && "staff-only pilot link issuer was made public",
+  appTemplate.includes("'/portal") && "seeded staff preview portal was made public",
+  patientPage.includes("@/lib/mock/") && "database-only patient pilot imports seeded data",
+].filter(Boolean);
 const approvals = Object.entries(requiredApprovals).map(([key, label]) => ({
   key,
   label,
@@ -49,7 +67,7 @@ const missingApprovals = approvals.filter((item) => !item.approved);
 
 const report = {
   verdict:
-    missingFiles.length || unsafeInfraReferences.length || (goLive && missingApprovals.length)
+    missingFiles.length || unsafeInfraReferences.length || patientBoundaryFailures.length || (goLive && missingApprovals.length)
       ? "NO-GO"
       : goLive
         ? "GO-EVIDENCE-PRESENT"
@@ -59,6 +77,7 @@ const report = {
     evidenceFiles: staticEvidence.length,
     missingFiles,
     unsafeInfraReferences,
+    patientBoundaryFailures,
   },
   approvals: {
     required: approvals.length,

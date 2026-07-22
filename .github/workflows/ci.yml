@@ -73,7 +73,9 @@ jobs:
         # The host build proves Next compiles; this proves the production image
         # actually carries the traced server, static assets, public assets and
         # runtime migration files the deployed container depends on.
-        run: docker build -t apex-os-ci .
+        run: |
+          docker build -t apex-os-ci .
+          docker build --target migration -t apex-os-migration-ci .
 
       - name: Audit (production deps, high+)
         run: npm audit --omit=dev --audit-level=high

@@ -14,17 +14,23 @@ contrast sweep.
 - NCV credential tiers, resolution, segments, coverage, queue, vitals, and H&P.
 - Versioned five-must-know intake with guided provenance.
 - Append-only clinical facts and immutable signature/archive evidence.
-- Patient magic-link/session data model and staff-only pilot issuing path.
+- Patient magic-link/session data model, staff-only pilot issuing path, and a
+  read-only `/patient` pilot that is scoped from the session and reads only the
+  authoritative database.
 - Authoritative patient/location/staff/appointment schema and controlled V1
   importer with baseline, delta, dry-run, provenance, and reconciliation.
+- Immutable web and migration images plus a dormant, manual-triggered Container
+  Apps migration job in `apex-nonprod`; it defaults to a source-read-only dry run
+  and cannot start until a V1 read-only credential is supplied through Key Vault.
 - Working-hours/calendar busy model and payment/messaging fail-safe boundaries.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
 
 ## Not ready to enable
 
-- Real patient portal routes still read seeded data and therefore remain behind
-  staff EasyAuth.
+- The broad demonstration `/portal/*` experience still reads seeded data and
+  remains behind staff EasyAuth. It must not replace the database-only patient
+  pilot until each enabled feature has an authoritative read model.
 - The importer does not yet move the full historical V1 clinical/financial
   graph; V1 history must remain read-only-accessible unless that scope is added.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are

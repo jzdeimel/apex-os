@@ -1,10 +1,15 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
+  appointment,
   client,
+  clinicLocation,
+  message,
   patientIdentity,
   patientMagicLink,
   patientSession,
+  signedDocument,
+  staff,
 } from "@/lib/db/schema";
 import {
   MAGIC_LINK_TTL_MS,
@@ -22,6 +27,46 @@ export interface PatientSessionSubject {
   firstName: string;
   lastName: string;
   expiresAt: Date;
+}
+
+export interface PatientPortalSummary {
+  patient: {
+    id: string;
+    firstName: string;
+    preferredName: string | null;
+    homeLocation: string | null;
+    timezone: string;
+  };
+  careTeam: Array<{
+    id: string;
+    name: string;
+    title: string | null;
+    role: string;
+    relationship: "coach" | "provider";
+  }>;
+  appointments: Array<{
+    id: string;
+    visitType: string;
+    modality: string;
+    startAt: Date;
+    endAt: Date;
+    status: string;
+    locationName: string | null;
+    staffName: string | null;
+  }>;
+  messages: Array<{
+    id: string;
+    thread: string;
+    senderKind: string;
+    body: string;
+    sentAt: Date;
+  }>;
+  signedDocuments: Array<{
+    id: string;
+    title: string;
+    version: string;
+    signedAt: Date;
+  }>;
 }
 
 /**
@@ -148,6 +193,109 @@ export async function patientSubjectForToken(
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * The patient pilot read model. Every row is scoped from the authenticated
+ * session's client id; callers cannot supply another patient id from a URL.
+ */
+export async function patientPortalSummary(
+  clientId: string,
+  now = new Date(),
+): Promise<PatientPortalSummary | null> {
+  const db = requireDb();
+  const [person] = await db
+    .select({
+      id: client.id,
+      firstName: client.firstName,
+      preferredName: client.preferredName,
+      assignedCoachId: client.assignedCoachId,
+      assignedProviderId: client.assignedProviderId,
+      homeLocation: clinicLocation.name,
+      timezone: clinicLocation.timezone,
+    })
+    .from(client)
+    .leftJoin(clinicLocation, eq(client.homeLocationId, clinicLocation.id))
+    .where(and(eq(client.id, clientId), eq(client.status, "active")))
+    .limit(1);
+  if (!person) return null;
+
+  const careIds = [...new Set([person.assignedCoachId, person.assignedProviderId].filter((id): id is string => Boolean(id)))];
+  const [careRows, appointmentRows, messageRows, documentRows] = await Promise.all([
+    careIds.length
+      ? db
+          .select({ id: staff.id, name: staff.name, title: staff.title, role: staff.role })
+          .from(staff)
+          .where(and(inArray(staff.id, careIds), eq(staff.active, true)))
+      : Promise.resolve([]),
+    db
+      .select({
+        id: appointment.id,
+        visitType: appointment.visitType,
+        modality: appointment.modality,
+        startAt: appointment.startAt,
+        endAt: appointment.endAt,
+        status: appointment.status,
+        locationName: clinicLocation.name,
+        staffName: staff.name,
+      })
+      .from(appointment)
+      .leftJoin(clinicLocation, eq(appointment.locationId, clinicLocation.id))
+      .leftJoin(staff, eq(appointment.staffId, staff.id))
+      .where(
+        and(
+          eq(appointment.clientId, clientId),
+          gt(appointment.endAt, now),
+          notInArray(appointment.status, ["Cancelled", "Canceled", "No Show"]),
+        ),
+      )
+      .orderBy(asc(appointment.startAt))
+      .limit(5),
+    db
+      .select({
+        id: message.id,
+        thread: message.thread,
+        senderKind: message.senderKind,
+        body: message.body,
+        sentAt: message.sentAt,
+      })
+      .from(message)
+      .where(eq(message.clientId, clientId))
+      .orderBy(desc(message.sentAt))
+      .limit(5),
+    db
+      .select({
+        id: signedDocument.id,
+        title: signedDocument.title,
+        version: signedDocument.version,
+        signedAt: signedDocument.signedAt,
+      })
+      .from(signedDocument)
+      .where(eq(signedDocument.clientId, clientId))
+      .orderBy(desc(signedDocument.signedAt))
+      .limit(10),
+  ]);
+
+  const careById = new Map(careRows.map((row) => [row.id, row]));
+  const careTeam: PatientPortalSummary["careTeam"] = [];
+  const coach = person.assignedCoachId ? careById.get(person.assignedCoachId) : undefined;
+  const provider = person.assignedProviderId ? careById.get(person.assignedProviderId) : undefined;
+  if (coach) careTeam.push({ ...coach, relationship: "coach" });
+  if (provider && provider.id !== coach?.id) careTeam.push({ ...provider, relationship: "provider" });
+
+  return {
+    patient: {
+      id: person.id,
+      firstName: person.firstName,
+      preferredName: person.preferredName,
+      homeLocation: person.homeLocation,
+      timezone: person.timezone ?? "America/New_York",
+    },
+    careTeam,
+    appointments: appointmentRows,
+    messages: messageRows,
+    signedDocuments: documentRows,
+  };
 }
 
 export async function revokePatientSession(rawToken: string | null | undefined, now = new Date()) {

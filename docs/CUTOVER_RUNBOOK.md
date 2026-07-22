@@ -35,9 +35,16 @@ production traffic decision.
 - Patient magic-link primitives: 256-bit token, hash-only persistence, 15-minute
   single-use link, 12-hour HttpOnly session, staff-only pilot issuance, explicit
   staff-to-patient dual-identity table.
+- A separate read-only `/patient` pilot is protected by that patient session and
+  reads demographics, care team, appointments, messages, and signed-document
+  metadata only from the authenticated Apex client id. The seeded `/portal/*`
+  demonstration remains staff-only.
 - V1 baseline/delta importer for locations, staff, patients, and appointments,
   including deterministic IDs, provenance, watermarks, run records, checksums,
   and reconciliation.
+- A separately published migration image and dormant manual Container Apps job
+  inside `apex-nonprod`. The deployed template hardcodes
+  `MIGRATION_AUTHORIZED=false`; source and target URLs are Key Vault references.
 - Working-hours/calendar-busy persistence and fail-closed free-window logic.
 - Three-way fulfillment routing, per-clinic merchant requirement, payment
   idempotency guard, and a dunning policy.
@@ -57,16 +64,20 @@ The cutover is **NO-GO** while any required row below is unresolved.
 | ACS Email | Verified domain, SPF/DKIM/DMARC, approved quota, warmup plan, and bounce/complaint handling |
 | GHL/MindBody | Complete exports, API access, vault decision, suppression list, memberships/packages/contracts/appointments, and final-delta procedure |
 | Patient pilot | Named 10-patient cohort, valid emails, staff-as-patient mappings, support owner, and acceptance script |
-| Portal read model | Every enabled portal route bound to the authenticated V2 client; no `lib/mock/*` fallback |
+| Portal expansion | Every patient feature enabled beyond the `/patient` pilot must be bound to the authenticated V2 client; no `lib/mock/*` fallback |
 
-Patient authentication code is present, but `/portal/*` must remain behind staff
-EasyAuth until the last blocker above is closed. Enabling public portal routing
-before the read model is bound could show seeded demo data to a real patient.
+The database-only `/patient` pilot may be exercised by a named cohort after a
+successful migration rehearsal. `/portal/*` must remain behind staff EasyAuth
+until the last blocker above is closed. Enabling the seeded demonstration portal
+for patients could show demo records to a real patient.
 
 ## Rehearsal sequence
 
 Run all commands from a controlled job inside the `apex-nonprod` network. Put
 database URLs in job secrets; never type them into the command line or CI log.
+The job expects Key Vault secret `v1-readonly-database-url`, issued to a V1 role
+that has CONNECT and SELECT only. Its default command is the rehearsal dry run;
+deploying the job does not start it.
 
 1. Deploy the readiness image to `ca-apex-dev`. Confirm `/api/health` reports
    database configured and migrations applied.

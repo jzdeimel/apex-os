@@ -26,7 +26,7 @@ export default function PatientSignInPage() {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
           throw new Error(payload?.error ?? "This sign-in link could not be used.");
         }
-        window.location.replace("/portal");
+        window.location.replace("/patient");
       })
       .catch((error) => {
         setState("failed");

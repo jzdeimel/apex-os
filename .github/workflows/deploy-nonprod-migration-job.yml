@@ -1,0 +1,47 @@
+name: Deploy Apex non-production migration job
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Immutable tag already present in acrapexnpfcfde/apex-os-migration
+        required: true
+        type: string
+      mode:
+        description: Validate with what-if or deploy the dormant dry-run job
+        required: true
+        default: Validate
+        type: choice
+        options:
+          - Validate
+          - Apply
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: apex-nonprod-migration-job
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: nonprod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy fail-closed migration job
+        shell: pwsh
+        run: >-
+          ./scripts/deploy-nonprod-migration-job.ps1
+          -Mode '${{ inputs.mode }}'
+          -Image 'acrapexnpfcfde.azurecr.io/apex-os-migration:${{ inputs.image_tag }}'
+          -ExpectedSubscriptionId '${{ vars.AZURE_SUBSCRIPTION_ID }}'

@@ -45,10 +45,15 @@ jobs:
         run: |
           $tag = 'git-${{ github.sha }}'
           $image = "acrapexnpfcfde.azurecr.io/apex-os:$tag"
+          $migrationImage = "acrapexnpfcfde.azurecr.io/apex-os-migration:$tag"
           az acr login --name acrapexnpfcfde
           if ($LASTEXITCODE -ne 0) { throw 'ACR login failed.' }
           docker build --tag $image .
           if ($LASTEXITCODE -ne 0) { throw 'Container image build failed.' }
+          docker build --target migration --tag $migrationImage .
+          if ($LASTEXITCODE -ne 0) { throw 'Migration image build failed.' }
           docker push $image
           if ($LASTEXITCODE -ne 0) { throw 'Container image push failed.' }
-          "Published $image" >> $env:GITHUB_STEP_SUMMARY
+          docker push $migrationImage
+          if ($LASTEXITCODE -ne 0) { throw 'Migration image push failed.' }
+          "Published $image and $migrationImage" >> $env:GITHUB_STEP_SUMMARY
