@@ -227,6 +227,23 @@ eq(
   owner?.locationIds,
   ["raleigh", "raleigh-boutique", "southern-pines", "myrtle-beach", "telehealth"],
 );
+const mattOwner = staff.find((member) => member.email === "matt@goalphahealth.com");
+eq("Matt's account maps to an Admin staff identity", mattOwner?.role, "Admin");
+eq(
+  "Matt receives the same owner access profile",
+  inferAccessProfile({
+    id: mattOwner?.id,
+    role: mattOwner?.role ?? "Admin",
+    credentials: mattOwner?.credentials,
+    title: mattOwner?.bio,
+  }),
+  "owner",
+);
+eq(
+  "Matt can administer the same clinic locations",
+  mattOwner?.locationIds,
+  owner?.locationIds,
+);
 eq("a coach note defaults to a coach consult", defaultConsultKind("Coach"), "Coach consult");
 eq("a medical note defaults to a documented clinical visit", defaultConsultKind("Medical"), "Medical visit");
 eq("a medical visit defaults to in person", defaultConsultChannel("Medical"), "In person");

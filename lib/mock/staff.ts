@@ -19,6 +19,23 @@ export const staff: StaffMember[] = [
     bio: "Owner. Global product and clinic administration.",
   },
   {
+    id: "st-owner-matt",
+    name: "Matt Chilson",
+    role: "Admin",
+    credentialClass: "Admin",
+    locationIds: [
+      "raleigh",
+      "raleigh-boutique",
+      "southern-pines",
+      "myrtle-beach",
+      "telehealth",
+    ],
+    email: "matt@goalphahealth.com",
+    canApprove: false,
+    avatarInitials: "MC",
+    bio: "Owner. Global product and clinic administration.",
+  },
+  {
     id: "st-001",
     name: "Dr. Marcus Vale",
     role: "Medical",

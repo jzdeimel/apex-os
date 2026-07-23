@@ -71,7 +71,7 @@ export const ROSTER: RosterEntry[] = [
   { firstName: "Stephanie", lastName: "Butler", department: "Leadership", location: "AHQ", notes: "COO", credentialClass: "Admin", mapsTo: "st-012" },
   { firstName: "Callip", lastName: "Hall", department: "Leadership", location: "AHQ", notes: "CFO", credentialClass: "Admin", mapsTo: null },
   { firstName: "Jeff", lastName: "Grimm", department: "Medical", location: "AHQ", notes: "Medical Director NC", credentialClass: "MD", mapsTo: "st-001" },
-  { firstName: "Matt", lastName: "Chilson", department: "Coaching", location: "AHQ", notes: "Product Manager", credentialClass: "Coach", mapsTo: "st-011" },
+  { firstName: "Matt", lastName: "Chilson", department: "Coaching", location: "AHQ", notes: "Owner / Product Manager", credentialClass: "Admin", mapsTo: "st-owner-matt" },
   { firstName: "Joe", lastName: "Shue", department: "Coaching", location: "AHQ", notes: "Coaching Manager", credentialClass: "Coach", mapsTo: null },
   { firstName: "Melissa", lastName: "Ha", department: "Operations", location: "AHQ", notes: "Order Manager", credentialClass: "Admin", mapsTo: null },
   { firstName: "Aria", lastName: "Gibbons", department: "Operations", location: "AHQ", notes: "Orders", credentialClass: "Admin", mapsTo: null },

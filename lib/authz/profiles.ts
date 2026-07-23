@@ -55,7 +55,7 @@ export function inferAccessProfile(input: {
   const credential = (input.credentials ?? "").trim().toUpperCase();
   const title = `${input.title ?? ""} ${input.department ?? ""}`.toUpperCase();
 
-  if (input.id === "st-owner") return "owner";
+  if (input.id === "st-owner" || input.id === "st-owner-matt") return "owner";
   if (input.id === "st-009" || input.id === "st-012") return "front-desk";
   if (input.id === "st-010") return "operations";
   if (input.role === "Coach") return "coach";

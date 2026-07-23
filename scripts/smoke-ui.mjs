@@ -130,11 +130,11 @@ try {
     await p.goto(`${BASE}/coach/community`, { waitUntil: "networkidle", timeout: 30000 });
     await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, { timeout: 10000 });
     const text = (await p.evaluate(() => document.body.innerText)).trim();
-    if (!text.includes("Moderation operations") || !text.includes("Named owners, visible clocks")) {
+    if (!text.toLowerCase().includes("moderation operations") || !text.includes("Named owners, visible clocks")) {
       done(
         1,
         `SMOKE-UI FAIL: authoritative Community moderation did not render (${JSON.stringify({
-          hasOperations: text.includes("Moderation operations"),
+          hasOperations: text.toLowerCase().includes("moderation operations"),
           hasOwners: text.includes("Named owners, visible clocks"),
           excerpt: text.slice(0, 500),
         })})`,
