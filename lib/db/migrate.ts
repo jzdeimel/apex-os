@@ -1,7 +1,9 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { and, eq } from "drizzle-orm";
 import { db, sql, isConfigured } from "@/lib/db/client";
 import { staff as staffTable } from "@/lib/db/schema";
 import { staff as seededStaff } from "@/lib/mock/staff";
+import { inferAccessProfile } from "@/lib/authz/profiles";
 
 /**
  * Apply pending migrations at boot.
@@ -76,16 +78,38 @@ export async function runMigrations(): Promise<MigrationState> {
     // is the one place that must be allowed to finish creating that ready state.
     try {
       for (const s of seededStaff) {
+        const accessProfile = inferAccessProfile({
+          id: s.id,
+          role: s.role,
+          credentials: s.credentials,
+          title: s.bio,
+        });
         await db.insert(staffTable).values({
           id: s.id,
           email: s.email ?? `${s.id}@alphahealth.demo`,
           name: s.name,
           role: s.role,
+          accessProfile,
           locationIds: s.locationIds ?? [],
           credentials: s.credentials ?? null,
           canApprove: s.canApprove ?? false,
           active: true,
         }).onConflictDoNothing({ target: staffTable.id });
+        // Older non-production databases may already contain the seeded row
+        // from before job-specific access profiles existed. Initialize only the
+        // fail-closed placeholder; never overwrite a profile an operator
+        // explicitly assigned in Apex.
+        if (accessProfile !== "unassigned") {
+          await db
+            .update(staffTable)
+            .set({ accessProfile })
+            .where(
+              and(
+                eq(staffTable.id, s.id),
+                eq(staffTable.accessProfile, "unassigned"),
+              ),
+            );
+        }
       }
     } catch (seedErr) {
       console.error("[apex] staff seed failed:", seedErr instanceof Error ? seedErr.message : seedErr);

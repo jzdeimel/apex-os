@@ -31,7 +31,7 @@ export default function DeskDayPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="hidden text-micro text-ink-500 sm:block">
-            Thu 12 Jun 2026 · check-in, rooming and check-out
+            Preview schedule · Thu 12 Jun 2026 · check-in, rooming and check-out
           </p>
           <Link href="/desk/book">
             <Button variant="primary" className="h-11 px-4 text-body">

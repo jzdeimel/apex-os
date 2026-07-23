@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Beaker, CalendarDays, FileCheck2, ShieldCheck, Stethoscope } from "lucide-react";
+import Link from "next/link";
+import { Beaker, CalendarDays, FileCheck2, ShieldCheck, Stethoscope, UsersRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/primitives";
 import { PatientSignOut } from "@/components/patient/PatientSignOut";
 import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
 import { patientPortalSummary, patientSubjectForToken } from "@/lib/auth/patientRepo";
 import { PATIENT_SESSION_COOKIE } from "@/lib/auth/patientTokens";
+import { isFeatureEnabledFor } from "@/lib/features/server";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ export default async function PatientPilotPage() {
   if (!subject) redirect("/patient-sign-in");
   const summary = await patientPortalSummary(subject.clientId);
   if (!summary) redirect("/patient-sign-in");
+  const communityEnabled = await isFeatureEnabledFor("community", { clientId: subject.clientId });
 
   const displayName = summary.patient.preferredName || summary.patient.firstName;
   const coach = summary.careTeam.find((member) => member.relationship === "coach");
@@ -47,6 +50,27 @@ export default async function PatientPilotPage() {
       </header>
 
       <section className="mt-8 grid gap-5 lg:grid-cols-2" aria-label="Patient record summary">
+        {communityEnabled && (
+          <Link
+            href="/patient/community"
+            className="rounded-panel border border-gold-400/30 bg-gold-400/[0.05] p-6 transition hover:border-gold-400/55 lg:col-span-2"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300">
+                <UsersRound className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h2 className="font-display text-title text-ink-50">Your moderated community</h2>
+                <p className="mt-2 max-w-2xl text-body leading-relaxed text-ink-400">
+                  Habits, training, food, events, and wins in a coach-owned room. You use a
+                  private handle, and every report has a named moderator and response clock.
+                </p>
+                <p className="mt-3 text-detail font-medium text-gold-300">Open community →</p>
+              </div>
+            </div>
+          </Link>
+        )}
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-3">

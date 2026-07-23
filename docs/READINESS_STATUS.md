@@ -1,6 +1,6 @@
 # Apex readiness status
 
-As of 2026-07-22, V1 production has not been changed and remains the live system
+As of 2026-07-23, V1 production has not been changed and remains the live system
 until the separately authorized Friday cutover. The isolated Azure and
 GitHub deployment foundation is complete and green. The Apex readiness branch
 builds, typechecks, passes its executable requirements, and has a zero-failure
@@ -28,6 +28,17 @@ contrast sweep.
   next relevant event, the member's location challenge, their moderated coach
   group and recent pseudonymous wins while preserving the existing clinical
   content guard and private escalation path.
+- The database-only patient community pilot is now an authoritative text
+  workflow: the assigned coach owns the group, an active backup can work the
+  same queue, patients use a private handle, report and block controls are
+  durable, every report receives a severity-derived response/resolution clock,
+  moderation evidence is immutable and retained for seven years, and a
+  care-team resolution creates a real medical escalation. Community access is
+  opt-in by patient and requires coach-owned group enrollment.
+- Community attachments are deliberately disabled until private object storage
+  and malware scanning are present. The allowlist, size limits, scan/release
+  state and retention fields are enforced in code and schema; no unscanned
+  attachment can appear in a feed.
 - The coach is the client's steward and single messaging contact. Coach
   consults collect the member-contact type/channel, autosave raw notes
   server-side, build a source-traceable AI summary for human review, sign
@@ -174,6 +185,11 @@ contrast sweep.
   coach order board and Supply Chain.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
+- Role-by-role browser coverage now renders Coach, Medical, Front Desk,
+  Executive and patient authentication in isolated contexts. A disposable
+  Postgres acceptance pass also proves a real patient session, report/block,
+  owned coach queue acknowledgement/resolution and care-team escalation from
+  end to end.
 - A source-to-evidence acceptance ledger in
   `docs/CUTOVER_REQUIREMENTS_MATRIX.md`; static readiness cannot be confused
   with vendor, roster, rehearsal, pilot, or go-live approval.

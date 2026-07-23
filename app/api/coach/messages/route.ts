@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { fail, unavailable } from "@/lib/api/respond";
+import { requestIsSameOrigin } from "@/lib/api/origin";
 import { guard } from "@/lib/auth/guard";
 import { can, hasCapability } from "@/lib/authz/capabilities";
 import { nowIso } from "@/lib/clock";
@@ -17,12 +18,6 @@ export const dynamic = "force-dynamic";
 
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,128}$/;
 const MAX_BODY = 10_000;
-
-function sameOrigin(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
-}
 
 async function authorizedCoachScope(clientId: string, capability: "read:messages" | "write:contact") {
   const g = await guard(capability);
@@ -69,7 +64,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!sameOrigin(request)) return fail(403, "This message request came from an untrusted origin.");
+  if (!requestIsSameOrigin(request)) return fail(403, "This message request came from an untrusted origin.");
   const body = (await request.json().catch(() => null)) as
     | { clientId?: unknown; body?: unknown; requestId?: unknown }
     | null;
@@ -110,7 +105,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!sameOrigin(request)) return fail(403, "This request came from an untrusted origin.");
+  if (!requestIsSameOrigin(request)) return fail(403, "This request came from an untrusted origin.");
   const body = (await request.json().catch(() => null)) as { clientId?: unknown } | null;
   if (!body || typeof body.clientId !== "string") return fail(400, "clientId is required.");
   try {

@@ -352,7 +352,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="label-eyebrow">
-            {locationFilter === "all" ? "All locations" : locationName(locationFilter)} · Friday, June 12, 2026
+            {locationFilter === "all" ? "All locations" : locationName(locationFilter)} · preview data · Friday, June 12, 2026
           </p>
           <h1 className="mt-1 font-display text-title font-bold tracking-tight text-ink-50 sm:text-display">
             Clinical console

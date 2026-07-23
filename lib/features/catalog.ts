@@ -181,11 +181,12 @@ const DEFS = [
     key: "community",
     label: "Community",
     description:
-      "Member community: events, squads, buddies, kudos, photos. Staff-moderated.",
+      "Text-first member community for habits, events and wins in coach-owned moderated rooms.",
     portals: ["patient", "coach", "clinic", "desk", "exec"],
     routes: [
       "/community",
       "/portal/community",
+      "/patient/community",
       "/coach/community",
       "/clinic/community",
       "/desk/community",

@@ -42,11 +42,18 @@ const url = process.env.DATABASE_URL;
  * thing that loses a query parameter, so it is asserted here too.
  */
 function connect(connectionString: string) {
+  const parsed = new URL(connectionString);
+  const localTestConnection =
+    process.env.APEX_ENVIRONMENT === "local" &&
+    (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
   return postgres(connectionString, {
     max: 5,
     idle_timeout: 20,
     connect_timeout: 10,
-    ssl: "require",
+    // A disposable loopback database is allowed only in an explicitly local
+    // process. Every shared/Azure environment still requires TLS even when a
+    // connection string is accidentally missing sslmode=require.
+    ssl: localTestConnection ? false : "require",
     // Prepared statements are disabled because Azure's connection pooling in
     // transaction mode does not support them. Named statements would work
     // against a direct connection and fail the moment pooling is turned on,

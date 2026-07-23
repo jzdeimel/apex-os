@@ -4,15 +4,18 @@
  * the check that would have caught the blank-screen / hydration regressions the
  * Dockerfile comments are full of.
  *
- * Kept deliberately small: the entry screen (unauthenticated) and one persona
- * surface. Uses the base `playwright` package already in the tree.
+ * The role matrix is deliberately explicit. A release cannot call itself
+ * review-ready because one staff dashboard painted: Coach, Medical, Front Desk,
+ * Executive and the patient sign-in boundary each get their own isolated
+ * browser context and authority assertions.
  */
 import { spawn } from "node:child_process";
 import { cpSync, existsSync } from "node:fs";
 import { chromium } from "playwright";
 
 const PORT = process.env.SMOKE_PORT || "4101";
-const BASE = `http://127.0.0.1:${PORT}`;
+const EXTERNAL_BASE = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
+const BASE = EXTERNAL_BASE || `http://127.0.0.1:${PORT}`;
 
 const principal = (email, name, oid) => Buffer.from(
   JSON.stringify({
@@ -29,23 +32,25 @@ if (existsSync(".next/standalone")) {
   try { if (existsSync("public")) cpSync("public", ".next/standalone/public", { recursive: true }); } catch {}
 }
 
-const server = spawn("node", [".next/standalone/server.js"], {
-  env: {
-    ...process.env,
-    PORT,
-    HOSTNAME: "127.0.0.1",
-    TZ: "UTC",
-    APEX_FEATURE_PRESET: "full",
-    APEX_UI_SKIN: "alpha-dark",
-  },
-  stdio: "inherit",
-});
+const server = EXTERNAL_BASE
+  ? null
+  : spawn("node", [".next/standalone/server.js"], {
+      env: {
+        ...process.env,
+        PORT,
+        HOSTNAME: "127.0.0.1",
+        TZ: "UTC",
+        APEX_FEATURE_PRESET: "full",
+        APEX_UI_SKIN: "alpha-dark",
+      },
+      stdio: "inherit",
+    });
 
 let browser;
 const done = (code, msg) => {
   if (msg) console[code ? "error" : "log"](msg);
   try { browser?.close(); } catch {}
-  server.kill("SIGKILL");
+  try { server?.kill("SIGKILL"); } catch {}
   process.exit(code);
 };
 
@@ -128,6 +133,234 @@ try {
     if (errors.length) done(1, `SMOKE-UI FAIL: Community page errors: ${errors.slice(0, 3).join(" | ")}`);
     console.log(`ok  /coach/community: ${text.length} chars, personalized landing view, no page errors`);
     await p.close();
+  }
+
+  // Every operating role gets an isolated browser context so portal selection,
+  // staff identity and client-side state cannot leak between personas.
+  const roleCases = [
+    {
+      label: "Coach",
+      portal: "coach",
+      path: "/coach",
+      email: "t.brooks@alphahealth.demo",
+      name: "Tyler Brooks",
+      oid: "oid-st-005",
+      required: ["COACH CONSOLE", "Today"],
+      forbiddenHrefs: ["/exec"],
+    },
+    {
+      label: "Medical",
+      portal: "clinic",
+      path: "/clinic",
+      email: "m.vale@alphahealth.demo",
+      name: "Marcus Vale",
+      oid: "oid-st-001",
+      required: ["Clinical console", "Waiting on me"],
+      forbiddenHrefs: ["/exec"],
+    },
+    {
+      label: "Front Desk",
+      portal: "desk",
+      path: "/desk",
+      email: "h.whitfield@alphahealth.demo",
+      name: "Hannah Whitfield",
+      oid: "oid-st-009",
+      required: ["FRONT DESK", "Book a caller"],
+      forbiddenHrefs: ["/clinic", "/exec"],
+    },
+    {
+      label: "Executive",
+      portal: "exec",
+      path: "/exec",
+      email: "zack@goalphahealth.com",
+      name: "Zack Deimel",
+      oid: "oid-st-owner",
+      required: ["OWNER CONSOLE", "What happened yesterday", "Needs you"],
+      forbiddenHrefs: [],
+    },
+  ];
+
+  for (const roleCase of roleCases) {
+    const roleCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(roleCase.email, roleCase.name, roleCase.oid),
+      },
+    });
+    await roleCtx.addInitScript(
+      ({ key, portal }) => {
+        try { localStorage.setItem(key, portal); } catch {}
+      },
+      { key: "apex_portal_v1", portal: roleCase.portal },
+    );
+    const p = await roleCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(`${BASE}${roleCase.path}`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.waitForFunction(() => document.body.innerText.trim().length >= 150, null, {
+      timeout: 10000,
+    });
+    const posture = await p.evaluate(({ required, forbiddenHrefs }) => {
+      const text = document.body.innerText;
+      return {
+        textLength: text.trim().length,
+        missing: required.filter((value) => !text.includes(value)),
+        forbidden: forbiddenHrefs.filter((href) =>
+          Array.from(document.querySelectorAll("a")).some((a) => a.getAttribute("href") === href),
+        ),
+        skin: document.documentElement.dataset.skin,
+        darkClass: document.documentElement.classList.contains("dark"),
+      };
+    }, { required: roleCase.required, forbiddenHrefs: roleCase.forbiddenHrefs });
+    if (posture.missing.length) {
+      done(1, `SMOKE-UI FAIL: ${roleCase.label} missing ${posture.missing.join(", ")}`);
+    }
+    if (posture.forbidden.length) {
+      done(1, `SMOKE-UI FAIL: ${roleCase.label} exposed ${posture.forbidden.join(", ")}`);
+    }
+    if (posture.skin !== "apex" || !posture.darkClass) {
+      done(1, `SMOKE-UI FAIL: ${roleCase.label} did not render the dark Apex skin`);
+    }
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: ${roleCase.label} errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log(
+      `ok  ${roleCase.label}: ${posture.textLength} chars, correct authority, dark skin, no page errors`,
+    );
+    await roleCtx.close();
+  }
+
+  // Patient authentication uses a short-lived opaque link, not the staff
+  // principal header. An incomplete link must fail closed without ever exposing
+  // a staff shell.
+  {
+    const patientCtx = await browser.newContext({ timezoneId: "America/New_York" });
+    const p = await patientCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(`${BASE}/patient-sign-in`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.getByRole("heading", { name: "Link unavailable" }).waitFor({ timeout: 10000 });
+    const posture = await p.evaluate(() => ({
+      text: document.body.innerText,
+      staffNavLinks: Array.from(document.querySelectorAll("a")).filter((a) =>
+        ["/coach", "/clinic", "/desk", "/exec"].includes(a.getAttribute("href") || ""),
+      ).length,
+      skin: document.documentElement.dataset.skin,
+      darkClass: document.documentElement.classList.contains("dark"),
+    }));
+    if (!posture.text.includes("sign-in link is incomplete")) {
+      done(1, "SMOKE-UI FAIL: patient sign-in did not explain the invalid link");
+    }
+    if (posture.staffNavLinks) {
+      done(1, "SMOKE-UI FAIL: patient authentication boundary exposed staff navigation");
+    }
+    if (posture.skin !== "apex" || !posture.darkClass) {
+      done(1, "SMOKE-UI FAIL: patient sign-in did not render the dark Apex skin");
+    }
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: patient sign-in errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log("ok  Patient: authentication failed closed, no staff navigation, dark skin");
+    await patientCtx.close();
+  }
+
+  // When the caller supplies a one-time link for a disposable test patient,
+  // exercise the real patient session and real community APIs end to end. CI
+  // can still run the fail-closed boundary above without maintaining test PHI.
+  if (process.env.SMOKE_PATIENT_SIGN_IN_URL) {
+    const patientCtx = await browser.newContext({ timezoneId: "America/New_York" });
+    const p = await patientCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(process.env.SMOKE_PATIENT_SIGN_IN_URL, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
+    await p.waitForURL(`${BASE}/patient`, { timeout: 15000 });
+    await p.getByRole("heading", { name: /Welcome,/ }).waitFor({ timeout: 10000 });
+    const portalPosture = await p.evaluate(() => ({
+      text: document.body.innerText,
+      staffNavLinks: Array.from(document.querySelectorAll("a")).filter((a) =>
+        ["/coach", "/clinic", "/desk", "/exec"].includes(a.getAttribute("href") || ""),
+      ).length,
+      skin: document.documentElement.dataset.skin,
+      darkClass: document.documentElement.classList.contains("dark"),
+    }));
+    if (
+      !portalPosture.text.includes("Secure patient pilot") ||
+      !portalPosture.text.includes("Your moderated community")
+    ) {
+      done(1, "SMOKE-UI FAIL: authenticated patient portal did not render its authoritative record");
+    }
+    if (portalPosture.staffNavLinks) {
+      done(1, "SMOKE-UI FAIL: authenticated patient portal exposed staff navigation");
+    }
+    if (portalPosture.skin !== "apex" || !portalPosture.darkClass) {
+      done(1, "SMOKE-UI FAIL: authenticated patient portal did not render the dark Apex skin");
+    }
+
+    await p.getByRole("link", { name: /Your moderated community/ }).click();
+    await p.waitForURL(`${BASE}/patient/community`, { timeout: 10000 });
+    await p.getByRole("heading", { name: "Review Community" }).waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: /Report post by PeerTwo/ }).click();
+    await p.getByLabel("Reason").selectOption("privacy");
+    await p.getByLabel(/What should the moderator know/).fill(
+      "Synthetic end-to-end moderation check.",
+    );
+    await p.getByRole("button", { name: "Send report" }).click();
+    await p.getByText("Report sent to the moderator").waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Block PeerTwo" }).click();
+    await p.getByText("Member blocked").waitFor({ timeout: 10000 });
+    await p.getByText("PeerTwo").waitFor({ state: "detached", timeout: 10000 });
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: authenticated patient errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log(
+      "ok  Patient account: session, authoritative portal, community report and block passed end to end",
+    );
+    await patientCtx.close();
+
+    // The same report must immediately land in the named coach's owned queue.
+    // Resolve it through the real route-to-care-team action so the UI test also
+    // proves the medical escalation is durable rather than a decorative label.
+    const moderatorCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(
+          "t.brooks@alphahealth.demo",
+          "Tyler Brooks",
+          "oid-st-005",
+        ),
+      },
+    });
+    await moderatorCtx.addInitScript((key) => {
+      try { localStorage.setItem(key, "coach"); } catch {}
+    }, "apex_portal_v1");
+    const moderatorPage = await moderatorCtx.newPage();
+    const moderatorErrors = [];
+    moderatorPage.on("pageerror", (error) => moderatorErrors.push(error.message));
+    await moderatorPage.goto(`${BASE}/coach/community`, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
+    await moderatorPage.getByRole("button", { name: "Acknowledge" }).click();
+    await moderatorPage.getByText("Case acknowledged").waitFor({ timeout: 10000 });
+    await moderatorPage.getByLabel("Resolution action").selectOption("route-to-care-team");
+    await moderatorPage
+      .getByLabel("Moderator note")
+      .fill("Synthetic safety concern reviewed and routed to the care team.");
+    await moderatorPage.getByRole("button", { name: "Resolve" }).click();
+    await moderatorPage.getByText("No open moderation cases").waitFor({ timeout: 10000 });
+    if (moderatorErrors.length) {
+      done(
+        1,
+        `SMOKE-UI FAIL: moderator queue errors: ${moderatorErrors.slice(0, 3).join(" | ")}`,
+      );
+    }
+    console.log(
+      "ok  Coach moderator: owned queue, acknowledgement, resolution and care-team routing passed",
+    );
+    await moderatorCtx.close();
   }
 
   // A visit note must be reachable from the client profile for both Coach and

@@ -71,8 +71,8 @@ export default function ExecMorningPage() {
           </h1>
         </div>
         <p className="text-micro text-ink-500">
-          {formatDate(TODAY)} · yesterday was {formatDate(YESTERDAY)} · all four locations and
-          telehealth
+          Preview data as of {formatDate(TODAY)} · yesterday was {formatDate(YESTERDAY)} · all four
+          locations and telehealth
         </p>
       </header>
 

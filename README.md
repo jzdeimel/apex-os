@@ -36,8 +36,10 @@ the system of record fills in behind them. This table is the source of truth.
 | Order placement and fulfillment | **Real** — atomic order/lines/events/audit/outbox write plus scoped worklist | `POST /api/orders/create`, `GET/PATCH /api/orders` |
 | Member self-log (dose / skip / retract / weight / check-in) | **Real** — durable, append-only | `POST /api/member/log` → `dose_log`, `member_day` |
 | In-app voice/video/SMS to patients | **Real tokens** | `POST /api/acs/token` — Azure Communication Services VoIP identity |
-| Everything else (rosters, labs, protocols, analytics, community, pipeline…) | **Seeded** | `lib/mock/*` deterministic data; those ledger writes are in-memory client-side |
-| Consult **draft** autosave | **Client-only (localStorage)** — next slice moves it server-side | `components/consult/ConsultComposer.tsx` |
+| Patient-to-coach messaging | **Real** — session-scoped, durable | `/patient`, `GET/POST /api/patient/messages`; coach is the only patient-facing thread |
+| Patient community moderation | **Real for the `/patient` pilot** — text-only, owned, audited | Coach-owned groups, pseudonymous membership, reports, patient blocks, SLA queue, retention deadlines and care-team routing in Postgres |
+| Consult **draft** autosave and signature | **Real** — durable and role-constrained | `GET/PUT/POST /api/consults/draft`; Coach and Medical use separate allowed note types/channels |
+| Staff Community showcase, rosters, broad portal, protocols, analytics, pipeline… | **Seeded preview** | `lib/mock/*` deterministic data; preview dates and provenance are labeled in the UI |
 
 The split is intentional. Domain logic is written pure and portable, so moving a
 surface from "seeded read" to "Postgres read" is a transport change, not a

@@ -47,6 +47,8 @@ export type Capability =
   | "read:inventory"
   | "read:crm"
   | "read:messages"
+  | "read:community"
+  | "read:community-moderation"
   /**
    * Acquisition and channel performance across the business. OWNER ONLY, and
    * deliberately NOT read:financial — a coach holds that so they can discuss a
@@ -84,6 +86,9 @@ export type Capability =
   | "write:communications"
   | "write:quality"
   | "override:schedule"
+  | "write:community"
+  | "report:community"
+  | "moderate:community"
 
   // ── Licensed authorship — provider only ────────────────────────────────
   | "write:prescription"    // THE DOSE. Never delegable.
@@ -104,6 +109,7 @@ export type Capability =
   | "admin:rule-sets"       // publish a clinical rule-set version
   | "admin:locations"
   | "admin:calendars"
+  | "admin:community-policy"
   | "admin:export"          // export the ledger / a member's record
   | "admin:break-glass";    // emergency read outside assignment
 
@@ -120,6 +126,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   provider: [
     "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages", "read:orders",
     "read:inventory", "dispense:inventory",
+    "read:community", "report:community",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
     "read:schedule", "write:schedule",
@@ -132,6 +139,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   nursing: [
     "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients", "read:inventory",
+    "read:community", "report:community",
     "write:consult", "write:clinical-history", "write:contact", "write:task",
     "report:adverse-event",
     "collect:labs", "record:lab-results",
@@ -140,6 +148,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   coach: [
     // Full read on their own book. This is the deliberate inversion.
     "read:chart", "read:clinical", "read:financial", "read:messages", "read:orders",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     // Coaching is authorship, not data entry — nutrition and training are the
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
@@ -150,6 +159,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   "front-desk": [
     "read:directory", "read:location-clients", "read:schedule", "read:all-schedules",
+    "read:community", "report:community",
     "write:contact", "write:demographics", "write:task", "write:schedule",
   ],
   billing: [
@@ -165,25 +175,29 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   operations: [
     "read:directory", "read:location-clients", "read:financial", "read:ledger", "read:all-clients",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "write:contact", "write:demographics", "write:task",
     "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
     "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm", "write:quality",
     "read:business-metrics",
-    "admin:locations", "admin:calendars", "admin:export", "admin:break-glass",
+    "admin:locations", "admin:calendars", "admin:community-policy", "admin:export", "admin:break-glass",
   ],
   executive: [
-    "read:financial", "read:ledger", "read:business-metrics", "admin:export",
+    "read:financial", "read:ledger", "read:business-metrics", "read:community",
+    "read:community-moderation", "admin:export",
   ],
   "system-admin": [
-    "read:ledger", "admin:roles", "admin:locations", "admin:calendars", "admin:export",
+    "read:ledger", "read:community-moderation", "admin:roles", "admin:locations",
+    "admin:calendars", "admin:community-policy", "admin:export",
   ],
   owner: [
     "read:directory", "read:financial", "read:ledger", "read:all-clients",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     "read:business-metrics", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
     "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",
-    "write:communications", "write:quality", "admin:roles", "admin:locations",
+    "write:communications", "write:quality", "admin:roles", "admin:locations", "admin:community-policy",
     "admin:calendars", "admin:export", "admin:break-glass",
   ],
   unassigned: [],
@@ -313,6 +327,8 @@ function resolveHint(capability: Capability): string | undefined {
     return "Requires a licensed provider. Escalate from the consult.";
   if (capability.startsWith("admin:"))
     return "Requires an operations lead.";
+  if (capability === "moderate:community")
+    return "Requires the room's assigned coach moderator or an operations owner.";
   if (capability === "write:refund") return "Requires billing or owner approval.";
   return undefined;
 }
@@ -337,6 +353,18 @@ export const CAPABILITY_GROUPS: {
   note: string;
   capabilities: { id: Capability; label: string }[];
 }[] = [
+  {
+    group: "Community",
+    note: "Patients may post only in a coach-owned room. Any staff member with community access may report a concern; only the named coach moderator or operations can work the owned queue and close a case.",
+    capabilities: [
+      { id: "read:community", label: "View the pseudonymous community" },
+      { id: "report:community", label: "Report a community post" },
+      { id: "read:community-moderation", label: "View owned moderation cases" },
+      { id: "write:community", label: "Post as visible staff" },
+      { id: "moderate:community", label: "Acknowledge and resolve moderation cases" },
+      { id: "admin:community-policy", label: "Set owners, SLAs, retention and attachment policy" },
+    ],
+  },
   {
     group: "Reading the record",
     note: "Coaches and providers see the same record. Access is scoped to the member's care team and every read is logged to the member's own access log.",

@@ -62,6 +62,7 @@ export type LedgerEntity =
   | "resource-reservation"
   | "calendar"
   | "rule-set"
+  | "community"
   /**
    * A feature flag change. Distinct from "rule-set", which versions CLINICAL
    * rules — this is configuration that changes what the clinic can see and do.

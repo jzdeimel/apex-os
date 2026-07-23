@@ -27,6 +27,7 @@ import { Squads } from "@/components/community/Squads";
 import { Mentors } from "@/components/community/Mentors";
 import { CommunityRoleBrief } from "@/components/community/CommunityRoleBrief";
 import { CommunityToday } from "@/components/community/CommunityToday";
+import { CommunityModerationCenter } from "@/components/community/CommunityModerationCenter";
 
 const TABS = [
   { id: "today", label: "For you" },
@@ -80,6 +81,8 @@ export function CommunityHome() {
         myHandle={myHandle}
         groupName={group?.name ?? "Coach-hosted group"}
       />
+
+      {!isMember && <CommunityModerationCenter />}
 
       <CommunityPulse />
 

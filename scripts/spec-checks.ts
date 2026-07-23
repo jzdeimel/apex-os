@@ -135,6 +135,16 @@ import {
   normalizeConsultChannel,
   normalizeConsultKind,
 } from "@/lib/consult/metadata";
+import {
+  communityAttachmentPolicy,
+  communityQueueState,
+  DEFAULT_COMMUNITY_POLICY,
+  moderationDueTimes,
+  moderationTransitionAllowed,
+  resolutionAcceptable,
+  severityForCommunityReport,
+} from "@/lib/community/moderation";
+import { requestIsSameOrigin } from "@/lib/api/origin";
 
 let failures = 0;
 let checks = 0;
@@ -1080,6 +1090,13 @@ eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescrip
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
+eq("a coach may work their owned community queue", can(actor("coach", "Coach"), "moderate:community").allowed, true);
+eq("a provider may report a community concern", can(actor("provider", "Medical"), "report:community").allowed, true);
+eq("a provider cannot close a community moderation case", can(actor("provider", "Medical"), "moderate:community").allowed, false);
+eq("front desk may report but not moderate community content", can(actor("front-desk"), "moderate:community").allowed, false);
+eq("an executive may read the moderation queue", can(actor("executive"), "read:community-moderation").allowed, true);
+eq("an executive cannot change community policy", can(actor("executive"), "admin:community-policy").allowed, false);
+eq("an owner may change community policy", can(actor("owner"), "admin:community-policy").allowed, true);
 eq("billing may issue invoices", can(actor("billing"), "write:invoice").allowed, true);
 eq("billing may reconcile processor payments", can(actor("billing"), "write:payment").allowed, true);
 eq("a coach cannot alter an invoice", can(actor("coach", "Coach"), "write:invoice").allowed, false);
@@ -1091,6 +1108,111 @@ eq(
   "an ambiguous Nurse title fails closed",
   inferAccessProfile({ role: "Medical", credentials: "Nurse" }),
   "unassigned",
+);
+
+section("Authoritative community moderation");
+eq(
+  "same-origin writes honor the browser-facing host behind a reverse proxy",
+  requestIsSameOrigin(
+    new Request("http://localhost:3000/api/patient/community/report", {
+      headers: {
+        origin: "https://apex.example",
+        host: "localhost:3000",
+        "x-forwarded-host": "apex.example",
+      },
+    }),
+  ),
+  true,
+);
+eq(
+  "cross-origin community writes are refused behind a reverse proxy",
+  requestIsSameOrigin(
+    new Request("http://localhost:3000/api/patient/community/report", {
+      headers: {
+        origin: "https://attacker.example",
+        host: "localhost:3000",
+        "x-forwarded-host": "apex.example",
+      },
+    }),
+  ),
+  false,
+);
+eq("self-harm reports are critical", severityForCommunityReport("self-harm-or-threat"), "critical");
+eq("privacy reports are high severity", severityForCommunityReport("privacy"), "high");
+const communityDeadlines = moderationDueTimes(
+  "self-harm-or-threat",
+  "2026-07-23T12:00:00.000Z",
+);
+eq(
+  "critical community concerns receive a 15-minute response SLA",
+  communityDeadlines.firstResponseDueAt.toISOString(),
+  "2026-07-23T12:15:00.000Z",
+);
+eq(
+  "critical community concerns receive a one-hour resolution SLA",
+  communityDeadlines.resolutionDueAt.toISOString(),
+  "2026-07-23T13:00:00.000Z",
+);
+eq("closed community cases cannot silently reopen", moderationTransitionAllowed("resolved", "open"), false);
+eq("an open community case may be acknowledged", moderationTransitionAllowed("open", "in-review"), true);
+eq(
+  "a closed community case requires both an action and a resolution",
+  resolutionAcceptable({ status: "resolved", action: "hide-post", resolution: "" }),
+  false,
+);
+eq(
+  "community attachments fail closed before private storage exists",
+  communityAttachmentPolicy({
+    mimeType: "image/png",
+    byteSize: 10_000,
+    scanStatus: "clean",
+  }).accepted,
+  false,
+);
+eq(
+  "an unscanned community attachment never publishes",
+  communityAttachmentPolicy({
+    mimeType: "application/pdf",
+    byteSize: 10_000,
+    scanStatus: "pending",
+    uploadsEnabled: true,
+  }).publishable,
+  false,
+);
+eq(
+  "a clean allowed attachment may publish only after uploads are enabled",
+  communityAttachmentPolicy({
+    mimeType: "image/jpeg",
+    byteSize: 10_000,
+    scanStatus: "clean",
+    uploadsEnabled: true,
+  }).publishable,
+  true,
+);
+eq(
+  "community attachment types remain a closed allowlist",
+  communityAttachmentPolicy({
+    mimeType: "image/svg+xml",
+    byteSize: 10_000,
+    scanStatus: "clean",
+    uploadsEnabled: true,
+  }).accepted,
+  false,
+);
+eq(
+  "an unacknowledged case past its first deadline is response-overdue",
+  communityQueueState({
+    status: "open",
+    firstResponseDueAt: "2026-07-23T12:15:00.000Z",
+    resolutionDueAt: "2026-07-23T13:00:00.000Z",
+    now: "2026-07-23T12:16:00.000Z",
+  }),
+  "response-overdue",
+);
+eq(
+  "moderation evidence is retained for seven years by default",
+  DEFAULT_COMMUNITY_POLICY.moderationEvidenceRetentionDays,
+  2_555,
 );
 
 section("Authoritative billing lifecycle");

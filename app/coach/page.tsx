@@ -228,7 +228,7 @@ export default function CoachTodayPage() {
           </h1>
         </div>
         <p className="text-micro text-ink-500">
-          {staffName(ME_COACH)} · Jun 12 · ranked by what needs a human, scoped to your book
+          {staffName(ME_COACH)} · preview data as of Jun 12, 2026 · ranked by what needs a human
         </p>
       </header>
 

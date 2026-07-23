@@ -68,7 +68,38 @@ try {
   await expectStatus("GET", "/api/escalations", 401);
   await expectStatus("GET", "/api/coach/messages", 401);
   await expectStatus("GET", "/api/patient/messages", 401);
+  await expectStatus("GET", "/api/patient/community", 401);
+  await expectStatus("GET", "/api/community/moderation", 401);
+  await expectStatus("GET", "/api/community/groups", 401);
+  await expectStatus("GET", "/api/community/members?q=test", 401);
   await expectStatus("POST", "/api/acs/token", 401);
+
+  for (const [path, body] of [
+    [
+      "/api/patient/community",
+      { body: "A normal community post.", requestId: "smoke_community_post_0001" },
+    ],
+    [
+      "/api/patient/community/report",
+      {
+        postId: "com-post-smoke",
+        requestId: "smoke_community_report_0001",
+        reason: "privacy",
+      },
+    ],
+    [
+      "/api/patient/community/block",
+      { postId: "com-post-smoke", blocked: true },
+    ],
+  ]) {
+    const r = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.status !== 401) fail(`POST ${path} unauthenticated => ${r.status}, expected 401`);
+    console.log(`ok  POST ${path} (unauth) => 401`);
+  }
 
   // Every mutating endpoint fails closed without a principal.
   for (const path of ["/api/consults/sign", "/api/tasks/complete", "/api/orders/create", "/api/member/log"]) {

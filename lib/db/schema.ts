@@ -2397,3 +2397,202 @@ export const memberPrefs = pgTable("member_prefs", {
   quietHoursEnd: integer("quiet_hours_end").default(8),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/* ========================================================================== */
+/* Authoritative community and moderation                                     */
+/* ========================================================================== */
+
+/**
+ * A community room has a human owner and explicit operating policy.
+ *
+ * The owner is required. An unowned patient forum is not a launchable feature:
+ * a report with no accountable person is merely a button that records neglect.
+ * Attachment uploads default off and may be enabled only after the private
+ * object-store/scanner integration is configured.
+ */
+export const communityGroup = pgTable(
+  "community_group",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    charter: text("charter").notNull(),
+    locationId: text("location_id"),
+    ownerStaffId: text("owner_staff_id").notNull(),
+    backupStaffId: text("backup_staff_id"),
+    status: text("status").notNull().default("active"),
+    criticalResponseMinutes: integer("critical_response_minutes").notNull().default(15),
+    highResponseMinutes: integer("high_response_minutes").notNull().default(60),
+    mediumResponseMinutes: integer("medium_response_minutes").notNull().default(240),
+    lowResponseMinutes: integer("low_response_minutes").notNull().default(1440),
+    contentRetentionDays: integer("content_retention_days").notNull().default(365),
+    moderationEvidenceRetentionDays: integer("moderation_evidence_retention_days")
+      .notNull()
+      .default(2555),
+    attachmentRetentionDays: integer("attachment_retention_days").notNull().default(365),
+    attachmentsEnabled: boolean("attachments_enabled").notNull().default(false),
+    maxAttachmentBytes: integer("max_attachment_bytes").notNull().default(10485760),
+    allowedAttachmentMimeTypes: jsonb("allowed_attachment_mime_types")
+      .notNull()
+      .default(sql`'["image/jpeg","image/png","application/pdf"]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    ownerIdx: index("community_group_owner_idx").on(t.ownerStaffId, t.status),
+    locationIdx: index("community_group_location_idx").on(t.locationId, t.status),
+  }),
+);
+
+/**
+ * The only mapping between a patient and their public handle. Feed rows carry a
+ * handle snapshot so a member-visible response never needs to join the chart.
+ */
+export const communityMembership = pgTable(
+  "community_membership",
+  {
+    groupId: text("group_id").notNull().references(() => communityGroup.id),
+    clientId: text("client_id").notNull(),
+    handle: text("handle").notNull(),
+    status: text("status").notNull().default("active"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+    realNameOptIn: boolean("real_name_opt_in").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.groupId, t.clientId] }),
+    handleIdx: uniqueIndex("community_membership_handle_idx").on(t.groupId, t.handle),
+    clientIdx: index("community_membership_client_idx").on(t.clientId, t.status),
+  }),
+);
+
+/** A post or reply. Removed content remains as moderation evidence until expiry. */
+export const communityPost = pgTable(
+  "community_post",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id").notNull().references(() => communityGroup.id),
+    parentPostId: text("parent_post_id"),
+    authorKind: text("author_kind").notNull(),
+    authorClientId: text("author_client_id"),
+    authorStaffId: text("author_staff_id"),
+    authorHandle: text("author_handle").notNull(),
+    body: text("body").notNull(),
+    status: text("status").notNull().default("published"),
+    postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+    hiddenBy: text("hidden_by"),
+    removalReason: text("removal_reason"),
+    retentionUntil: timestamp("retention_until", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    feedIdx: index("community_post_feed_idx").on(t.groupId, t.status, t.postedAt),
+    authorIdx: index("community_post_author_idx").on(t.authorClientId, t.postedAt),
+    parentIdx: index("community_post_parent_idx").on(t.parentPostId, t.postedAt),
+  }),
+);
+
+/**
+ * Metadata for a private object. No public URL is stored. Only `clean` objects
+ * may be returned to a feed; pending/failed/quarantined rows remain private.
+ */
+export const communityAttachment = pgTable(
+  "community_attachment",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id").notNull().references(() => communityPost.id),
+    storageKey: text("storage_key").notNull(),
+    originalName: text("original_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    sha256: text("sha256").notNull(),
+    scanStatus: text("scan_status").notNull().default("pending"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    scannedAt: timestamp("scanned_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    retentionUntil: timestamp("retention_until", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    postIdx: index("community_attachment_post_idx").on(t.postId, t.scanStatus),
+    storageIdx: uniqueIndex("community_attachment_storage_idx").on(t.storageKey),
+    hashIdx: index("community_attachment_hash_idx").on(t.sha256),
+  }),
+);
+
+/** One owned work item. Multiple member reports can point to the same case. */
+export const communityModerationCase = pgTable(
+  "community_moderation_case",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id").notNull().references(() => communityGroup.id),
+    postId: text("post_id").notNull().references(() => communityPost.id),
+    ownerStaffId: text("owner_staff_id").notNull(),
+    severity: text("severity").notNull(),
+    status: text("status").notNull().default("open"),
+    firstResponseDueAt: timestamp("first_response_due_at", { withTimezone: true }).notNull(),
+    resolutionDueAt: timestamp("resolution_due_at", { withTimezone: true }).notNull(),
+    firstRespondedAt: timestamp("first_responded_at", { withTimezone: true }),
+    firstRespondedBy: text("first_responded_by"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by"),
+    action: text("action"),
+    resolution: text("resolution"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    retentionUntil: timestamp("retention_until", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    queueIdx: index("community_moderation_queue_idx").on(t.ownerStaffId, t.status, t.firstResponseDueAt),
+    postIdx: index("community_moderation_post_idx").on(t.postId, t.status),
+    groupIdx: index("community_moderation_group_idx").on(t.groupId, t.status),
+  }),
+);
+
+/** The immutable report that opened or joined a moderation case. */
+export const communityReport = pgTable(
+  "community_report",
+  {
+    id: text("id").primaryKey(),
+    requestId: text("request_id").notNull(),
+    caseId: text("case_id").notNull().references(() => communityModerationCase.id),
+    postId: text("post_id").notNull().references(() => communityPost.id),
+    reporterKind: text("reporter_kind").notNull(),
+    reporterClientId: text("reporter_client_id"),
+    reporterStaffId: text("reporter_staff_id"),
+    reason: text("reason").notNull(),
+    detail: text("detail"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    requestIdx: uniqueIndex("community_report_request_idx").on(t.reporterKind, t.requestId),
+    caseIdx: index("community_report_case_idx").on(t.caseId, t.createdAt),
+    postIdx: index("community_report_post_idx").on(t.postId, t.createdAt),
+  }),
+);
+
+/**
+ * A patient controls their own social boundary. Blocking never changes a chart,
+ * never alerts the blocked member, and is applied before feed rows are returned.
+ */
+export const communityMemberBlock = pgTable(
+  "community_member_block",
+  {
+    id: text("id").primaryKey(),
+    blockerClientId: text("blocker_client_id").notNull(),
+    blockedClientId: text("blocked_client_id").notNull(),
+    status: text("status").notNull().default("active"),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    liftedAt: timestamp("lifted_at", { withTimezone: true }),
+  },
+  (t) => ({
+    pairIdx: uniqueIndex("community_member_block_pair_idx").on(t.blockerClientId, t.blockedClientId),
+    blockerIdx: index("community_member_block_blocker_idx").on(t.blockerClientId, t.status),
+  }),
+);
