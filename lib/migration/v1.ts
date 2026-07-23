@@ -10,6 +10,7 @@ export type V1EntityType =
   | "person"
   | "appointment"
   | "consult"
+  | "contact-entry"
   | "sale"
   | "sale-line"
   | "migration-exception";
@@ -152,12 +153,26 @@ export interface V1SaleLineRow {
   returned: boolean;
 }
 
+export interface V1ContactEntryRow {
+  id: string;
+  personId: string;
+  staffId: string | null;
+  at: Dateish;
+  channel: string;
+  direction: string;
+  subject: string | null;
+  body: string;
+  hasAttachments: boolean;
+  externalId: string | null;
+}
+
 export interface V1Extract {
   locations: V1LocationRow[];
   staff: V1StaffRow[];
   people: V1PersonRow[];
   appointments: V1AppointmentRow[];
   consults: V1ConsultRow[];
+  contacts: V1ContactEntryRow[];
   sales: V1SaleRow[];
   saleLines: V1SaleLineRow[];
   exceptions: V1MigrationExceptionRow[];
@@ -496,6 +511,27 @@ export function mapConsult(row: V1ConsultRow) {
   });
 }
 
+export function mapContactEntry(row: V1ContactEntryRow) {
+  return mapped("contact-entry", row.id, row.at, {
+    id: targetId("contact-entry", row.id),
+    client_id: targetId("person", row.personId),
+    staff_id: row.staffId ? targetId("staff", row.staffId) : null,
+    at: asDate(row.at) ?? new Date(0),
+    channel: row.channel.trim().toLowerCase(),
+    direction: row.direction.trim().toLowerCase(),
+    subject: row.subject?.trim() || null,
+    outcome: null,
+    notes: row.body,
+    template_id: null,
+    ledger_id: null,
+    source_has_attachments: row.hasAttachments,
+    source_external_id: row.externalId,
+    source_system: V1_SOURCE_SYSTEM,
+    source_id: row.id,
+    source_updated_at: asDate(row.at),
+  });
+}
+
 export function mapMigrationException(row: V1MigrationExceptionRow) {
   const id = targetId("migration-exception", row.id);
   return mapped("migration-exception", row.id, row.sourceUpdatedAt, {
@@ -560,6 +596,7 @@ export function mapExtract(extract: V1Extract) {
     people: extract.people.map(mapPerson),
     appointments: extract.appointments.map(mapAppointment),
     consults: extract.consults.map(mapConsult),
+    contacts: extract.contacts.map(mapContactEntry),
     sales: extract.sales.map(mapSale),
     saleLines: extract.saleLines.map(mapSaleLine),
     exceptions: extract.exceptions.map(mapMigrationException),
@@ -574,6 +611,7 @@ export function extractSummary(extract: V1Extract) {
     people: mappedRows.people.length,
     appointments: mappedRows.appointments.length,
     consults: mappedRows.consults.length,
+    contacts: mappedRows.contacts.length,
     sales: mappedRows.sales.length,
     saleLines: mappedRows.saleLines.length,
     exceptions: mappedRows.exceptions.length,

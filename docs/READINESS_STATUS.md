@@ -75,13 +75,22 @@ contrast sweep.
   totals, location labels and coach attribution, and proves every imported
   sale total equals its exact signed-cent line sum. It does not misrepresent
   the historical transactions as newly issued Apex invoices or card charges.
+- Alpha/GHL communication touches now translate into a separate immutable Apex
+  contact-history ledger rather than being mislabeled as native secure-portal
+  messages. The current rehearsal maps all 1,029 touches to clients, preserves
+  channel, direction, subject, body, staff participant when defensible and the
+  external message reference. A missing historical staff owner remains null.
+  External attachment manifests are held only in the private review queue until
+  their files can be re-housed in protected Apex storage.
 - A private migration-exception queue preserves unlinked note payloads and
   ambiguous demographic/location evidence inside protected Postgres with an
   integrity digest. It has no application read API. The current read-only
-  rehearsal produces 565 review items: 143 inferred split names, 192 unresolved
+  rehearsal produces 735 review items: 143 inferred split names, 192 unresolved
   coach-to-home-clinic assignments, one malformed DOB, 10 notes with no patient
   link, 10 purchases with no safe patient link, and 209 legacy item-count
-  mismatches. No source row is silently attached to a guessed patient.
+  mismatches, plus 155 ownerless inbound communication touches and 15 attachment
+  manifests awaiting private re-housing. No source row is silently attached to
+  a guessed patient or staff member.
 - The dry run inventories counts for every other V1 clinical, commercial,
   operations, reference, and MedSource table without emitting row contents, so
   the remaining history scope can be accepted or expanded from evidence.
@@ -157,8 +166,8 @@ contrast sweep.
   features.
 - The importer does not yet move the full historical V1 clinical/financial
   graph. It currently translates identities, 75 linked consult/progress-note
-  records, 54,864 sales with 238,645 lines, and privately retains the 565 review
-  items above. Memberships, messages, intake/consent, documents, routed orders,
+  records, 1,029 communication touches, 54,864 sales with 238,645 lines, and
+  privately retains the 735 review items above. Memberships, intake/consent, documents, routed orders,
   shipments, lots/inventory events, invoices and audit history still require
   accepted Apex translations and reconciliation. V1 must remain available until
   that scope is completed or explicitly accepted as read-only legacy history.

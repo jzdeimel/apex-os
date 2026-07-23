@@ -9,6 +9,7 @@ import {
   sha256,
   type MappedRecord,
   type V1AppointmentRow,
+  type V1ContactEntryRow,
   type V1ConsultRow,
   type V1Extract,
   type V1LocationRow,
@@ -49,6 +50,9 @@ interface ExtractDiagnostics {
   progressNotesExcludedMissingClient: number;
   progressNotesExcludedMissingAuthor: number;
   progressNotesWithSynthesizedAuthor: number;
+  contactsExcludedMissingClient: number;
+  contactsWithoutStaffOwner: number;
+  contactAttachmentsForRehousing: number;
   purchasesExcludedMissingClient: number;
   purchaseItemCountMismatches: number;
   purchaseLineMathMismatches: number;
@@ -103,6 +107,7 @@ function connection(url: string) {
 
 const LEGACY_COLUMNS = {
   Appointment: ["id", "clientId", "coachId", "subType", "status", "startTime", "contactMethod", "smmDelta", "pbfDelta", "followUpDate", "noteBody", "previousNoteId", "finalizedAt", "createdAt", "updatedAt"],
+  ClientTouch: ["id", "clientNameKey", "coach", "channel", "direction", "subject", "body", "sentById", "createdAt", "attachments", "ghlMessageId"],
   ClientProfile: ["id", "nameKey", "name", "email", "phone", "assignedCoach", "createdAt", "updatedAt", "address1", "address2", "city", "state", "zip", "mindbodyId", "firstName", "lastName", "dob", "gender", "isProspect", "mbActive", "allergies", "origin", "outreachStage", "lastTouchAt", "lastTouchType", "lastConnectAt", "attemptCount", "outreachMovedAt", "lastInboundAt", "lastReadAt", "ghlContactId", "leadSource", "inboxPinned", "inboxMuted", "inboxUnread", "inboxStarred", "inboxHidden"],
   Purchase: ["id", "mbSaleId", "clientMindbodyId", "clientNameKey", "saleDate", "location", "coach", "total", "itemCount", "items", "legacy", "createdAt", "orderNo"],
   User: ["id", "name", "email", "passwordHash", "role", "birthday", "phone", "avatarUrl", "createdAt", "gender", "failedLogins", "lockoutUntil", "googleRefreshToken", "gmailConnectedAt", "location", "ghlUserId"],
@@ -213,7 +218,7 @@ async function validateLegacyShape(tx: TransactionSql): Promise<string> {
   const rows = await tx<{ table: string; column: string; type: string; position: number }[]>`
     select table_name as table, column_name as column, data_type as type, ordinal_position as position
     from information_schema.columns
-    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'Purchase', 'User')
+    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'ClientTouch', 'Purchase', 'User')
     order by table_name, ordinal_position
   `;
   for (const [table, expected] of Object.entries(LEGACY_COLUMNS)) {
@@ -276,13 +281,14 @@ async function extractUnified(
       `) as unknown as V1AppointmentRow[];
   return {
     extract: {
-      locations, staff, people, appointments, consults: [], sales: [], saleLines: [], exceptions: [],
+      locations, staff, people, appointments, consults: [], contacts: [], sales: [], saleLines: [], exceptions: [],
     } satisfies V1Extract,
     diagnostics: {
       unmatchedAssignedCoaches: 0, unresolvedHomeLocations: 0, namesParsedFromDisplay: 0,
       invalidDobValues: 0, consultsExcludedMissingClient: 0, consultsExcludedMissingAuthor: 0,
       progressNotesExcludedMissingClient: 0, progressNotesExcludedMissingAuthor: 0,
       progressNotesWithSynthesizedAuthor: 0,
+      contactsExcludedMissingClient: 0, contactsWithoutStaffOwner: 0, contactAttachmentsForRehousing: 0,
       purchasesExcludedMissingClient: 0, purchaseItemCountMismatches: 0, purchaseLineMathMismatches: 0,
     } satisfies ExtractDiagnostics,
     continuityInventory: await unifiedContinuityInventory(tx),
@@ -326,6 +332,11 @@ async function extractLegacy(
     id: string; personId: string; coachId: string | null; mbSaleId: string;
     orderNo: string | null; saleDate: Date; location: string; locationTargetId: string | null;
     total: number; itemCount: number; items: LegacyPurchaseItem[]; legacy: boolean; createdAt: Date;
+  }
+  interface LegacyTouch {
+    id: string; personId: string; staffId: string | null; coachLabel: string;
+    channel: string; direction: string; subject: string | null; body: string;
+    createdAt: Date; attachments: unknown[] | null; ghlMessageId: string | null;
   }
   const schemaFingerprint = await validateLegacyShape(tx);
   const sourceStaff = (await tx`
@@ -437,6 +448,76 @@ async function extractLegacy(
       createdAt: row.createdAt, updatedAt: row.updatedAt,
     };
   });
+  // ClientTouch also has no updatedAt. Every run rescans the bounded ledger so
+  // immutable source checksums catch edits to an older GHL communication.
+  const rawTouches = (await tx`
+    select 'ClientTouch:' || t.id as id, c.id as "personId",
+           case when t.direction = 'outbound' then sender.id
+                else coalesce(touch_coach.id, assigned_coach.id) end as "staffId",
+           t.coach as "coachLabel", t.channel, t.direction, t.subject, t.body,
+           t."createdAt", t.attachments, t."ghlMessageId"
+    from public."ClientTouch" t
+    join public."ClientProfile" c on c."nameKey" = t."clientNameKey"
+    left join public."User" sender on sender.id = t."sentById"
+    left join lateral (
+      select u.id from public."User" u
+      where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+            regexp_replace(lower(t.coach), '[^a-z0-9]', '', 'g')
+      order by u.id limit 1
+    ) touch_coach on true
+    left join lateral (
+      select u.id from public."User" u
+      where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+            regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
+      order by u.id limit 1
+    ) assigned_coach on true
+    where t."createdAt" <= ${nextWatermark} order by t.id
+  `) as unknown as LegacyTouch[];
+  let contactsWithoutStaffOwner = 0;
+  let contactAttachmentsForRehousing = 0;
+  const contacts: V1ContactEntryRow[] = rawTouches.map((row) => {
+    if (row.direction !== "inbound" && row.direction !== "outbound") {
+      throw new Error("Alpha ClientTouch direction is not recognized; migration refused");
+    }
+    if (!row.staffId) {
+      contactsWithoutStaffOwner++;
+      exceptions.push({
+        id: `${row.id}:staff-owner`, sourceEntityType: "ClientTouch",
+        reasonCode: "staff-owner-unresolved", payload: { coachLabel: row.coachLabel },
+        sourceUpdatedAt: row.createdAt,
+      });
+    }
+    const hasAttachments = Array.isArray(row.attachments) && row.attachments.length > 0;
+    if (hasAttachments) {
+      contactAttachmentsForRehousing++;
+      exceptions.push({
+        id: `${row.id}:attachments`, sourceEntityType: "ClientTouch",
+        reasonCode: "attachment-rehousing-required",
+        payload: { attachments: row.attachments, externalId: row.ghlMessageId },
+        sourceUpdatedAt: row.createdAt,
+      });
+    }
+    return {
+      id: row.id, personId: row.personId, staffId: row.staffId, at: row.createdAt,
+      channel: row.channel, direction: row.direction, subject: row.subject, body: row.body,
+      hasAttachments, externalId: row.ghlMessageId,
+    };
+  });
+  const unresolvedTouches = (await tx`
+    select 'ClientTouch:' || t.id as id, t."clientNameKey", t.coach, t.channel,
+           t.direction, t.subject, t.body, t."sentById", t."createdAt", t.attachments,
+           t."ghlMessageId"
+    from public."ClientTouch" t
+    left join public."ClientProfile" c on c."nameKey" = t."clientNameKey"
+    where c.id is null and t."createdAt" <= ${nextWatermark} order by t.id
+  `) as unknown as Array<Record<string, unknown> & { id: string; createdAt: Date }>;
+  for (const row of unresolvedTouches) {
+    const { id, createdAt, ...payload } = row;
+    exceptions.push({
+      id: `${id}:missing-client`, sourceEntityType: "ClientTouch",
+      reasonCode: "missing-client", payload, sourceUpdatedAt: createdAt,
+    });
+  }
   // Purchase has no updatedAt. Rescan the full bounded ledger on every run so
   // a correction to an older source row is detected by the immutable binding
   // checksum instead of falling outside a createdAt-only delta.
@@ -720,7 +801,7 @@ async function extractLegacy(
   return {
     extract: {
       locations: canonicalLegacyLocations(), staff, people, appointments: [], consults,
-      sales, saleLines, exceptions,
+      contacts, sales, saleLines, exceptions,
     } satisfies V1Extract,
     diagnostics: {
       unmatchedAssignedCoaches, unresolvedHomeLocations, namesParsedFromDisplay, invalidDobValues,
@@ -729,6 +810,9 @@ async function extractLegacy(
       progressNotesExcludedMissingClient: Number(progressExcluded.missingClient),
       progressNotesExcludedMissingAuthor: 0,
       progressNotesWithSynthesizedAuthor: rawProgressNotes.filter((row) => !row.authorId).length,
+      contactsExcludedMissingClient: unresolvedTouches.length,
+      contactsWithoutStaffOwner,
+      contactAttachmentsForRehousing,
       purchasesExcludedMissingClient: unresolvedPurchases.length,
       purchaseItemCountMismatches,
       purchaseLineMathMismatches,
@@ -877,6 +961,15 @@ async function insertHistoricalSaleLines(tx: TransactionSql, records: MappedReco
   }
 }
 
+async function insertHistoricalContacts(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 300)) {
+    await tx`
+      insert into contact_entry ${tx(batch)}
+      on conflict (id) do nothing
+    `;
+  }
+}
+
 async function upsertBindings(
   tx: TransactionSql,
   runId: string,
@@ -901,7 +994,7 @@ async function upsertBindings(
         target_id = excluded.target_id, source_updated_at = excluded.source_updated_at,
         checksum = excluded.checksum, last_run_id = excluded.last_run_id,
         imported_at = excluded.imported_at
-      where import_binding.entity_type not in ('sale', 'sale-line')
+      where import_binding.entity_type not in ('contact-entry', 'sale', 'sale-line')
          or import_binding.checksum = excluded.checksum
     `;
   }
@@ -918,6 +1011,7 @@ async function applyExtract(
     await upsertPeople(tx, mapped.people);
     await upsertAppointments(tx, mapped.appointments);
     await upsertConsults(tx, mapped.consults);
+    await insertHistoricalContacts(tx, mapped.contacts);
     await insertHistoricalSales(tx, mapped.sales);
     await insertHistoricalSaleLines(tx, mapped.saleLines);
     await upsertMigrationExceptions(tx, mapped.exceptions);
@@ -927,6 +1021,7 @@ async function applyExtract(
       ...mapped.people,
       ...mapped.appointments,
       ...mapped.consults,
+      ...mapped.contacts,
       ...mapped.sales,
       ...mapped.saleLines,
       ...mapped.exceptions,
@@ -965,6 +1060,7 @@ async function reconcile(
       union all select count(*)::int from client where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from appointment where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from consult where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from contact_entry where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from migration_exception where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale_line where source_system = ${V1_SOURCE_SYSTEM}

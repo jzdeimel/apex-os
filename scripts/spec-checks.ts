@@ -52,6 +52,7 @@ import {
   exactCents,
   extractSummary,
   mapAppointment,
+  mapContactEntry,
   mapConsult,
   mapMigrationException,
   mapPerson,
@@ -739,6 +740,20 @@ eq("Alpha note records migrate as consults, not calendar appointments", mappedLe
 eq("finalized Alpha notes remain finalized clinical history", mappedLegacyConsult.data.status, "Signed");
 eq("legacy video-to-video notes retain their channel", mappedLegacyConsult.data.channel, "Video");
 eq("prior Alpha note ids become opaque Apex provenance", String(mappedLegacyConsult.data.supersedes_consult_id).includes("older-sensitive-id"), false);
+const mappedLegacyTouch = mapContactEntry({
+  id: "legacy-touch-sensitive-id",
+  personId: v1Person.id,
+  staffId: null,
+  at: "2026-07-20T10:00:00.000Z",
+  channel: "SMS",
+  direction: "inbound",
+  subject: null,
+  body: "Historical member message retained in the protected contact ledger.",
+  hasAttachments: true,
+  externalId: "legacy-external-message-id",
+});
+eq("an ownerless inbound Alpha touch remains unassigned", mappedLegacyTouch.data.staff_id, null);
+eq("legacy attachment URLs stay out of the routable contact row", mappedLegacyTouch.data.source_has_attachments, true);
 const mappedException = mapMigrationException({
   id: "sensitive-orphan-source-id",
   sourceEntityType: "Appointment",
@@ -771,6 +786,7 @@ const migrationSummary = extractSummary({
       updatedAt: "2026-07-01T14:30:00.000Z",
     },
   ],
+  contacts: [],
   sales: [],
   saleLines: [],
   exceptions: [],

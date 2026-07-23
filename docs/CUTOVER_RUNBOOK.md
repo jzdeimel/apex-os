@@ -59,6 +59,11 @@ production traffic decision.
   preserves returns and zero-value activity without asserting that a new Apex
   invoice or card charge occurred. Ambiguous rows and source inconsistencies
   are retained in a private exception queue.
+- Alpha `ClientTouch` rows import as immutable external contact history, not as
+  claims of Apex secure-portal delivery. Client linkage is exact; an unresolved
+  historical staff participant remains null. Attachment manifests stay in the
+  private exception queue until the files are downloaded, scanned and re-housed
+  in protected Apex storage.
 - A separately published migration image and dormant manual Container Apps job
   inside `apex-nonprod`. The deployed template hardcodes
   `MIGRATION_AUTHORIZED=false`; source and target URLs are Key Vault references.
@@ -142,9 +147,10 @@ npm run migrate:v1 -- --apply --mode=baseline --initiated-by=<operator-id> --con
 npm run migrate:v1 -- --apply --mode=delta --watermark=<prior-nextWatermark> --initiated-by=<operator-id> --confirm-target=<approved-target-label>
 ```
 
-Staff, canonical source-derived locations and the historical purchase ledger
-are fully rescanned on every run because legacy Alpha `User` and `Purchase`
-have no `updatedAt`; immutable checksums expose any changed commercial fact.
+Staff, canonical source-derived locations, historical contacts and the purchase
+ledger are fully rescanned on every run because legacy Alpha `User`,
+`ClientTouch` and `Purchase` have no `updatedAt`; immutable checksums expose any
+changed communication or commercial fact.
 Clients, consult-note rows, progress notes and their migration exceptions use the bounded interval
 `updatedAt > priorWatermark AND updatedAt <= nextWatermark`, so concurrent Alpha
 writes are picked up by the next delta rather than missed.

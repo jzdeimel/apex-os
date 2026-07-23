@@ -1147,17 +1147,28 @@ export const contactEntry = pgTable(
   {
     id: text("id").primaryKey(),
     clientId: text("client_id").notNull(), // seeded ref -> client
-    staffId: text("staff_id").notNull(), // seeded ref -> staff
+    // Historical inbound messages may have no defensible staff owner. New Apex
+    // writes still require staffId in the repository contract.
+    staffId: text("staff_id"), // seeded ref -> staff
     at: timestamp("at", { withTimezone: true }).notNull(),
     /** "call" | "sms" | "email" | "in-person" | "portal-message" */
     channel: text("channel").notNull(),
     direction: text("direction").notNull(),
+    subject: text("subject"),
     outcome: text("outcome"),
     notes: text("notes"),
     templateId: text("template_id"),
     ledgerId: text("ledger_id"),
+    sourceHasAttachments: boolean("source_has_attachments").notNull().default(false),
+    sourceExternalId: text("source_external_id"),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
   },
-  (t) => ({ clientIdx: index("contact_client_idx").on(t.clientId, t.at) }),
+  (t) => ({
+    clientIdx: index("contact_client_idx").on(t.clientId, t.at),
+    sourceIdx: uniqueIndex("contact_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
 );
 
 /* ========================================================================== */
