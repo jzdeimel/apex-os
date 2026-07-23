@@ -486,6 +486,22 @@ try {
     await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, {
       timeout: 10000,
     });
+    // The composer first paints its shell, then applies the authenticated
+    // author metadata returned by /api/consults/draft. A fast local browser can
+    // finish both before networkidle while a cold CI browser may briefly expose
+    // only the shell. Assert the settled workflow, not that intermediate paint.
+    await p.waitForFunction(
+      () => {
+        const body = document.body.innerText.toLowerCase();
+        return (
+          body.includes("steward") &&
+          body.includes("ai draft") &&
+          body.includes("sign consult")
+        );
+      },
+      null,
+      { timeout: 10000 },
+    );
     const text = (await p.evaluate(() => document.body.innerText)).trim();
     if (!text.toLowerCase().includes("structured summary")) {
       done(
