@@ -109,30 +109,46 @@ try {
     await p.close();
   }
 
-  // The owner-reported regression: Community existed in source but the review
-  // preset turned its route and navigation off. Exercise the actual page so a
-  // future preset change cannot pass by testing only the dashboard.
+  // Community is no longer a seeded personalized feed for staff. Exercise the
+  // authenticated moderation surface: named ownership and SLA clocks must
+  // render, and a build without Postgres must say durable data is unavailable
+  // instead of falling back to fixture events or posts.
   {
-    const p = await ctx.newPage();
+    const communityCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(
+          "t.brooks@alphahealth.demo",
+          "Tyler Brooks",
+          "oid-st-005",
+        ),
+      },
+    });
+    const p = await communityCtx.newPage();
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.goto(`${BASE}/coach/community`, { waitUntil: "networkidle", timeout: 30000 });
     await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, { timeout: 10000 });
     const text = (await p.evaluate(() => document.body.innerText)).trim();
-    if (!text.includes("Community")) done(1, "SMOKE-UI FAIL: /coach/community did not render Community");
-    if (!text.includes("For you") || !text.toLowerCase().includes("next event")) {
+    if (!text.includes("Moderation operations") || !text.includes("Named owners, visible clocks")) {
       done(
         1,
-        `SMOKE-UI FAIL: Community personalized landing view did not render (${JSON.stringify({
-          hasForYou: text.includes("For you"),
-          hasNextEvent: text.toLowerCase().includes("next event"),
+        `SMOKE-UI FAIL: authoritative Community moderation did not render (${JSON.stringify({
+          hasOperations: text.includes("Moderation operations"),
+          hasOwners: text.includes("Named owners, visible clocks"),
           excerpt: text.slice(0, 500),
         })})`,
       );
     }
+    if (
+      !text.includes("Report queue") &&
+      !text.includes("durable data is unavailable")
+    ) {
+      done(1, "SMOKE-UI FAIL: Community rendered neither its durable queue nor its fail-closed state");
+    }
     if (errors.length) done(1, `SMOKE-UI FAIL: Community page errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log(`ok  /coach/community: ${text.length} chars, personalized landing view, no page errors`);
-    await p.close();
+    console.log(`ok  /coach/community: ${text.length} chars, authoritative moderation, no page errors`);
+    await communityCtx.close();
   }
 
   // Every operating role gets an isolated browser context so portal selection,
