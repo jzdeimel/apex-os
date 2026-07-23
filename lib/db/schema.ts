@@ -1521,6 +1521,58 @@ export const inventoryMovement = pgTable(
 /* Authoritative orders and fulfillment                                        */
 /* ========================================================================== */
 
+/**
+ * Immutable V1 routed-line and shipment snapshots.
+ *
+ * These are intentionally separate from `fulfillment_order`: Alpha's `done`
+ * flag and shipment snapshots do not prove the ordered/packed/shipped/delivered
+ * transitions required by Apex. Historical evidence remains queryable without
+ * manufacturing a new-order lifecycle or a migration-time audit witness.
+ */
+export const historicalFulfillmentRecord = pgTable(
+  "historical_fulfillment_record",
+  {
+    id: text("id").primaryKey(),
+    recordKind: text("record_kind").notNull(), // routed-line | shipment
+    clientId: text("client_id").notNull().references(() => client.id),
+    saleId: text("sale_id").references(() => sale.id),
+    orderNumber: text("order_number"),
+    externalOrderRef: text("external_order_ref"),
+    partner: text("partner").notNull(),
+    status: text("status").notNull(),
+    sourceChannel: text("source_channel"),
+    locationId: text("location_id").references(() => clinicLocation.id),
+    sourceLocationLabel: text("source_location_label"),
+    coachId: text("coach_id"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    sku: text("sku"),
+    itemName: text("item_name"),
+    quantity: integer("quantity"),
+    items: jsonb("items"),
+    pickup: boolean("pickup").notNull().default(false),
+    shippingType: text("shipping_type"),
+    tracking: text("tracking"),
+    carrier: text("carrier"),
+    estDelivery: text("est_delivery"),
+    delayed: boolean("delayed").notNull().default(false),
+    delayReason: text("delay_reason"),
+    statusHistory: jsonb("status_history"),
+    destinationSnapshot: jsonb("destination_snapshot"),
+    routingSnapshot: jsonb("routing_snapshot"),
+    sourceSystem: text("source_system").notNull(),
+    sourceEntityType: text("source_entity_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clientIdx: index("historical_fulfillment_client_idx").on(t.clientId, t.occurredAt),
+    orderIdx: index("historical_fulfillment_order_idx").on(t.orderNumber),
+    sourceIdx: uniqueIndex("historical_fulfillment_source_idx").on(t.sourceSystem, t.sourceEntityType, t.sourceId),
+  }),
+);
+
 /** One patient order and its current fulfillment projection. */
 export const fulfillmentOrder = pgTable(
   "fulfillment_order",

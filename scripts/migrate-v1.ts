@@ -12,6 +12,7 @@ import {
   type V1ContactEntryRow,
   type V1ConsultRow,
   type V1Extract,
+  type V1HistoricalFulfillmentRow,
   type V1LocationRow,
   type V1MigrationExceptionRow,
   type V1PersonRow,
@@ -41,7 +42,13 @@ interface ContinuityInventoryRow {
 type SourceShape = "legacy-public-2026-07" | "unified-clinic";
 
 interface ExtractDiagnostics {
+  staffNameCollisionGroups: number;
+  unresolvedStaffNameCollisionGroups: number;
+  staffActivationCandidates: number;
+  inactiveLegacyStaffRows: number;
+  syntheticRosterStaffRows: number;
   unmatchedAssignedCoaches: number;
+  ambiguousAssignedCoaches: number;
   unresolvedHomeLocations: number;
   namesParsedFromDisplay: number;
   invalidDobValues: number;
@@ -53,7 +60,14 @@ interface ExtractDiagnostics {
   contactsExcludedMissingClient: number;
   contactsWithoutStaffOwner: number;
   contactAttachmentsForRehousing: number;
+  routedOrdersExcludedMissingClient: number;
+  routedOrderClientKeyConflicts: number;
+  routedOrdersMissingSaleLink: number;
+  routedOrdersMissingCoach: number;
+  shipmentsExcludedLinkage: number;
   purchasesExcludedMissingClient: number;
+  purchaseClientKeyConflicts: number;
+  purchasesMissingCoach: number;
   purchaseItemCountMismatches: number;
   purchaseLineMathMismatches: number;
 }
@@ -105,11 +119,39 @@ function connection(url: string) {
   });
 }
 
+/**
+ * Alpha remains the protected source until the cutover is separately approved.
+ * A migration target must be an Apex-labelled database on a different server;
+ * this guard is independent of the operator confirmation flags below.
+ */
+export function protectedSourceTargetViolation(
+  sourceUrl: string,
+  targetUrl: string,
+  targetLabel: string | null,
+): string | null {
+  if (sameDatabase(sourceUrl, targetUrl)) return "target is the Alpha source database";
+  const source = new URL(sourceUrl);
+  const target = new URL(targetUrl);
+  if (source.hostname.toLowerCase() === target.hostname.toLowerCase()) {
+    return "target shares the protected Alpha database server";
+  }
+  const targetMarker = `${target.hostname}${target.pathname}:${targetLabel ?? ""}`.toLowerCase();
+  if (targetMarker.includes("alphaos") || targetMarker.includes("alpha-coach") || targetMarker.includes("rg-alpha")) {
+    return "target appears to be an Alpha production resource";
+  }
+  if (targetLabel && !targetLabel.toLowerCase().startsWith("apex-")) {
+    return "target label is not an Apex environment";
+  }
+  return null;
+}
+
 const LEGACY_COLUMNS = {
   Appointment: ["id", "clientId", "coachId", "subType", "status", "startTime", "contactMethod", "smmDelta", "pbfDelta", "followUpDate", "noteBody", "previousNoteId", "finalizedAt", "createdAt", "updatedAt"],
   ClientTouch: ["id", "clientNameKey", "coach", "channel", "direction", "subject", "body", "sentById", "createdAt", "attachments", "ghlMessageId"],
   ClientProfile: ["id", "nameKey", "name", "email", "phone", "assignedCoach", "createdAt", "updatedAt", "address1", "address2", "city", "state", "zip", "mindbodyId", "firstName", "lastName", "dob", "gender", "isProspect", "mbActive", "allergies", "origin", "outreachStage", "lastTouchAt", "lastTouchType", "lastConnectAt", "attemptCount", "outreachMovedAt", "lastInboundAt", "lastReadAt", "ghlContactId", "leadSource", "inboxPinned", "inboxMuted", "inboxUnread", "inboxStarred", "inboxHidden"],
   Purchase: ["id", "mbSaleId", "clientMindbodyId", "clientNameKey", "saleDate", "location", "coach", "total", "itemCount", "items", "legacy", "createdAt", "orderNo"],
+  RoutedOrder: ["id", "mbSaleId", "lineIndex", "clientMindbodyId", "clientNameKey", "site", "coach", "saleDate", "sku", "item", "qty", "vendor", "tag", "mdtoolbox", "pharmacy", "status", "doneAt", "doneBy", "createdAt", "source", "clientName", "dob", "gender", "address1", "address2", "city", "state", "zip", "phone", "email", "allergies", "orderNo", "placedBy", "pickup", "pickupType", "pickupSponsor", "packageDose", "vendorOrderNo", "isReplacement", "replacementReason", "replacesOrderNo", "replacementCharged", "isNutraceutical", "tracking", "carrier", "trackedAt", "trackedBy"],
+  ShipmentNotification: ["id", "clientName", "items", "tracking", "carrier", "status", "coachId", "shippedAt", "readAt", "createdAt", "orderKey", "lastActivity", "trackedAt", "estDelivery", "pickup", "coachName", "reason", "clientDob", "phone", "email", "address1", "address2", "city", "state", "zip", "shippingType", "reconstitute", "specialInstructions", "saleId", "orderType", "prescriber", "location", "clientGender", "supplier", "itemsJson", "extras", "medsourceOrderId", "submittedById", "statusHistory", "employeeOrder", "delayed", "delayReason", "delayedAt", "pickupType", "pickupSponsor", "isReplacement", "replacementReason", "replacesOrderNo", "replacementCharged", "orderNo"],
   User: ["id", "name", "email", "passwordHash", "role", "birthday", "phone", "avatarUrl", "createdAt", "gender", "failedLogins", "lockoutUntil", "googleRefreshToken", "gmailConnectedAt", "location", "ghlUserId"],
 } as const;
 
@@ -218,7 +260,7 @@ async function validateLegacyShape(tx: TransactionSql): Promise<string> {
   const rows = await tx<{ table: string; column: string; type: string; position: number }[]>`
     select table_name as table, column_name as column, data_type as type, ordinal_position as position
     from information_schema.columns
-    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'ClientTouch', 'Purchase', 'User')
+    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'ClientTouch', 'Purchase', 'RoutedOrder', 'ShipmentNotification', 'User')
     order by table_name, ordinal_position
   `;
   for (const [table, expected] of Object.entries(LEGACY_COLUMNS)) {
@@ -281,15 +323,23 @@ async function extractUnified(
       `) as unknown as V1AppointmentRow[];
   return {
     extract: {
-      locations, staff, people, appointments, consults: [], contacts: [], sales: [], saleLines: [], exceptions: [],
+      locations, staff, people, appointments, consults: [], contacts: [], fulfillmentHistory: [], sales: [], saleLines: [], exceptions: [],
     } satisfies V1Extract,
     diagnostics: {
-      unmatchedAssignedCoaches: 0, unresolvedHomeLocations: 0, namesParsedFromDisplay: 0,
+      staffNameCollisionGroups: 0, unresolvedStaffNameCollisionGroups: 0,
+      staffActivationCandidates: 0, inactiveLegacyStaffRows: 0,
+      syntheticRosterStaffRows: 0,
+      unmatchedAssignedCoaches: 0, ambiguousAssignedCoaches: 0,
+      unresolvedHomeLocations: 0, namesParsedFromDisplay: 0,
       invalidDobValues: 0, consultsExcludedMissingClient: 0, consultsExcludedMissingAuthor: 0,
       progressNotesExcludedMissingClient: 0, progressNotesExcludedMissingAuthor: 0,
       progressNotesWithSynthesizedAuthor: 0,
       contactsExcludedMissingClient: 0, contactsWithoutStaffOwner: 0, contactAttachmentsForRehousing: 0,
-      purchasesExcludedMissingClient: 0, purchaseItemCountMismatches: 0, purchaseLineMathMismatches: 0,
+      routedOrdersExcludedMissingClient: 0, routedOrderClientKeyConflicts: 0,
+      routedOrdersMissingSaleLink: 0,
+      routedOrdersMissingCoach: 0, shipmentsExcludedLinkage: 0,
+      purchasesExcludedMissingClient: 0, purchaseClientKeyConflicts: 0, purchasesMissingCoach: 0,
+      purchaseItemCountMismatches: 0, purchaseLineMathMismatches: 0,
     } satisfies ExtractDiagnostics,
     continuityInventory: await unifiedContinuityInventory(tx),
     schemaFingerprint: null,
@@ -308,7 +358,7 @@ async function extractLegacy(
     city: string | null; state: string | null; zip: string | null; mindbodyId: string | null;
     dob: string | null; gender: string | null; isProspect: boolean; mbActive: boolean | null;
     assignedCoach: string | null; assignedCoachId: string | null; assignedCoachName: string | null;
-    assignedCoachLocation: string | null; createdAt: Date; updatedAt: Date;
+    assignedCoachLocation: string | null; assignedCoachMatches: number; createdAt: Date; updatedAt: Date;
   }
   interface LegacyProgressNote {
     id: string; personId: string; authorId: string | null; authorName: string | null; apptType: string | null;
@@ -329,14 +379,49 @@ async function extractLegacy(
     total: number; unitPrice: number;
   }
   interface LegacyPurchase {
-    id: string; personId: string; coachId: string | null; mbSaleId: string;
+    id: string; personId: string; coachId: string | null; coachLabel: string | null;
+    clientKeyConflict: boolean; mbSaleId: string;
     orderNo: string | null; saleDate: Date; location: string; locationTargetId: string | null;
     total: number; itemCount: number; items: LegacyPurchaseItem[]; legacy: boolean; createdAt: Date;
   }
   interface LegacyTouch {
     id: string; personId: string; staffId: string | null; coachLabel: string;
+    assignedCoachLabel: string | null;
     channel: string; direction: string; subject: string | null; body: string;
     createdAt: Date; attachments: unknown[] | null; ghlMessageId: string | null;
+  }
+  interface LegacyRoutedOrder {
+    id: string; personId: string; saleSourceId: string | null; coachId: string | null;
+    coachLabel: string | null; clientKeyConflict: boolean; mbSaleId: string; site: string;
+    saleDate: Date; sku: string | null;
+    item: string; qty: number; vendor: string; tag: string; mdtoolbox: boolean;
+    pharmacy: string; status: string; doneAt: Date | null; doneBy: string | null;
+    createdAt: Date; source: string; dob: string | null; gender: string | null;
+    address1: string | null; address2: string | null; city: string | null;
+    state: string | null; zip: string | null; phone: string | null; email: string | null;
+    allergies: string | null; orderNo: string | null; placedBy: string | null; pickup: boolean;
+    pickupType: string | null; pickupSponsor: string | null; packageDose: string | null;
+    vendorOrderNo: string | null; isReplacement: boolean; replacementReason: string | null;
+    replacesOrderNo: string | null; replacementCharged: boolean; isNutraceutical: boolean;
+    tracking: string | null; carrier: string | null; trackedAt: Date | null; trackedBy: string | null;
+    updatedAt: Date;
+  }
+  interface LegacyShipment {
+    id: string; personId: string; saleSourceId: string; coachId: string | null;
+    clientName: string; itemsText: string | null; tracking: string | null; carrier: string;
+    status: string; shippedAt: Date; readAt: Date | null; createdAt: Date; orderKey: string | null;
+    lastActivity: string | null; trackedAt: Date | null; estDelivery: string | null; pickup: boolean;
+    coachName: string | null; reason: string | null; clientDob: string | null; phone: string | null;
+    email: string | null; address1: string | null; address2: string | null; city: string | null;
+    state: string | null; zip: string | null; shippingType: string | null; reconstitute: boolean;
+    specialInstructions: string | null; saleId: string | null; orderType: string | null;
+    prescriber: string | null; location: string | null; clientGender: string | null; supplier: string;
+    itemsJson: unknown[]; extras: Record<string, unknown>; medsourceOrderId: string | null;
+    submittedById: string | null; statusHistory: unknown[]; employeeOrder: boolean; delayed: boolean;
+    delayReason: string | null; delayedAt: Date | null; pickupType: string | null;
+    pickupSponsor: string | null; isReplacement: boolean; replacementReason: string | null;
+    replacesOrderNo: string | null; replacementCharged: boolean; orderNo: string | null;
+    updatedAt: Date;
   }
   const schemaFingerprint = await validateLegacyShape(tx);
   const sourceStaff = (await tx`
@@ -350,19 +435,107 @@ async function extractLegacy(
            end as "locationTargetId"
     from public."User" order by id
   `) as unknown as V1StaffRow[];
+  const staffNameCollisions = await tx<{ normalizedName: string; officialDomainUsers: number }[]>`
+    select regexp_replace(lower(name), '[^a-z0-9]', '', 'g') as "normalizedName",
+           count(*) filter (where lower(trim(email)) like '%@goalphahealth.com')::int as "officialDomainUsers"
+    from public."User"
+    where regexp_replace(lower(name), '[^a-z0-9]', '', 'g') <> ''
+    group by regexp_replace(lower(name), '[^a-z0-9]', '', 'g')
+    having count(*) > 1
+  `;
+  const approvedRosterNames = new Set(ROSTER.map((entry) => normalizedName(`${entry.firstName}${entry.lastName}`)));
+  if (staffNameCollisions.some((group) => !approvedRosterNames.has(group.normalizedName))) {
+    throw new Error("Alpha contains a duplicate staff name outside the approved roster; identity review required");
+  }
+  const staffNameCollisionGroups = staffNameCollisions.length;
+  const unresolvedStaffNameCollisionGroups = staffNameCollisions.filter((group) => group.officialDomainUsers !== 1).length;
+  const officialUsersByName = new Map<string, number>();
+  for (const row of sourceStaff) {
+    if (!row.email.trim().toLowerCase().endsWith("@goalphahealth.com")) continue;
+    const name = normalizedName(row.name);
+    officialUsersByName.set(name, (officialUsersByName.get(name) ?? 0) + 1);
+  }
+  // Alpha's local User table is historical identity evidence, not Apex access
+  // approval. An approved-roster name with exactly one current corporate email
+  // is only an activation candidate; every imported user remains inactive until
+  // an Entra object id and role are explicitly approved in Apex.
+  let staffActivationCandidates = 0;
+  for (const row of sourceStaff) {
+    const name = normalizedName(row.name);
+    const activationCandidate = approvedRosterNames.has(name)
+      && row.email.trim().toLowerCase().endsWith("@goalphahealth.com")
+      && officialUsersByName.get(name) === 1;
+    if (activationCandidate) staffActivationCandidates++;
+    row.active = false;
+  }
+  const inactiveLegacyStaffRows = sourceStaff.length;
+  const sourceUsersByName = new Map<string, V1StaffRow[]>();
+  for (const row of sourceStaff) {
+    const name = normalizedName(row.name);
+    sourceUsersByName.set(name, [...(sourceUsersByName.get(name) ?? []), row]);
+  }
+  const canonicalStaffByName = new Map<string, string>();
+  let syntheticRosterStaffRows = 0;
+  for (const roster of ROSTER) {
+    const displayName = `${roster.firstName} ${roster.lastName}`;
+    const name = normalizedName(displayName);
+    const candidates = sourceUsersByName.get(name) ?? [];
+    const official = candidates.filter((row) => row.email.trim().toLowerCase().endsWith("@goalphahealth.com"));
+    const canonical = official.length === 1 ? official[0] : candidates.length === 1 ? candidates[0] : null;
+    if (canonical) {
+      canonicalStaffByName.set(name, canonical.id);
+      continue;
+    }
+    const id = `Roster:${name}`;
+    canonicalStaffByName.set(name, id);
+    syntheticRosterStaffRows++;
+    sourceStaff.push({
+      id,
+      name: displayName,
+      email: `legacy-roster-${sha256(name).slice(0, 16)}@migration.invalid`,
+      role: roster.credentialClass === "Coach" ? "COACH" : roster.department === "Medical" ? "MEDICAL" : "ADMIN",
+      title: roster.notes,
+      npi: null,
+      active: false,
+      locationId: null,
+      locationTargetId: roster.location === "AHQ" ? null : roster.location,
+      createdAt: new Date(0),
+    });
+  }
+  for (const [name, candidates] of sourceUsersByName) {
+    if (canonicalStaffByName.has(name)) continue;
+    if (candidates.length === 1) canonicalStaffByName.set(name, candidates[0].id);
+  }
   const rawPeople = (forceFull || !from
     ? await tx`
         select c.id, c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
                c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
                c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
                coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
+               coach.matches as "assignedCoachMatches",
                c."createdAt", c."updatedAt"
         from public."ClientProfile" c
         left join lateral (
-          select u.id, u.name, u.location from public."User" u
+          select case
+                   when count(*) = 1 then min(u.id)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as id,
+                 case
+                   when count(*) = 1 then min(u.name)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.name) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as name,
+                 case
+                   when count(*) = 1 then min(u.location)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.location) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as location,
+                 count(*)::int as matches
+          from public."User" u
           where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
                 regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
-          order by u.id limit 1
+            and trim(coalesce(c."assignedCoach", '')) <> ''
         ) coach on true
         where c."updatedAt" <= ${nextWatermark} order by c.id
       `
@@ -371,22 +544,42 @@ async function extractLegacy(
                c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
                c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
                coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
+               coach.matches as "assignedCoachMatches",
                c."createdAt", c."updatedAt"
         from public."ClientProfile" c
         left join lateral (
-          select u.id, u.name, u.location from public."User" u
+          select case
+                   when count(*) = 1 then min(u.id)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as id,
+                 case
+                   when count(*) = 1 then min(u.name)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.name) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as name,
+                 case
+                   when count(*) = 1 then min(u.location)
+                   when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                     then min(u.location) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                 end as location,
+                 count(*)::int as matches
+          from public."User" u
           where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
                 regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
-          order by u.id limit 1
+            and trim(coalesce(c."assignedCoach", '')) <> ''
         ) coach on true
         where c."updatedAt" > ${from} and c."updatedAt" <= ${nextWatermark} order by c.id
       `) as unknown as LegacyPerson[];
   let namesParsedFromDisplay = 0;
   let unmatchedAssignedCoaches = 0;
+  let ambiguousAssignedCoaches = 0;
   let unresolvedHomeLocations = 0;
   let invalidDobValues = 0;
   const exceptions: V1MigrationExceptionRow[] = [];
   const people: V1PersonRow[] = rawPeople.map((row) => {
+    const assignedCoachId = row.assignedCoachId
+      ?? (row.assignedCoach ? canonicalStaffByName.get(normalizedName(row.assignedCoach)) ?? null : null);
     const parsed = splitLegacyName(row.displayName);
     if (!row.firstName?.trim() || !row.lastName?.trim()) {
       namesParsedFromDisplay++;
@@ -404,25 +597,26 @@ async function extractLegacy(
         sourceUpdatedAt: row.updatedAt,
       });
     }
-    if (row.assignedCoach && !row.assignedCoachId) {
-      unmatchedAssignedCoaches++;
+    if (row.assignedCoach && !assignedCoachId) {
+      if (row.assignedCoachMatches > 1) ambiguousAssignedCoaches++;
+      else unmatchedAssignedCoaches++;
       exceptions.push({
         id: `ClientProfile:${row.id}:assigned-coach`,
         sourceEntityType: "ClientProfile",
-        reasonCode: "assigned-coach-unmatched",
+        reasonCode: row.assignedCoachMatches > 1 ? "assigned-coach-ambiguous" : "assigned-coach-unmatched",
         payload: { assignedCoach: row.assignedCoach },
         sourceUpdatedAt: row.updatedAt,
       });
     }
-    const locationTargetId = canonicalStaffLocation(row.assignedCoachName, row.assignedCoachLocation);
-    if (row.assignedCoachId && !locationTargetId) {
+    const locationTargetId = canonicalStaffLocation(row.assignedCoachName ?? row.assignedCoach, row.assignedCoachLocation);
+    if (assignedCoachId && !locationTargetId) {
       unresolvedHomeLocations++;
       exceptions.push({
         id: `ClientProfile:${row.id}:home-location`,
         sourceEntityType: "ClientProfile",
         reasonCode: "home-location-unresolved",
         payload: {
-          assignedCoachId: row.assignedCoachId,
+          assignedCoachId,
           assignedCoachLocation: row.assignedCoachLocation,
         },
         sourceUpdatedAt: row.updatedAt,
@@ -444,7 +638,7 @@ async function extractLegacy(
       sex: row.gender ?? "unknown", email: row.email, phone: row.phone, address1: row.address1,
       address2: row.address2, city: row.city, state: row.state, zip: row.zip,
       status: row.mbActive === false ? "inactive" : "active", isProspect: row.isProspect,
-      assignedCoachId: row.assignedCoachId, locationId: null, locationTargetId,
+      assignedCoachId, locationId: null, locationTargetId,
       createdAt: row.createdAt, updatedAt: row.updatedAt,
     };
   });
@@ -454,32 +648,48 @@ async function extractLegacy(
     select 'ClientTouch:' || t.id as id, c.id as "personId",
            case when t.direction = 'outbound' then sender.id
                 else coalesce(touch_coach.id, assigned_coach.id) end as "staffId",
-           t.coach as "coachLabel", t.channel, t.direction, t.subject, t.body,
+           t.coach as "coachLabel", c."assignedCoach" as "assignedCoachLabel",
+           t.channel, t.direction, t.subject, t.body,
            t."createdAt", t.attachments, t."ghlMessageId"
     from public."ClientTouch" t
     join public."ClientProfile" c on c."nameKey" = t."clientNameKey"
     left join public."User" sender on sender.id = t."sentById"
     left join lateral (
-      select u.id from public."User" u
+      select case
+               when count(*) = 1 then min(u.id)
+               when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                 then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+             end as id
+      from public."User" u
       where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
             regexp_replace(lower(t.coach), '[^a-z0-9]', '', 'g')
-      order by u.id limit 1
+        and trim(coalesce(t.coach, '')) <> ''
     ) touch_coach on true
     left join lateral (
-      select u.id from public."User" u
+      select case
+               when count(*) = 1 then min(u.id)
+               when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                 then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+             end as id
+      from public."User" u
       where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
             regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
-      order by u.id limit 1
+        and trim(coalesce(c."assignedCoach", '')) <> ''
     ) assigned_coach on true
     where t."createdAt" <= ${nextWatermark} order by t.id
   `) as unknown as LegacyTouch[];
   let contactsWithoutStaffOwner = 0;
   let contactAttachmentsForRehousing = 0;
   const contacts: V1ContactEntryRow[] = rawTouches.map((row) => {
+    const staffId = row.staffId ?? (row.direction === "inbound"
+      ? canonicalStaffByName.get(normalizedName(row.coachLabel ?? ""))
+        ?? canonicalStaffByName.get(normalizedName(row.assignedCoachLabel ?? ""))
+        ?? null
+      : null);
     if (row.direction !== "inbound" && row.direction !== "outbound") {
       throw new Error("Alpha ClientTouch direction is not recognized; migration refused");
     }
-    if (!row.staffId) {
+    if (!staffId) {
       contactsWithoutStaffOwner++;
       exceptions.push({
         id: `${row.id}:staff-owner`, sourceEntityType: "ClientTouch",
@@ -498,7 +708,7 @@ async function extractLegacy(
       });
     }
     return {
-      id: row.id, personId: row.personId, staffId: row.staffId, at: row.createdAt,
+      id: row.id, personId: row.personId, staffId, at: row.createdAt,
       channel: row.channel, direction: row.direction, subject: row.subject, body: row.body,
       hasAttachments, externalId: row.ghlMessageId,
     };
@@ -523,29 +733,67 @@ async function extractLegacy(
   // checksum instead of falling outside a createdAt-only delta.
   const rawPurchases = (await tx`
     select 'Purchase:' || p.id as id, person.id as "personId", coach.id as "coachId",
+           p.coach as "coachLabel", person."clientKeyConflict",
            p."mbSaleId", p."orderNo", p."saleDate", p.location,
            case when upper(trim(p.location)) = 'SC' then 'myrtle-beach' else null end as "locationTargetId",
            p.total, p."itemCount", p.items, p.legacy, p."createdAt"
     from public."Purchase" p
     join lateral (
-      select c.id from public."ClientProfile" c
-      where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
-         or (p."clientNameKey" is not null and c."nameKey" = p."clientNameKey")
-      order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
-    ) person on true
+      select case
+               when mb.matches = 1 then mb.id
+               when mb.matches = 0 and nk.matches = 1 then nk.id
+             end as id,
+             (mb.matches = 1 and nk.matches = 1 and mb.id is distinct from nk.id) as "clientKeyConflict"
+      from lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId"
+      ) mb
+      cross join lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where p."clientNameKey" is not null and c."nameKey" = p."clientNameKey"
+      ) nk
+    ) person on person.id is not null
     left join lateral (
-      select u.id from public."User" u
+      select case
+               when count(*) = 1 then min(u.id)
+               when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                 then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+             end as id
+      from public."User" u
       where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
             regexp_replace(lower(coalesce(p.coach, '')), '[^a-z0-9]', '', 'g')
-      order by u.id limit 1
+        and trim(coalesce(p.coach, '')) <> ''
     ) coach on true
     where p."createdAt" <= ${nextWatermark} order by p.id
   `) as unknown as LegacyPurchase[];
   const sales: V1SaleRow[] = [];
   const saleLines: V1SaleLineRow[] = [];
+  let purchaseClientKeyConflicts = 0;
+  let purchasesMissingCoach = 0;
   let purchaseItemCountMismatches = 0;
   let purchaseLineMathMismatches = 0;
   for (const row of rawPurchases) {
+    const coachId = row.coachId
+      ?? (row.coachLabel ? canonicalStaffByName.get(normalizedName(row.coachLabel)) ?? null : null);
+    if (row.clientKeyConflict) {
+      purchaseClientKeyConflicts++;
+      exceptions.push({
+        id: `${row.id}:client-key-conflict`, sourceEntityType: "Purchase",
+        reasonCode: "client-key-conflict-mindbody-preferred",
+        payload: { resolution: "unique-mindbody-id-preferred-over-conflicting-name-key" },
+        sourceUpdatedAt: row.createdAt,
+      });
+    }
+    if (row.coachLabel && !coachId) {
+      purchasesMissingCoach++;
+      exceptions.push({
+        id: `${row.id}:coach-link`, sourceEntityType: "Purchase",
+        reasonCode: "coach-link-unresolved-or-ambiguous", payload: { coachLabel: row.coachLabel },
+        sourceUpdatedAt: row.createdAt,
+      });
+    }
     const sourceLineTotalCents = row.items.reduce((sum, item) => sum + exactCents(item.total), 0);
     if (sourceLineTotalCents !== exactCents(row.total)) {
       throw new Error("Alpha Purchase total does not equal its retained source lines; migration refused");
@@ -563,7 +811,7 @@ async function extractLegacy(
     sales.push({
       id: row.id, personId: row.personId, externalRef: row.mbSaleId,
       orderNumber: row.orderNo, occurredAt: row.saleDate, locationLabel: row.location,
-      locationTargetId: row.locationTargetId, coachId: row.coachId, total: row.total,
+      locationTargetId: row.locationTargetId, coachId, total: row.total,
       sourceItemCount: row.itemCount, actualItemCount: row.items.length,
       legacy: row.legacy, createdAt: row.createdAt,
     });
@@ -584,10 +832,20 @@ async function extractLegacy(
            p.legacy, p."createdAt"
     from public."Purchase" p
     left join lateral (
-      select c.id from public."ClientProfile" c
-      where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
-         or (p."clientNameKey" is not null and c."nameKey" = p."clientNameKey")
-      order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
+      select case
+               when mb.matches = 1 then mb.id
+               when mb.matches = 0 and nk.matches = 1 then nk.id
+             end as id
+      from lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId"
+      ) mb
+      cross join lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where p."clientNameKey" is not null and c."nameKey" = p."clientNameKey"
+      ) nk
     ) person on true
     where person.id is null and p."createdAt" <= ${nextWatermark} order by p.id
   `) as unknown as Array<Record<string, unknown> & { id: string; createdAt: Date }>;
@@ -596,6 +854,280 @@ async function extractLegacy(
     exceptions.push({
       id: `${id}:missing-client`, sourceEntityType: "Purchase",
       reasonCode: "missing-client", payload, sourceUpdatedAt: createdAt,
+    });
+  }
+  // RoutedOrder and ShipmentNotification contain historical operational facts,
+  // not the evidence required to advance a new Apex fulfillment order. Rescan
+  // both tables fully (neither has updatedAt) into the separate immutable
+  // history ledger; ambiguous patient/order linkage remains private review.
+  const rawRoutedOrders = (await tx`
+    select 'RoutedOrder:' || r.id as id, person.id as "personId",
+           sale."saleSourceId", coach.id as "coachId", r.coach as "coachLabel",
+           person."clientKeyConflict",
+           r."mbSaleId", r.site, r."saleDate", r.sku, r.item, r.qty, r.vendor,
+           r.tag, r.mdtoolbox, r.pharmacy, r.status, r."doneAt", r."doneBy",
+           r."createdAt", r.source, r.dob, r.gender, r.address1, r.address2,
+           r.city, r.state, r.zip, r.phone, r.email, r.allergies, r."orderNo",
+           r."placedBy", r.pickup, r."pickupType", r."pickupSponsor", r."packageDose",
+           r."vendorOrderNo", r."isReplacement", r."replacementReason",
+           r."replacesOrderNo", r."replacementCharged", r."isNutraceutical",
+           r.tracking, r.carrier, r."trackedAt", r."trackedBy",
+           greatest(r."createdAt", r."saleDate", r."doneAt", r."trackedAt") as "updatedAt"
+    from public."RoutedOrder" r
+    join lateral (
+      select case
+               when mb.matches = 1 then mb.id
+               when mb.matches = 0 and nk.matches = 1 then nk.id
+             end as id,
+             (mb.matches = 1 and nk.matches = 1 and mb.id is distinct from nk.id) as "clientKeyConflict"
+      from lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where r."clientMindbodyId" is not null and c."mindbodyId" = r."clientMindbodyId"
+      ) mb
+      cross join lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where r."clientNameKey" is not null and c."nameKey" = r."clientNameKey"
+      ) nk
+    ) person on person.id is not null
+    left join lateral (
+      select case when count(*) = 1 then 'Purchase:' || min(p.id) end as "saleSourceId"
+      from public."Purchase" p where p."orderNo" = r."orderNo" and r."orderNo" is not null
+    ) sale on true
+    left join lateral (
+      select case
+               when count(*) = 1 then min(u.id)
+               when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                 then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+             end as id
+      from public."User" u
+      where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+            regexp_replace(lower(coalesce(r.coach, '')), '[^a-z0-9]', '', 'g')
+        and trim(coalesce(r.coach, '')) <> ''
+    ) coach on true
+    where r."createdAt" <= ${nextWatermark} order by r.id
+  `) as unknown as LegacyRoutedOrder[];
+  let routedOrderClientKeyConflicts = 0;
+  let routedOrdersMissingSaleLink = 0;
+  let routedOrdersMissingCoach = 0;
+  const fulfillmentHistory: V1HistoricalFulfillmentRow[] = rawRoutedOrders.map((row) => {
+    const coachId = row.coachId
+      ?? (row.coachLabel ? canonicalStaffByName.get(normalizedName(row.coachLabel)) ?? null : null);
+    if (row.clientKeyConflict) {
+      routedOrderClientKeyConflicts++;
+      exceptions.push({
+        id: `${row.id}:client-key-conflict`, sourceEntityType: "RoutedOrder",
+        reasonCode: "client-key-conflict-mindbody-preferred",
+        payload: { resolution: "unique-mindbody-id-preferred-over-conflicting-name-key" },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    if (!row.saleSourceId) {
+      routedOrdersMissingSaleLink++;
+      exceptions.push({
+        id: `${row.id}:sale-link`, sourceEntityType: "RoutedOrder",
+        reasonCode: "sale-link-unresolved",
+        payload: { orderNumber: row.orderNo, externalSaleRef: row.mbSaleId },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    if (row.coachLabel && !coachId) {
+      routedOrdersMissingCoach++;
+      exceptions.push({
+        id: `${row.id}:coach-link`, sourceEntityType: "RoutedOrder",
+        reasonCode: "coach-link-unresolved", payload: { coachLabel: row.coachLabel },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    return {
+      id: row.id, sourceEntityType: "RoutedOrder", recordKind: "routed-line",
+      personId: row.personId, saleSourceId: row.saleSourceId, orderNumber: row.orderNo,
+      externalOrderRef: row.vendorOrderNo, partner: row.vendor, status: row.status,
+      sourceChannel: `${row.tag}:${row.source}`, locationTargetId: canonicalStaffLocation(null, row.site),
+      sourceLocationLabel: row.site, coachId, occurredAt: row.saleDate,
+      completedAt: row.doneAt, sku: row.sku, itemName: row.item, quantity: row.qty,
+      items: null, pickup: row.pickup, shippingType: row.pickupType,
+      tracking: row.tracking, carrier: row.carrier, estDelivery: null,
+      delayed: false, delayReason: null, statusHistory: null,
+      destinationSnapshot: {
+        address1: row.address1, address2: row.address2, city: row.city, state: row.state,
+        zip: row.zip, phone: row.phone, email: row.email,
+      },
+      routingSnapshot: {
+        pharmacy: row.pharmacy, mdtoolbox: row.mdtoolbox, placedBy: row.placedBy,
+        doneBy: row.doneBy, trackedBy: row.trackedBy, allergies: row.allergies,
+        dob: row.dob, gender: row.gender, pickupSponsor: row.pickupSponsor,
+        packageDose: row.packageDose, isReplacement: row.isReplacement,
+        replacementReason: row.replacementReason, replacesOrderNo: row.replacesOrderNo,
+        replacementCharged: row.replacementCharged, isNutraceutical: row.isNutraceutical,
+      },
+      updatedAt: row.updatedAt, createdAt: row.createdAt,
+    };
+  });
+  const unresolvedRoutedOrders = (await tx`
+    select 'RoutedOrder:' || r.id as id, to_jsonb(r) - 'id' as payload,
+           greatest(r."createdAt", r."saleDate", r."doneAt", r."trackedAt") as "updatedAt"
+    from public."RoutedOrder" r
+    left join lateral (
+      select case
+               when mb.matches = 1 then mb.id
+               when mb.matches = 0 and nk.matches = 1 then nk.id
+             end as id
+      from lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where r."clientMindbodyId" is not null and c."mindbodyId" = r."clientMindbodyId"
+      ) mb
+      cross join lateral (
+        select count(*)::int as matches, min(c.id) as id
+        from public."ClientProfile" c
+        where r."clientNameKey" is not null and c."nameKey" = r."clientNameKey"
+      ) nk
+    ) person on true
+    where person.id is null and r."createdAt" <= ${nextWatermark} order by r.id
+  `) as unknown as Array<{ id: string; payload: Record<string, unknown>; updatedAt: Date }>;
+  for (const row of unresolvedRoutedOrders) {
+    exceptions.push({
+      id: `${row.id}:missing-client`, sourceEntityType: "RoutedOrder",
+      reasonCode: "client-link-not-unique", payload: row.payload, sourceUpdatedAt: row.updatedAt,
+    });
+  }
+  const rawShipments = (await tx`
+    select 'ShipmentNotification:' || s.id as id, link."personId", link."saleSourceId",
+           coach.id as "coachId", s."clientName", s.items as "itemsText", s.tracking,
+           s.carrier, s.status, s."shippedAt", s."readAt", s."createdAt", s."orderKey",
+           s."lastActivity", s."trackedAt", s."estDelivery", s.pickup, s."coachName",
+           s.reason, s."clientDob", s.phone, s.email, s.address1, s.address2, s.city,
+           s.state, s.zip, s."shippingType", s.reconstitute, s."specialInstructions",
+           s."saleId", s."orderType", s.prescriber, s.location, s."clientGender",
+           s.supplier, s."itemsJson", s.extras, s."medsourceOrderId", s."submittedById",
+           s."statusHistory", s."employeeOrder", s.delayed, s."delayReason", s."delayedAt",
+           s."pickupType", s."pickupSponsor", s."isReplacement", s."replacementReason",
+           s."replacesOrderNo", s."replacementCharged", s."orderNo",
+           greatest(s."createdAt", s."shippedAt", s."readAt", s."trackedAt", s."delayedAt") as "updatedAt"
+    from public."ShipmentNotification" s
+    join lateral (
+      select min(resolved."personId") as "personId", 'Purchase:' || min(resolved.id) as "saleSourceId"
+      from (
+        select p.id, person.id as "personId"
+        from public."Purchase" p
+        join lateral (
+          select case
+                   when mb.matches = 1 then mb.id
+                   when mb.matches = 0 and nk.matches = 1 then nk.id
+                 end as id
+          from lateral (
+            select count(*)::int as matches, min(c.id) as id
+            from public."ClientProfile" c
+            where p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId"
+          ) mb
+          cross join lateral (
+            select count(*)::int as matches, min(c.id) as id
+            from public."ClientProfile" c
+            where p."clientNameKey" is not null and c."nameKey" = p."clientNameKey"
+          ) nk
+        ) person on person.id is not null
+        where p."orderNo" = s."orderNo" and s."orderNo" is not null
+      ) resolved
+      having count(distinct resolved.id) = 1 and count(distinct resolved."personId") = 1
+    ) link on true
+    left join lateral (
+      select case
+               when direct.matches = 1 then direct.id
+               when direct.matches = 0 and named.id is not null then named.id
+             end as id
+      from lateral (
+        select count(*)::int as matches,
+               case
+                 when count(*) = 1 then min(u.id)
+                 when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                   then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+               end as id
+        from public."User" u where s."coachId" is not null and u.id = s."coachId"
+      ) direct
+      cross join lateral (
+        select count(*)::int as matches,
+               case
+                 when count(*) = 1 then min(u.id)
+                 when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                   then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+               end as id
+        from public."User" u
+        where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+              regexp_replace(lower(coalesce(s."coachName", '')), '[^a-z0-9]', '', 'g')
+          and trim(coalesce(s."coachName", '')) <> ''
+      ) named
+    ) coach on true
+    where s."createdAt" <= ${nextWatermark} order by s.id
+  `) as unknown as LegacyShipment[];
+  rawShipments.forEach((row) => {
+    const coachId = row.coachId
+      ?? (row.coachName ? canonicalStaffByName.get(normalizedName(row.coachName)) ?? null : null);
+    fulfillmentHistory.push({
+      id: row.id, sourceEntityType: "ShipmentNotification", recordKind: "shipment",
+      personId: row.personId, saleSourceId: row.saleSourceId, orderNumber: row.orderNo,
+      externalOrderRef: row.medsourceOrderId ?? row.orderKey, partner: row.supplier,
+      status: row.status, sourceChannel: "shipment-notification",
+      locationTargetId: canonicalStaffLocation(null, row.location),
+      sourceLocationLabel: row.location, coachId, occurredAt: row.shippedAt,
+      completedAt: null, sku: null, itemName: row.itemsText, quantity: null,
+      items: row.itemsJson, pickup: row.pickup, shippingType: row.shippingType,
+      tracking: row.tracking, carrier: row.carrier, estDelivery: row.estDelivery,
+      delayed: row.delayed, delayReason: row.delayReason, statusHistory: row.statusHistory,
+      destinationSnapshot: {
+        address1: row.address1, address2: row.address2, city: row.city, state: row.state,
+        zip: row.zip, phone: row.phone, email: row.email,
+      },
+      routingSnapshot: {
+        clientName: row.clientName, clientDob: row.clientDob, clientGender: row.clientGender,
+        lastActivity: row.lastActivity, reason: row.reason, reconstitute: row.reconstitute,
+        specialInstructions: row.specialInstructions, sourceSaleId: row.saleId,
+        orderType: row.orderType, prescriber: row.prescriber, extras: row.extras,
+        submittedById: row.submittedById, employeeOrder: row.employeeOrder,
+        delayedAt: row.delayedAt, pickupType: row.pickupType, pickupSponsor: row.pickupSponsor,
+        isReplacement: row.isReplacement, replacementReason: row.replacementReason,
+        replacesOrderNo: row.replacesOrderNo, replacementCharged: row.replacementCharged,
+      },
+      updatedAt: row.updatedAt, createdAt: row.createdAt,
+    });
+  });
+  const unresolvedShipments = (await tx`
+    select 'ShipmentNotification:' || s.id as id, to_jsonb(s) - 'id' as payload,
+           greatest(s."createdAt", s."shippedAt", s."readAt", s."trackedAt", s."delayedAt") as "updatedAt"
+    from public."ShipmentNotification" s
+    left join lateral (
+      select count(distinct resolved.id)::int as purchases,
+             count(distinct resolved."personId")::int as clients
+      from (
+        select p.id, person.id as "personId"
+        from public."Purchase" p
+        join lateral (
+          select case
+                   when mb.matches = 1 then mb.id
+                   when mb.matches = 0 and nk.matches = 1 then nk.id
+                 end as id
+          from lateral (
+            select count(*)::int as matches, min(c.id) as id
+            from public."ClientProfile" c
+            where p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId"
+          ) mb
+          cross join lateral (
+            select count(*)::int as matches, min(c.id) as id
+            from public."ClientProfile" c
+            where p."clientNameKey" is not null and c."nameKey" = p."clientNameKey"
+          ) nk
+        ) person on person.id is not null
+        where p."orderNo" = s."orderNo" and s."orderNo" is not null
+      ) resolved
+    ) link on true
+    where (link.purchases <> 1 or link.clients <> 1)
+      and s."createdAt" <= ${nextWatermark} order by s.id
+  `) as unknown as Array<{ id: string; payload: Record<string, unknown>; updatedAt: Date }>;
+  for (const row of unresolvedShipments) {
+    exceptions.push({
+      id: `${row.id}:linkage`, sourceEntityType: "ShipmentNotification",
+      reasonCode: "client-or-sale-link-not-unique", payload: row.payload, sourceUpdatedAt: row.updatedAt,
     });
   }
   const coachConsults = (forceFull || !from
@@ -697,12 +1229,31 @@ async function extractLegacy(
           limit 1
         ) person on true
         left join lateral (
-          select u.id from public."User" u
-          where u.id = p."createdById"
-             or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
-                regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
-          order by case when u.id = p."createdById" then 0 else 1 end, u.id
-          limit 1
+          select case
+                   when direct.matches = 1 then direct.id
+                   when direct.matches = 0 and named.id is not null then named.id
+                 end as id
+          from lateral (
+            select count(*)::int as matches,
+                   case
+                     when count(*) = 1 then min(u.id)
+                     when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                       then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                   end as id
+            from public."User" u where p."createdById" is not null and u.id = p."createdById"
+          ) direct
+          cross join lateral (
+            select count(*)::int as matches,
+                   case
+                     when count(*) = 1 then min(u.id)
+                     when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                       then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                   end as id
+            from public."User" u
+            where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                  regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+              and trim(coalesce(p.practitioner, p."createdByName", '')) <> ''
+          ) named
         ) author on true
         where p."updatedAt" <= ${nextWatermark} order by p.id
       `
@@ -721,17 +1272,39 @@ async function extractLegacy(
           limit 1
         ) person on true
         left join lateral (
-          select u.id from public."User" u
-          where u.id = p."createdById"
-             or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
-                regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
-          order by case when u.id = p."createdById" then 0 else 1 end, u.id
-          limit 1
+          select case
+                   when direct.matches = 1 then direct.id
+                   when direct.matches = 0 and named.id is not null then named.id
+                 end as id
+          from lateral (
+            select count(*)::int as matches,
+                   case
+                     when count(*) = 1 then min(u.id)
+                     when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                       then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                   end as id
+            from public."User" u where p."createdById" is not null and u.id = p."createdById"
+          ) direct
+          cross join lateral (
+            select count(*)::int as matches,
+                   case
+                     when count(*) = 1 then min(u.id)
+                     when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                       then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+                   end as id
+            from public."User" u
+            where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                  regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+              and trim(coalesce(p.practitioner, p."createdByName", '')) <> ''
+          ) named
         ) author on true
         where p."updatedAt" > ${from} and p."updatedAt" <= ${nextWatermark} order by p.id
       `) as unknown as LegacyProgressNote[];
   const synthesizedAuthorRows = new Map<string, V1StaffRow>();
   for (const row of rawProgressNotes) {
+    if (!row.authorId && row.authorName) {
+      row.authorId = canonicalStaffByName.get(normalizedName(row.authorName)) ?? null;
+    }
     if (row.authorId) continue;
     const authorName = row.authorName?.trim() || "Unknown legacy progress-note author";
     const sourceId = `ProgressNoteAuthor:${normalizedName(authorName) || "unknown"}`;
@@ -790,21 +1363,44 @@ async function extractLegacy(
       order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
     ) person on true
     left join lateral (
-      select u.id from public."User" u
-      where u.id = p."createdById"
-         or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
-            regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
-      order by case when u.id = p."createdById" then 0 else 1 end, u.id limit 1
+      select case
+               when direct.matches = 1 then direct.id
+               when direct.matches = 0 and named.id is not null then named.id
+             end as id
+      from lateral (
+        select count(*)::int as matches,
+               case
+                 when count(*) = 1 then min(u.id)
+                 when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                   then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+               end as id
+        from public."User" u where p."createdById" is not null and u.id = p."createdById"
+      ) direct
+      cross join lateral (
+        select count(*)::int as matches,
+               case
+                 when count(*) = 1 then min(u.id)
+                 when count(*) filter (where lower(trim(u.email)) like '%@goalphahealth.com') = 1
+                   then min(u.id) filter (where lower(trim(u.email)) like '%@goalphahealth.com')
+               end as id
+        from public."User" u
+        where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+              regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+          and trim(coalesce(p.practitioner, p."createdByName", '')) <> ''
+      ) named
     ) author on true
   `;
   const consults = [...coachConsults, ...progressConsults];
   return {
     extract: {
       locations: canonicalLegacyLocations(), staff, people, appointments: [], consults,
-      contacts, sales, saleLines, exceptions,
+      contacts, fulfillmentHistory, sales, saleLines, exceptions,
     } satisfies V1Extract,
     diagnostics: {
-      unmatchedAssignedCoaches, unresolvedHomeLocations, namesParsedFromDisplay, invalidDobValues,
+      staffNameCollisionGroups, unresolvedStaffNameCollisionGroups,
+      staffActivationCandidates, inactiveLegacyStaffRows, syntheticRosterStaffRows,
+      unmatchedAssignedCoaches, ambiguousAssignedCoaches,
+      unresolvedHomeLocations, namesParsedFromDisplay, invalidDobValues,
       consultsExcludedMissingClient: Number(excluded.missingClient),
       consultsExcludedMissingAuthor: Number(excluded.missingAuthor),
       progressNotesExcludedMissingClient: Number(progressExcluded.missingClient),
@@ -813,7 +1409,14 @@ async function extractLegacy(
       contactsExcludedMissingClient: unresolvedTouches.length,
       contactsWithoutStaffOwner,
       contactAttachmentsForRehousing,
+      routedOrdersExcludedMissingClient: unresolvedRoutedOrders.length,
+      routedOrderClientKeyConflicts,
+      routedOrdersMissingSaleLink,
+      routedOrdersMissingCoach,
+      shipmentsExcludedLinkage: unresolvedShipments.length,
       purchasesExcludedMissingClient: unresolvedPurchases.length,
+      purchaseClientKeyConflicts,
+      purchasesMissingCoach,
       purchaseItemCountMismatches,
       purchaseLineMathMismatches,
     } satisfies ExtractDiagnostics,
@@ -970,6 +1573,15 @@ async function insertHistoricalContacts(tx: TransactionSql, records: MappedRecor
   }
 }
 
+async function insertHistoricalFulfillment(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 300)) {
+    await tx`
+      insert into historical_fulfillment_record ${tx(batch)}
+      on conflict (id) do nothing
+    `;
+  }
+}
+
 async function upsertBindings(
   tx: TransactionSql,
   runId: string,
@@ -994,7 +1606,7 @@ async function upsertBindings(
         target_id = excluded.target_id, source_updated_at = excluded.source_updated_at,
         checksum = excluded.checksum, last_run_id = excluded.last_run_id,
         imported_at = excluded.imported_at
-      where import_binding.entity_type not in ('contact-entry', 'sale', 'sale-line')
+      where import_binding.entity_type not in ('contact-entry', 'historical-fulfillment', 'sale', 'sale-line')
          or import_binding.checksum = excluded.checksum
     `;
   }
@@ -1014,6 +1626,7 @@ async function applyExtract(
     await insertHistoricalContacts(tx, mapped.contacts);
     await insertHistoricalSales(tx, mapped.sales);
     await insertHistoricalSaleLines(tx, mapped.saleLines);
+    await insertHistoricalFulfillment(tx, mapped.fulfillmentHistory);
     await upsertMigrationExceptions(tx, mapped.exceptions);
     await upsertBindings(tx, runId, [
       ...mapped.locations,
@@ -1022,6 +1635,7 @@ async function applyExtract(
       ...mapped.appointments,
       ...mapped.consults,
       ...mapped.contacts,
+      ...mapped.fulfillmentHistory,
       ...mapped.sales,
       ...mapped.saleLines,
       ...mapped.exceptions,
@@ -1061,6 +1675,7 @@ async function reconcile(
       union all select count(*)::int from appointment where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from consult where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from contact_entry where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from historical_fulfillment_record where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from migration_exception where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale_line where source_system = ${V1_SOURCE_SYSTEM}
@@ -1121,8 +1736,9 @@ async function main() {
   if ((options.apply || options.reconcileOnly) && !targetUrl) {
     throw new Error("APEX_MIGRATION_DATABASE_URL is required for apply or reconciliation");
   }
-  if (targetUrl && sameDatabase(sourceUrl, targetUrl)) {
-    throw new Error("source and target resolve to the same database; migration refused");
+  if (targetUrl) {
+    const violation = protectedSourceTargetViolation(sourceUrl, targetUrl, options.targetLabel);
+    if (violation) throw new Error(`protected Alpha source boundary: ${violation}; migration refused`);
   }
   if (options.apply) requireApplyAuthorization(options);
 

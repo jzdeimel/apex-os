@@ -11,6 +11,7 @@ export type V1EntityType =
   | "appointment"
   | "consult"
   | "contact-entry"
+  | "historical-fulfillment"
   | "sale"
   | "sale-line"
   | "migration-exception";
@@ -166,6 +167,40 @@ export interface V1ContactEntryRow {
   externalId: string | null;
 }
 
+export interface V1HistoricalFulfillmentRow {
+  id: string;
+  sourceEntityType: "RoutedOrder" | "ShipmentNotification";
+  recordKind: "routed-line" | "shipment";
+  personId: string;
+  saleSourceId: string | null;
+  orderNumber: string | null;
+  externalOrderRef: string | null;
+  partner: string;
+  status: string;
+  sourceChannel: string | null;
+  locationTargetId: string | null;
+  sourceLocationLabel: string | null;
+  coachId: string | null;
+  occurredAt: Dateish;
+  completedAt: Dateish;
+  sku: string | null;
+  itemName: string | null;
+  quantity: number | null;
+  items: unknown[] | null;
+  pickup: boolean;
+  shippingType: string | null;
+  tracking: string | null;
+  carrier: string | null;
+  estDelivery: string | null;
+  delayed: boolean;
+  delayReason: string | null;
+  statusHistory: unknown[] | null;
+  destinationSnapshot: Record<string, unknown>;
+  routingSnapshot: Record<string, unknown>;
+  updatedAt: Dateish;
+  createdAt: Dateish;
+}
+
 export interface V1Extract {
   locations: V1LocationRow[];
   staff: V1StaffRow[];
@@ -173,6 +208,7 @@ export interface V1Extract {
   appointments: V1AppointmentRow[];
   consults: V1ConsultRow[];
   contacts: V1ContactEntryRow[];
+  fulfillmentHistory: V1HistoricalFulfillmentRow[];
   sales: V1SaleRow[];
   saleLines: V1SaleLineRow[];
   exceptions: V1MigrationExceptionRow[];
@@ -401,9 +437,12 @@ export function mapStaff(row: V1StaffRow) {
     location_ids: locationIds,
     credentials: roster?.credentialClass ?? row.title,
     can_approve:
-      row.role.toUpperCase() === "PROVIDER" ||
-      /^(MD|DO|NP|PA|PA-C)$/.test((roster?.credentialClass ?? row.title ?? "").toUpperCase()),
+      row.active && (
+        row.role.toUpperCase() === "PROVIDER" ||
+        /^(MD|DO|NP|PA|PA-C)$/.test((roster?.credentialClass ?? row.title ?? "").toUpperCase())
+      ),
     exclude_from_scheduling:
+      !row.active ||
       roster?.location === "AHQ" ||
       roster?.credentialClass === "Admin" ||
       roster?.credentialClass === null ||
@@ -532,6 +571,44 @@ export function mapContactEntry(row: V1ContactEntryRow) {
   });
 }
 
+export function mapHistoricalFulfillment(row: V1HistoricalFulfillmentRow) {
+  return mapped("historical-fulfillment", row.id, row.updatedAt, {
+    id: targetId("historical-fulfillment", row.id),
+    record_kind: row.recordKind,
+    client_id: targetId("person", row.personId),
+    sale_id: row.saleSourceId ? targetId("sale", row.saleSourceId) : null,
+    order_number: row.orderNumber,
+    external_order_ref: row.externalOrderRef,
+    partner: row.partner,
+    status: row.status,
+    source_channel: row.sourceChannel,
+    location_id: row.locationTargetId,
+    source_location_label: row.sourceLocationLabel,
+    coach_id: row.coachId ? targetId("staff", row.coachId) : null,
+    occurred_at: asDate(row.occurredAt) ?? asDate(row.createdAt) ?? new Date(0),
+    completed_at: asDate(row.completedAt),
+    sku: row.sku?.trim() || null,
+    item_name: row.itemName?.trim() || null,
+    quantity: row.quantity === null ? null : exactInteger(row.quantity, "historical fulfillment quantity"),
+    items: row.items,
+    pickup: row.pickup,
+    shipping_type: row.shippingType,
+    tracking: row.tracking,
+    carrier: row.carrier,
+    est_delivery: row.estDelivery,
+    delayed: row.delayed,
+    delay_reason: row.delayReason,
+    status_history: row.statusHistory,
+    destination_snapshot: row.destinationSnapshot,
+    routing_snapshot: row.routingSnapshot,
+    source_system: V1_SOURCE_SYSTEM,
+    source_entity_type: row.sourceEntityType,
+    source_id: row.id,
+    source_updated_at: asDate(row.updatedAt),
+    created_at: asDate(row.createdAt) ?? new Date(0),
+  });
+}
+
 export function mapMigrationException(row: V1MigrationExceptionRow) {
   const id = targetId("migration-exception", row.id);
   return mapped("migration-exception", row.id, row.sourceUpdatedAt, {
@@ -597,6 +674,7 @@ export function mapExtract(extract: V1Extract) {
     appointments: extract.appointments.map(mapAppointment),
     consults: extract.consults.map(mapConsult),
     contacts: extract.contacts.map(mapContactEntry),
+    fulfillmentHistory: extract.fulfillmentHistory.map(mapHistoricalFulfillment),
     sales: extract.sales.map(mapSale),
     saleLines: extract.saleLines.map(mapSaleLine),
     exceptions: extract.exceptions.map(mapMigrationException),
@@ -612,6 +690,7 @@ export function extractSummary(extract: V1Extract) {
     appointments: mappedRows.appointments.length,
     consults: mappedRows.consults.length,
     contacts: mappedRows.contacts.length,
+    fulfillmentHistory: mappedRows.fulfillmentHistory.length,
     sales: mappedRows.sales.length,
     saleLines: mappedRows.saleLines.length,
     exceptions: mappedRows.exceptions.length,

@@ -15,6 +15,7 @@
     "cutover:preflight": "node scripts/cutover-preflight.mjs",
     "cutover:go-no-go": "node scripts/cutover-preflight.mjs --go-live",
     "migrate:v1": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/migrate-v1.ts",
+    "audit:v1-identity": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/audit-v1-identity.ts",
     "schema:check": "drizzle-kit check",
     "spec": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/spec-checks.ts"
   },

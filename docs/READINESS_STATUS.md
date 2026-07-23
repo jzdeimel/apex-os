@@ -1,6 +1,7 @@
 # Apex readiness status
 
-As of 2026-07-22, V1 production has not been changed. The isolated Azure and
+As of 2026-07-22, V1 production has not been changed and remains the live system
+until the separately authorized Friday cutover. The isolated Azure and
 GitHub deployment foundation is complete and green. The Apex readiness branch
 builds, typechecks, passes its executable requirements, and has a zero-failure
 contrast sweep.
@@ -65,8 +66,8 @@ contrast sweep.
 - Authoritative patient/location/staff/appointment schema and controlled V1
   importer with baseline, delta, dry-run, provenance, and reconciliation. The
   importer now detects and fingerprints the actual production
-  `legacy-public-2026-07` shape, refuses changed/ambiguous schemas, maps 5,002
-  client profiles and the staff directory, and correctly translates Alpha's
+  `legacy-public-2026-07` shape, refuses changed/ambiguous schemas, maps 5,004
+  client profiles and the historical staff directory, and correctly translates Alpha's
   note-shaped `Appointment` rows plus medical `ProgressNote` rows into Apex
   consult history rather than calendar reservations.
 - Historical Alpha/Mindbody purchases now translate into an immutable Apex
@@ -77,20 +78,42 @@ contrast sweep.
   the historical transactions as newly issued Apex invoices or card charges.
 - Alpha/GHL communication touches now translate into a separate immutable Apex
   contact-history ledger rather than being mislabeled as native secure-portal
-  messages. The current rehearsal maps all 1,029 touches to clients, preserves
+  messages. The 2026-07-22 23:25 ET checkpoint maps all 1,031 touches to clients, preserves
   channel, direction, subject, body, staff participant when defensible and the
   external message reference. A missing historical staff owner remains null.
   External attachment manifests are held only in the private review queue until
   their files can be re-housed in protected Apex storage.
 - A private migration-exception queue preserves unlinked note payloads and
   ambiguous demographic/location evidence inside protected Postgres with an
-  integrity digest. It has no application read API. The current read-only
-  rehearsal produces 735 review items: 143 inferred split names, 192 unresolved
-  coach-to-home-clinic assignments, one malformed DOB, 10 notes with no patient
-  link, 10 purchases with no safe patient link, and 209 legacy item-count
-  mismatches, plus 155 ownerless inbound communication touches and 15 attachment
-  manifests awaiting private re-housing. No source row is silently attached to
-  a guessed patient or staff member.
+  integrity digest. It has no application read API. The 2026-07-22 23:25 ET
+  read-only checkpoint produces 1,341 review items: 145 inferred split names,
+  192 unresolved coach-to-home-clinic assignments, one malformed DOB, 10 notes
+  with no patient link, 10 purchases with no safe patient link, 209 legacy
+  item-count mismatches, 157 ownerless communication touches, 15 attachment
+  manifests, 557 unresolved historical sale coach labels, 32 shipment linkage
+  exceptions, five routed-order sale links, five routed-order client-key
+  conflicts, and three purchase client-key conflicts. No source row is silently
+  attached to a guessed patient or staff member.
+- Historical routed orders and shipment notifications now translate into a
+  separate immutable fulfillment-history ledger. The same checkpoint retains
+  all 431 routed lines and 266 safely purchase-linked shipment snapshots (697
+  records total), including raw partner status/history, item, destination,
+  tracking and routing evidence. A legacy `done` or `delivered` label never
+  advances Apex's live fulfillment state machine.
+- Two independently recreated local PostgreSQL targets accepted the full
+  301,705-record checkpoint with the same extract checksum. Each apply and
+  independent reconcile reported zero missing, mismatched or extra rows. This
+  proves the code path; both disposable databases were destroyed immediately
+  after aggregate verification. The required two Azure `apex-nonprod`
+  rehearsals and restore evidence remain separate go-live gates.
+- Alpha has nine duplicate normalized staff-name groups. All nine correspond to
+  the approved 29-person roster; eight have one corporate-email candidate and
+  one requires a synthetic inactive roster identity. Six inactive roster
+  identities are synthesized in total. Fifteen of Alpha's 38 local users meet
+  the narrow roster/corporate-email candidate rule, but all 38 remain inactive
+  in the migration until explicitly approved. Historical direct user IDs are
+  preserved, while name-only links resolve through the approved roster. Final
+  Entra object-id, role and credential approval remains mandatory.
 - The dry run inventories counts for every other V1 clinical, commercial,
   operations, reference, and MedSource table without emitting row contents, so
   the remaining history scope can be accepted or expanded from evidence.
@@ -166,9 +189,9 @@ contrast sweep.
   features.
 - The importer does not yet move the full historical V1 clinical/financial
   graph. It currently translates identities, 75 linked consult/progress-note
-  records, 1,029 communication touches, 54,864 sales with 238,645 lines, and
-  privately retains the 735 review items above. Memberships, intake/consent, documents, routed orders,
-  shipments, lots/inventory events, invoices and audit history still require
+  records, 1,031 communication touches, 697 historical fulfillment records,
+  54,864 sales with 238,645 lines, and privately retains the 1,341 review items
+  above. Memberships, intake/consent, documents, lots/inventory events, invoices and audit history still require
   accepted Apex translations and reconciliation. V1 must remain available until
   that scope is completed or explicitly accepted as read-only legacy history.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are

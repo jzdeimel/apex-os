@@ -54,11 +54,14 @@ import {
   mapAppointment,
   mapContactEntry,
   mapConsult,
+  mapHistoricalFulfillment,
   mapMigrationException,
   mapPerson,
+  mapStaff,
   sameDatabase,
   targetId,
 } from "@/lib/migration/v1";
+import { protectedSourceTargetViolation } from "@/scripts/migrate-v1";
 import {
   normalizePatientEmail,
   opaqueToken,
@@ -703,6 +706,20 @@ const v1Person = {
 const mappedPerson = mapPerson(v1Person);
 eq("patient email is normalized", mappedPerson.data.email, "patient@example.com");
 eq("a missing home clinic stays null", mappedPerson.data.home_location_id, null);
+const mappedInactiveLegacyProvider = mapStaff({
+  id: "legacy-provider-sensitive-id",
+  name: "Historical Provider",
+  email: "historical-provider@migration.invalid",
+  role: "PROVIDER",
+  title: "MD",
+  npi: null,
+  active: false,
+  locationId: null,
+  locationTargetId: "raleigh",
+  createdAt: "2026-01-01T00:00:00.000Z",
+});
+eq("an inactive Alpha identity cannot approve in Apex", mappedInactiveLegacyProvider.data.can_approve, false);
+eq("an inactive Alpha identity stays out of Apex scheduling", mappedInactiveLegacyProvider.data.exclude_from_scheduling, true);
 
 const mappedAppointment = mapAppointment({
   id: "appointment-sensitive-id",
@@ -754,6 +771,41 @@ const mappedLegacyTouch = mapContactEntry({
 });
 eq("an ownerless inbound Alpha touch remains unassigned", mappedLegacyTouch.data.staff_id, null);
 eq("legacy attachment URLs stay out of the routable contact row", mappedLegacyTouch.data.source_has_attachments, true);
+const mappedLegacyShipment = mapHistoricalFulfillment({
+  id: "legacy-shipment-sensitive-id",
+  sourceEntityType: "ShipmentNotification",
+  recordKind: "shipment",
+  personId: v1Person.id,
+  saleSourceId: null,
+  orderNumber: "historical-order-ref",
+  externalOrderRef: null,
+  partner: "Historical partner",
+  status: "delivered",
+  sourceChannel: "shipment-notification",
+  locationTargetId: null,
+  sourceLocationLabel: null,
+  coachId: null,
+  occurredAt: "2026-07-15T12:00:00.000Z",
+  completedAt: null,
+  sku: null,
+  itemName: null,
+  quantity: null,
+  items: [{ name: "Historical item", qty: 1 }],
+  pickup: false,
+  shippingType: "ground",
+  tracking: null,
+  carrier: "Historical carrier",
+  estDelivery: null,
+  delayed: false,
+  delayReason: null,
+  statusHistory: [{ status: "delivered", at: "2026-07-16T12:00:00.000Z" }],
+  destinationSnapshot: {},
+  routingSnapshot: {},
+  updatedAt: "2026-07-16T12:00:00.000Z",
+  createdAt: "2026-07-15T12:00:00.000Z",
+});
+eq("legacy fulfillment stays outside the live order state machine", mappedLegacyShipment.entityType, "historical-fulfillment");
+eq("a legacy delivered label remains source history", mappedLegacyShipment.data.status, "delivered");
 const mappedException = mapMigrationException({
   id: "sensitive-orphan-source-id",
   sourceEntityType: "Appointment",
@@ -787,6 +839,7 @@ const migrationSummary = extractSummary({
     },
   ],
   contacts: [],
+  fulfillmentHistory: [],
   sales: [],
   saleLines: [],
   exceptions: [],
@@ -808,6 +861,42 @@ eq(
   "database identity distinguishes source from target",
   sameDatabase("postgres://user:pw@db.example/alpha", "postgres://user:pw@db.example/apex"),
   false,
+);
+eq(
+  "the migration guard refuses Alpha as its own target",
+  protectedSourceTargetViolation(
+    "postgres://reader:pw@pg-alpha-coach.example/alpha",
+    "postgres://writer:pw@pg-alpha-coach.example/alpha",
+    "apex-nonprod-rehearsal",
+  ) !== null,
+  true,
+);
+eq(
+  "the migration guard refuses a different database on Alpha's server",
+  protectedSourceTargetViolation(
+    "postgres://reader:pw@pg-alpha-coach.example/alpha",
+    "postgres://writer:pw@pg-alpha-coach.example/apex",
+    "apex-nonprod-rehearsal",
+  ) !== null,
+  true,
+);
+eq(
+  "the migration guard refuses non-Apex target labels",
+  protectedSourceTargetViolation(
+    "postgres://reader:pw@pg-alpha-coach.example/alpha",
+    "postgres://writer:pw@pg-apex.example/apex",
+    "alpha-production",
+  ) !== null,
+  true,
+);
+eq(
+  "the migration guard accepts a separately hosted Apex target",
+  protectedSourceTargetViolation(
+    "postgres://reader:pw@pg-alpha-coach.example/alpha",
+    "postgres://writer:pw@pg-apex.example/apex",
+    "apex-nonprod-rehearsal",
+  ),
+  null,
 );
 
 const patientToken = opaqueToken();

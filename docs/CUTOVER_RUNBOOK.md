@@ -8,6 +8,9 @@ production traffic decision.
 
 - `rg-alphaos-prod` is the V1 production boundary. No Apex preparation command
   targets it for deployment, schema change, role assignment, or secret update.
+- Alpha remains the live system through Friday. No traffic, DNS, application,
+  database, secret, IAM or resource-group switch is authorized before a
+  separate explicit cutover instruction.
 - `apex-prod` remains the V2 production boundary and is not used for rehearsal.
 - `apex-nonprod` is the isolated rehearsal boundary. Its Postgres server,
   Container Apps environment, registry, Key Vault, network, identity, and app
@@ -17,7 +20,9 @@ production traffic decision.
   either production resource group.
 - A V1 database used by the importer is opened in a `REPEATABLE READ READ ONLY`
   transaction. The runner refuses to continue when source and target resolve to
-  the same database.
+  the same database, when the target shares Alpha's database server, when its
+  resource marker appears to be Alpha, or when an apply target is not explicitly
+  labelled as an Apex environment.
 
 ## What is ready
 
@@ -64,6 +69,16 @@ production traffic decision.
   historical staff participant remains null. Attachment manifests stay in the
   private exception queue until the files are downloaded, scanned and re-housed
   in protected Apex storage.
+- Alpha routed-order lines and safely purchase-linked shipment snapshots import
+  into immutable historical fulfillment evidence, not the live Apex order state
+  machine. Duplicate staff-name labels resolve only through the approved roster
+  and corporate-account policy; non-defensible legacy identities remain inactive
+  until Entra object-id, role and credential approval.
+- Two fresh local PostgreSQL targets have completed full apply plus independent
+  reconciliation for 301,705 records with identical checksums and zero missing,
+  mismatched or extra rows, then were destroyed immediately after aggregate
+  verification. They are implementation evidence, not substitutes for the two
+  required `apex-nonprod` rehearsals and backup/restore evidence.
 - A separately published migration image and dormant manual Container Apps job
   inside `apex-nonprod`. The deployed template hardcodes
   `MIGRATION_AUTHORIZED=false`; source and target URLs are Key Vault references.
