@@ -63,7 +63,10 @@ import {
   sameDatabase,
   targetId,
 } from "@/lib/migration/v1";
-import { protectedSourceTargetViolation } from "@/scripts/migrate-v1";
+import {
+  isRetainedArchiveBinding,
+  protectedSourceTargetViolation,
+} from "@/scripts/migrate-v1";
 import {
   normalizePatientEmail,
   opaqueToken,
@@ -695,6 +698,13 @@ eq(
 /* ══ Result ══════════════════════════════════════════════════════════════════ */
 /* Migration safety: repeatable identities, bounded reports, preserved nulls. */
 section("V1 cutover migration");
+eq("a deleted Alpha raw record remains retained evidence", isRetainedArchiveBinding("source-record"), true);
+eq("a deleted Alpha binary remains retained evidence", isRetainedArchiveBinding("binary-asset"), true);
+eq(
+  "a deleted translated contact is still an unexpected extra",
+  isRetainedArchiveBinding("contact-entry"),
+  false,
+);
 
 eq("target ids are repeatable", targetId("person", "source-123"), targetId("person", "source-123"));
 eq("target ids are entity-scoped", targetId("person", "source-123") === targetId("staff", "source-123"), false);

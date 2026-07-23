@@ -2007,9 +2007,22 @@ interface Reconciliation {
   mismatched: number;
   mismatchedByEntity: Record<string, number>;
   extra: number;
+  extraByEntity: Record<string, number>;
+  retainedHistorical: number;
+  unexpectedExtra: number;
   expectedChecksum: string;
   bindingChecksum: string;
   ok: boolean;
+}
+
+/**
+ * The restricted source archive is append-only evidence. If Alpha deletes a
+ * source row between rehearsal snapshots, Apex retains its prior raw archive
+ * record (and exact binary, when present) but must not mistake that retention
+ * for an extra live-domain projection.
+ */
+export function isRetainedArchiveBinding(entityType: string) {
+  return entityType === "source-record" || entityType === "binary-asset";
 }
 
 async function reconcile(
@@ -2053,7 +2066,17 @@ async function reconcile(
     }
   }
   let extra = 0;
-  for (const key of bound.keys()) if (!expected.has(key)) extra++;
+  let retainedHistorical = 0;
+  let unexpectedExtra = 0;
+  const extraByEntity: Record<string, number> = {};
+  for (const key of bound.keys()) {
+    if (expected.has(key)) continue;
+    extra++;
+    const entity = key.slice(0, key.indexOf(":"));
+    extraByEntity[entity] = (extraByEntity[entity] ?? 0) + 1;
+    if (isRetainedArchiveBinding(entity)) retainedHistorical++;
+    else unexpectedExtra++;
+  }
   const expectedChecksum = sha256([...expected.values()].sort());
   const relevantBindingChecksums = [...expected.keys()]
     .map((key) => bound.get(key))
@@ -2069,14 +2092,17 @@ async function reconcile(
     mismatched,
     mismatchedByEntity,
     extra,
+    extraByEntity,
+    retainedHistorical,
+    unexpectedExtra,
     expectedChecksum,
     bindingChecksum,
     ok:
       missing === 0 &&
       mismatched === 0 &&
-      (scope === "delta" || extra === 0) &&
-      (scope === "delta" || expected.size === bound.size) &&
-      (scope === "delta" || expected.size === targetRows) &&
+      (scope === "delta" || unexpectedExtra === 0) &&
+      (scope === "delta" || expected.size + retainedHistorical === bound.size) &&
+      (scope === "delta" || expected.size + retainedHistorical === targetRows) &&
       expectedChecksum === bindingChecksum,
   };
 }
