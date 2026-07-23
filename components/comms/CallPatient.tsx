@@ -95,6 +95,7 @@ export function CallPatient({
   const connectedAtRef = useRef<number | null>(null);
   const connectedLoggedRef = useRef(false);
   const finalLoggedRef = useRef(false);
+  const auditCreatedRef = useRef(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -189,22 +190,8 @@ export function CallPatient({
     connectedAtRef.current = null;
     connectedLoggedRef.current = false;
     finalLoggedRef.current = false;
+    auditCreatedRef.current = false;
     requestIdRef.current = crypto.randomUUID();
-
-    // The audit row is created before ACS receives a phone number. If the
-    // durable write path is unavailable, Apex refuses to place an unrecorded
-    // patient call.
-    try {
-      await recordCallEvent("started");
-    } catch (error) {
-      setState("error");
-      setDetail(
-        error instanceof Error
-          ? error.message
-          : "The call was not started because its audit record could not be created.",
-      );
-      return;
-    }
 
     let token: AcsTokenResponse;
     try {
@@ -222,7 +209,6 @@ export function CallPatient({
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Azure calling is unavailable.";
-      await markFinal("failed", null, message);
       setState("error");
       setDetail(message);
       return;
@@ -252,6 +238,22 @@ export function CallPatient({
       const callAgent = await callClient.createCallAgent(credential, {
         displayName: token.displayName || "Alpha Health",
       });
+
+      // Configuration and device permission checks do not contact the patient,
+      // so they do not manufacture a contact-history row. Immediately before
+      // dialing, however, the durable attempt must exist. If it cannot be
+      // written, Apex refuses to place an unrecorded call.
+      try {
+        await recordCallEvent("started");
+        auditCreatedRef.current = true;
+      } catch (error) {
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : "The call was not started because its audit record could not be created.",
+        );
+      }
+
       const call = callAgent.startCall(
         [{ phoneNumber: dialNumber }],
         { alternateCallerId: { phoneNumber: token.callerId } },
@@ -315,7 +317,9 @@ export function CallPatient({
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "The call could not be started.";
-      await markFinal("failed", callRef.current, message);
+      if (auditCreatedRef.current) {
+        await markFinal("failed", callRef.current, message);
+      }
       setState("error");
       setDetail(message);
       void clientRef.current?.dispose();

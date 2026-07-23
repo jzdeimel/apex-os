@@ -263,6 +263,30 @@ try {
       { key: "apex_portal_v1", portal: callCase.portal },
     );
     const p = await callCtx.newPage();
+    let callWrites = 0;
+    if (callCase.visible) {
+      await p.route("**/api/acs/token", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            token: "ui-smoke-token",
+            userId: "ui-smoke-user",
+            pstnConfigured: false,
+            callerId: null,
+          }),
+        }),
+      );
+      await p.route("**/api/communications/calls", (route) => {
+        callWrites++;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, durable: true }),
+        });
+      });
+    }
     await p.goto(`${BASE}/clients/c-001?tab=contact`, {
       waitUntil: "networkidle",
       timeout: 30000,
@@ -277,8 +301,27 @@ try {
         `SMOKE-UI FAIL: ${callCase.label} call control visibility was ${hasCallControl}, expected ${callCase.visible}`,
       );
     }
+    if (callCase.visible) {
+      await p.getByRole("button", { name: "Call patient" }).click();
+      await p
+        .getByText(
+          "Apex ACS is connected, but a public caller-ID number has not been provisioned.",
+          { exact: true },
+        )
+        .waitFor({ timeout: 10000 });
+      if (callWrites !== 0) {
+        done(
+          1,
+          `SMOKE-UI FAIL: configuration-only call check wrote ${callWrites} patient contact events`,
+        );
+      }
+    }
     console.log(
-      `ok  ${callCase.label} patient calling: ${callCase.visible ? "available" : "not exposed"}`,
+      `ok  ${callCase.label} patient calling: ${
+        callCase.visible
+          ? "available; missing caller ID creates no patient contact"
+          : "not exposed"
+      }`,
     );
     await callCtx.close();
   }
