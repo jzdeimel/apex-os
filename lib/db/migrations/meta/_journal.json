@@ -169,6 +169,13 @@
       "when": 1784768197731,
       "tag": "0023_authoritative-inventory-lots",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784770255473,
+      "tag": "0024_authoritative-order-fulfillment",
+      "breakpoints": true
     }
   ]
 }

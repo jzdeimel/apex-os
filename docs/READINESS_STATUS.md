@@ -115,6 +115,13 @@ contrast sweep.
   lots across clinics and expose the affected-patient list only inside the
   actor's assigned clinics. Seeded charts below the lot ledger are visibly
   labeled planning fixtures rather than stock-on-hand evidence.
+- Authoritative patient ordering now uses the authenticated actor and scoped
+  patient directory rather than demo identities. One stable request commits the
+  order, immutable priced lines, initial status events, audit witness, and any
+  MedSource handoff intent atomically. Coaches/providers can see only in-scope
+  obligations; fulfillment can apply only forward status changes with actor,
+  reason, carrier, and tracking evidence. The same worklist is present in the
+  coach order board and Supply Chain.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
 - A source-to-evidence acceptance ledger in
@@ -132,6 +139,12 @@ contrast sweep.
   features.
 - The importer does not yet move the full historical V1 clinical/financial
   graph; V1 history must remain read-only-accessible unless that scope is added.
+- A read-only profile of the actual Alpha production database found that it is
+  the legacy `public` schema (46 operational tables), not the newer
+  `clinic`/`medsource` schema the first importer was written against. The source
+  adapter must translate those real tables into Apex concepts before a rehearsal
+  can be accepted. In particular, Alpha `Appointment` rows are consult-note
+  records and must not be mislabeled as Apex calendar bookings.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are
   not present in the repository and cannot be inferred.
 - MedSource/UPS fulfillment credentials, shipment webhooks, cold-chain

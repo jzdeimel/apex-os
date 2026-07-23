@@ -1408,6 +1408,118 @@ export const inventoryMovement = pgTable(
 );
 
 /* ========================================================================== */
+/* Authoritative orders and fulfillment                                        */
+/* ========================================================================== */
+
+/** One patient order and its current fulfillment projection. */
+export const fulfillmentOrder = pgTable(
+  "fulfillment_order",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    coachId: text("coach_id").notNull(),
+    locationId: text("location_id").notNull().references(() => clinicLocation.id),
+    status: text("status").notNull(),
+    placedAt: timestamp("placed_at", { withTimezone: true }).notNull(),
+    shippingMode: text("shipping_mode").notNull(),
+    shipTo: jsonb("ship_to"),
+    fulfillmentPartner: text("fulfillment_partner").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    visibleToClient: boolean("visible_to_client").notNull().default(false),
+    subtotalCents: integer("subtotal_cents").notNull(),
+    creditAppliedCents: integer("credit_applied_cents").notNull().default(0),
+    discountCents: integer("discount_cents").notNull().default(0),
+    discountReason: text("discount_reason"),
+    totalCents: integer("total_cents").notNull(),
+    tracking: text("tracking"),
+    carrier: text("carrier"),
+    estDelivery: text("est_delivery"),
+    lastActivity: timestamp("last_activity", { withTimezone: true }).notNull(),
+    delayed: boolean("delayed").notNull().default(false),
+    delayReason: text("delay_reason"),
+    medsourceRef: text("medsource_ref"),
+    origin: text("origin").notNull().default("coach"),
+    createdBy: text("created_by").notNull(),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    clientIdx: index("fulfillment_order_client_idx").on(t.clientId, t.placedAt),
+    locationStatusIdx: index("fulfillment_order_location_status_idx").on(t.locationId, t.status, t.lastActivity),
+    coachIdx: index("fulfillment_order_coach_idx").on(t.coachId, t.lastActivity),
+    idempotencyIdx: uniqueIndex("fulfillment_order_idempotency_idx").on(t.idempotencyKey),
+  }),
+);
+
+/** Immutable commercial facts for each order line. */
+export const fulfillmentOrderLine = pgTable(
+  "fulfillment_order_line",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id").notNull().references(() => fulfillmentOrder.id),
+    sku: text("sku").notNull(),
+    name: text("name").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    isAddon: boolean("is_addon").notNull().default(false),
+    inventoryLotId: text("inventory_lot_id").references(() => inventoryLot.id),
+    lotRef: text("lot_ref"),
+  },
+  (t) => ({
+    orderIdx: index("fulfillment_order_line_order_idx").on(t.orderId),
+    skuIdx: index("fulfillment_order_line_sku_idx").on(t.sku),
+    lotIdx: index("fulfillment_order_line_lot_idx").on(t.inventoryLotId),
+  }),
+);
+
+/** Append-only status history, including refused partner/manual transitions. */
+export const fulfillmentOrderEvent = pgTable(
+  "fulfillment_order_event",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id").notNull().references(() => fulfillmentOrder.id),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    applied: boolean("applied").notNull().default(true),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    actorId: text("actor_id").notNull(),
+    actorName: text("actor_name").notNull(),
+    actorRole: text("actor_role").notNull(),
+    source: text("source").notNull(),
+    note: text("note"),
+    rejectionReason: text("rejection_reason"),
+    externalEventId: text("external_event_id"),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    orderIdx: index("fulfillment_order_event_order_idx").on(t.orderId, t.at),
+    externalIdx: uniqueIndex("fulfillment_order_event_external_idx").on(t.source, t.externalEventId),
+  }),
+);
+
+/** Durable at-least-once intent; pending and dead-letter work never disappears. */
+export const fulfillmentOutbox = pgTable(
+  "fulfillment_outbox",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id").notNull().references(() => fulfillmentOrder.id),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    ledgerId: text("ledger_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    pendingIdx: index("fulfillment_outbox_pending_idx").on(t.status, t.nextAttemptAt),
+    orderKindIdx: uniqueIndex("fulfillment_outbox_order_kind_idx").on(t.orderId, t.kind),
+  }),
+);
+
+/* ========================================================================== */
 /* Leads / CRM                                                                 */
 /* ========================================================================== */
 

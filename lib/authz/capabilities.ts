@@ -118,7 +118,7 @@ export type Capability =
  */
 const GRANTS: Record<AccessProfile, Capability[]> = {
   provider: [
-    "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages",
+    "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages", "read:orders",
     "read:inventory", "dispense:inventory",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
@@ -139,7 +139,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   coach: [
     // Full read on their own book. This is the deliberate inversion.
-    "read:chart", "read:clinical", "read:financial", "read:messages",
+    "read:chart", "read:clinical", "read:financial", "read:messages", "read:orders",
     // Coaching is authorship, not data entry — nutrition and training are the
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",

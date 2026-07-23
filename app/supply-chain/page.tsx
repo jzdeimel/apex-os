@@ -25,6 +25,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { AuthoritativeInventoryPanel } from "@/components/inventory/AuthoritativeInventoryPanel";
+import { AuthoritativeOrderBoard } from "@/components/orders/AuthoritativeOrderBoard";
 
 const PO_TONE: Record<string, "neutral" | "info" | "watch" | "optimal"> = {
   Draft: "neutral",
@@ -81,6 +82,8 @@ export default function SupplyChainPage() {
       </div>
 
       <AuthoritativeInventoryPanel locationId={locationFilter === "all" ? undefined : locationFilter} />
+
+      <AuthoritativeOrderBoard />
 
       <div className="border-t border-ink-800 pt-5">
         <p className="label-eyebrow">PLANNING FIXTURES</p>

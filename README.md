@@ -33,7 +33,7 @@ the system of record fills in behind them. This table is the source of truth.
 | Audit ledger (tamper-evident) | **Real** — hash-chained, durable | `appendLedgerRow` — advisory-locked, transactional, verifiable chain in Postgres |
 | Consult co-sign | **Real** — gated durable write | `POST /api/consults/sign` (`sign:encounter`, Medical-only) |
 | Task completion | **Real** — gated durable write | `POST /api/tasks/complete` (`write:task`) |
-| Order placement (ledger record) | **Real** — gated durable write | `POST /api/orders/create` (`write:order`) |
+| Order placement and fulfillment | **Real** — atomic order/lines/events/audit/outbox write plus scoped worklist | `POST /api/orders/create`, `GET/PATCH /api/orders` |
 | Member self-log (dose / skip / retract / weight / check-in) | **Real** — durable, append-only | `POST /api/member/log` → `dose_log`, `member_day` |
 | In-app voice/video/SMS to patients | **Real tokens** | `POST /api/acs/token` — Azure Communication Services VoIP identity |
 | Everything else (rosters, labs, protocols, analytics, community, pipeline…) | **Seeded** | `lib/mock/*` deterministic data; those ledger writes are in-memory client-side |

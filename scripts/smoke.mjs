@@ -309,6 +309,7 @@ try {
         "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "brooks"),
       },
       body: JSON.stringify({
+        requestId: "smoke-order-prescriber-gate-0001",
         clientId: "c-001",
         lines: [{ sku: "PEP-SERM-15", qty: 1 }],
         shipping: "ship",

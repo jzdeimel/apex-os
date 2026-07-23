@@ -86,6 +86,15 @@ import {
   lotCanLeaveStock,
   movementSignIsValid,
 } from "@/lib/inventory/lifecycle";
+import { placeOrder } from "@/lib/orders/place";
+import { canAdvance } from "@/lib/orders/lifecycle";
+import {
+  isOrderStatus,
+  orderEventRequestId,
+  orderOutboxRequestId,
+  orderRequestId,
+  partnerMemberRef,
+} from "@/lib/orders/authoritative";
 import { can } from "@/lib/authz/capabilities";
 import { inferAccessProfile } from "@/lib/authz/profiles";
 import { dueAt as escalationDueAt } from "@/lib/escalations/queue";
@@ -951,6 +960,28 @@ eq("a dispense must subtract stock", movementSignIsValid("dispense", -1), true);
 eq("an active unexpired lot may leave stock", lotCanLeaveStock("active", "2026-08-01", "2026-07-22T12:00:00.000Z").ok, true);
 eq("a recalled lot cannot leave stock", lotCanLeaveStock("recalled", "2026-08-01", "2026-07-22T12:00:00.000Z").ok, false);
 eq("an expired lot cannot leave stock", lotCanLeaveStock("active", "2026-07-21", "2026-07-22T12:00:00.000Z").ok, false);
+
+section("Authoritative order and fulfillment lifecycle");
+const authoritativeOrderId = orderRequestId("client-1", "request_12345678");
+eq("a retried order request keeps one opaque id", authoritativeOrderId, orderRequestId("client-1", "request_12345678"));
+eq("an order id does not expose the patient", authoritativeOrderId.includes("client-1"), false);
+eq("an order event retry keeps one opaque id", orderEventRequestId(authoritativeOrderId, "event_12345678"), orderEventRequestId(authoritativeOrderId, "event_12345678"));
+eq("a partner outbox id is stable", orderOutboxRequestId(authoritativeOrderId, "submit-order"), orderOutboxRequestId(authoritativeOrderId, "submit-order"));
+eq("a partner member reference does not expose the patient", partnerMemberRef("client-1").includes("client-1"), false);
+eq("unknown order statuses fail closed", isOrderStatus("lost-in-space"), false);
+eq("fulfillment may move an order", can(actor("fulfillment"), "write:fulfillment").allowed, true);
+eq("a coach may read their orders", can(actor("coach", "Coach"), "read:orders").allowed, true);
+eq("a coach cannot mark an order delivered", can(actor("coach", "Coach"), "write:fulfillment").allowed, false);
+eq("a delivered order cannot move backward", canAdvance("Delivered", "In transit"), false);
+eq("a packed order may move forward to a label", canAdvance("Packed", "Label created"), true);
+const rxOrderInput = {
+  clientId: "client-1", clientName: "Test Patient", coachId: "coach-1", locationId: "raleigh" as const,
+  lines: [{ sku: "PEP-SERM-15", qty: 1 }], shipping: "ship" as const,
+  shipTo: { line1: "12 Test St", city: "Raleigh", state: "NC", postal: "27601" },
+  at: "2026-07-22T12:00:00.000Z", orderId: authoritativeOrderId,
+};
+eq("a coach cannot submit a prescriber-only line", placeOrder(rxOrderInput, { id: "coach-1", name: "Coach", role: "Coach" }).ok, false);
+eq("a medical provider can submit the same prescriber-only line", placeOrder(rxOrderInput, { id: "provider-1", name: "Provider", role: "Medical" }).ok, true);
 
 section("Payment fail-safes");
 const clover = new CloverPaymentPort({

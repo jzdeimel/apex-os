@@ -3,6 +3,7 @@
 import { staffName } from "@/lib/mock/staff";
 import { OrderBoard } from "@/components/orders/OrderBoard";
 import { ME_COACH } from "@/components/coach/TodayQueue";
+import { AuthoritativeOrderBoard } from "@/components/orders/AuthoritativeOrderBoard";
 
 /**
  * Coach · Order Board
@@ -25,6 +26,13 @@ export default function CoachOrdersPage() {
           the system behind every status change, so nothing can move without someone owning it.
         </p>
       </header>
+
+      <AuthoritativeOrderBoard />
+
+      <div className="border-t border-ink-800 pt-5">
+        <p className="label-eyebrow">PLANNING FIXTURES</p>
+        <p className="mt-1 text-detail text-ink-500">The visual board below still contains seeded scenarios for workflow design. It is not a list of orders owed to real patients.</p>
+      </div>
 
       <OrderBoard />
     </div>
