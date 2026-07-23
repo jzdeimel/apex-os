@@ -10,6 +10,7 @@ import {
   Phone,
   Video,
   User,
+  CircleHelp,
 } from "lucide-react";
 import type { Consult, ConsultChannel } from "@/lib/consult/types";
 import { editedFields } from "@/lib/consult/types";
@@ -28,6 +29,7 @@ const CHANNEL_ICON: Record<ConsultChannel, React.ComponentType<{ className?: str
   Video: Video,
   Messaging: MessageSquare,
   "Chart review": FileText,
+  "Unspecified legacy": CircleHelp,
 };
 
 /**

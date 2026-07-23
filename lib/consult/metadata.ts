@@ -20,6 +20,7 @@ export const CONSULT_CHANNELS = [
   "Video",
   "Messaging",
   "Chart review",
+  "Unspecified legacy",
 ] as const satisfies readonly ConsultChannel[];
 
 const COACH_CONSULT_KINDS = [

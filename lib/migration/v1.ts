@@ -4,12 +4,20 @@ import { inferAccessProfile } from "@/lib/authz/profiles";
 
 export const V1_SOURCE_SYSTEM = "alpha-v1";
 
-export type V1EntityType = "location" | "staff" | "person" | "appointment";
+export type V1EntityType =
+  | "location"
+  | "staff"
+  | "person"
+  | "appointment"
+  | "consult"
+  | "migration-exception";
 
 type Dateish = Date | string | null;
 
 export interface V1LocationRow {
   id: string;
+  /** Canonical Apex location id when V1 stores only a display label. */
+  targetLocationId?: string;
   code: string;
   name: string;
   address1: string | null;
@@ -30,6 +38,8 @@ export interface V1StaffRow {
   npi: string | null;
   active: boolean;
   locationId: string | null;
+  /** Canonical Apex location id resolved by the production-source adapter. */
+  locationTargetId?: string | null;
   createdAt: Dateish;
 }
 
@@ -52,6 +62,7 @@ export interface V1PersonRow {
   isProspect: boolean;
   assignedCoachId: string | null;
   locationId: string | null;
+  locationTargetId?: string | null;
   createdAt: Dateish;
   updatedAt: Dateish;
 }
@@ -61,6 +72,7 @@ export interface V1AppointmentRow {
   personId: string;
   providerId: string | null;
   locationId: string | null;
+  locationTargetId?: string | null;
   type: string;
   status: string;
   startAt: Dateish;
@@ -72,11 +84,51 @@ export interface V1AppointmentRow {
   updatedAt: Dateish;
 }
 
+/**
+ * A historical authored note from Alpha OS.
+ *
+ * Alpha production calls these rows `Appointment`, but the actual columns are
+ * note body, author, contact method, finalization, and prior-note provenance.
+ * They are not calendar reservations. The source adapter translates them into
+ * this neutral shape so Apex can store them as consult history without
+ * polluting its authoritative scheduling ledger.
+ */
+export interface V1ConsultRow {
+  id: string;
+  personId: string;
+  authorId: string;
+  recordClass?: "coach-note" | "medical-progress-note";
+  kind: string | null;
+  channel: string | null;
+  status: string;
+  startedAt: Dateish;
+  finalizedAt: Dateish;
+  noteBody: string;
+  subjective?: string | null;
+  objective?: string | null;
+  assessment?: string | null;
+  plan?: string | null;
+  previousNoteId: string | null;
+  createdAt: Dateish;
+  updatedAt: Dateish;
+}
+
+/** Private, non-routed preservation of a source row that cannot be linked safely. */
+export interface V1MigrationExceptionRow {
+  id: string;
+  sourceEntityType: string;
+  reasonCode: string;
+  payload: Record<string, unknown>;
+  sourceUpdatedAt: Dateish;
+}
+
 export interface V1Extract {
   locations: V1LocationRow[];
   staff: V1StaffRow[];
   people: V1PersonRow[];
   appointments: V1AppointmentRow[];
+  consults: V1ConsultRow[];
+  exceptions: V1MigrationExceptionRow[];
 }
 
 export interface MappedRecord<T extends Record<string, unknown>> {
@@ -127,13 +179,38 @@ function asDate(value: Dateish): Date | null {
 }
 
 function dateOnly(value: Dateish): string | null {
-  return asDate(value)?.toISOString().slice(0, 10) ?? null;
+  if (!value) return null;
+  if (typeof value === "string") {
+    const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (us) {
+      const month = Number(us[1]);
+      const day = Number(us[2]);
+      const year = Number(us[3]);
+      const candidate = new Date(Date.UTC(year, month - 1, day));
+      if (candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day) {
+        return candidate.toISOString().slice(0, 10);
+      }
+      return null;
+    }
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  return !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : null;
 }
 
 function role(value: string): "Admin" | "Coach" | "Medical" {
-  if (value === "COACH") return "Coach";
-  if (value === "PROVIDER" || value === "NURSE") return "Medical";
+  const normalized = value.toUpperCase();
+  if (normalized === "COACH") return "Coach";
+  if (normalized === "PROVIDER" || normalized === "NURSE" || normalized === "MEDICAL") return "Medical";
   return "Admin";
+}
+
+function sex(value: string): "male" | "female" | "unknown" {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "male" || normalized === "m") return "male";
+  if (normalized === "female" || normalized === "f") return "female";
+  return "unknown";
 }
 
 function normalizedName(value: string): string {
@@ -151,7 +228,7 @@ function visitType(value: string): string {
     REGEN_PROCEDURE: "Regen Procedure",
     BODY_SCAN: "Body Scan",
   };
-  return map[value] ?? value;
+  return map[value.toUpperCase()] ?? value;
 }
 
 function appointmentStatus(value: string): string {
@@ -164,7 +241,27 @@ function appointmentStatus(value: string): string {
     CANCELLED: "Cancelled",
     NO_SHOW: "No Show",
   };
-  return map[value] ?? value;
+  return map[value.toUpperCase()] ?? value;
+}
+
+function legacyConsultKind(value: string | null): string {
+  const normalized = (value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (normalized.includes("intake") || normalized.includes("free_consult")) return "Intake";
+  if (normalized.includes("coach_consult") || normalized.includes("performance_coaching")) return "Coach consult";
+  if (normalized.includes("plan_of_care") || normalized.includes("chart")) return "Medical chart review";
+  if (normalized.includes("lab") || normalized.includes("body_scan")) return "Medical visit";
+  if (normalized.includes("telehealth") || normalized.includes("v2v")) return "Telehealth";
+  return "Follow-up";
+}
+
+function legacyConsultChannel(value: string | null, kind: string): string {
+  const normalized = (value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (normalized.includes("sms") || normalized.includes("message") || normalized.includes("text")) return "Messaging";
+  if (normalized.includes("v2v") || normalized.includes("video") || normalized.includes("zoom")) return "Video";
+  if (normalized.includes("phone") || normalized.includes("call")) return "Phone";
+  if (normalized.includes("person") || normalized.includes("clinic") || normalized.includes("office")) return "In person";
+  if (kind === "Medical chart review") return "Chart review";
+  return "Unspecified legacy";
 }
 
 function mapped<T extends Record<string, unknown>>(
@@ -184,7 +281,7 @@ function mapped<T extends Record<string, unknown>>(
 }
 
 export function mapLocation(row: V1LocationRow) {
-  const id = targetId("location", row.id);
+  const id = row.targetLocationId ?? targetId("location", row.id);
   return mapped("location", row.id, row.createdAt, {
     id,
     code: row.code,
@@ -209,11 +306,16 @@ export function mapStaff(row: V1StaffRow) {
     (entry) => normalizedName(`${entry.firstName}${entry.lastName}`) === normalizedName(row.name),
   );
   const rosterLocation = roster && roster.location !== "AHQ" ? roster.location : null;
-  const locationIds = row.locationId
-    ? [targetId("location", row.locationId)]
-    : rosterLocation
-      ? [rosterLocation]
-      : [];
+  // The approved roster is the current Apex operating model. Alpha's broad
+  // location label is evidence only and is used as a fallback for a person who
+  // is not in the approved roster.
+  const locationIds = roster
+    ? (rosterLocation ? [rosterLocation] : [])
+    : row.locationTargetId
+      ? [row.locationTargetId]
+      : row.locationId
+        ? [targetId("location", row.locationId)]
+        : [];
   const clinicalRole = roster?.credentialClass === "Coach"
     ? "Coach"
     : roster?.department === "Medical"
@@ -235,14 +337,16 @@ export function mapStaff(row: V1StaffRow) {
     access_profile: accessProfile,
     location_ids: locationIds,
     credentials: roster?.credentialClass ?? row.title,
-    can_approve: row.role === "PROVIDER",
+    can_approve:
+      row.role.toUpperCase() === "PROVIDER" ||
+      /^(MD|DO|NP|PA|PA-C)$/.test((roster?.credentialClass ?? row.title ?? "").toUpperCase()),
     exclude_from_scheduling:
       roster?.location === "AHQ" ||
       roster?.credentialClass === "Admin" ||
       roster?.credentialClass === null ||
       row.role === "EXEC" ||
       row.role === "OPERATOR" ||
-      (!rosterLocation && !row.locationId),
+      (!rosterLocation && !row.locationTargetId && !row.locationId),
     active: row.active,
     source_system: V1_SOURCE_SYSTEM,
     source_id: row.id,
@@ -255,12 +359,12 @@ export function mapPerson(row: V1PersonRow) {
   const id = targetId("person", row.id);
   return mapped("person", row.id, row.updatedAt, {
     id,
-    mrn: row.mrn,
+    mrn: row.mrn || `AH-V1-${targetId("person", row.id).slice(-16).toUpperCase()}`,
     first_name: row.firstName,
     last_name: row.lastName,
     preferred_name: row.preferredName,
     date_of_birth: dateOnly(row.dob),
-    sex: row.sex.toLowerCase(),
+    sex: sex(row.sex),
     email: row.email?.trim().toLowerCase() || null,
     phone: row.phone,
     address1: row.address1,
@@ -271,7 +375,7 @@ export function mapPerson(row: V1PersonRow) {
     status: row.status.toLowerCase(),
     is_prospect: row.isProspect,
     synthetic: false,
-    home_location_id: row.locationId ? targetId("location", row.locationId) : null,
+    home_location_id: row.locationTargetId ?? (row.locationId ? targetId("location", row.locationId) : null),
     assigned_coach_id: row.assignedCoachId ? targetId("staff", row.assignedCoachId) : null,
     assigned_provider_id: null,
     source_system: V1_SOURCE_SYSTEM,
@@ -289,7 +393,7 @@ export function mapAppointment(row: V1AppointmentRow) {
     id,
     client_id: targetId("person", row.personId),
     staff_id: row.providerId ? targetId("staff", row.providerId) : null,
-    location_id: row.locationId ? targetId("location", row.locationId) : null,
+    location_id: row.locationTargetId ?? (row.locationId ? targetId("location", row.locationId) : null),
     visit_type: visitType(row.type),
     modality: isTelehealth ? "virtual" : "in-person",
     start_at: asDate(row.startAt),
@@ -307,12 +411,68 @@ export function mapAppointment(row: V1AppointmentRow) {
   });
 }
 
+export function mapConsult(row: V1ConsultRow) {
+  const id = targetId("consult", row.id);
+  const authorId = targetId("staff", row.authorId);
+  const finalizedAt = asDate(row.finalizedAt);
+  const kind = row.recordClass === "medical-progress-note" ? "Medical visit" : legacyConsultKind(row.kind);
+  const signed = Boolean(finalizedAt) || row.status.trim().toLowerCase() === "completed";
+  return mapped("consult", row.id, row.updatedAt, {
+    id,
+    client_id: targetId("person", row.personId),
+    author_id: authorId,
+    kind,
+    channel: legacyConsultChannel(row.channel, kind),
+    started_at: asDate(row.startedAt) ?? asDate(row.createdAt) ?? new Date(0),
+    ended_at: finalizedAt,
+    duration_min: null,
+    subjective: row.subjective ?? null,
+    objective: row.objective ?? null,
+    assessment: row.assessment ?? null,
+    plan: row.plan ?? null,
+    raw_notes: row.noteBody,
+    ai_summary: null,
+    status: signed ? "Signed" : "Historical draft",
+    signed_at: signed ? (finalizedAt ?? asDate(row.updatedAt)) : null,
+    signed_by: signed ? authorId : null,
+    attestation: signed
+      ? "Finalized in Alpha OS before migration; no Apex signature attestation was created."
+      : null,
+    signer_credential: null,
+    visible_to_client: false,
+    source_system: V1_SOURCE_SYSTEM,
+    source_id: row.id,
+    source_updated_at: asDate(row.updatedAt),
+    supersedes_consult_id: row.previousNoteId ? targetId("consult", row.previousNoteId) : null,
+    updated_at: asDate(row.updatedAt) ?? asDate(row.createdAt) ?? new Date(0),
+  });
+}
+
+export function mapMigrationException(row: V1MigrationExceptionRow) {
+  const id = targetId("migration-exception", row.id);
+  return mapped("migration-exception", row.id, row.sourceUpdatedAt, {
+    id,
+    source_system: V1_SOURCE_SYSTEM,
+    source_entity_type: row.sourceEntityType,
+    source_id: row.id,
+    reason_code: row.reasonCode,
+    payload: row.payload,
+    payload_sha256: sha256(row.payload),
+    status: "Pending review",
+    source_updated_at: asDate(row.sourceUpdatedAt),
+    created_at: asDate(row.sourceUpdatedAt) ?? new Date(0),
+    updated_at: asDate(row.sourceUpdatedAt) ?? new Date(0),
+  });
+}
+
 export function mapExtract(extract: V1Extract) {
   return {
     locations: extract.locations.map(mapLocation),
     staff: extract.staff.map(mapStaff),
     people: extract.people.map(mapPerson),
     appointments: extract.appointments.map(mapAppointment),
+    consults: extract.consults.map(mapConsult),
+    exceptions: extract.exceptions.map(mapMigrationException),
   };
 }
 
@@ -323,6 +483,8 @@ export function extractSummary(extract: V1Extract) {
     staff: mappedRows.staff.length,
     people: mappedRows.people.length,
     appointments: mappedRows.appointments.length,
+    consults: mappedRows.consults.length,
+    exceptions: mappedRows.exceptions.length,
   };
   const rowDigests = Object.values(mappedRows)
     .flat()

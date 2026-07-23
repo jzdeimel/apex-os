@@ -51,6 +51,8 @@ import {
   canonicalJson,
   extractSummary,
   mapAppointment,
+  mapConsult,
+  mapMigrationException,
   mapPerson,
   sameDatabase,
   targetId,
@@ -716,11 +718,57 @@ const mappedAppointment = mapAppointment({
 eq("an unassigned V1 appointment stays unassigned", mappedAppointment.data.staff_id, null);
 eq("telehealth is a modality, not a clinic", mappedAppointment.data.modality, "virtual");
 
+const mappedLegacyConsult = mapConsult({
+  id: "legacy-note-sensitive-id",
+  personId: v1Person.id,
+  authorId: "legacy-coach-sensitive-id",
+  kind: "coach_consult",
+  channel: "V2V",
+  status: "COMPLETED",
+  startedAt: "2026-07-01T14:00:00.000Z",
+  finalizedAt: "2026-07-01T14:30:00.000Z",
+  noteBody: "Historical source note retained verbatim.",
+  previousNoteId: "older-sensitive-id",
+  createdAt: "2026-07-01T14:00:00.000Z",
+  updatedAt: "2026-07-01T14:30:00.000Z",
+});
+eq("Alpha note records migrate as consults, not calendar appointments", mappedLegacyConsult.entityType, "consult");
+eq("finalized Alpha notes remain finalized clinical history", mappedLegacyConsult.data.status, "Signed");
+eq("legacy video-to-video notes retain their channel", mappedLegacyConsult.data.channel, "Video");
+eq("prior Alpha note ids become opaque Apex provenance", String(mappedLegacyConsult.data.supersedes_consult_id).includes("older-sensitive-id"), false);
+const mappedException = mapMigrationException({
+  id: "sensitive-orphan-source-id",
+  sourceEntityType: "Appointment",
+  reasonCode: "missing-client",
+  payload: { noteBody: "Private orphaned note" },
+  sourceUpdatedAt: "2026-07-01T14:30:00.000Z",
+});
+eq("unlinked Alpha rows are retained in a private migration exception", mappedException.entityType, "migration-exception");
+eq("migration exception target ids do not expose Alpha ids", mappedException.targetId.includes("sensitive-orphan-source-id"), false);
+eq("migration exception payloads carry an integrity digest", String(mappedException.data.payload_sha256).length, 64);
+
 const migrationSummary = extractSummary({
   locations: [],
   staff: [],
   people: [v1Person],
   appointments: [],
+  consults: [
+    {
+      id: "legacy-note-sensitive-id",
+      personId: v1Person.id,
+      authorId: "legacy-coach-sensitive-id",
+      kind: "coach_consult",
+      channel: "V2V",
+      status: "COMPLETED",
+      startedAt: "2026-07-01T14:00:00.000Z",
+      finalizedAt: "2026-07-01T14:30:00.000Z",
+      noteBody: "Historical source note retained verbatim.",
+      previousNoteId: null,
+      createdAt: "2026-07-01T14:00:00.000Z",
+      updatedAt: "2026-07-01T14:30:00.000Z",
+    },
+  ],
+  exceptions: [],
 });
 const publicReport = JSON.stringify({ counts: migrationSummary.counts, checksum: migrationSummary.checksum });
 eq("the migration report contains no patient name", publicReport.includes("Sample"), false);

@@ -49,9 +49,12 @@ production traffic decision.
   reads demographics, care team, appointments, messages, and signed-document
   metadata only from the authenticated Apex client id. The seeded `/portal/*`
   demonstration remains staff-only.
-- V1 baseline/delta importer for locations, staff, patients, and appointments,
-  including deterministic IDs, provenance, watermarks, run records, checksums,
-  and reconciliation.
+- V1 baseline/delta importer with deterministic IDs, provenance, watermarks,
+  run records, checksums and reconciliation. It recognizes the actual Alpha
+  production legacy schema, validates its exact column fingerprint, imports
+  clients/staff, translates note-shaped Alpha `Appointment` and `ProgressNote`
+  rows into Apex consult history, and creates zero Apex calendar appointments
+  from those rows. Ambiguous rows are retained in a private exception queue.
 - A separately published migration image and dormant manual Container Apps job
   inside `apex-nonprod`. The deployed template hardcodes
   `MIGRATION_AUTHORIZED=false`; source and target URLs are Key Vault references.
@@ -95,8 +98,9 @@ deploying the job does not start it.
    loaded before health verification.
 2. Dry-run a full extract. This requires only the V1 read-only URL and emits
    counts/checksums, never names, email addresses, or raw source IDs. The report
-   also inventories every unmapped clinical, commercial, operations, reference,
-   and MedSource table so continuity scope cannot be approved from guesswork:
+   also reports the detected source shape/fingerprint, exception totals, and
+   every unmapped clinical, commercial, operations, reference, and MedSource
+   table so continuity scope cannot be approved from guesswork:
 
    ```powershell
    npm run migrate:v1 -- --mode=rehearsal
@@ -134,9 +138,10 @@ npm run migrate:v1 -- --apply --mode=baseline --initiated-by=<operator-id> --con
 npm run migrate:v1 -- --apply --mode=delta --watermark=<prior-nextWatermark> --initiated-by=<operator-id> --confirm-target=<approved-target-label>
 ```
 
-Staff and locations are fully rescanned on every run because V1 has no
-`updatedAt` on those tables. Patients and appointments use the bounded interval
-`updatedAt > priorWatermark AND updatedAt <= nextWatermark`, so concurrent V1
+Staff and canonical source-derived locations are fully rescanned on every run
+because legacy Alpha `User` has no `updatedAt`. Clients, consult-note rows,
+progress notes and migration exceptions use the bounded interval
+`updatedAt > priorWatermark AND updatedAt <= nextWatermark`, so concurrent Alpha
 writes are picked up by the next delta rather than missed.
 
 ## Go/no-go at T-60 minutes

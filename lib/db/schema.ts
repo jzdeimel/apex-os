@@ -250,6 +250,12 @@ export const consult = pgTable(
     signerCredential: text("signer_credential"),
     visibleToClient: boolean("visible_to_client").default(false).notNull(),
     ledgerId: text("ledger_id"),
+    /** Internal migration provenance. Source ids are never returned by chart APIs. */
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    /** Opaque Apex id of the Alpha note this row superseded, when supplied. */
+    supersedesConsultId: text("supersedes_consult_id"),
     /** Last server-side write. Drives the "Draft saved {time}" stamp and stale-draft hygiene. */
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -263,6 +269,7 @@ export const consult = pgTable(
     draftUnique: uniqueIndex("consult_draft_unique")
       .on(t.authorId, t.clientId)
       .where(sql`status = 'Draft'`),
+    sourceIdx: uniqueIndex("consult_source_idx").on(t.sourceSystem, t.sourceId),
   }),
 );
 
@@ -521,7 +528,8 @@ export const pdmpCheck = pgTable(
  * One controlled V1 -> Apex migration execution.
  *
  * Only counts and digests belong here. The migration runner never writes raw
- * source rows or PHI into logs; the clinical tables remain the sole data copy.
+ * source rows or PHI into logs. Ambiguous rows are retained only in the private
+ * migration exception table below until an authorized person resolves them.
  */
 export const migrationRun = pgTable(
   "migration_run",
@@ -540,6 +548,38 @@ export const migrationRun = pgTable(
     errorCode: text("error_code"),
   },
   (t) => ({ sourceIdx: index("migration_run_source_idx").on(t.sourceSystem, t.startedAt) }),
+);
+
+/**
+ * Private holding queue for Alpha rows Apex cannot link without guessing.
+ *
+ * No application API reads this table. It exists so an orphaned note or an
+ * ambiguous demographic value is preserved inside the protected Apex database
+ * while an authorized migration operator resolves it. Resolution is append-
+ * evidenced by status/resolution fields; the original payload is retained.
+ */
+export const migrationException = pgTable(
+  "migration_exception",
+  {
+    id: text("id").primaryKey(),
+    sourceSystem: text("source_system").notNull(),
+    sourceEntityType: text("source_entity_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    reasonCode: text("reason_code").notNull(),
+    payload: jsonb("payload").notNull(),
+    payloadSha256: text("payload_sha256").notNull(),
+    status: text("status").notNull().default("Pending review"),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by"),
+    resolutionNote: text("resolution_note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    sourceIdx: uniqueIndex("migration_exception_source_idx").on(t.sourceSystem, t.sourceEntityType, t.sourceId, t.reasonCode),
+    statusIdx: index("migration_exception_status_idx").on(t.status, t.reasonCode),
+  }),
 );
 
 /** Stable source-to-target identity and row checksum for idempotent deltas. */

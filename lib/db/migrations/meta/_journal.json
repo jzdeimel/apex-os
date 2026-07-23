@@ -176,6 +176,20 @@
       "when": 1784770255473,
       "tag": "0024_authoritative-order-fulfillment",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784772171404,
+      "tag": "0025_milky_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784772717443,
+      "tag": "0026_grey_magdalene",
+      "breakpoints": true
     }
   ]
 }

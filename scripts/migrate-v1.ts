@@ -8,11 +8,14 @@ import {
   sha256,
   type MappedRecord,
   type V1AppointmentRow,
+  type V1ConsultRow,
   type V1Extract,
   type V1LocationRow,
+  type V1MigrationExceptionRow,
   type V1PersonRow,
   type V1StaffRow,
 } from "@/lib/migration/v1";
+import { ROSTER } from "@/lib/mock/roster";
 
 type Mode = "baseline" | "delta" | "rehearsal";
 
@@ -29,6 +32,20 @@ interface ContinuityInventoryRow {
   domain: "clinical" | "commercial" | "operations" | "medsource" | "reference" | "discard-auth";
   entity: string;
   count: number;
+}
+
+type SourceShape = "legacy-public-2026-07" | "unified-clinic";
+
+interface ExtractDiagnostics {
+  unmatchedAssignedCoaches: number;
+  unresolvedHomeLocations: number;
+  namesParsedFromDisplay: number;
+  invalidDobValues: number;
+  consultsExcludedMissingClient: number;
+  consultsExcludedMissingAuthor: number;
+  progressNotesExcludedMissingClient: number;
+  progressNotesExcludedMissingAuthor: number;
+  progressNotesWithSynthesizedAuthor: number;
 }
 
 function parseDate(value: string, flag: string): Date {
@@ -64,7 +81,11 @@ export function parseOptions(argv: string[]): Options {
 function connection(url: string) {
   const parsed = new URL(url);
   const local = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-  return postgres(url, {
+  // Prisma pool tuning parameters in Alpha's URL are not PostgreSQL startup
+  // parameters. Passing them through makes a direct read-only migration client
+  // fail before it can establish the protected transaction.
+  for (const key of ["connection_limit", "pool_timeout"]) parsed.searchParams.delete(key);
+  return postgres(parsed.toString(), {
     max: 1,
     prepare: false,
     connect_timeout: 15,
@@ -74,99 +95,556 @@ function connection(url: string) {
   });
 }
 
+const LEGACY_COLUMNS = {
+  Appointment: ["id", "clientId", "coachId", "subType", "status", "startTime", "contactMethod", "smmDelta", "pbfDelta", "followUpDate", "noteBody", "previousNoteId", "finalizedAt", "createdAt", "updatedAt"],
+  ClientProfile: ["id", "nameKey", "name", "email", "phone", "assignedCoach", "createdAt", "updatedAt", "address1", "address2", "city", "state", "zip", "mindbodyId", "firstName", "lastName", "dob", "gender", "isProspect", "mbActive", "allergies", "origin", "outreachStage", "lastTouchAt", "lastTouchType", "lastConnectAt", "attemptCount", "outreachMovedAt", "lastInboundAt", "lastReadAt", "ghlContactId", "leadSource", "inboxPinned", "inboxMuted", "inboxUnread", "inboxStarred", "inboxHidden"],
+  User: ["id", "name", "email", "passwordHash", "role", "birthday", "phone", "avatarUrl", "createdAt", "gender", "failedLogins", "lockoutUntil", "googleRefreshToken", "gmailConnectedAt", "location", "ghlUserId"],
+} as const;
+
+function normalizedName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function canonicalStaffLocation(name: string | null, sourceLocation: string | null): string | null {
+  const roster = name
+    ? ROSTER.find((entry) => normalizedName(`${entry.firstName}${entry.lastName}`) === normalizedName(name))
+    : null;
+  if (roster) return roster.location === "AHQ" ? null : roster.location;
+  const value = (sourceLocation ?? "").toLowerCase();
+  if (value.includes("southern pines")) return "southern-pines";
+  if (value.includes("myrtle") || value.includes("carolina forest")) return "myrtle-beach";
+  if (value.includes("raleigh")) return "raleigh";
+  return null; // "Remote" is not a home clinic and must not become one.
+}
+
+function splitLegacyName(displayName: string): { firstName: string; lastName: string } {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { firstName: parts[0] || "Unknown", lastName: "Unknown" };
+  return { firstName: parts.slice(0, -1).join(" "), lastName: parts.at(-1)! };
+}
+
+function continuityDomain(table: string): ContinuityInventoryRow["domain"] {
+  if (["Appointment", "ProgressNote", "PlanOfCare", "IntakeForm", "IntakeTemplate", "IntakeInvite", "Consent", "MedicalProfile"].includes(table)) return "clinical";
+  if (["Purchase", "PackageSubscription", "Invoice", "InvoiceLine", "Payment"].includes(table)) return "commercial";
+  if (["InventoryItem", "InventoryEvent", "Lot", "RoutedOrder", "ShipmentNotification", "Vendor", "ReceivingLog"].includes(table)) return "medsource";
+  if (["User", "Session", "LoginAttempt", "PasswordResetToken"].includes(table)) return "discard-auth";
+  if (["Document", "Product", "Category", "FormularyItem"].includes(table)) return "reference";
+  return "operations";
+}
+
+async function legacyContinuityInventory(tx: TransactionSql): Promise<ContinuityInventoryRow[]> {
+  const tables = await tx<{ entity: string }[]>`
+    select table_name as entity
+    from information_schema.tables
+    where table_schema = 'public' and table_type = 'BASE TABLE'
+    order by table_name
+  `;
+  const rows: ContinuityInventoryRow[] = [];
+  for (const { entity } of tables) {
+    // Entity is read from information_schema, then quoted as an identifier.
+    const quoted = entity.replaceAll('"', '""');
+    const [{ count }] = await tx.unsafe<{ count: number }[]>(`select count(*)::int as count from public."${quoted}"`);
+    rows.push({ domain: continuityDomain(entity), entity, count: Number(count) });
+  }
+  return rows.sort((a, b) => a.domain.localeCompare(b.domain) || a.entity.localeCompare(b.entity));
+}
+
+async function unifiedContinuityInventory(tx: TransactionSql): Promise<ContinuityInventoryRow[]> {
+  return tx<ContinuityInventoryRow[]>`
+    select 'clinical' as domain, 'Encounter' as entity, count(*)::int as count from clinic."Encounter"
+    union all select 'clinical', 'Assessment', count(*)::int from clinic."Assessment"
+    union all select 'clinical', 'InBodyScan', count(*)::int from clinic."InBodyScan"
+    union all select 'clinical', 'PlanOfCare', count(*)::int from clinic."PlanOfCare"
+    union all select 'clinical', 'Prescription', count(*)::int from clinic."Prescription"
+    union all select 'clinical', 'ContraindicationScreen', count(*)::int from clinic."ContraindicationScreen"
+    union all select 'clinical', 'Consent', count(*)::int from clinic."Consent"
+    union all select 'clinical', 'LabOrder', count(*)::int from clinic."LabOrder"
+    union all select 'clinical', 'LabResult', count(*)::int from clinic."LabResult"
+    union all select 'clinical', 'Document', count(*)::int from clinic."Document"
+    union all select 'commercial', 'Order', count(*)::int from clinic."Order"
+    union all select 'commercial', 'OrderItem', count(*)::int from clinic."OrderItem"
+    union all select 'commercial', 'Invoice', count(*)::int from clinic."Invoice"
+    union all select 'commercial', 'InvoiceLine', count(*)::int from clinic."InvoiceLine"
+    union all select 'commercial', 'Payment', count(*)::int from clinic."Payment"
+    union all select 'commercial', 'Subscription', count(*)::int from clinic."Subscription"
+    union all select 'operations', 'Notification', count(*)::int from clinic."Notification"
+    union all select 'operations', 'Reminder', count(*)::int from clinic."Reminder"
+    union all select 'operations', 'AuditLog', count(*)::int from clinic."AuditLog"
+    union all select 'operations', 'MarketingContact', count(*)::int from clinic."MarketingContact"
+    union all select 'reference', 'FormularyItem', count(*)::int from clinic."FormularyItem"
+    union all select 'reference', 'Product', count(*)::int from clinic."Product"
+    union all select 'discard-auth', 'Session', count(*)::int from clinic."Session"
+    union all select 'medsource', 'MsProduct', count(*)::int from medsource."MsProduct"
+    union all select 'medsource', 'Lot', count(*)::int from medsource."Lot"
+    union all select 'medsource', 'InventoryEvent', count(*)::int from medsource."InventoryEvent"
+    union all select 'medsource', 'QCRecord', count(*)::int from medsource."QCRecord"
+    union all select 'medsource', 'Vendor', count(*)::int from medsource."Vendor"
+    union all select 'medsource', 'VendorPrice', count(*)::int from medsource."VendorPrice"
+    union all select 'medsource', 'Fulfillment', count(*)::int from medsource."Fulfillment"
+    union all select 'medsource', 'FulfillmentLine', count(*)::int from medsource."FulfillmentLine"
+    order by domain, entity
+  `;
+}
+
+async function detectSourceShape(tx: TransactionSql): Promise<SourceShape> {
+  const [row] = await tx<{ legacy: boolean; unified: boolean }[]>`
+    select
+      to_regclass('public."ClientProfile"') is not null
+        and to_regclass('public."User"') is not null
+        and to_regclass('public."Appointment"') is not null as legacy,
+      to_regclass('clinic."Person"') is not null
+        and to_regclass('clinic."Staff"') is not null
+        and to_regclass('clinic."Appointment"') is not null as unified
+  `;
+  if (row.legacy === row.unified) {
+    throw new Error("V1 source shape is ambiguous or unsupported; migration refused");
+  }
+  return row.legacy ? "legacy-public-2026-07" : "unified-clinic";
+}
+
+async function validateLegacyShape(tx: TransactionSql): Promise<string> {
+  const rows = await tx<{ table: string; column: string; type: string; position: number }[]>`
+    select table_name as table, column_name as column, data_type as type, ordinal_position as position
+    from information_schema.columns
+    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'User')
+    order by table_name, ordinal_position
+  `;
+  for (const [table, expected] of Object.entries(LEGACY_COLUMNS)) {
+    const actual = rows.filter((row) => row.table === table).map((row) => row.column);
+    if (actual.join("|") !== expected.join("|")) {
+      throw new Error(`Alpha ${table} schema changed; source adapter review required before migration`);
+    }
+  }
+  return sha256(rows.map((row) => [row.table, row.position, row.column, row.type]));
+}
+
+function canonicalLegacyLocations(): V1LocationRow[] {
+  const createdAt = new Date(0);
+  return [
+    { id: "legacy-location-raleigh", targetLocationId: "raleigh", code: "RAL", name: "Alpha Health — Raleigh", address1: "701 Mutual Ct, Suite 100", city: "Raleigh", state: "NC", zip: "27615", timezone: "America/New_York", active: true, createdAt },
+    { id: "legacy-location-southern-pines", targetLocationId: "southern-pines", code: "SOP", name: "Alpha Health — Southern Pines", address1: "1545 US Hwy 1", city: "Southern Pines", state: "NC", zip: null, timezone: "America/New_York", active: true, createdAt },
+    { id: "legacy-location-myrtle-beach", targetLocationId: "myrtle-beach", code: "MYR", name: "Alpha Health — Myrtle Beach", address1: "4999 Carolina Forest Blvd, #9", city: "Myrtle Beach", state: "SC", zip: null, timezone: "America/New_York", active: true, createdAt },
+  ];
+}
+
+async function extractUnified(
+  tx: TransactionSql,
+  from: Date | null,
+  forceFull: boolean,
+  nextWatermark: Date,
+) {
+  const locations = (await tx`
+    select id, code, name, address1, city, state, zip, timezone, active, "createdAt"
+    from clinic."Location" order by id
+  `) as unknown as V1LocationRow[];
+  const staff = (await tx`
+    select id, name, email, role::text as role, title, npi, active, "locationId", "createdAt"
+    from clinic."Staff" order by id
+  `) as unknown as V1StaffRow[];
+  const people = (forceFull || !from
+    ? await tx`
+        select id, mrn, "firstName", "lastName", "preferredName", dob, sex::text as sex,
+               email, phone, address1, address2, city, state, zip, status::text as status,
+               "isProspect", "assignedCoachId", "locationId", "createdAt", "updatedAt"
+        from clinic."Person" where "updatedAt" <= ${nextWatermark} order by id
+      `
+    : await tx`
+        select id, mrn, "firstName", "lastName", "preferredName", dob, sex::text as sex,
+               email, phone, address1, address2, city, state, zip, status::text as status,
+               "isProspect", "assignedCoachId", "locationId", "createdAt", "updatedAt"
+        from clinic."Person" where "updatedAt" > ${from} and "updatedAt" <= ${nextWatermark} order by id
+      `) as unknown as V1PersonRow[];
+  const appointments = (forceFull || !from
+    ? await tx`
+        select id, "personId", "providerId", "locationId", type::text as type,
+               status::text as status, "startAt", "endAt", resource, reason, notes,
+               "createdAt", "updatedAt"
+        from clinic."Appointment" where "updatedAt" <= ${nextWatermark} order by id
+      `
+    : await tx`
+        select id, "personId", "providerId", "locationId", type::text as type,
+               status::text as status, "startAt", "endAt", resource, reason, notes,
+               "createdAt", "updatedAt"
+        from clinic."Appointment" where "updatedAt" > ${from} and "updatedAt" <= ${nextWatermark} order by id
+      `) as unknown as V1AppointmentRow[];
+  return {
+    extract: { locations, staff, people, appointments, consults: [], exceptions: [] } satisfies V1Extract,
+    diagnostics: {
+      unmatchedAssignedCoaches: 0, unresolvedHomeLocations: 0, namesParsedFromDisplay: 0,
+      invalidDobValues: 0, consultsExcludedMissingClient: 0, consultsExcludedMissingAuthor: 0,
+      progressNotesExcludedMissingClient: 0, progressNotesExcludedMissingAuthor: 0,
+      progressNotesWithSynthesizedAuthor: 0,
+    } satisfies ExtractDiagnostics,
+    continuityInventory: await unifiedContinuityInventory(tx),
+    schemaFingerprint: null,
+  };
+}
+
+async function extractLegacy(
+  tx: TransactionSql,
+  from: Date | null,
+  forceFull: boolean,
+  nextWatermark: Date,
+) {
+  interface LegacyPerson {
+    id: string; displayName: string; firstName: string | null; lastName: string | null;
+    email: string | null; phone: string | null; address1: string | null; address2: string | null;
+    city: string | null; state: string | null; zip: string | null; mindbodyId: string | null;
+    dob: string | null; gender: string | null; isProspect: boolean; mbActive: boolean | null;
+    assignedCoach: string | null; assignedCoachId: string | null; assignedCoachName: string | null;
+    assignedCoachLocation: string | null; createdAt: Date; updatedAt: Date;
+  }
+  interface LegacyProgressNote {
+    id: string; personId: string; authorId: string | null; authorName: string | null; apptType: string | null;
+    procedure: string | null; medications: string | null; allergies: string | null;
+    hr: string | null; bp: string | null; weight: string | null; height: string | null;
+    temp: string | null; vitalsNote: string | null; narrative: string | null;
+    status: string; visitDate: Date | null; completedAt: Date | null;
+    createdAt: Date; updatedAt: Date;
+  }
+  interface LegacyUnlinkedNote {
+    id: string; clientId: string | null; coachId: string; subType: string | null;
+    status: string; startTime: Date; contactMethod: string | null; noteBody: string;
+    previousNoteId: string | null; finalizedAt: Date | null; createdAt: Date; updatedAt: Date;
+    missingClient: boolean; missingAuthor: boolean;
+  }
+  const schemaFingerprint = await validateLegacyShape(tx);
+  const sourceStaff = (await tx`
+    select id, name, email, role, null::text as title, null::text as npi, true as active,
+           null::text as "locationId", "createdAt",
+           case
+             when lower(coalesce(location, '')) like '%southern pines%' then 'southern-pines'
+             when lower(coalesce(location, '')) like '%myrtle%' then 'myrtle-beach'
+             when lower(coalesce(location, '')) like '%raleigh%' then 'raleigh'
+             else null
+           end as "locationTargetId"
+    from public."User" order by id
+  `) as unknown as V1StaffRow[];
+  const rawPeople = (forceFull || !from
+    ? await tx`
+        select c.id, c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
+               c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
+               c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
+               coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
+               c."createdAt", c."updatedAt"
+        from public."ClientProfile" c
+        left join lateral (
+          select u.id, u.name, u.location from public."User" u
+          where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
+          order by u.id limit 1
+        ) coach on true
+        where c."updatedAt" <= ${nextWatermark} order by c.id
+      `
+    : await tx`
+        select c.id, c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
+               c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
+               c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
+               coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
+               c."createdAt", c."updatedAt"
+        from public."ClientProfile" c
+        left join lateral (
+          select u.id, u.name, u.location from public."User" u
+          where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                regexp_replace(lower(coalesce(c."assignedCoach", '')), '[^a-z0-9]', '', 'g')
+          order by u.id limit 1
+        ) coach on true
+        where c."updatedAt" > ${from} and c."updatedAt" <= ${nextWatermark} order by c.id
+      `) as unknown as LegacyPerson[];
+  let namesParsedFromDisplay = 0;
+  let unmatchedAssignedCoaches = 0;
+  let unresolvedHomeLocations = 0;
+  let invalidDobValues = 0;
+  const exceptions: V1MigrationExceptionRow[] = [];
+  const people: V1PersonRow[] = rawPeople.map((row) => {
+    const parsed = splitLegacyName(row.displayName);
+    if (!row.firstName?.trim() || !row.lastName?.trim()) {
+      namesParsedFromDisplay++;
+      exceptions.push({
+        id: `ClientProfile:${row.id}:inferred-name`,
+        sourceEntityType: "ClientProfile",
+        reasonCode: "name-parsed-from-display",
+        payload: {
+          displayName: row.displayName,
+          sourceFirstName: row.firstName,
+          sourceLastName: row.lastName,
+          proposedFirstName: row.firstName?.trim() || parsed.firstName,
+          proposedLastName: row.lastName?.trim() || parsed.lastName,
+        },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    if (row.assignedCoach && !row.assignedCoachId) {
+      unmatchedAssignedCoaches++;
+      exceptions.push({
+        id: `ClientProfile:${row.id}:assigned-coach`,
+        sourceEntityType: "ClientProfile",
+        reasonCode: "assigned-coach-unmatched",
+        payload: { assignedCoach: row.assignedCoach },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    const locationTargetId = canonicalStaffLocation(row.assignedCoachName, row.assignedCoachLocation);
+    if (row.assignedCoachId && !locationTargetId) {
+      unresolvedHomeLocations++;
+      exceptions.push({
+        id: `ClientProfile:${row.id}:home-location`,
+        sourceEntityType: "ClientProfile",
+        reasonCode: "home-location-unresolved",
+        payload: {
+          assignedCoachId: row.assignedCoachId,
+          assignedCoachLocation: row.assignedCoachLocation,
+        },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    if (row.dob && !/^\d{4}-\d{2}-\d{2}/.test(row.dob) && !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(row.dob)) {
+      invalidDobValues++;
+      exceptions.push({
+        id: `ClientProfile:${row.id}:dob`,
+        sourceEntityType: "ClientProfile",
+        reasonCode: "date-of-birth-invalid",
+        payload: { sourceValue: row.dob },
+        sourceUpdatedAt: row.updatedAt,
+      });
+    }
+    return {
+      id: row.id, mrn: row.mindbodyId ?? "", firstName: row.firstName?.trim() || parsed.firstName,
+      lastName: row.lastName?.trim() || parsed.lastName, preferredName: null, dob: row.dob,
+      sex: row.gender ?? "unknown", email: row.email, phone: row.phone, address1: row.address1,
+      address2: row.address2, city: row.city, state: row.state, zip: row.zip,
+      status: row.mbActive === false ? "inactive" : "active", isProspect: row.isProspect,
+      assignedCoachId: row.assignedCoachId, locationId: null, locationTargetId,
+      createdAt: row.createdAt, updatedAt: row.updatedAt,
+    };
+  });
+  const coachConsults = (forceFull || !from
+    ? await tx`
+        select 'Appointment:' || a.id as id, a."clientId" as "personId", a."coachId" as "authorId",
+               a."subType"::text as kind, a."contactMethod"::text as channel,
+               a.status::text as status, a."startTime" as "startedAt", a."finalizedAt",
+               a."noteBody",
+               case when a."previousNoteId" is null then null else 'Appointment:' || a."previousNoteId" end as "previousNoteId",
+               a."createdAt", a."updatedAt"
+        from public."Appointment" a
+        join public."ClientProfile" c on c.id = a."clientId"
+        join public."User" u on u.id = a."coachId"
+        where a."updatedAt" <= ${nextWatermark} order by a.id
+      `
+    : await tx`
+        select 'Appointment:' || a.id as id, a."clientId" as "personId", a."coachId" as "authorId",
+               a."subType"::text as kind, a."contactMethod"::text as channel,
+               a.status::text as status, a."startTime" as "startedAt", a."finalizedAt",
+               a."noteBody",
+               case when a."previousNoteId" is null then null else 'Appointment:' || a."previousNoteId" end as "previousNoteId",
+               a."createdAt", a."updatedAt"
+        from public."Appointment" a
+        join public."ClientProfile" c on c.id = a."clientId"
+        join public."User" u on u.id = a."coachId"
+        where a."updatedAt" > ${from} and a."updatedAt" <= ${nextWatermark} order by a.id
+      `) as unknown as V1ConsultRow[];
+  const [excluded] = await tx<{ missingClient: number; missingAuthor: number }[]>`
+    select
+      count(*) filter (where a."clientId" is null or c.id is null)::int as "missingClient",
+      count(*) filter (where u.id is null)::int as "missingAuthor"
+    from public."Appointment" a
+    left join public."ClientProfile" c on c.id = a."clientId"
+    left join public."User" u on u.id = a."coachId"
+  `;
+  const unlinkedNotes = (forceFull || !from
+    ? await tx`
+        select 'Appointment:' || a.id as id, a."clientId", a."coachId", a."subType"::text as "subType",
+               a.status::text as status, a."startTime", a."contactMethod"::text as "contactMethod",
+               a."noteBody", a."previousNoteId", a."finalizedAt", a."createdAt", a."updatedAt",
+               (a."clientId" is null or c.id is null) as "missingClient", (u.id is null) as "missingAuthor"
+        from public."Appointment" a
+        left join public."ClientProfile" c on c.id = a."clientId"
+        left join public."User" u on u.id = a."coachId"
+        where (a."clientId" is null or c.id is null or u.id is null)
+          and a."updatedAt" <= ${nextWatermark}
+        order by a.id
+      `
+    : await tx`
+        select 'Appointment:' || a.id as id, a."clientId", a."coachId", a."subType"::text as "subType",
+               a.status::text as status, a."startTime", a."contactMethod"::text as "contactMethod",
+               a."noteBody", a."previousNoteId", a."finalizedAt", a."createdAt", a."updatedAt",
+               (a."clientId" is null or c.id is null) as "missingClient", (u.id is null) as "missingAuthor"
+        from public."Appointment" a
+        left join public."ClientProfile" c on c.id = a."clientId"
+        left join public."User" u on u.id = a."coachId"
+        where (a."clientId" is null or c.id is null or u.id is null)
+          and a."updatedAt" > ${from} and a."updatedAt" <= ${nextWatermark}
+        order by a.id
+      `) as unknown as LegacyUnlinkedNote[];
+  for (const row of unlinkedNotes) {
+    const reasonCode = row.missingClient && row.missingAuthor
+      ? "missing-client-and-author"
+      : row.missingClient
+        ? "missing-client"
+        : "missing-author";
+    exceptions.push({
+      id: `${row.id}:${reasonCode}`,
+      sourceEntityType: "Appointment",
+      reasonCode,
+      payload: {
+        clientId: row.clientId,
+        coachId: row.coachId,
+        subType: row.subType,
+        status: row.status,
+        startTime: row.startTime,
+        contactMethod: row.contactMethod,
+        noteBody: row.noteBody,
+        previousNoteId: row.previousNoteId,
+        finalizedAt: row.finalizedAt,
+        createdAt: row.createdAt,
+      },
+      sourceUpdatedAt: row.updatedAt,
+    });
+  }
+  const rawProgressNotes = (forceFull || !from
+    ? await tx`
+        select 'ProgressNote:' || p.id as id, person.id as "personId", author.id as "authorId",
+               coalesce(p.practitioner, p."createdByName") as "authorName",
+               p."apptType", p.procedure, p.medications, p.allergies, p.hr, p.bp, p.weight,
+               p.height, p.temp, p."vitalsNote", p.narrative, p.status, p."visitDate",
+               p."completedAt", p."createdAt", p."updatedAt"
+        from public."ProgressNote" p
+        join lateral (
+          select c.id from public."ClientProfile" c
+          where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
+             or (p."clientMindbodyId" is null and c."nameKey" = p."clientNameKey")
+          order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id
+          limit 1
+        ) person on true
+        left join lateral (
+          select u.id from public."User" u
+          where u.id = p."createdById"
+             or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+          order by case when u.id = p."createdById" then 0 else 1 end, u.id
+          limit 1
+        ) author on true
+        where p."updatedAt" <= ${nextWatermark} order by p.id
+      `
+    : await tx`
+        select 'ProgressNote:' || p.id as id, person.id as "personId", author.id as "authorId",
+               coalesce(p.practitioner, p."createdByName") as "authorName",
+               p."apptType", p.procedure, p.medications, p.allergies, p.hr, p.bp, p.weight,
+               p.height, p.temp, p."vitalsNote", p.narrative, p.status, p."visitDate",
+               p."completedAt", p."createdAt", p."updatedAt"
+        from public."ProgressNote" p
+        join lateral (
+          select c.id from public."ClientProfile" c
+          where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
+             or (p."clientMindbodyId" is null and c."nameKey" = p."clientNameKey")
+          order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id
+          limit 1
+        ) person on true
+        left join lateral (
+          select u.id from public."User" u
+          where u.id = p."createdById"
+             or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+                regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+          order by case when u.id = p."createdById" then 0 else 1 end, u.id
+          limit 1
+        ) author on true
+        where p."updatedAt" > ${from} and p."updatedAt" <= ${nextWatermark} order by p.id
+      `) as unknown as LegacyProgressNote[];
+  const synthesizedAuthorRows = new Map<string, V1StaffRow>();
+  for (const row of rawProgressNotes) {
+    if (row.authorId) continue;
+    const authorName = row.authorName?.trim() || "Unknown legacy progress-note author";
+    const sourceId = `ProgressNoteAuthor:${normalizedName(authorName) || "unknown"}`;
+    if (!synthesizedAuthorRows.has(sourceId)) {
+      synthesizedAuthorRows.set(sourceId, {
+        id: sourceId,
+        name: authorName,
+        email: `legacy-author-${sha256(authorName).slice(0, 16)}@migration.invalid`,
+        role: "MEDICAL",
+        title: "Legacy progress-note author (inactive)",
+        npi: null,
+        active: false,
+        locationId: null,
+        locationTargetId: null,
+        createdAt: row.createdAt,
+      });
+    }
+  }
+  const staff = [...sourceStaff, ...synthesizedAuthorRows.values()];
+  const progressConsults: V1ConsultRow[] = rawProgressNotes.map((row) => {
+    const objective = [
+      row.bp ? `BP: ${row.bp}` : null,
+      row.hr ? `HR: ${row.hr}` : null,
+      row.temp ? `Temperature: ${row.temp}` : null,
+      row.weight ? `Weight: ${row.weight}` : null,
+      row.height ? `Height: ${row.height}` : null,
+      row.vitalsNote ? `Vitals note: ${row.vitalsNote}` : null,
+    ].filter((value): value is string => Boolean(value)).join("\n");
+    const noteBody = [
+      row.narrative,
+      row.procedure ? `Procedure: ${row.procedure}` : null,
+      row.medications ? `Medications recorded in Alpha: ${row.medications}` : null,
+      row.allergies ? `Allergies recorded in Alpha: ${row.allergies}` : null,
+      objective || null,
+    ].filter((value): value is string => Boolean(value)).join("\n\n");
+    return {
+      id: row.id,
+      personId: row.personId,
+      authorId: row.authorId ?? `ProgressNoteAuthor:${normalizedName(row.authorName?.trim() || "Unknown legacy progress-note author") || "unknown"}`,
+      recordClass: "medical-progress-note", kind: row.apptType ?? row.procedure,
+      channel: null, status: row.status, startedAt: row.visitDate ?? row.createdAt,
+      finalizedAt: row.completedAt, noteBody: noteBody || "No narrative text was recorded in Alpha OS.",
+      subjective: row.narrative, objective: objective || null, assessment: null, plan: null,
+      previousNoteId: null, createdAt: row.createdAt, updatedAt: row.updatedAt,
+    };
+  });
+  const [progressExcluded] = await tx<{ missingClient: number; missingAuthor: number }[]>`
+    select
+      count(*) filter (where person.id is null)::int as "missingClient",
+      count(*) filter (where author.id is null)::int as "missingAuthor"
+    from public."ProgressNote" p
+    left join lateral (
+      select c.id from public."ClientProfile" c
+      where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
+         or (p."clientMindbodyId" is null and c."nameKey" = p."clientNameKey")
+      order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
+    ) person on true
+    left join lateral (
+      select u.id from public."User" u
+      where u.id = p."createdById"
+         or regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+            regexp_replace(lower(coalesce(p.practitioner, p."createdByName")), '[^a-z0-9]', '', 'g')
+      order by case when u.id = p."createdById" then 0 else 1 end, u.id limit 1
+    ) author on true
+  `;
+  const consults = [...coachConsults, ...progressConsults];
+  return {
+    extract: {
+      locations: canonicalLegacyLocations(), staff, people, appointments: [], consults, exceptions,
+    } satisfies V1Extract,
+    diagnostics: {
+      unmatchedAssignedCoaches, unresolvedHomeLocations, namesParsedFromDisplay, invalidDobValues,
+      consultsExcludedMissingClient: Number(excluded.missingClient),
+      consultsExcludedMissingAuthor: Number(excluded.missingAuthor),
+      progressNotesExcludedMissingClient: Number(progressExcluded.missingClient),
+      progressNotesExcludedMissingAuthor: 0,
+      progressNotesWithSynthesizedAuthor: rawProgressNotes.filter((row) => !row.authorId).length,
+    } satisfies ExtractDiagnostics,
+    continuityInventory: await legacyContinuityInventory(tx),
+    schemaFingerprint,
+  };
+}
+
 async function extractV1(source: Sql, from: Date | null, forceFull: boolean) {
   return source.begin("isolation level repeatable read read only", async (tx) => {
     const [{ nextWatermark }] = await tx<{ nextWatermark: Date }[]>`
       select transaction_timestamp() as "nextWatermark"
     `;
-    const locations = (await tx`
-      select id, code, name, address1, city, state, zip, timezone, active, "createdAt"
-      from clinic."Location"
-      order by id
-    `) as unknown as V1LocationRow[];
-    const staff = (await tx`
-      select id, name, email, role::text as role, title, npi, active, "locationId", "createdAt"
-      from clinic."Staff"
-      order by id
-    `) as unknown as V1StaffRow[];
-    const people = (forceFull || !from
-      ? await tx`
-          select id, mrn, "firstName", "lastName", "preferredName", dob, sex::text as sex,
-                 email, phone, address1, address2, city, state, zip, status::text as status,
-                 "isProspect", "assignedCoachId", "locationId", "createdAt", "updatedAt"
-          from clinic."Person"
-          where "updatedAt" <= ${nextWatermark}
-          order by id
-        `
-      : await tx`
-          select id, mrn, "firstName", "lastName", "preferredName", dob, sex::text as sex,
-                 email, phone, address1, address2, city, state, zip, status::text as status,
-                 "isProspect", "assignedCoachId", "locationId", "createdAt", "updatedAt"
-          from clinic."Person"
-          where "updatedAt" > ${from} and "updatedAt" <= ${nextWatermark}
-          order by id
-        `) as unknown as V1PersonRow[];
-    const appointments = (forceFull || !from
-      ? await tx`
-          select id, "personId", "providerId", "locationId", type::text as type,
-                 status::text as status, "startAt", "endAt", resource, reason, notes,
-                 "createdAt", "updatedAt"
-          from clinic."Appointment"
-          where "updatedAt" <= ${nextWatermark}
-          order by id
-        `
-      : await tx`
-          select id, "personId", "providerId", "locationId", type::text as type,
-                 status::text as status, "startAt", "endAt", resource, reason, notes,
-                 "createdAt", "updatedAt"
-          from clinic."Appointment"
-          where "updatedAt" > ${from} and "updatedAt" <= ${nextWatermark}
-          order by id
-        `) as unknown as V1AppointmentRow[];
-
-    // Counts only: no patient values or source ids leave the read-only
-    // transaction. These rows make the historical-continuity decision explicit
-    // instead of treating the four actively mapped entities as the whole V1.
-    const continuityInventory = await tx<ContinuityInventoryRow[]>`
-      select 'clinical' as domain, 'Encounter' as entity, count(*)::int as count from clinic."Encounter"
-      union all select 'clinical', 'Assessment', count(*)::int from clinic."Assessment"
-      union all select 'clinical', 'InBodyScan', count(*)::int from clinic."InBodyScan"
-      union all select 'clinical', 'PlanOfCare', count(*)::int from clinic."PlanOfCare"
-      union all select 'clinical', 'Prescription', count(*)::int from clinic."Prescription"
-      union all select 'clinical', 'ContraindicationScreen', count(*)::int from clinic."ContraindicationScreen"
-      union all select 'clinical', 'Consent', count(*)::int from clinic."Consent"
-      union all select 'clinical', 'LabOrder', count(*)::int from clinic."LabOrder"
-      union all select 'clinical', 'LabResult', count(*)::int from clinic."LabResult"
-      union all select 'clinical', 'Document', count(*)::int from clinic."Document"
-      union all select 'commercial', 'Order', count(*)::int from clinic."Order"
-      union all select 'commercial', 'OrderItem', count(*)::int from clinic."OrderItem"
-      union all select 'commercial', 'Invoice', count(*)::int from clinic."Invoice"
-      union all select 'commercial', 'InvoiceLine', count(*)::int from clinic."InvoiceLine"
-      union all select 'commercial', 'Payment', count(*)::int from clinic."Payment"
-      union all select 'commercial', 'Subscription', count(*)::int from clinic."Subscription"
-      union all select 'operations', 'Notification', count(*)::int from clinic."Notification"
-      union all select 'operations', 'Reminder', count(*)::int from clinic."Reminder"
-      union all select 'operations', 'AuditLog', count(*)::int from clinic."AuditLog"
-      union all select 'operations', 'MarketingContact', count(*)::int from clinic."MarketingContact"
-      union all select 'reference', 'FormularyItem', count(*)::int from clinic."FormularyItem"
-      union all select 'reference', 'Product', count(*)::int from clinic."Product"
-      union all select 'discard-auth', 'Session', count(*)::int from clinic."Session"
-      union all select 'medsource', 'MsProduct', count(*)::int from medsource."MsProduct"
-      union all select 'medsource', 'Lot', count(*)::int from medsource."Lot"
-      union all select 'medsource', 'InventoryEvent', count(*)::int from medsource."InventoryEvent"
-      union all select 'medsource', 'QCRecord', count(*)::int from medsource."QCRecord"
-      union all select 'medsource', 'Vendor', count(*)::int from medsource."Vendor"
-      union all select 'medsource', 'VendorPrice', count(*)::int from medsource."VendorPrice"
-      union all select 'medsource', 'Fulfillment', count(*)::int from medsource."Fulfillment"
-      union all select 'medsource', 'FulfillmentLine', count(*)::int from medsource."FulfillmentLine"
-      order by domain, entity
-    `;
-
-    return {
-      extract: { locations, staff, people, appointments } satisfies V1Extract,
-      nextWatermark: new Date(nextWatermark),
-      continuityInventory,
-    };
+    const sourceShape = await detectSourceShape(tx);
+    const result = sourceShape === "legacy-public-2026-07"
+      ? await extractLegacy(tx, from, forceFull, new Date(nextWatermark))
+      : await extractUnified(tx, from, forceFull, new Date(nextWatermark));
+    return { ...result, sourceShape, nextWatermark: new Date(nextWatermark) };
   });
 }
 
@@ -240,6 +718,44 @@ async function upsertAppointments(tx: TransactionSql, records: MappedRecord<Reco
   }
 }
 
+async function upsertConsults(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 200)) {
+    await tx`
+      insert into consult ${tx(batch)}
+      on conflict (id) do update set
+        client_id = excluded.client_id, author_id = excluded.author_id,
+        kind = excluded.kind, channel = excluded.channel,
+        started_at = excluded.started_at, ended_at = excluded.ended_at,
+        raw_notes = excluded.raw_notes, status = excluded.status,
+        signed_at = excluded.signed_at, signed_by = excluded.signed_by,
+        attestation = excluded.attestation, visible_to_client = excluded.visible_to_client,
+        source_system = excluded.source_system, source_id = excluded.source_id,
+        source_updated_at = excluded.source_updated_at,
+        supersedes_consult_id = excluded.supersedes_consult_id,
+        updated_at = excluded.updated_at
+      where consult.status <> 'Signed'
+         or consult.source_updated_at is distinct from excluded.source_updated_at
+    `;
+  }
+}
+
+async function upsertMigrationExceptions(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 150)) {
+    await tx`
+      insert into migration_exception ${tx(batch)}
+      on conflict (id) do update set
+        source_entity_type = excluded.source_entity_type,
+        source_id = excluded.source_id,
+        reason_code = excluded.reason_code,
+        payload = excluded.payload,
+        payload_sha256 = excluded.payload_sha256,
+        source_updated_at = excluded.source_updated_at,
+        updated_at = excluded.updated_at
+      where migration_exception.status = 'Pending review'
+    `;
+  }
+}
+
 async function upsertBindings(
   tx: TransactionSql,
   runId: string,
@@ -278,11 +794,15 @@ async function applyExtract(
     await upsertStaff(tx, mapped.staff);
     await upsertPeople(tx, mapped.people);
     await upsertAppointments(tx, mapped.appointments);
+    await upsertConsults(tx, mapped.consults);
+    await upsertMigrationExceptions(tx, mapped.exceptions);
     await upsertBindings(tx, runId, [
       ...mapped.locations,
       ...mapped.staff,
       ...mapped.people,
       ...mapped.appointments,
+      ...mapped.consults,
+      ...mapped.exceptions,
     ]);
   });
 }
@@ -317,6 +837,8 @@ async function reconcile(
       union all select count(*)::int from staff where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from client where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from appointment where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from consult where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from migration_exception where source_system = ${V1_SOURCE_SYSTEM}
     ) counts
   `;
   const expected = new Map(expectedRows.map((row) => [`${row.entityType}:${row.sourceId}`, row.checksum]));
@@ -383,7 +905,14 @@ async function main() {
   const target = targetUrl ? connection(targetUrl) : null;
   try {
     const forceFull = options.mode !== "delta" || options.reconcileOnly;
-    const { extract, nextWatermark, continuityInventory } = await extractV1(source, options.watermark, forceFull);
+    const {
+      extract,
+      nextWatermark,
+      continuityInventory,
+      sourceShape,
+      schemaFingerprint,
+      diagnostics,
+    } = await extractV1(source, options.watermark, forceFull);
     const summary = extractSummary(extract);
     if ((options.apply || options.reconcileOnly) && summary.counts.people === 0) {
       throw new Error("source contains zero people; refusing a cutover operation against an empty extract");
@@ -438,11 +967,14 @@ async function main() {
       operation: options.reconcileOnly ? "reconcile" : options.apply ? "apply" : "dry-run",
       mode: options.mode,
       runId,
+      sourceShape,
+      sourceSchemaFingerprint: schemaFingerprint,
       sourceWatermark: options.watermark?.toISOString() ?? null,
       nextWatermark: nextWatermark.toISOString(),
       counts: summary.counts,
       checksum: summary.checksum,
       continuityInventory,
+      diagnostics,
       reconciliation,
     };
     console.log(JSON.stringify(report, null, 2));

@@ -51,7 +51,7 @@ task at the bottom of this list.
 | T17 | **Migration `0009`** — Postgres triggers making allergy/problem append-only, vitals and signed H&Ps immutable, and the ledger un-editable. Plus `lib/clinical/history.ts`, which answers Paul's penicillin question directly |
 | T16 | `lib/documents/signing.ts` — one model for consent, contract and attestation; document hashing, the E-SIGN evidence tuple, an audit certificate, and tamper detection on read |
 | T4 | `Client.locationId` documented as the owning clinic (telehealth is a valid *panel*); `billingLocationFor` refuses to guess which clinic a telehealth patient's money belongs to |
-| CI | **`npm run spec` — 221 checks, gating.** No test framework: Node strips types and `scripts/register-alias.mjs` supplies `@/`, so checks run against the same source the app imports. |
+| CI | **`npm run spec` — 228 checks, gating.** No test framework: Node strips types and `scripts/register-alias.mjs` supplies `@/`, so checks run against the same source the app imports. |
 
 ### Still open
 
@@ -256,7 +256,10 @@ regenerate ids. Pick one spelling of Domingez/Dominguez.
 ### T24 · V1 → Apex importer  ▸ 2 days
 Not in anyone's plan and on the critical path: Aug 7 makes Apex the system of record, so the
 existing patients must already be in it. You own the V1 repo, so this can be written against
-a schema you can read today.
+a schema you can read today. **PARTIALLY IMPLEMENTED:** the real production schema is now
+shape-validated; identities and coach/medical note history translate into Apex, while unsafe
+links land in a private review queue. Commercial, messaging, intake/document, fulfillment,
+inventory and audit domains remain on the critical path.
 
 ### T25 · V2 → V1 / MedSource export  ▸ 1 day
 Committed on the call. `lib/orders/medsource.ts` is the model — pure functions over data,

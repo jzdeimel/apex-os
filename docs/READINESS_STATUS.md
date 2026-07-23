@@ -63,7 +63,18 @@ contrast sweep.
   authoritative database. Staff testing as patients requires an explicit
   active-staff-to-synthetic-patient mapping.
 - Authoritative patient/location/staff/appointment schema and controlled V1
-  importer with baseline, delta, dry-run, provenance, and reconciliation.
+  importer with baseline, delta, dry-run, provenance, and reconciliation. The
+  importer now detects and fingerprints the actual production
+  `legacy-public-2026-07` shape, refuses changed/ambiguous schemas, maps 5,002
+  client profiles and the staff directory, and correctly translates Alpha's
+  note-shaped `Appointment` rows plus medical `ProgressNote` rows into Apex
+  consult history rather than calendar reservations.
+- A private migration-exception queue preserves unlinked note payloads and
+  ambiguous demographic/location evidence inside protected Postgres with an
+  integrity digest. It has no application read API. The current read-only
+  rehearsal produces 346 review items: 143 inferred split names, 192 unresolved
+  coach-to-home-clinic assignments, one malformed DOB and 10 notes with no
+  patient link. No source row is silently attached to a guessed patient.
 - The dry run inventories counts for every other V1 clinical, commercial,
   operations, reference, and MedSource table without emitting row contents, so
   the remaining history scope can be accepted or expanded from evidence.
@@ -138,13 +149,12 @@ contrast sweep.
   operations and live notification transports remain launch blockers for those
   features.
 - The importer does not yet move the full historical V1 clinical/financial
-  graph; V1 history must remain read-only-accessible unless that scope is added.
-- A read-only profile of the actual Alpha production database found that it is
-  the legacy `public` schema (46 operational tables), not the newer
-  `clinic`/`medsource` schema the first importer was written against. The source
-  adapter must translate those real tables into Apex concepts before a rehearsal
-  can be accepted. In particular, Alpha `Appointment` rows are consult-note
-  records and must not be mislabeled as Apex calendar bookings.
+  graph. It currently translates identities and 75 linked consult/progress-note
+  records and privately retains the 346 ambiguous items above. Purchases,
+  memberships, messages, intake/consent, documents, routed orders, shipments,
+  lots/inventory events, invoices and audit history still require accepted Apex
+  translations and reconciliation. V1 must remain available until that scope is
+  completed or explicitly accepted as read-only legacy history.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are
   not present in the repository and cannot be inferred.
 - MedSource/UPS fulfillment credentials, shipment webhooks, cold-chain

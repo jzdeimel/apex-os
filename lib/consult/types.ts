@@ -37,7 +37,14 @@ export type ConsultStatus =
   /** Human reviewed and signed. Immutable from here — corrections are addenda. */
   | "Signed";
 
-export type ConsultChannel = "In person" | "Phone" | "Video" | "Messaging" | "Chart review";
+export type ConsultChannel =
+  | "In person"
+  | "Phone"
+  | "Video"
+  | "Messaging"
+  | "Chart review"
+  /** Honest historical value when Alpha did not record a contact method. */
+  | "Unspecified legacy";
 
 /**
  * The clinician-authored record of a Medical encounter.

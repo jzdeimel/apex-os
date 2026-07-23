@@ -12,6 +12,7 @@ import {
   User,
   Clock,
   Timer,
+  CircleHelp,
 } from "lucide-react";
 import type { Consult, ConsultChannel } from "@/lib/consult/types";
 import { consults, unsignedConsultsFor } from "@/lib/mock/consults";
@@ -53,6 +54,7 @@ const CHANNEL_ICON: Record<ConsultChannel, React.ElementType> = {
   Video: Video,
   Messaging: MessageSquare,
   "Chart review": FileText,
+  "Unspecified legacy": CircleHelp,
 };
 
 /**
