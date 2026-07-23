@@ -107,6 +107,14 @@ contrast sweep.
   issue uses integer cents, stable retry ids, fixed totals, immutable lines and
   a role-scoped client Billing tab. Collected cash remains zero until an actual
   processor result is reconciled—an invoice never pretends that a card moved.
+- Authoritative inventory now starts at verified lot receiving and computes
+  stock exclusively from immutable movements. Cycle counts, waste, atomic
+  inter-clinic transfers and patient dispenses preserve lot/expiry evidence;
+  controlled dispenses require a matching active prescription, DEA evidence
+  and current clear PDMP evidence. Recall notices immediately stop matching
+  lots across clinics and expose the affected-patient list only inside the
+  actor's assigned clinics. Seeded charts below the lot ledger are visibly
+  labeled planning fixtures rather than stock-on-hand evidence.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
 - A source-to-evidence acceptance ledger in
@@ -126,6 +134,10 @@ contrast sweep.
   graph; V1 history must remain read-only-accessible unless that scope is added.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are
   not present in the repository and cannot be inferred.
+- MedSource/UPS fulfillment credentials, shipment webhooks, cold-chain
+  temperature evidence, reorder policy and daily vendor reconciliation remain
+  external or unfinished; the authoritative lot ledger does not pretend those
+  integrations are live.
 - Live laboratory vendor interfaces, result-message authentication, report-file
   storage, corrected-result reconciliation, and clinic acceptance are external;
   the current staff UI provides an explicit manual exception path into the same

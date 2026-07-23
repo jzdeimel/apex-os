@@ -51,7 +51,7 @@ task at the bottom of this list.
 | T17 | **Migration `0009`** — Postgres triggers making allergy/problem append-only, vitals and signed H&Ps immutable, and the ledger un-editable. Plus `lib/clinical/history.ts`, which answers Paul's penicillin question directly |
 | T16 | `lib/documents/signing.ts` — one model for consent, contract and attestation; document hashing, the E-SIGN evidence tuple, an audit certificate, and tamper detection on read |
 | T4 | `Client.locationId` documented as the owning clinic (telehealth is a valid *panel*); `billingLocationFor` refuses to guess which clinic a telehealth patient's money belongs to |
-| CI | **`npm run spec` — 190 checks, gating.** No test framework: Node strips types and `scripts/register-alias.mjs` supplies `@/`, so checks run against the same source the app imports. |
+| CI | **`npm run spec` — 208 checks, gating.** No test framework: Node strips types and `scripts/register-alias.mjs` supplies `@/`, so checks run against the same source the app imports. |
 
 ### Still open
 

@@ -476,6 +476,7 @@ export const dispense = pgTable(
     dispensedAt: timestamp("dispensed_at", { withTimezone: true }).notNull(),
     orderId: text("order_id"),
     ledgerId: text("ledger_id"),
+    inventoryLotId: text("inventory_lot_id").references(() => inventoryLot.id),
   },
   (t) => ({
     // The recall query. "Who received lot BPC-2604A?" is one indexed lookup.
@@ -1321,6 +1322,54 @@ export const paymentAttempt = pgTable(
 /* Inventory movement                                                          */
 /* ========================================================================== */
 
+/** Authoritative identity and disposition for each physical lot at a clinic. */
+export const inventoryLot = pgTable(
+  "inventory_lot",
+  {
+    id: text("id").primaryKey(),
+    sku: text("sku").notNull(),
+    lotNumber: text("lot_number").notNull(),
+    locationId: text("location_id").notNull().references(() => clinicLocation.id),
+    unitLabel: text("unit_label").notNull(),
+    expiryOn: text("expiry_on"),
+    unitCostCents: integer("unit_cost_cents"),
+    vendorRef: text("vendor_ref"),
+    requiresPrescription: boolean("requires_prescription").notNull().default(false),
+    controlledSchedule: text("controlled_schedule"),
+    status: text("status").notNull().default("active"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    createdBy: text("created_by").notNull(),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    identityIdx: uniqueIndex("inventory_lot_identity_idx").on(t.locationId, t.sku, t.lotNumber),
+    expiryIdx: index("inventory_lot_expiry_idx").on(t.status, t.expiryOn),
+    recallIdx: index("inventory_lot_recall_idx").on(t.sku, t.lotNumber),
+  }),
+);
+
+/** A recall notice is durable; closing it never silently reactivates stock. */
+export const inventoryRecall = pgTable(
+  "inventory_recall",
+  {
+    id: text("id").primaryKey(),
+    sku: text("sku").notNull(),
+    lotNumber: text("lot_number").notNull(),
+    noticeRef: text("notice_ref").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("open"),
+    initiatedAt: timestamp("initiated_at", { withTimezone: true }).notNull(),
+    initiatedBy: text("initiated_by").notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: text("closed_by"),
+    closeReason: text("close_reason"),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    lotIdx: index("inventory_recall_lot_idx").on(t.sku, t.lotNumber, t.status),
+  }),
+);
+
 /**
  * Inventory as a LEDGER, not a number.
  *
@@ -1346,11 +1395,15 @@ export const inventoryMovement = pgTable(
     staffId: text("staff_id").notNull(),
     at: timestamp("at", { withTimezone: true }).notNull(),
     dispenseId: text("dispense_id"),
+    inventoryLotId: text("inventory_lot_id").references(() => inventoryLot.id),
+    correlationId: text("correlation_id"),
     ledgerId: text("ledger_id"),
   },
   (t) => ({
     stockIdx: index("inv_stock_idx").on(t.sku, t.locationId, t.lotNumber),
     lotIdx: index("inv_lot_idx").on(t.lotNumber),
+    lotMovementIdx: index("inv_lot_movement_idx").on(t.inventoryLotId, t.at),
+    correlationIdx: index("inv_correlation_idx").on(t.correlationId),
   }),
 );
 

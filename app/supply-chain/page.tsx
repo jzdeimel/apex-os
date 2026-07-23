@@ -24,6 +24,7 @@ import {
   ShoppingCart,
   TrendingDown,
 } from "lucide-react";
+import { AuthoritativeInventoryPanel } from "@/components/inventory/AuthoritativeInventoryPanel";
 
 const PO_TONE: Record<string, "neutral" | "info" | "watch" | "optimal"> = {
   Draft: "neutral",
@@ -77,6 +78,13 @@ export default function SupplyChainPage() {
           Most peptides are sourced from <span className="text-gold-300">third-party vendors</span> —
           stock levels, lead times and reorders are tracked against external suppliers.
         </p>
+      </div>
+
+      <AuthoritativeInventoryPanel locationId={locationFilter === "all" ? undefined : locationFilter} />
+
+      <div className="border-t border-ink-800 pt-5">
+        <p className="label-eyebrow">PLANNING FIXTURES</p>
+        <p className="mt-1 text-detail text-ink-500">The charts, vendor cards, purchase orders and suggestions below remain seeded planning aids. They are not stock-on-hand evidence.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -77,6 +77,15 @@ import {
   membershipRequestId,
   membershipTransitionAllowed,
 } from "@/lib/billing/lifecycle";
+import {
+  inventoryDispenseRequestId,
+  inventoryLotRequestId,
+  inventoryRecallRequestId,
+  inventoryRequestId,
+  inventoryTransferRequestId,
+  lotCanLeaveStock,
+  movementSignIsValid,
+} from "@/lib/inventory/lifecycle";
 import { can } from "@/lib/authz/capabilities";
 import { inferAccessProfile } from "@/lib/authz/profiles";
 import { dueAt as escalationDueAt } from "@/lib/escalations/queue";
@@ -896,6 +905,9 @@ eq("an RN cannot prescribe", can(actor("nursing", "Medical"), "write:prescriptio
 eq("an RN may collect specimens", can(actor("nursing", "Medical"), "collect:labs").allowed, true);
 eq("an RN may record results for review", can(actor("nursing", "Medical"), "record:lab-results").allowed, true);
 eq("an RN may report a suspected adverse event", can(actor("nursing", "Medical"), "report:adverse-event").allowed, true);
+eq("an RN may read inventory in assigned clinics", can(actor("nursing", "Medical"), "read:inventory").allowed, true);
+eq("an RN may dispense inventory to an assigned-clinic patient", can(actor("nursing", "Medical"), "dispense:inventory", { providerId: "provider-2", locationId: "raleigh" }).allowed, true);
+eq("an RN cannot dispense outside assigned clinics", can(actor("nursing", "Medical"), "dispense:inventory", { providerId: "provider-2", locationId: "myrtle-beach" }).allowed, false);
 eq("an RN cannot sign or release lab results", can(actor("nursing", "Medical"), "sign:labs").allowed, false);
 eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
@@ -904,6 +916,9 @@ eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowe
 eq("billing may issue invoices", can(actor("billing"), "write:invoice").allowed, true);
 eq("billing may reconcile processor payments", can(actor("billing"), "write:payment").allowed, true);
 eq("a coach cannot alter an invoice", can(actor("coach", "Coach"), "write:invoice").allowed, false);
+eq("fulfillment may receive inventory", can(actor("fulfillment"), "write:inventory").allowed, true);
+eq("fulfillment may open a recall", can(actor("fulfillment"), "write:recall").allowed, true);
+eq("a coach cannot change inventory", can(actor("coach", "Coach"), "write:inventory").allowed, false);
 eq("an unassigned profile has no authority", can(actor("unassigned"), "read:schedule").allowed, false);
 eq(
   "an ambiguous Nurse title fails closed",
@@ -921,6 +936,21 @@ eq("a retried invoice request keeps one opaque id", billingInvoiceId, invoiceReq
 eq("an invoice number is stable across a retry", invoiceNumber("client-1", "request_12345678"), invoiceNumber("client-1", "request_12345678"));
 eq("invoice math uses integer cents", invoiceTotals({ lines: [{ description: "Membership", quantity: 2, unitPriceCents: 1250 }], discountCents: 250, discountReason: "Approved courtesy adjustment.", taxCents: 100 }), { ok: true, subtotalCents: 2500, discountCents: 250, taxCents: 100, totalCents: 2350, hsaEligibleCents: 0 });
 eq("a discount without a reason is refused", invoiceTotals({ lines: [{ description: "Visit", quantity: 1, unitPriceCents: 1000 }], discountCents: 100 }).ok, false);
+
+section("Authoritative inventory lifecycle");
+const inventoryLotId = inventoryLotRequestId("raleigh", "TEST-CYP", "LOT-2026-A");
+eq("a lot identity is stable", inventoryLotId, inventoryLotRequestId("raleigh", "TEST-CYP", "LOT-2026-A"));
+eq("lot identities do not expose the SKU", inventoryLotId.includes("TEST-CYP"), false);
+eq("receipt request ids are stable", inventoryRequestId(inventoryLotId, "request_12345678"), inventoryRequestId(inventoryLotId, "request_12345678"));
+eq("transfer request ids are stable", inventoryTransferRequestId(inventoryLotId, "southern-pines", "request_12345678"), inventoryTransferRequestId(inventoryLotId, "southern-pines", "request_12345678"));
+eq("dispense request ids are stable", inventoryDispenseRequestId("client-1", inventoryLotId, "request_12345678"), inventoryDispenseRequestId("client-1", inventoryLotId, "request_12345678"));
+eq("recall request ids are stable", inventoryRecallRequestId("TEST-CYP", "LOT-2026-A", "request_12345678"), inventoryRecallRequestId("TEST-CYP", "LOT-2026-A", "request_12345678"));
+eq("receipts must add stock", movementSignIsValid("receive", 10), true);
+eq("a receipt cannot subtract stock", movementSignIsValid("receive", -10), false);
+eq("a dispense must subtract stock", movementSignIsValid("dispense", -1), true);
+eq("an active unexpired lot may leave stock", lotCanLeaveStock("active", "2026-08-01", "2026-07-22T12:00:00.000Z").ok, true);
+eq("a recalled lot cannot leave stock", lotCanLeaveStock("recalled", "2026-08-01", "2026-07-22T12:00:00.000Z").ok, false);
+eq("an expired lot cannot leave stock", lotCanLeaveStock("active", "2026-07-21", "2026-07-22T12:00:00.000Z").ok, false);
 
 section("Payment fail-safes");
 const clover = new CloverPaymentPort({

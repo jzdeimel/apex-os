@@ -77,6 +77,8 @@ export type Capability =
   | "write:payment"
   | "write:refund"
   | "write:inventory"
+  | "dispense:inventory"
+  | "write:recall"
   | "write:fulfillment"
   | "write:crm"
   | "write:communications"
@@ -117,6 +119,7 @@ export type Capability =
 const GRANTS: Record<AccessProfile, Capability[]> = {
   provider: [
     "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages",
+    "read:inventory", "dispense:inventory",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
     "read:schedule", "write:schedule",
@@ -128,10 +131,11 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "triage:escalation",
   ],
   nursing: [
-    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients",
+    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients", "read:inventory",
     "write:consult", "write:clinical-history", "write:contact", "write:task",
     "report:adverse-event",
     "collect:labs", "record:lab-results",
+    "dispense:inventory",
   ],
   coach: [
     // Full read on their own book. This is the deliberate inversion.
@@ -154,7 +158,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   fulfillment: [
     "read:directory", "read:location-clients", "read:orders", "read:inventory",
-    "write:inventory", "write:fulfillment",
+    "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment",
   ],
   marketing: [
     "read:crm", "read:business-metrics", "write:crm", "write:communications",
@@ -164,7 +168,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "write:contact", "write:demographics", "write:task",
     "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
-    "write:inventory", "write:fulfillment", "write:crm", "write:quality",
+    "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm", "write:quality",
     "read:business-metrics",
     "admin:locations", "admin:calendars", "admin:export", "admin:break-glass",
   ],
@@ -178,7 +182,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:directory", "read:financial", "read:ledger", "read:all-clients",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "read:business-metrics", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
-    "write:refund", "write:inventory", "write:fulfillment", "write:crm",
+    "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",
     "write:communications", "write:quality", "admin:roles", "admin:locations",
     "admin:calendars", "admin:export", "admin:break-glass",
   ],
@@ -267,6 +271,7 @@ export function can(
         "read:orders",
         "read:inventory",
         "write:inventory",
+        "dispense:inventory",
         "write:fulfillment",
         "collect:labs",
         "record:lab-results",
