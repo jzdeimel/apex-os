@@ -2022,7 +2022,11 @@ interface Reconciliation {
  * for an extra live-domain projection.
  */
 export function isRetainedArchiveBinding(entityType: string) {
-  return entityType === "source-record" || entityType === "binary-asset";
+  return (
+    entityType === "source-record" ||
+    entityType === "binary-asset" ||
+    entityType === "migration-exception"
+  );
 }
 
 async function reconcile(

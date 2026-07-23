@@ -701,6 +701,11 @@ section("V1 cutover migration");
 eq("a deleted Alpha raw record remains retained evidence", isRetainedArchiveBinding("source-record"), true);
 eq("a deleted Alpha binary remains retained evidence", isRetainedArchiveBinding("binary-asset"), true);
 eq(
+  "a resolved migration exception remains retained audit evidence",
+  isRetainedArchiveBinding("migration-exception"),
+  true,
+);
+eq(
   "a deleted translated contact is still an unexpected extra",
   isRetainedArchiveBinding("contact-entry"),
   false,
