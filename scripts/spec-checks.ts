@@ -742,6 +742,16 @@ const mappedInactiveLegacyProvider = mapStaff({
   locationTargetId: "raleigh",
   createdAt: "2026-01-01T00:00:00.000Z",
 });
+eq(
+  "an imported Alpha staff row cannot collide with an Apex login email",
+  mappedInactiveLegacyProvider.data.email.endsWith("@migration.invalid"),
+  true,
+);
+eq(
+  "an imported Alpha staff row does not retain its routable source email",
+  mappedInactiveLegacyProvider.data.email === "historical-provider@migration.invalid",
+  false,
+);
 eq("an inactive Alpha identity cannot approve in Apex", mappedInactiveLegacyProvider.data.can_approve, false);
 eq("an inactive Alpha identity stays out of Apex scheduling", mappedInactiveLegacyProvider.data.exclude_from_scheduling, true);
 

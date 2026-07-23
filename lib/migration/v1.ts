@@ -401,6 +401,11 @@ export function mapLocation(row: V1LocationRow) {
 
 export function mapStaff(row: V1StaffRow) {
   const id = targetId("staff", row.id);
+  // Alpha staff rows are historical authorship/assignment evidence, not Apex
+  // login identities. Give every imported row a stable, non-routable address
+  // so duplicate/retired Alpha emails cannot collide with approved Apex staff
+  // or accidentally become an authentication link.
+  const migrationEmail = `alpha-v1-${sha256({ sourceId: row.id }).slice(0, 24)}@migration.invalid`;
   const roster = ROSTER.find(
     (entry) => normalizedName(`${entry.firstName}${entry.lastName}`) === normalizedName(row.name),
   );
@@ -428,7 +433,7 @@ export function mapStaff(row: V1StaffRow) {
   });
   return mapped("staff", row.id, row.createdAt, {
     id,
-    email: row.email.trim().toLowerCase(),
+    email: migrationEmail,
     name: row.name,
     department: roster?.department ?? (clinicalRole === "Medical" ? "Medical" : clinicalRole === "Coach" ? "Coaching" : null),
     title: row.title ?? roster?.notes ?? null,
