@@ -2,17 +2,24 @@
 
 ## Current boundary
 
-Calling infrastructure is isolated to resource group `apex-nonprod`:
+The Apex application, Key Vault and deployment boundary are isolated to
+resource group `apex-nonprod`:
 
-- Communication Services resource: `acs-apex-np-fcfde`
+- Apex-owned Communication Services resource: `acs-apex-np-fcfde`
 - Container App: `ca-apex-dev`
 - Key Vault: `kv-apex-np-fcfde`
 - Secret reference: `acs-connection-string`
 
-The connection string is resolved by Azure during the Bicep deployment and
-written directly to Key Vault. It is not a repository value, image layer,
-deployment parameter, CLI output, or browser credential. Alpha production is
-not referenced by this calling path.
+For the pre-cutover dev rehearsal, Apex uses the already-provisioned Alpha dev
+ACS account `rg-alphah-dev/acs-alphah-dev` and its toll-free caller ID
+`+18337939961`. The credential is copied server-side into the Apex nonprod
+Key Vault; it is not a repository value, image layer, deployment parameter, or
+browser credential. Neither Alpha application is changed, and Alpha production
+is not referenced by this calling path.
+
+Routine app deployments treat `acs-connection-string` as an existing secret
+and preserve the current `ACS_CALLER_ID`. Replacing either calling identity is
+an explicit calling-bootstrap action, not an incidental image deployment.
 
 ## Implemented
 
@@ -26,13 +33,15 @@ not referenced by this calling path.
   committed with hash-chained audit witnesses.
 - No audio is recorded.
 
-## Required before a real PSTN call
+## Current PSTN configuration
 
-`ACS_CALLER_ID` is intentionally empty. A public ACS phone number must be
-selected and purchased, then passed to `infra/app.bicep` as an E.164 value.
-Apex will continue to refuse dialing until that value exists.
+`ACS_CALLER_ID` is `+18337939961` in Apex nonprod and belongs to the shared
+Alpha dev ACS account described above. Apex continues to fail closed if the
+caller ID is missing, malformed, or does not belong to the configured ACS
+account.
 
-The remaining choice is operational:
+Before a dedicated Apex production calling account replaces this pre-cutover
+configuration, the remaining choice is operational:
 
 - A geographic/local number is appropriate for clinic voice calling.
 - A toll-free number supports the planned voice plus SMS path, but SMS still

@@ -9,6 +9,10 @@ param(
 
   [string]$WebClientId,
 
+  [string]$AcsCallerId = '',
+
+  [switch]$BootstrapAlphaDevCalling,
+
   [string]$ExpectedSubscriptionId = 'fcfde7e1-0df9-405c-99a5-a64979187661'
 )
 
@@ -152,6 +156,17 @@ $existingAppId = Invoke-AzCliOptional containerapp show `
   --query id `
   --output tsv
 
+if ([string]::IsNullOrWhiteSpace($AcsCallerId) -and -not [string]::IsNullOrWhiteSpace($existingAppId)) {
+  $AcsCallerId = (Invoke-AzCli containerapp show `
+    --resource-group $resourceGroupName `
+    --name $appName `
+    --query "properties.template.containers[0].env[?name=='ACS_CALLER_ID'].value | [0]" `
+    --output tsv).Trim()
+}
+if (-not [string]::IsNullOrWhiteSpace($AcsCallerId) -and $AcsCallerId -notmatch '^\+[1-9]\d{7,14}$') {
+  throw 'The ACS caller ID must be an E.164 phone number.'
+}
+
 if ([string]::IsNullOrWhiteSpace($clientSecret)) {
   if (-not [string]::IsNullOrWhiteSpace($existingAppId)) {
     # Routine deployers should not need secret-read permission. Verify the
@@ -189,6 +204,8 @@ try {
     "image=$Image"
     "entraClientId=$WebClientId"
     "tenantId=$($account.tenantId)"
+    "acsCallerId=$AcsCallerId"
+    "bootstrapAlphaDevCalling=$($BootstrapAlphaDevCalling.IsPresent.ToString().ToLowerInvariant())"
   )
   if (-not [string]::IsNullOrWhiteSpace($clientSecret)) {
     $parameters += "entraClientSecret=$clientSecret"

@@ -19,6 +19,8 @@ param tenantId string = '1e7ed424-6240-48b5-a836-9db1c38eb00b'
 param location string = 'eastus2'
 @description('Purchased ACS caller-ID number in E.164. Empty until number provisioning is approved.')
 param acsCallerId string = ''
+@description('Explicit one-time nonprod bootstrap from the existing Alpha dev ACS account. Routine releases keep this false.')
+param bootstrapAlphaDevCalling bool = false
 
 var appName = 'ca-apex-dev'
 var environmentName = 'cae-apex-nonprod'
@@ -67,19 +69,37 @@ resource communicationService 'Microsoft.Communication/communicationServices@202
   }
 }
 
-// Azure resolves the key at deployment time and writes it straight to the
-// nonprod vault. The value is never a parameter, output, CLI argument, image
-// layer, or repository value.
-resource communicationConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource alphaDevCommunicationService 'Microsoft.Communication/communicationServices@2023-03-31' existing = {
+  scope: resourceGroup('rg-alphah-dev')
+  name: 'acs-alphah-dev'
+}
+
+// Calling credentials are bootstrapped into the nonprod vault separately from
+// routine application releases. Treat the secret as existing so an image
+// deployment cannot silently replace a working PSTN account or rotate Apex
+// back to a Communication Services resource that owns no phone number.
+resource communicationConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+  parent: keyVault
+  name: communicationConnectionSecretName
+}
+
+// The opt-in bootstrap resolves the Alpha dev key entirely inside Azure
+// Resource Manager and writes it directly to the Apex nonprod vault. The
+// credential never becomes a deployment parameter or output.
+resource communicationConnectionSecretBootstrap 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (bootstrapAlphaDevCalling) {
   parent: keyVault
   name: communicationConnectionSecretName
   properties: {
-    value: communicationService.listKeys().primaryConnectionString
+    value: alphaDevCommunicationService.listKeys().primaryConnectionString
     attributes: {
       enabled: true
     }
   }
 }
+
+var communicationConnectionSecretUrl = bootstrapAlphaDevCalling
+  ? communicationConnectionSecretBootstrap!.properties.secretUri
+  : communicationConnectionSecret.properties.secretUri
 
 // Secret creation/rotation is a bootstrap-only operation. Routine app
 // deployments use the existing versionless Key Vault reference and therefore
@@ -145,7 +165,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         }
         {
           name: 'acs-connection-string'
-          keyVaultUrl: communicationConnectionSecret.properties.secretUri
+          keyVaultUrl: communicationConnectionSecretUrl
           identity: runtimeIdentity.id
         }
       ]
