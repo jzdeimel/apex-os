@@ -10,6 +10,8 @@ export type V1EntityType =
   | "person"
   | "appointment"
   | "consult"
+  | "sale"
+  | "sale-line"
   | "migration-exception";
 
 type Dateish = Date | string | null;
@@ -122,12 +124,42 @@ export interface V1MigrationExceptionRow {
   sourceUpdatedAt: Dateish;
 }
 
+export interface V1SaleRow {
+  id: string;
+  personId: string;
+  externalRef: string;
+  orderNumber: string | null;
+  occurredAt: Dateish;
+  locationLabel: string | null;
+  locationTargetId: string | null;
+  coachId: string | null;
+  total: number | string;
+  sourceItemCount: number;
+  actualItemCount: number;
+  legacy: boolean;
+  createdAt: Dateish;
+}
+
+export interface V1SaleLineRow {
+  id: string;
+  saleId: string;
+  lineIndex: number;
+  sku: string | null;
+  description: string;
+  quantity: number | string;
+  unitPrice: number | string;
+  total: number | string;
+  returned: boolean;
+}
+
 export interface V1Extract {
   locations: V1LocationRow[];
   staff: V1StaffRow[];
   people: V1PersonRow[];
   appointments: V1AppointmentRow[];
   consults: V1ConsultRow[];
+  sales: V1SaleRow[];
+  saleLines: V1SaleLineRow[];
   exceptions: V1MigrationExceptionRow[];
 }
 
@@ -278,6 +310,22 @@ function mapped<T extends Record<string, unknown>>(
     checksum: sha256(data),
     data,
   };
+}
+
+/** Convert source decimal dollars to signed integer cents without rounding loss. */
+export function exactCents(value: number | string): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  const cents = Math.round(numeric * 100);
+  if (!Number.isFinite(numeric) || !Number.isSafeInteger(cents) || Math.abs(numeric * 100 - cents) > 0.000001) {
+    throw new Error("V1 money value cannot be represented exactly in integer cents");
+  }
+  return cents;
+}
+
+function exactInteger(value: number | string, field: string): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(numeric)) throw new Error(`V1 ${field} is not an integer`);
+  return numeric;
 }
 
 export function mapLocation(row: V1LocationRow) {
@@ -465,6 +513,46 @@ export function mapMigrationException(row: V1MigrationExceptionRow) {
   });
 }
 
+export function mapSale(row: V1SaleRow) {
+  const id = targetId("sale", row.id);
+  const totalCents = exactCents(row.total);
+  return mapped("sale", row.id, row.createdAt, {
+    id,
+    client_id: targetId("person", row.personId),
+    kind: totalCents < 0 ? "return" : totalCents > 0 ? "sale" : "zero-value",
+    external_ref: row.externalRef,
+    order_number: row.orderNumber,
+    occurred_at: asDate(row.occurredAt) ?? asDate(row.createdAt) ?? new Date(0),
+    location_id: row.locationTargetId,
+    source_location_label: row.locationLabel,
+    coach_id: row.coachId ? targetId("staff", row.coachId) : null,
+    total_cents: totalCents,
+    source_item_count: exactInteger(row.sourceItemCount, "sale item count"),
+    actual_item_count: exactInteger(row.actualItemCount, "sale line count"),
+    legacy: row.legacy,
+    source_system: V1_SOURCE_SYSTEM,
+    source_id: row.id,
+    source_updated_at: asDate(row.createdAt),
+    created_at: asDate(row.createdAt) ?? new Date(0),
+  });
+}
+
+export function mapSaleLine(row: V1SaleLineRow) {
+  return mapped("sale-line", row.id, null, {
+    id: targetId("sale-line", row.id),
+    sale_id: targetId("sale", row.saleId),
+    line_index: exactInteger(row.lineIndex, "sale line index"),
+    sku: row.sku?.trim() || null,
+    description: row.description.trim() || "(blank description in Alpha OS)",
+    quantity: exactInteger(row.quantity, "sale quantity"),
+    unit_price_cents: exactCents(row.unitPrice),
+    total_cents: exactCents(row.total),
+    returned: row.returned,
+    source_system: V1_SOURCE_SYSTEM,
+    source_id: row.id,
+  });
+}
+
 export function mapExtract(extract: V1Extract) {
   return {
     locations: extract.locations.map(mapLocation),
@@ -472,6 +560,8 @@ export function mapExtract(extract: V1Extract) {
     people: extract.people.map(mapPerson),
     appointments: extract.appointments.map(mapAppointment),
     consults: extract.consults.map(mapConsult),
+    sales: extract.sales.map(mapSale),
+    saleLines: extract.saleLines.map(mapSaleLine),
     exceptions: extract.exceptions.map(mapMigrationException),
   };
 }
@@ -484,6 +574,8 @@ export function extractSummary(extract: V1Extract) {
     people: mappedRows.people.length,
     appointments: mappedRows.appointments.length,
     consults: mappedRows.consults.length,
+    sales: mappedRows.sales.length,
+    saleLines: mappedRows.saleLines.length,
     exceptions: mappedRows.exceptions.length,
   };
   const rowDigests = Object.values(mappedRows)

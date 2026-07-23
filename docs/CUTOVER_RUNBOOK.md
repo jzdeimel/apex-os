@@ -54,7 +54,11 @@ production traffic decision.
   production legacy schema, validates its exact column fingerprint, imports
   clients/staff, translates note-shaped Alpha `Appointment` and `ProgressNote`
   rows into Apex consult history, and creates zero Apex calendar appointments
-  from those rows. Ambiguous rows are retained in a private exception queue.
+  from those rows. It also imports client-linked historical purchases as an
+  immutable sales-and-lines ledger with exact signed-cent reconciliation; it
+  preserves returns and zero-value activity without asserting that a new Apex
+  invoice or card charge occurred. Ambiguous rows and source inconsistencies
+  are retained in a private exception queue.
 - A separately published migration image and dormant manual Container Apps job
   inside `apex-nonprod`. The deployed template hardcodes
   `MIGRATION_AUTHORIZED=false`; source and target URLs are Key Vault references.
@@ -138,9 +142,10 @@ npm run migrate:v1 -- --apply --mode=baseline --initiated-by=<operator-id> --con
 npm run migrate:v1 -- --apply --mode=delta --watermark=<prior-nextWatermark> --initiated-by=<operator-id> --confirm-target=<approved-target-label>
 ```
 
-Staff and canonical source-derived locations are fully rescanned on every run
-because legacy Alpha `User` has no `updatedAt`. Clients, consult-note rows,
-progress notes and migration exceptions use the bounded interval
+Staff, canonical source-derived locations and the historical purchase ledger
+are fully rescanned on every run because legacy Alpha `User` and `Purchase`
+have no `updatedAt`; immutable checksums expose any changed commercial fact.
+Clients, consult-note rows, progress notes and their migration exceptions use the bounded interval
 `updatedAt > priorWatermark AND updatedAt <= nextWatermark`, so concurrent Alpha
 writes are picked up by the next delta rather than missed.
 

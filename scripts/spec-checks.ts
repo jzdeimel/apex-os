@@ -49,6 +49,7 @@ import {
 } from "@/lib/documents/signing";
 import {
   canonicalJson,
+  exactCents,
   extractSummary,
   mapAppointment,
   mapConsult,
@@ -673,6 +674,8 @@ eq(
   canonicalJson({ z: 1, a: { y: 2, b: 3 } }),
   canonicalJson({ a: { b: 3, y: 2 }, z: 1 }),
 );
+eq("V1 dollar values become exact integer cents", exactCents("99.25"), 9925);
+eq("V1 returns retain a signed cent amount", exactCents(-12.5), -1250);
 
 const v1Person = {
   id: "person-sensitive-id",
@@ -768,6 +771,8 @@ const migrationSummary = extractSummary({
       updatedAt: "2026-07-01T14:30:00.000Z",
     },
   ],
+  sales: [],
+  saleLines: [],
   exceptions: [],
 });
 const publicReport = JSON.stringify({ counts: migrationSummary.counts, checksum: migrationSummary.checksum });

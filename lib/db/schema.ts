@@ -1165,6 +1165,65 @@ export const contactEntry = pgTable(
 /* ========================================================================== */
 
 /**
+ * Posted historical sale/return facts imported from Alpha/Mindbody.
+ *
+ * This is deliberately not an `invoice`: Alpha Purchase rows include returns,
+ * zero-value activity and line totals that encode source discounts. Recasting
+ * those as newly issued Apex invoices would manufacture billing semantics. The
+ * signed cent amounts here preserve the commercial ledger exactly while new
+ * Apex billing continues to use invoice/payment tables.
+ */
+export const sale = pgTable(
+  "sale",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    kind: text("kind").notNull(), // sale | return | zero-value
+    externalRef: text("external_ref").notNull(),
+    orderNumber: text("order_number"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    locationId: text("location_id").references(() => clinicLocation.id),
+    sourceLocationLabel: text("source_location_label"),
+    coachId: text("coach_id"),
+    totalCents: integer("total_cents").notNull(), // signed; returns are negative
+    sourceItemCount: integer("source_item_count").notNull(),
+    actualItemCount: integer("actual_item_count").notNull(),
+    legacy: boolean("legacy").notNull().default(true),
+    sourceSystem: text("source_system").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clientIdx: index("sale_client_idx").on(t.clientId, t.occurredAt),
+    sourceIdx: uniqueIndex("sale_source_idx").on(t.sourceSystem, t.sourceId),
+    externalIdx: index("sale_external_idx").on(t.externalRef),
+  }),
+);
+
+/** Immutable source line. Quantity, unit price and total are retained separately. */
+export const saleLine = pgTable(
+  "sale_line",
+  {
+    id: text("id").primaryKey(),
+    saleId: text("sale_id").notNull().references(() => sale.id),
+    lineIndex: integer("line_index").notNull(),
+    sku: text("sku"),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    totalCents: integer("total_cents").notNull(),
+    returned: boolean("returned").notNull().default(false),
+    sourceSystem: text("source_system").notNull(),
+    sourceId: text("source_id").notNull(),
+  },
+  (t) => ({
+    saleIdx: uniqueIndex("sale_line_index_idx").on(t.saleId, t.lineIndex),
+    sourceIdx: uniqueIndex("sale_line_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
+/**
  * Payment methods — processor-agnostic by construction.
  *
  * NO PAN, NO CVV, NO EXPIRY BEYOND DISPLAY. Only a processor token and the

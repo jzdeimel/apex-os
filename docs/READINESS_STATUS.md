@@ -69,12 +69,19 @@ contrast sweep.
   client profiles and the staff directory, and correctly translates Alpha's
   note-shaped `Appointment` rows plus medical `ProgressNote` rows into Apex
   consult history rather than calendar reservations.
+- Historical Alpha/Mindbody purchases now translate into an immutable Apex
+  sales ledger: the current protected rehearsal maps 54,864 client-linked
+  sales and 238,645 lines, preserves returns, zero-value activity, source line
+  totals, location labels and coach attribution, and proves every imported
+  sale total equals its exact signed-cent line sum. It does not misrepresent
+  the historical transactions as newly issued Apex invoices or card charges.
 - A private migration-exception queue preserves unlinked note payloads and
   ambiguous demographic/location evidence inside protected Postgres with an
   integrity digest. It has no application read API. The current read-only
-  rehearsal produces 346 review items: 143 inferred split names, 192 unresolved
-  coach-to-home-clinic assignments, one malformed DOB and 10 notes with no
-  patient link. No source row is silently attached to a guessed patient.
+  rehearsal produces 565 review items: 143 inferred split names, 192 unresolved
+  coach-to-home-clinic assignments, one malformed DOB, 10 notes with no patient
+  link, 10 purchases with no safe patient link, and 209 legacy item-count
+  mismatches. No source row is silently attached to a guessed patient.
 - The dry run inventories counts for every other V1 clinical, commercial,
   operations, reference, and MedSource table without emitting row contents, so
   the remaining history scope can be accepted or expanded from evidence.
@@ -149,12 +156,12 @@ contrast sweep.
   operations and live notification transports remain launch blockers for those
   features.
 - The importer does not yet move the full historical V1 clinical/financial
-  graph. It currently translates identities and 75 linked consult/progress-note
-  records and privately retains the 346 ambiguous items above. Purchases,
-  memberships, messages, intake/consent, documents, routed orders, shipments,
-  lots/inventory events, invoices and audit history still require accepted Apex
-  translations and reconciliation. V1 must remain available until that scope is
-  completed or explicitly accepted as read-only legacy history.
+  graph. It currently translates identities, 75 linked consult/progress-note
+  records, 54,864 sales with 238,645 lines, and privately retains the 565 review
+  items above. Memberships, messages, intake/consent, documents, routed orders,
+  shipments, lots/inventory events, invoices and audit history still require
+  accepted Apex translations and reconciliation. V1 must remain available until
+  that scope is completed or explicitly accepted as read-only legacy history.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are
   not present in the repository and cannot be inferred.
 - MedSource/UPS fulfillment credentials, shipment webhooks, cold-chain

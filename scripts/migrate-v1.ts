@@ -3,6 +3,7 @@ import postgres, { type Sql, type TransactionSql } from "postgres";
 import {
   V1_SOURCE_SYSTEM,
   bindingId,
+  exactCents,
   extractSummary,
   sameDatabase,
   sha256,
@@ -13,6 +14,8 @@ import {
   type V1LocationRow,
   type V1MigrationExceptionRow,
   type V1PersonRow,
+  type V1SaleLineRow,
+  type V1SaleRow,
   type V1StaffRow,
 } from "@/lib/migration/v1";
 import { ROSTER } from "@/lib/mock/roster";
@@ -46,6 +49,9 @@ interface ExtractDiagnostics {
   progressNotesExcludedMissingClient: number;
   progressNotesExcludedMissingAuthor: number;
   progressNotesWithSynthesizedAuthor: number;
+  purchasesExcludedMissingClient: number;
+  purchaseItemCountMismatches: number;
+  purchaseLineMathMismatches: number;
 }
 
 function parseDate(value: string, flag: string): Date {
@@ -98,6 +104,7 @@ function connection(url: string) {
 const LEGACY_COLUMNS = {
   Appointment: ["id", "clientId", "coachId", "subType", "status", "startTime", "contactMethod", "smmDelta", "pbfDelta", "followUpDate", "noteBody", "previousNoteId", "finalizedAt", "createdAt", "updatedAt"],
   ClientProfile: ["id", "nameKey", "name", "email", "phone", "assignedCoach", "createdAt", "updatedAt", "address1", "address2", "city", "state", "zip", "mindbodyId", "firstName", "lastName", "dob", "gender", "isProspect", "mbActive", "allergies", "origin", "outreachStage", "lastTouchAt", "lastTouchType", "lastConnectAt", "attemptCount", "outreachMovedAt", "lastInboundAt", "lastReadAt", "ghlContactId", "leadSource", "inboxPinned", "inboxMuted", "inboxUnread", "inboxStarred", "inboxHidden"],
+  Purchase: ["id", "mbSaleId", "clientMindbodyId", "clientNameKey", "saleDate", "location", "coach", "total", "itemCount", "items", "legacy", "createdAt", "orderNo"],
   User: ["id", "name", "email", "passwordHash", "role", "birthday", "phone", "avatarUrl", "createdAt", "gender", "failedLogins", "lockoutUntil", "googleRefreshToken", "gmailConnectedAt", "location", "ghlUserId"],
 } as const;
 
@@ -206,7 +213,7 @@ async function validateLegacyShape(tx: TransactionSql): Promise<string> {
   const rows = await tx<{ table: string; column: string; type: string; position: number }[]>`
     select table_name as table, column_name as column, data_type as type, ordinal_position as position
     from information_schema.columns
-    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'User')
+    where table_schema = 'public' and table_name in ('Appointment', 'ClientProfile', 'Purchase', 'User')
     order by table_name, ordinal_position
   `;
   for (const [table, expected] of Object.entries(LEGACY_COLUMNS)) {
@@ -268,12 +275,15 @@ async function extractUnified(
         from clinic."Appointment" where "updatedAt" > ${from} and "updatedAt" <= ${nextWatermark} order by id
       `) as unknown as V1AppointmentRow[];
   return {
-    extract: { locations, staff, people, appointments, consults: [], exceptions: [] } satisfies V1Extract,
+    extract: {
+      locations, staff, people, appointments, consults: [], sales: [], saleLines: [], exceptions: [],
+    } satisfies V1Extract,
     diagnostics: {
       unmatchedAssignedCoaches: 0, unresolvedHomeLocations: 0, namesParsedFromDisplay: 0,
       invalidDobValues: 0, consultsExcludedMissingClient: 0, consultsExcludedMissingAuthor: 0,
       progressNotesExcludedMissingClient: 0, progressNotesExcludedMissingAuthor: 0,
       progressNotesWithSynthesizedAuthor: 0,
+      purchasesExcludedMissingClient: 0, purchaseItemCountMismatches: 0, purchaseLineMathMismatches: 0,
     } satisfies ExtractDiagnostics,
     continuityInventory: await unifiedContinuityInventory(tx),
     schemaFingerprint: null,
@@ -307,6 +317,15 @@ async function extractLegacy(
     status: string; startTime: Date; contactMethod: string | null; noteBody: string;
     previousNoteId: string | null; finalizedAt: Date | null; createdAt: Date; updatedAt: Date;
     missingClient: boolean; missingAuthor: boolean;
+  }
+  interface LegacyPurchaseItem {
+    desc: string; qty: number; returned: boolean; sku: string | null;
+    total: number; unitPrice: number;
+  }
+  interface LegacyPurchase {
+    id: string; personId: string; coachId: string | null; mbSaleId: string;
+    orderNo: string | null; saleDate: Date; location: string; locationTargetId: string | null;
+    total: number; itemCount: number; items: LegacyPurchaseItem[]; legacy: boolean; createdAt: Date;
   }
   const schemaFingerprint = await validateLegacyShape(tx);
   const sourceStaff = (await tx`
@@ -418,6 +437,86 @@ async function extractLegacy(
       createdAt: row.createdAt, updatedAt: row.updatedAt,
     };
   });
+  // Purchase has no updatedAt. Rescan the full bounded ledger on every run so
+  // a correction to an older source row is detected by the immutable binding
+  // checksum instead of falling outside a createdAt-only delta.
+  const rawPurchases = (await tx`
+    select 'Purchase:' || p.id as id, person.id as "personId", coach.id as "coachId",
+           p."mbSaleId", p."orderNo", p."saleDate", p.location,
+           case when upper(trim(p.location)) = 'SC' then 'myrtle-beach' else null end as "locationTargetId",
+           p.total, p."itemCount", p.items, p.legacy, p."createdAt"
+    from public."Purchase" p
+    join lateral (
+      select c.id from public."ClientProfile" c
+      where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
+         or (p."clientNameKey" is not null and c."nameKey" = p."clientNameKey")
+      order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
+    ) person on true
+    left join lateral (
+      select u.id from public."User" u
+      where regexp_replace(lower(u.name), '[^a-z0-9]', '', 'g') =
+            regexp_replace(lower(coalesce(p.coach, '')), '[^a-z0-9]', '', 'g')
+      order by u.id limit 1
+    ) coach on true
+    where p."createdAt" <= ${nextWatermark} order by p.id
+  `) as unknown as LegacyPurchase[];
+  const sales: V1SaleRow[] = [];
+  const saleLines: V1SaleLineRow[] = [];
+  let purchaseItemCountMismatches = 0;
+  let purchaseLineMathMismatches = 0;
+  for (const row of rawPurchases) {
+    const sourceLineTotalCents = row.items.reduce((sum, item) => sum + exactCents(item.total), 0);
+    if (sourceLineTotalCents !== exactCents(row.total)) {
+      throw new Error("Alpha Purchase total does not equal its retained source lines; migration refused");
+    }
+    if (row.itemCount !== row.items.length) {
+      purchaseItemCountMismatches++;
+      exceptions.push({
+        id: `${row.id}:item-count`,
+        sourceEntityType: "Purchase",
+        reasonCode: "item-count-mismatch",
+        payload: { sourceItemCount: row.itemCount, actualItemCount: row.items.length },
+        sourceUpdatedAt: row.createdAt,
+      });
+    }
+    sales.push({
+      id: row.id, personId: row.personId, externalRef: row.mbSaleId,
+      orderNumber: row.orderNo, occurredAt: row.saleDate, locationLabel: row.location,
+      locationTargetId: row.locationTargetId, coachId: row.coachId, total: row.total,
+      sourceItemCount: row.itemCount, actualItemCount: row.items.length,
+      legacy: row.legacy, createdAt: row.createdAt,
+    });
+    row.items.forEach((item, lineIndex) => {
+      if (Math.abs(Number(item.total) - Number(item.qty) * Number(item.unitPrice)) > 0.009) {
+        purchaseLineMathMismatches++;
+      }
+      saleLines.push({
+        id: `${row.id}:line:${lineIndex}`, saleId: row.id, lineIndex,
+        sku: item.sku, description: item.desc, quantity: item.qty,
+        unitPrice: item.unitPrice, total: item.total, returned: item.returned,
+      });
+    });
+  }
+  const unresolvedPurchases = (await tx`
+    select 'Purchase:' || p.id as id, p."clientMindbodyId", p."clientNameKey", p."mbSaleId",
+           p."orderNo", p."saleDate", p.location, p.coach, p.total, p."itemCount", p.items,
+           p.legacy, p."createdAt"
+    from public."Purchase" p
+    left join lateral (
+      select c.id from public."ClientProfile" c
+      where (p."clientMindbodyId" is not null and c."mindbodyId" = p."clientMindbodyId")
+         or (p."clientNameKey" is not null and c."nameKey" = p."clientNameKey")
+      order by case when c."mindbodyId" = p."clientMindbodyId" then 0 else 1 end, c.id limit 1
+    ) person on true
+    where person.id is null and p."createdAt" <= ${nextWatermark} order by p.id
+  `) as unknown as Array<Record<string, unknown> & { id: string; createdAt: Date }>;
+  for (const row of unresolvedPurchases) {
+    const { id, createdAt, ...payload } = row;
+    exceptions.push({
+      id: `${id}:missing-client`, sourceEntityType: "Purchase",
+      reasonCode: "missing-client", payload, sourceUpdatedAt: createdAt,
+    });
+  }
   const coachConsults = (forceFull || !from
     ? await tx`
         select 'Appointment:' || a.id as id, a."clientId" as "personId", a."coachId" as "authorId",
@@ -620,7 +719,8 @@ async function extractLegacy(
   const consults = [...coachConsults, ...progressConsults];
   return {
     extract: {
-      locations: canonicalLegacyLocations(), staff, people, appointments: [], consults, exceptions,
+      locations: canonicalLegacyLocations(), staff, people, appointments: [], consults,
+      sales, saleLines, exceptions,
     } satisfies V1Extract,
     diagnostics: {
       unmatchedAssignedCoaches, unresolvedHomeLocations, namesParsedFromDisplay, invalidDobValues,
@@ -629,6 +729,9 @@ async function extractLegacy(
       progressNotesExcludedMissingClient: Number(progressExcluded.missingClient),
       progressNotesExcludedMissingAuthor: 0,
       progressNotesWithSynthesizedAuthor: rawProgressNotes.filter((row) => !row.authorId).length,
+      purchasesExcludedMissingClient: unresolvedPurchases.length,
+      purchaseItemCountMismatches,
+      purchaseLineMathMismatches,
     } satisfies ExtractDiagnostics,
     continuityInventory: await legacyContinuityInventory(tx),
     schemaFingerprint,
@@ -756,6 +859,24 @@ async function upsertMigrationExceptions(tx: TransactionSql, records: MappedReco
   }
 }
 
+async function insertHistoricalSales(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 300)) {
+    await tx`
+      insert into sale ${tx(batch)}
+      on conflict (id) do nothing
+    `;
+  }
+}
+
+async function insertHistoricalSaleLines(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 500)) {
+    await tx`
+      insert into sale_line ${tx(batch)}
+      on conflict (id) do nothing
+    `;
+  }
+}
+
 async function upsertBindings(
   tx: TransactionSql,
   runId: string,
@@ -780,6 +901,8 @@ async function upsertBindings(
         target_id = excluded.target_id, source_updated_at = excluded.source_updated_at,
         checksum = excluded.checksum, last_run_id = excluded.last_run_id,
         imported_at = excluded.imported_at
+      where import_binding.entity_type not in ('sale', 'sale-line')
+         or import_binding.checksum = excluded.checksum
     `;
   }
 }
@@ -795,6 +918,8 @@ async function applyExtract(
     await upsertPeople(tx, mapped.people);
     await upsertAppointments(tx, mapped.appointments);
     await upsertConsults(tx, mapped.consults);
+    await insertHistoricalSales(tx, mapped.sales);
+    await insertHistoricalSaleLines(tx, mapped.saleLines);
     await upsertMigrationExceptions(tx, mapped.exceptions);
     await upsertBindings(tx, runId, [
       ...mapped.locations,
@@ -802,6 +927,8 @@ async function applyExtract(
       ...mapped.people,
       ...mapped.appointments,
       ...mapped.consults,
+      ...mapped.sales,
+      ...mapped.saleLines,
       ...mapped.exceptions,
     ]);
   });
@@ -839,6 +966,8 @@ async function reconcile(
       union all select count(*)::int from appointment where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from consult where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from migration_exception where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from sale where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from sale_line where source_system = ${V1_SOURCE_SYSTEM}
     ) counts
   `;
   const expected = new Map(expectedRows.map((row) => [`${row.entityType}:${row.sourceId}`, row.checksum]));
