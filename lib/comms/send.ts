@@ -200,8 +200,16 @@ export class DemoProvider implements CommsProvider {
   }
 }
 
-/** The demo build always uses the inert provider. */
-export const provider: CommsProvider = new DemoProvider();
+/**
+ * Shared Apex environments must never report a simulated transmission.
+ * Deterministic delivery ids remain available only when demo mode is explicitly
+ * enabled for local visual testing; every shared/nonproduction deployment
+ * fails closed at the provider seam until the real server transport is bound.
+ */
+export const provider: CommsProvider =
+  process.env.NEXT_PUBLIC_APEX_DEMO_MODE === "true"
+    ? new DemoProvider()
+    : new AcsProvider();
 
 // ---------------------------------------------------------------------------
 // Guards

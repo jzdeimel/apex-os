@@ -80,9 +80,14 @@ export function LiveDeskBoard() {
       const payload = await response.json() as { appointments?: LiveAppointment[]; error?: string };
       const resourcePayload = await resourceResponse.json() as { resources?: ClinicResource[]; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "The live schedule could not be loaded.");
-      if (!resourceResponse.ok) throw new Error(resourcePayload.error ?? "Clinic resources could not be loaded.");
+      // Care-team roles may read their own appointments without receiving the
+      // clinic-wide room inventory. A denied resource response narrows the
+      // board instead of making an otherwise-authorized schedule disappear.
+      if (!resourceResponse.ok && resourceResponse.status !== 403) {
+        throw new Error(resourcePayload.error ?? "Clinic resources could not be loaded.");
+      }
       setRows(payload.appointments ?? []);
-      setResources(resourcePayload.resources ?? []);
+      setResources(resourceResponse.ok ? (resourcePayload.resources ?? []) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The live schedule could not be loaded.");
     } finally {

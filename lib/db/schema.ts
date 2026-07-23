@@ -1870,6 +1870,40 @@ export const leadTask = pgTable(
   }),
 );
 
+/**
+ * Durable staff work that is not limited to the acquisition funnel.
+ *
+ * The prior task board lived in browser state: creation and reprioritization
+ * disappeared on reload, and completion wrote only a generic ledger sentence.
+ * This row is now the task authority; the ledger remains the audit witness.
+ */
+export const workTask = pgTable(
+  "work_task",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    taskType: text("task_type").notNull(),
+    detail: text("detail"),
+    clientId: text("client_id").references(() => client.id),
+    locationId: text("location_id"),
+    assigneeStaffId: text("assignee_staff_id").notNull().references(() => staff.id),
+    createdByStaffId: text("created_by_staff_id").notNull().references(() => staff.id),
+    priority: text("priority").notNull().default("medium"),
+    status: text("status").notNull().default("open"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedByStaffId: text("completed_by_staff_id").references(() => staff.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    assigneeIdx: index("work_task_assignee_idx").on(t.assigneeStaffId, t.status, t.dueAt),
+    clientIdx: index("work_task_client_idx").on(t.clientId, t.status, t.dueAt),
+    statusIdx: index("work_task_status_idx").on(t.status, t.priority, t.dueAt),
+  }),
+);
+
 /** Immutable ownership history, including release and management reassignment. */
 export const leadOwnerEvent = pgTable(
   "lead_owner_event",

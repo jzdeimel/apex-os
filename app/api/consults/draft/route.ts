@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { fail, serverError, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { currentPrincipal } from "@/lib/auth/principal";
-import { getConsultDraft, upsertConsultDraft, signConsultDraft } from "@/lib/db/repo";
-import { getClient, clientName } from "@/lib/mock/clients";
-import { staffMap } from "@/lib/mock/staff";
+import { getConsultDraft, readClientCareScope, upsertConsultDraft, signConsultDraft } from "@/lib/db/repo";
 import type { ClinicalNoteFields, ConsultKind } from "@/lib/consult/types";
 import {
   consultChannelsForRole,
@@ -60,12 +58,16 @@ function requiredMedicalSections(kind: ConsultKind): readonly (keyof ClinicalNot
     : ["subjective", "objective", "assessment", "plan"];
 }
 
-function scope(clientId: string) {
-  const client = getClient(clientId);
+async function scope(clientId: string) {
+  const client = await readClientCareScope(clientId);
   if (!client) return null;
   return {
     client,
-    subject: { coachId: client.coachId, providerId: client.providerId, locationId: client.locationId },
+    subject: {
+      coachId: client.assignedCoachId ?? undefined,
+      providerId: client.assignedProviderId ?? undefined,
+      locationId: client.locationId ?? undefined,
+    },
   };
 }
 
@@ -77,7 +79,7 @@ export async function GET(req: Request) {
   if (!clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
-  const s = scope(clientId);
+  const s = await scope(clientId);
   if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
   const g = await guard("write:consult", s.subject);
@@ -125,7 +127,7 @@ export async function PUT(req: Request) {
   if (!body.clientId || typeof body.rawNotes !== "string") {
     return NextResponse.json({ ok: false, error: "clientId and rawNotes are required." }, { status: 400 });
   }
-  const s = scope(body.clientId);
+  const s = await scope(body.clientId);
   if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
   const g = await guard("write:consult", s.subject);
@@ -193,13 +195,12 @@ export async function POST(req: Request) {
   if (!body.clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
-  const s = scope(body.clientId);
+  const s = await scope(body.clientId);
   if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
   const g = await guard("write:consult", s.subject);
   if (!g.ok) return g.res;
 
-  const me = staffMap[g.actor.id];
   try {
     // Old unsigned drafts predate the steward workflow and may carry a
     // provider-visit/client channel combination. Upgrade that draft before it
@@ -249,12 +250,12 @@ export async function POST(req: Request) {
       authorId: g.actor.id,
       clientId: body.clientId,
       signedBy: g.actor.id,
-      signerName: g.principal.name ?? me?.name ?? g.actor.id,
+      signerName: g.principal.name ?? g.actor.id,
       actorRole: g.actor.role,
-      signerCredential: me?.credentials,
+      signerCredential: g.principal.credentials ?? undefined,
       attestation: body.attestation?.trim() || DEFAULT_ATTESTATION,
-      subjectName: clientName(s.client),
-      locationId: s.client.locationId,
+      subjectName: `${s.client.preferredName || s.client.firstName} ${s.client.lastName}`,
+      locationId: s.client.locationId ?? "unresolved",
       at: new Date().toISOString(),
     });
     if (!result) {

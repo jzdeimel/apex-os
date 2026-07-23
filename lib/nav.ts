@@ -19,6 +19,7 @@ import {
   GraduationCap,
   Heart,
   History,
+  KeyRound,
   LayoutDashboard,
   LifeBuoy,
   ListChecks,
@@ -48,6 +49,7 @@ import {
 import type { PortalId } from "@/lib/portals";
 import { featureForPath } from "@/lib/features/catalog";
 import { labelFor } from "@/lib/nav/v1Parity";
+import { isFixtureOnlyPath } from "@/lib/productionSurfaces";
 
 export interface NavItem {
   href: string;
@@ -302,6 +304,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
         { href: "/admin/cases", label: "Support & records", icon: LifeBuoy, spotlight: true },
         { href: "/admin/migration-preview", label: "Imported Alpha patients", icon: Rows3, spotlight: true },
+        { href: "/admin/patient-access", label: "Patient access", icon: KeyRound },
       ],
     },
     {
@@ -365,10 +368,13 @@ export function filterNavByFeatures(
    */
   preset: string = "clinic-v1",
 ): NavGroup[] {
+  const allowFixtures =
+    process.env.NEXT_PUBLIC_APEX_DEMO_MODE === "true";
   const out: NavGroup[] = [];
   for (const group of groups) {
     const items = group.items
       .filter((item) => {
+        if (!allowFixtures && isFixtureOnlyPath(item.href)) return false;
         const owner = featureForPath(item.href);
         return !owner || enabled[owner.key] !== false;
       })

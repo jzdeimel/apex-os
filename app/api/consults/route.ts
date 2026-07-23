@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 import { currentPrincipal } from "@/lib/auth/principal";
 import { guard } from "@/lib/auth/guard";
-import { listConsultsForClient } from "@/lib/db/repo";
-import { getClient } from "@/lib/mock/clients";
+import { listConsultsForClient, readClientCareScope } from "@/lib/db/repo";
 import { unavailable } from "@/lib/api/respond";
 
 export const runtime = "nodejs";
@@ -19,7 +18,7 @@ export async function GET(req: Request) {
   if (!clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
-  const client = getClient(clientId);
+  const client = await readClientCareScope(clientId).catch(() => null);
   if (!client) {
     return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
   }
@@ -27,9 +26,9 @@ export async function GET(req: Request) {
   // Consults can contain internal Medical review. Both Coach and Medical hold
   // read:clinical on their assigned care team; operations-only Admin does not.
   const g = await guard("read:clinical", {
-    coachId: client.coachId,
-    providerId: client.providerId,
-    locationId: client.locationId,
+    coachId: client.assignedCoachId ?? undefined,
+    providerId: client.assignedProviderId ?? undefined,
+    locationId: client.locationId ?? undefined,
   });
   if (!g.ok) return g.res;
 

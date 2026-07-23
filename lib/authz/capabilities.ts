@@ -208,7 +208,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "read:operations-cases", "create:operations-case", "work:operations-cases",
     "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
-    "read:business-metrics", "write:contact", "call:patient", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
+    "read:business-metrics", "write:contact", "call:patient", "write:task", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
     "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",
     "write:communications", "write:quality", "admin:roles", "admin:locations", "admin:community-policy",
     "admin:calendars", "admin:export", "admin:break-glass",

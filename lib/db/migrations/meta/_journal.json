@@ -239,6 +239,13 @@
       "when": 1784830215891,
       "tag": "0033_alpha-refresh-window",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1784842071814,
+      "tag": "0034_authoritative-work-tasks",
+      "breakpoints": true
     }
   ]
 }

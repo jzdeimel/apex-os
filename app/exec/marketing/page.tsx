@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Megaphone, TrendingUp, AlertTriangle, Users, ArrowRight, CheckCircle2, Clock3, ClipboardList, Loader2 } from "lucide-react";
 import { Card, Badge, Button, Input, Select, Textarea } from "@/components/ui/primitives";
-import { locationName } from "@/lib/mock/locations";
 
 /**
  * ACQUISITION — where new patients actually come from.
@@ -430,7 +429,7 @@ export default function MarketingPage() {
                     </Badge>
                     {l.preferredLocationId && (
                       <span className="text-micro text-ink-500">
-                        {locationName(l.preferredLocationId as never)}
+                        {l.preferredLocationId}
                       </span>
                     )}
                     <span className="stat-mono text-micro text-ink-600">

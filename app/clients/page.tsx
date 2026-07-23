@@ -1,276 +1,209 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
-import { usePortal } from "@/lib/portalStore";
-import { visibleClientsForPortal, staffIdForPortal } from "@/lib/access/clientScope";
-import { scopeFor } from "@/lib/frontdesk/scope";
-import { ShieldAlert } from "lucide-react";
-import { clients, clientName } from "@/lib/mock/clients";
-import { coaches } from "@/lib/mock/staff";
-import { alphaScore } from "@/lib/alphaScore";
-import { ClientTable } from "@/components/ClientTable";
-import { ClientGallery } from "@/components/ClientGallery";
-import { Input, Select, Card, CardHeader, CardTitle, CardContent } from "@/components/ui/primitives";
-import { DonutCount, CountBars } from "@/components/charts";
-import { Search, LayoutGrid, Table as TableIcon, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { ClientStatus } from "@/lib/types";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Loader2, RefreshCcw, Search, ShieldCheck, Users } from "lucide-react";
 
-const STATUSES: ClientStatus[] = [
-  "Lead",
-  "Consult Booked",
-  "Labs Ordered",
-  "Results Ready",
-  "Plan Review",
-  "Active Protocol",
-  "Follow-Up Due",
-  "Inactive",
-];
+import { Badge, Button, Card, CardContent, Input } from "@/components/ui/primitives";
 
-const STATUS_COLOR: Record<ClientStatus, string> = {
-  Lead: "var(--chart-axis)",
-  "Consult Booked": "var(--c-low)",
-  "Labs Ordered": "#38bdf8",
-  "Results Ready": "var(--chart-brand)",
-  "Plan Review": "var(--c-watch)",
-  "Active Protocol": "var(--c-optimal)",
-  "Follow-Up Due": "var(--c-high)",
-  Inactive: "#4b525c",
-};
+interface DirectoryPatient {
+  id: string;
+  mrn: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  dateOfBirth: string | null;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  homeLocationId: string | null;
+  consultCount: number | null;
+  contactCount: number;
+  saleCount: number | null;
+  netSalesCents: number | null;
+  fulfillmentCount: number | null;
+}
 
-const PROGRAMS = [
-  "All programs",
-  "Metabolic Reset",
-  "GLP Weight Management",
-  "Recovery Track",
-  "Hormone Optimization",
-  "NAD+ Vitality",
-  "Aesthetics & Vitality",
-];
+interface DirectoryPayload {
+  page: number;
+  pageSize: number;
+  matching: number;
+  query: string;
+  ledgerId: string;
+  patients: DirectoryPatient[];
+}
 
-export default function ClientsPage() {
-  const { locationFilter, favorites } = useStore();
-  const { portal } = usePortal();
+function money(cents: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+export default function PatientDirectoryPage() {
+  const [directory, setDirectory] = useState<DirectoryPayload | null>(null);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<string>("all");
-  const [coach, setCoach] = useState<string>("all");
-  const [program, setProgram] = useState<string>("All programs");
-  const [view, setView] = useState<"gallery" | "table">("gallery");
-  const [starredOnly, setStarredOnly] = useState(false);
-  const PAGE = 36;
-  const [limit, setLimit] = useState(PAGE);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // reset pagination whenever the filters change
+  const load = useCallback(async (page = 0, nextQuery = "") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ page: String(page) });
+      if (nextQuery.trim()) params.set("q", nextQuery.trim());
+      const response = await fetch(`/api/clients?${params}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Could not load patients.");
+      setDirectory(payload);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load patients.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    setLimit(PAGE);
-  }, [locationFilter, status, coach, program, query, starredOnly]);
+    void load();
+  }, [load]);
 
-  // AUDIT: the pool was the ENTIRE client book, filtered only by a topbar
-  // location filter that defaults to "all" — so a coach or clinician at any
-  // location could list every patient at every location. The pool is now the
-  // caller's location scope (owner = all), and the topbar filter narrows within
-  // it. "all" means "all locations I may see", never the whole clinic. See
-  // lib/access/clientScope.ts.
-  const visible = useMemo(() => visibleClientsForPortal(portal.id), [portal.id]);
-
-  // A viewer with no client scope at all — the patient persona, or a staff
-  // account with no location assigned — must be REFUSED here, not shown an empty
-  // roster. An empty list on a directory reads as a broken page; "you do not
-  // have access" is the honest state. A staff member whose location simply has
-  // no clients is different (real scope, empty result) and still sees the page.
-  const clientScope = useMemo(() => scopeFor(staffIdForPortal(portal.id)), [portal.id]);
-  const noAccess = !clientScope.unrestricted && clientScope.allowed.length === 0;
-  const base = useMemo(
-    () => visible.filter((c) => locationFilter === "all" || c.locationId === locationFilter),
-    [visible, locationFilter],
-  );
-
-  const filtered = useMemo(() => {
-    return base.filter((c) => {
-      if (starredOnly && !favorites[c.id]) return false;
-      if (status !== "all" && c.status !== status) return false;
-      if (coach !== "all" && c.coachId !== coach) return false;
-      if (program !== "All programs" && !c.programs.some((p) => p.name === program)) return false;
-      if (query) {
-        const q = query.toLowerCase();
-        const hay = `${clientName(c)} ${c.email} ${c.goals.join(" ")} ${c.symptoms.join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [base, status, coach, program, query, starredOnly, favorites]);
-
-  // Insight strip data (directory-specific — no overlap with Dashboard/Insights)
-  const riskMix = useMemo(() => {
-    const top = (c: (typeof base)[number]) => {
-      const order = { high: 3, moderate: 2, low: 1, none: 0 } as const;
-      return c.riskFlags.slice().sort((a, b) => order[b.level] - order[a.level])[0]?.level ?? "none";
-    };
-    const colors: Record<string, string> = { none: "var(--c-optimal)", low: "var(--c-low)", moderate: "var(--c-watch)", high: "var(--c-high)" };
-    return (["none", "low", "moderate", "high"] as const)
-      .map((lvl) => ({ name: lvl === "none" ? "No flags" : lvl, value: base.filter((c) => top(c) === lvl).length, color: colors[lvl] }))
-      .filter((d) => d.value > 0);
-  }, [base]);
-  const scoreDist = useMemo(() => {
-    const buckets = [
-      { name: "<55", lo: 0, hi: 55 },
-      { name: "55–69", lo: 55, hi: 70 },
-      { name: "70–84", lo: 70, hi: 85 },
-      { name: "85+", lo: 85, hi: 101 },
-    ];
-    return buckets.map((b) => ({ name: b.name, value: base.filter((c) => { const s = alphaScore(c).score; return s >= b.lo && s < b.hi; }).length }));
-  }, [base]);
-  const coachLoad = useMemo(() => {
-    return coaches
-      .map((co) => ({ name: co.name.split(" ")[0], value: base.filter((c) => c.coachId === co.id).length }))
-      .filter((d) => d.value > 0)
-      .sort((a, b) => b.value - a.value);
-  }, [base]);
-
-  const counts = useMemo(() => STATUSES.map((s) => ({ s, n: base.filter((c) => c.status === s).length })), [base]);
-
-  if (noAccess) {
-    return (
-      <div className="mx-auto max-w-md rounded-panel border border-ink-800 bg-ink-900/40 px-6 py-10 text-center">
-        <ShieldAlert className="mx-auto h-8 w-8 text-watch" aria-hidden />
-        <h1 className="mt-3 text-heading text-ink-50">Staff directory</h1>
-        <p className="mt-2 text-detail leading-relaxed text-ink-400">
-          This is the clinic&apos;s patient directory, for staff. Your own health record is in your
-          portal.
-        </p>
-      </div>
-    );
+  function search(event: FormEvent) {
+    event.preventDefault();
+    void load(0, query);
   }
 
+  const first = directory ? directory.page * directory.pageSize + (directory.patients.length ? 1 : 0) : 0;
+  const last = directory ? directory.page * directory.pageSize + directory.patients.length : 0;
+  const canNext = Boolean(directory && last < directory.matching);
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label-eyebrow">Member directory · {base.length} people</p>
-          <h1 className="font-display text-title font-bold tracking-tight text-ink-50">Clients</h1>
-        </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={() => setStarredOnly((s) => !s)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-detail font-medium transition-colors",
-              starredOnly ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-800 bg-ink-900/70 text-ink-400 hover:text-ink-100",
-            )}
-          >
-            <Star className={cn("h-3.5 w-3.5", starredOnly && "fill-gold-400")} /> Starred
-          </button>
-          {/* View toggle */}
-          <div className="flex items-center gap-1 rounded-lg border border-ink-800 bg-ink-900/70 p-0.5">
-            {([["gallery", LayoutGrid], ["table", TableIcon]] as const).map(([v, Icon]) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-detail font-medium capitalize transition-colors",
-                  view === v ? "bg-gold-400/15 text-gold-200" : "text-ink-400 hover:text-ink-100",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" /> {v}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="optimal">AUTHORITATIVE APEX DATA</Badge>
+            <Badge tone="high">RESTRICTED PHI</Badge>
           </div>
-        </div>
-      </div>
-
-      {/* Insight strip */}
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-body">Risk flags</CardTitle></CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <div className="w-32">
-              <DonutCount data={riskMix} height={120} centerValue={base.length} centerLabel="clients" />
-            </div>
-            <div className="flex-1 space-y-1">
-              {riskMix.map((s) => (
-                <div key={s.name} className="flex items-center gap-2 text-micro">
-                  <span className="h-2 w-2 rounded-sm" style={{ background: s.color }} />
-                  <span className="flex-1 truncate capitalize text-ink-400">{s.name}</span>
-                  <span className="stat-mono text-ink-500">{s.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-body">Alpha Score distribution</CardTitle></CardHeader>
-          <CardContent><CountBars data={scoreDist} height={132} label="Clients" /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-body">Coach load</CardTitle></CardHeader>
-          <CardContent><CountBars data={coachLoad} height={132} label="Clients" /></CardContent>
-        </Card>
-      </div>
-
-      {/* Status pills */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setStatus("all")}
-          className={cn(
-            "rounded-full border px-3 py-1 text-detail font-medium transition-colors",
-            status === "all" ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-700 text-ink-400 hover:text-ink-100",
-          )}
-        >
-          All {base.length}
-        </button>
-        {counts.filter((c) => c.n > 0).map(({ s, n }) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s === status ? "all" : s)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-detail font-medium transition-colors",
-              status === s ? "border-gold-400/40 bg-gold-400/10 text-gold-200" : "border-ink-700 text-ink-400 hover:text-ink-100",
-            )}
-          >
-            {s} <span className="stat-mono text-ink-500">{n}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, goal, symptom…" className="pl-9" />
-        </div>
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <Select value={coach} onChange={(e) => setCoach(e.target.value)}>
-          <option value="all">All coaches</option>
-          {coaches.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </Select>
-        <Select value={program} onChange={(e) => setProgram(e.target.value)}>
-          {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </Select>
-      </div>
-
-      {view === "gallery" ? (
-        <ClientGallery clients={filtered.slice(0, limit)} />
-      ) : (
-        <ClientTable clients={filtered.slice(0, limit)} />
-      )}
-
-      {filtered.length > limit && (
-        <div className="flex flex-col items-center gap-2 pt-1">
-          <p className="text-detail text-ink-500">
-            Showing <span className="stat-mono text-ink-300">{Math.min(limit, filtered.length)}</span> of{" "}
-            <span className="stat-mono text-ink-300">{filtered.length}</span>
+          <h1 className="mt-3 font-display text-display text-ink-50">Patients</h1>
+          <p className="mt-2 max-w-3xl text-body leading-relaxed text-ink-400">
+            The working patient directory, backed by records imported into Apex PostgreSQL.
+            Results are limited to your assigned book, clinic scope, or approved organization-wide access.
           </p>
-          <button
-            onClick={() => setLimit((l) => l + PAGE)}
-            className="rounded-lg border border-ink-700 bg-ink-850/60 px-4 py-2 text-detail font-medium text-ink-200 transition-colors hover:border-gold-400/40 hover:text-gold-100"
-          >
-            Load more clients
-          </button>
         </div>
-      )}
+        <Button variant="outline" onClick={() => void load(directory?.page ?? 0, directory?.query ?? "")}>
+          <RefreshCcw className="h-4 w-4" aria-hidden /> Refresh
+        </Button>
+      </header>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+          <ShieldCheck className="h-5 w-5 text-optimal" aria-hidden />
+          <p className="text-detail text-ink-300">
+            Every directory search and chart open is recorded in the durable access ledger.
+            {directory ? ` Current view: ${directory.ledgerId}.` : ""}
+          </p>
+        </CardContent>
+      </Card>
+
+      <form onSubmit={search} className="flex max-w-2xl gap-2">
+        <label className="sr-only" htmlFor="patient-search">Search patients</label>
+        <Input
+          id="patient-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search name, MRN, email, or phone"
+          maxLength={80}
+        />
+        <Button type="submit"><Search className="h-4 w-4" /> Search</Button>
+      </form>
+
+      {error && <p className="rounded-control border border-high/30 bg-high/5 p-4 text-detail text-high">{error}</p>}
+
+      {loading && !directory ? (
+        <div className="flex items-center gap-2 py-12 text-ink-400">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading protected records…
+        </div>
+      ) : directory && directory.patients.length === 0 ? (
+        <div className="rounded-panel border border-dashed border-ink-700 p-12 text-center">
+          <Users className="mx-auto h-7 w-7 text-ink-500" />
+          <p className="mt-3 text-body font-medium text-ink-200">
+            {directory.matching === 0 && !directory.query
+              ? "No patients are currently assigned to your approved scope."
+              : "No patients match this search."}
+          </p>
+          <p className="mt-1 text-detail text-ink-500">Apex does not substitute seeded patients.</p>
+        </div>
+      ) : directory ? (
+        <section className="overflow-hidden rounded-panel border border-ink-700 bg-ink-900/30">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 px-4 py-3">
+            <p className="text-detail text-ink-400">
+              Showing {first.toLocaleString()}–{last.toLocaleString()} of {directory.matching.toLocaleString()} patients
+            </p>
+            {loading && <Loader2 className="h-4 w-4 animate-spin text-ink-500" />}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] text-left text-detail">
+              <thead className="bg-ink-900/70 text-micro uppercase tracking-wide text-ink-500">
+                <tr>
+                  <th className="p-3">Patient</th>
+                  <th className="p-3">DOB</th>
+                  <th className="p-3">Contact</th>
+                  <th className="p-3">Clinic / status</th>
+                  <th className="p-3">Consults</th>
+                  <th className="p-3">Touches</th>
+                  <th className="p-3">Sales</th>
+                  <th className="p-3">Fulfillment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {directory.patients.map((patient) => (
+                  <tr key={patient.id} className="border-t border-ink-800 align-top">
+                    <td className="p-3">
+                      <Link
+                        href={`/clients/${patient.id}`}
+                        className="font-medium text-ink-100 underline-offset-4 hover:text-gold-300 hover:underline"
+                      >
+                        {patient.preferredName || patient.firstName} {patient.lastName}
+                      </Link>
+                      <p className="mt-1 stat-mono text-micro text-ink-500">{patient.mrn}</p>
+                    </td>
+                    <td className="p-3 text-ink-300">{patient.dateOfBirth || "—"}</td>
+                    <td className="p-3 text-ink-300">
+                      <p>{patient.email || "—"}</p>
+                      <p className="mt-1 text-ink-500">{patient.phone || "—"}</p>
+                    </td>
+                    <td className="p-3">
+                      <p className="text-ink-300">{patient.homeLocationId || "Clinic unresolved"}</p>
+                      <Badge className="mt-2">{patient.status}</Badge>
+                    </td>
+                    <td className="p-3 stat-mono text-ink-100">{patient.consultCount ?? "Restricted"}</td>
+                    <td className="p-3 stat-mono text-ink-100">{patient.contactCount.toLocaleString()}</td>
+                    <td className="p-3">
+                      {patient.netSalesCents === null
+                        ? <span className="text-ink-600">Restricted</span>
+                        : <><p className="stat-mono text-ink-100">{money(patient.netSalesCents)}</p><p className="mt-1 text-micro text-ink-500">{patient.saleCount} transactions</p></>}
+                    </td>
+                    <td className="p-3 stat-mono text-ink-100">{patient.fulfillmentCount ?? "Restricted"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-ink-800 p-4">
+            <Button
+              variant="outline"
+              disabled={loading || directory.page === 0}
+              onClick={() => void load(directory.page - 1, directory.query)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              disabled={loading || !canNext}
+              onClick={() => void load(directory.page + 1, directory.query)}
+            >
+              Next
+            </Button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

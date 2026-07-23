@@ -82,6 +82,7 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
+import { isFixtureOnlyPath } from "@/lib/productionSurfaces";
 import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   leadFirstResponseDueAt,
@@ -1505,6 +1506,14 @@ eq(
   DUNNING_LADDER.card_expired[0].action,
   "request-card-update",
 );
+
+section("Shared-environment production surfaces");
+for (const path of ["/clients", "/clients/patient-1", "/coach", "/clinic", "/clinic/sign", "/schedule", "/tasks", "/supply-chain", "/community", "/exec"]) {
+  eq(`${path} remains an authoritative shared route`, isFixtureOnlyPath(path), false);
+}
+for (const path of ["/portal", "/portal/messages", "/card/token", "/analytics", "/automations", "/recommendations", "/agent", "/coach/roster", "/clinic/ledger"]) {
+  eq(`${path} is blocked while it still depends on fixtures`, isFixtureOnlyPath(path), true);
+}
 
 console.log(
   `\n${checks - failures}/${checks} checks passed` + (failures ? ` — ${failures} FAILED` : ""),

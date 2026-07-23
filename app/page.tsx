@@ -16,7 +16,7 @@ const HOME_BY_PROFILE: Record<AccessProfile, string> = {
   nursing: "/clinic",
   coach: "/coach",
   "front-desk": "/desk",
-  billing: "/exec",
+  billing: "/clients",
   fulfillment: "/supply-chain",
   marketing: "/exec/marketing",
   unassigned: "/access-pending",

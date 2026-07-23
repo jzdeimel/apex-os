@@ -82,6 +82,11 @@ export async function readAlphaMigrationPreview(input: {
   query?: string;
   page?: number;
   pageSize?: number;
+  access?: {
+    allClients: boolean;
+    staffId: string;
+    locationIds: string[];
+  };
 } = {}) {
   const db = requireDb();
   const query = (input.query ?? "").trim().slice(0, 80);
@@ -90,8 +95,21 @@ export async function readAlphaMigrationPreview(input: {
   const match = query
     ? `%${query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`
     : null;
+  const scopedConditions = input.access && !input.access.allClients
+    ? [
+        eq(client.assignedCoachId, input.access.staffId),
+        eq(client.assignedProviderId, input.access.staffId),
+        ...(input.access.locationIds.length
+          ? [inArray(client.homeLocationId, input.access.locationIds)]
+          : []),
+      ]
+    : [];
+  const accessWhere = input.access && !input.access.allClients
+    ? (scopedConditions.length ? or(...scopedConditions) : sql`false`)
+    : undefined;
   const patientWhere = and(
     eq(client.sourceSystem, ALPHA_SOURCE),
+    accessWhere,
     match
       ? or(
           ilike(client.firstName, match),
@@ -246,7 +264,7 @@ export async function readAlphaMigrationPreview(input: {
     sourceSystem: ALPHA_SOURCE,
     authoritative: true,
     summary: {
-      clients: importedClients,
+      clients: input.access ? (matchingRows[0]?.value ?? 0) : importedClients,
       staff: importedStaff,
       consults: importedConsults,
       contacts: importedContacts,

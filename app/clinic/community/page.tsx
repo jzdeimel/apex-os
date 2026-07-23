@@ -1,5 +1,5 @@
-import { CommunityHome } from "@/components/community/CommunityHome";
+import { CommunityModerationCenter } from "@/components/community/CommunityModerationCenter";
 
 export default function ClinicCommunityPage() {
-  return <CommunityHome />;
+  return <CommunityModerationCenter />;
 }
