@@ -1196,6 +1196,10 @@ eq("an RN cannot sign or release lab results", can(actor("nursing", "Medical"), 
 eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
+eq("a provider may write a note for their assigned patient", can(actor("provider", "Medical"), "write:consult", { providerId: "staff-1", locationId: "raleigh" }).allowed, true);
+eq("a provider cannot write a note outside their care team", can(actor("provider", "Medical"), "write:consult", { providerId: "provider-2", locationId: "raleigh" }).allowed, false);
+eq("a coach may write a note for their assigned patient", can(actor("coach", "Coach"), "write:consult", { coachId: "staff-1", locationId: "raleigh" }).allowed, true);
+eq("a coach cannot write a note outside their care team", can(actor("coach", "Coach"), "write:consult", { coachId: "coach-2", locationId: "raleigh" }).allowed, false);
 eq("a coach may place an audited patient call", can(actor("coach", "Coach"), "call:patient").allowed, true);
 eq("an owner may place an audited patient call", can(actor("owner"), "call:patient").allowed, true);
 eq("Medical cannot bypass the coach with a patient call", can(actor("provider", "Medical"), "call:patient").allowed, false);

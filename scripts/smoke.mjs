@@ -207,16 +207,19 @@ try {
     console.log("ok  POST /api/consults/sign (coach) => 403 refused");
   }
   {
-    // CARE-TEAM SCOPE: a provider who is NOT on this client's care team is
-    // refused a draft write (guard runs before any DB access, so this holds in
-    // CI without a database). Dr. Park is off c-001's team.
+    // Patient assignment is authoritative database state. A production-shaped
+    // build without a database must fail closed instead of consulting seeded
+    // patients to decide whether this provider is on the care team.
     const r = await fetch(`${BASE}/api/consults/draft`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", "x-ms-client-principal": principal("e.park@alphahealth.demo", "park") },
       body: JSON.stringify({ clientId: "c-001", rawNotes: "probe" }),
     });
-    if (r.status !== 403) fail(`off-care-team draft PUT => ${r.status}, expected 403`);
-    console.log("ok  PUT /api/consults/draft (off-care-team) => 403 refused");
+    const body = await r.json();
+    if (r.status !== 503 || !body.correlationId || /DATABASE_URL|postgresql:/i.test(body.error ?? "")) {
+      fail(`draft assignment database failure was not safely contained (${r.status} ${JSON.stringify(body).slice(0, 180)})`);
+    }
+    console.log("ok  PUT /api/consults/draft DB failure => 503, generic and traceable");
   }
   {
     // STEWARD WORKFLOW: Medical is on c-001's care team, but cannot forge a

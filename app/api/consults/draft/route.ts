@@ -71,6 +71,21 @@ async function scope(clientId: string) {
   };
 }
 
+async function safeScope(clientId: string) {
+  try {
+    return { ok: true as const, value: await scope(clientId) };
+  } catch (err) {
+    return {
+      ok: false as const,
+      res: unavailable(
+        "consult.scope",
+        err,
+        "The patient assignment store is unavailable. No note was read or changed.",
+      ),
+    };
+  }
+}
+
 export async function GET(req: Request) {
   if (!(await currentPrincipal())) {
     return NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 });
@@ -79,7 +94,9 @@ export async function GET(req: Request) {
   if (!clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
-  const s = await scope(clientId);
+  const loaded = await safeScope(clientId);
+  if (!loaded.ok) return loaded.res;
+  const s = loaded.value;
   if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
   const g = await guard("write:consult", s.subject);
@@ -127,23 +144,24 @@ export async function PUT(req: Request) {
   if (!body.clientId || typeof body.rawNotes !== "string") {
     return NextResponse.json({ ok: false, error: "clientId and rawNotes are required." }, { status: 400 });
   }
-  const s = await scope(body.clientId);
-  if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
-  const g = await guard("write:consult", s.subject);
-  if (!g.ok) return g.res;
+  // Validate the role-bound note shape before touching the patient record.
+  // This keeps malformed/forbidden requests deterministic while the database
+  // is unavailable, without ever falling back to a seeded patient assignment.
+  const roleGate = await guard("write:consult");
+  if (!roleGate.ok) return roleGate.res;
 
-  const kind = body.kind === undefined ? defaultConsultKind(g.actor.role) : body.kind;
-  const channel = body.channel === undefined ? defaultConsultChannel(g.actor.role) : body.channel;
+  const kind = body.kind === undefined ? defaultConsultKind(roleGate.actor.role) : body.kind;
+  const channel = body.channel === undefined ? defaultConsultChannel(roleGate.actor.role) : body.channel;
   if (
-    !isConsultKindAllowedForRole(kind, g.actor.role) ||
-    !isConsultChannelAllowedForRole(channel, g.actor.role)
+    !isConsultKindAllowedForRole(kind, roleGate.actor.role) ||
+    !isConsultChannelAllowedForRole(channel, roleGate.actor.role)
   ) {
     return NextResponse.json(
       {
         ok: false,
         error:
-          g.actor.role === "Medical"
+          roleGate.actor.role === "Medical"
             ? "Medical notes must use a clinical visit or chart-review type. Messaging remains with the coach."
             : "Coach notes must use a member-contact consult type and channel.",
       },
@@ -158,12 +176,20 @@ export async function PUT(req: Request) {
       { status: 400 },
     );
   }
-  if (g.actor.role !== "Medical" && clinicalNote) {
+  if (roleGate.actor.role !== "Medical" && clinicalNote) {
     return NextResponse.json(
       { ok: false, error: "Only Medical staff can author the clinical SOAP record." },
       { status: 403 },
     );
   }
+
+  const loaded = await safeScope(body.clientId);
+  if (!loaded.ok) return loaded.res;
+  const s = loaded.value;
+  if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
+
+  const g = await guard("write:consult", s.subject);
+  if (!g.ok) return g.res;
 
   try {
     const saved = await upsertConsultDraft({
@@ -195,7 +221,9 @@ export async function POST(req: Request) {
   if (!body.clientId) {
     return NextResponse.json({ ok: false, error: "clientId is required." }, { status: 400 });
   }
-  const s = await scope(body.clientId);
+  const loaded = await safeScope(body.clientId);
+  if (!loaded.ok) return loaded.res;
+  const s = loaded.value;
   if (!s) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
 
   const g = await guard("write:consult", s.subject);
