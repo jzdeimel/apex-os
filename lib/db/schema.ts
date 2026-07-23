@@ -1717,6 +1717,11 @@ export const lead = pgTable(
     ownerStaffId: text("owner_staff_id"),
     stage: text("stage").notNull().default("new"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Operational speed-to-lead promise captured at creation time. */
+    firstResponseDueAt: timestamp("first_response_due_at", { withTimezone: true }).notNull(),
+    /** First durable contact transition, never reset when a lead is reopened. */
+    firstContactedAt: timestamp("first_contacted_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     /** Set when the lead becomes a client. Enables true cohorted conversion. */
     convertedClientId: text("converted_client_id"),
     convertedAt: timestamp("converted_at", { withTimezone: true }),
@@ -1748,6 +1753,131 @@ export const leadStageEvent = pgTable(
     note: text("note"),
   },
   (t) => ({ leadIdx: index("lead_stage_lead_idx").on(t.leadId, t.at) }),
+);
+
+/** Append-only working notes for an acquisition opportunity. */
+export const leadNote = pgTable(
+  "lead_note",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull().references(() => lead.id),
+    body: text("body").notNull(),
+    authorStaffId: text("author_staff_id").notNull(),
+    authorName: text("author_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({ leadIdx: index("lead_note_lead_idx").on(t.leadId, t.createdAt) }),
+);
+
+/** Durable follow-up work. A CRM task is not complete until this row says so. */
+export const leadTask = pgTable(
+  "lead_task",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull().references(() => lead.id),
+    title: text("title").notNull(),
+    assigneeStaffId: text("assignee_staff_id").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("open"),
+    createdByStaffId: text("created_by_staff_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedByStaffId: text("completed_by_staff_id"),
+    completionNote: text("completion_note"),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    leadIdx: index("lead_task_lead_idx").on(t.leadId, t.status, t.dueAt),
+    assigneeIdx: index("lead_task_assignee_idx").on(t.assigneeStaffId, t.status, t.dueAt),
+  }),
+);
+
+/** Immutable ownership history, including release and management reassignment. */
+export const leadOwnerEvent = pgTable(
+  "lead_owner_event",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull().references(() => lead.id),
+    fromStaffId: text("from_staff_id"),
+    toStaffId: text("to_staff_id"),
+    reason: text("reason").notNull(),
+    byStaffId: text("by_staff_id").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({ leadIdx: index("lead_owner_event_lead_idx").on(t.leadId, t.at) }),
+);
+
+/* ========================================================================== */
+/* Operational cases: support, complaints, and patient record requests         */
+/* ========================================================================== */
+
+/**
+ * One accountable queue for service recovery and records-rights work.
+ *
+ * `kind` distinguishes the policy and deadline while the common ownership and
+ * event model prevents a patient request from disappearing into email.
+ * Actual disclosure remains a separate, verified release step; opening a case
+ * is not permission to export PHI.
+ */
+export const operationalCase = pgTable(
+  "operational_case",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("new"),
+    priority: text("priority").notNull().default("normal"),
+    subject: text("subject").notNull(),
+    detail: text("detail").notNull(),
+    clientId: text("client_id"),
+    leadId: text("lead_id").references(() => lead.id),
+    locationId: text("location_id"),
+    ownerStaffId: text("owner_staff_id"),
+    requestedByKind: text("requested_by_kind").notNull(),
+    requestedById: text("requested_by_id").notNull(),
+    requestedByName: text("requested_by_name").notNull(),
+    firstResponseDueAt: timestamp("first_response_due_at", { withTimezone: true }).notNull(),
+    firstRespondedAt: timestamp("first_responded_at", { withTimezone: true }),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    recordScope: text("record_scope"),
+    requestedFormat: text("requested_format"),
+    recipient: text("recipient"),
+    amendmentRecordReference: text("amendment_record_reference"),
+    amendmentRequestedText: text("amendment_requested_text"),
+    identityVerificationStatus: text("identity_verification_status").notNull().default("pending"),
+    resolution: text("resolution"),
+    denialReason: text("denial_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    retentionUntil: timestamp("retention_until", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    queueIdx: index("operational_case_queue_idx").on(t.status, t.priority, t.dueAt),
+    ownerIdx: index("operational_case_owner_idx").on(t.ownerStaffId, t.status, t.dueAt),
+    clientIdx: index("operational_case_client_idx").on(t.clientId, t.createdAt),
+  }),
+);
+
+/** Append-only timeline for every operational case transition and staff note. */
+export const operationalCaseEvent = pgTable(
+  "operational_case_event",
+  {
+    id: text("id").primaryKey(),
+    caseId: text("case_id").notNull().references(() => operationalCase.id),
+    action: text("action").notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status"),
+    note: text("note"),
+    actorId: text("actor_id").notNull(),
+    actorName: text("actor_name").notNull(),
+    actorRole: text("actor_role").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({ caseIdx: index("operational_case_event_case_idx").on(t.caseId, t.at) }),
 );
 
 /* ========================================================================== */

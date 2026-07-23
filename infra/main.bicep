@@ -31,7 +31,7 @@ var tags = {
   environment: 'nonprod'
   managedBy: 'bicep'
   repository: 'jzdeimel/apex-os'
-  dataClassification: 'synthetic-only'
+  dataClassification: 'restricted-phi-nonprod'
   productionImpact: 'none'
   expectedSubscription: expectedSubscriptionId
 }

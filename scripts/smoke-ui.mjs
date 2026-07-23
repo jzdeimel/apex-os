@@ -255,6 +255,7 @@ try {
       firstName: "Apex",
       lastName: "Prospect",
       email: "prospect@example.invalid",
+      phone: "9195550100",
       track: "male",
       preferredLocationId: "raleigh",
       source: "website",
@@ -262,17 +263,28 @@ try {
       utmMedium: "cpc",
       utmCampaign: "summer-consult",
       ownerStaffId: null,
+      ownerName: null,
       stage: "new",
       createdAt: "2026-07-23T12:00:00.000Z",
+      firstResponseDueAt: "2026-07-23T12:15:00.000Z",
+      firstContactedAt: null,
       convertedClientId: null,
       reason: "Synthetic acquisition UI check",
+      lostReason: null,
+      notes: [],
+      tasks: [],
     };
     await p.route("**/api/leads", async (route) => {
       if (route.request().method() === "GET") {
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ ok: true, leads: [lead] }),
+          body: JSON.stringify({
+            ok: true,
+            leads: [lead],
+            candidates: [{ id: "st-owner", name: "Apex Owner", accessProfile: "owner" }],
+            firstResponseTargetMinutes: 15,
+          }),
         });
       }
       if (route.request().method() === "PATCH") {
@@ -280,7 +292,12 @@ try {
         lead = {
           ...lead,
           ownerStaffId: body.action === "claim" ? "st-owner" : lead.ownerStaffId,
+          ownerName: body.action === "claim" ? "Apex Owner" : lead.ownerName,
           stage: body.action === "advance" ? body.toStage : lead.stage,
+          firstContactedAt:
+            body.action === "advance" && body.toStage === "contacted"
+              ? "2026-07-23T12:05:00.000Z"
+              : lead.firstContactedAt,
         };
         return route.fulfill({
           status: 200,
@@ -293,16 +310,180 @@ try {
     await p.goto(`${BASE}/exec/pipeline`, { waitUntil: "networkidle", timeout: 30000 });
     await p.getByRole("heading", { name: "Acquisition" }).waitFor({ timeout: 10000 });
     await p.getByText("summer-consult", { exact: true }).waitFor({ timeout: 10000 });
-    await p.getByRole("button", { name: "Claim" }).click();
+    await p.getByText("Authoritative work queue", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Claim as me" }).click();
     await p.getByText("Owned", { exact: true }).waitFor({ timeout: 10000 });
-    await p.getByRole("button", { name: "Mark contacted" }).click();
-    await p.getByText("contacted", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Mark contacted" }).first().click();
+    await p.getByText("contacted", { exact: true }).first().waitFor({ timeout: 10000 });
     if (errors.length) {
       done(1, `SMOKE-UI FAIL: acquisition console errors: ${errors.slice(0, 3).join(" | ")}`);
     }
     console.log(
       "ok  Executive acquisition: attribution, durable claim and contacted stage rendered",
     );
+    await execCtx.close();
+  }
+
+  // Operations owns one durable queue for support, complaints, and records.
+  {
+    const execCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(
+          "zack@goalphahealth.com",
+          "Zack Deimel",
+          "oid-st-owner",
+        ),
+      },
+    });
+    await execCtx.addInitScript((key) => {
+      try { localStorage.setItem(key, "exec"); } catch {}
+    }, "apex_portal_v1");
+    const p = await execCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (error) => errors.push(error.message));
+    const operationalCase = {
+      id: "case-ui-smoke",
+      kind: "record-access",
+      status: "new",
+      priority: "normal",
+      subject: "Copy of complete record",
+      detail: "Patient requested an electronic copy.",
+      clientId: "client-ui-smoke",
+      requestedByName: "Apex Patient",
+      ownerStaffId: null,
+      ownerName: null,
+      firstResponseDueAt: "2026-07-23T16:00:00.000Z",
+      firstRespondedAt: null,
+      dueAt: "2026-08-22T12:00:00.000Z",
+      identityVerificationStatus: "pending",
+      recordScope: "Complete designated record set",
+      requestedFormat: "electronic",
+      recipient: "self",
+      amendmentRecordReference: null,
+      amendmentRequestedText: null,
+      resolution: null,
+      denialReason: null,
+      createdAt: "2026-07-23T12:00:00.000Z",
+      events: [{
+        id: "case-event-ui-smoke",
+        action: "created",
+        note: "Patient requested an electronic copy.",
+        actorName: "Apex Patient",
+        at: "2026-07-23T12:00:00.000Z",
+      }],
+    };
+    await p.route("**/api/operations/cases?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          cases: [operationalCase],
+          candidates: [{ id: "st-owner", name: "Zack Deimel", accessProfile: "owner" }],
+          now: "2026-07-23T12:05:00.000Z",
+        }),
+      }),
+    );
+    await p.goto(`${BASE}/admin/cases`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.getByRole("heading", { name: "Support, recovery & records" }).waitFor({ timeout: 10000 });
+    await p.getByText("Copy of complete record", { exact: true }).first().waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Verify identity" }).waitFor({ timeout: 10000 });
+    await p.getByText("Immutable timeline", { exact: true }).waitFor({ timeout: 10000 });
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: operational case queue errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log("ok  Operations cases: owned queue, records clock, identity gate and timeline rendered");
+    await execCtx.close();
+  }
+
+  // Imported Alpha data gets a dedicated, owner-only view with no demo
+  // fallback. The UI must keep the source/target boundary visible while
+  // presenting a familiar patient list.
+  {
+    const execCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(
+          "zack@goalphahealth.com",
+          "Zack Deimel",
+          "oid-st-owner",
+        ),
+      },
+    });
+    await execCtx.addInitScript((key) => {
+      try { localStorage.setItem(key, "exec"); } catch {}
+    }, "apex_portal_v1");
+    const p = await execCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (error) => errors.push(error.message));
+    await p.route("**/api/admin/migration-preview?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          authoritative: true,
+          durableAudit: true,
+          ledgerId: "led-ui-smoke",
+          summary: {
+            clients: 5004,
+            staff: 45,
+            consults: 75,
+            contacts: 1031,
+            sales: 54864,
+            saleLines: 238645,
+            fulfillment: 697,
+            exceptions: 1341,
+            pendingExceptions: 1341,
+          },
+          latestRun: {
+            id: "mig-ui-smoke",
+            mode: "rehearsal",
+            status: "completed",
+            checksum: "sha256-ui-smoke",
+            startedAt: "2026-07-23T12:00:00.000Z",
+            completedAt: "2026-07-23T12:10:00.000Z",
+          },
+          query: "",
+          page: 0,
+          pageSize: 25,
+          matching: 5004,
+          patients: [{
+            id: "client-ui-smoke",
+            mrn: "A-10001",
+            firstName: "Apex",
+            lastName: "Migration",
+            preferredName: null,
+            dateOfBirth: "1980-01-02",
+            email: "migration@example.invalid",
+            phone: "9195550100",
+            status: "active",
+            homeLocationId: "raleigh",
+            sourceUpdatedAt: "2026-07-22T12:00:00.000Z",
+            consultCount: 2,
+            contactCount: 5,
+            saleCount: 7,
+            netSalesCents: 123400,
+            fulfillmentCount: 3,
+          }],
+        }),
+      }),
+    );
+    await p.goto(`${BASE}/admin/migration-preview`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.getByRole("heading", { name: "Imported Alpha patients" }).waitFor({ timeout: 10000 });
+    await p.getByText("APEX NONPRODUCTION", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByText("RESTRICTED PHI", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByText("Apex Migration", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByText("led-ui-smoke", { exact: false }).waitFor({ timeout: 10000 });
+    const text = (await p.evaluate(() => document.body.innerText)).toLowerCase();
+    if (!text.includes("no demo fallback") || !text.includes("alpha remains the live system until friday")) {
+      done(1, "SMOKE-UI FAIL: imported-data view hid the real-vs-demo or source/target boundary");
+    }
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: imported Alpha preview errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log("ok  Imported Alpha preview: restricted, audit-witnessed, real-only list rendered");
     await execCtx.close();
   }
 

@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Megaphone, TrendingUp, AlertTriangle, Users, ArrowRight } from "lucide-react";
-import { Card, Badge } from "@/components/ui/primitives";
+import { Megaphone, TrendingUp, AlertTriangle, Users, ArrowRight, CheckCircle2, Clock3, ClipboardList, Loader2 } from "lucide-react";
+import { Card, Badge, Button, Input, Select, Textarea } from "@/components/ui/primitives";
 import { locationName } from "@/lib/mock/locations";
 
 /**
@@ -32,6 +32,7 @@ interface Lead {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
+  phone: string | null;
   track: string | null;
   preferredLocationId: string | null;
   source: string | null;
@@ -39,10 +40,33 @@ interface Lead {
   utmMedium: string | null;
   utmCampaign: string | null;
   ownerStaffId: string | null;
+  ownerName: string | null;
   stage: string;
   createdAt: string;
+  firstResponseDueAt: string;
+  firstContactedAt: string | null;
   convertedClientId: string | null;
   reason: string | null;
+  lostReason: string | null;
+  notes: Array<{
+    id: string;
+    body: string;
+    authorName: string;
+    createdAt: string;
+  }>;
+  tasks: Array<{
+    id: string;
+    title: string;
+    assigneeStaffId: string;
+    dueAt: string;
+    status: string;
+    completionNote: string | null;
+  }>;
+}
+
+interface Candidate {
+  id: string;
+  name: string;
 }
 
 const STAGE_ORDER = [
@@ -58,29 +82,40 @@ export default function MarketingPage() {
   const [leads, setLeads] = React.useState<Lead[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busyLead, setBusyLead] = React.useState<string | null>(null);
+  const [candidates, setCandidates] = React.useState<Candidate[]>([]);
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [note, setNote] = React.useState("");
+  const [taskTitle, setTaskTitle] = React.useState("");
+  const [taskAssignee, setTaskAssignee] = React.useState("");
+  const [taskDue, setTaskDue] = React.useState("");
+  const [newOwner, setNewOwner] = React.useState("");
+  const [reassignmentReason, setReassignmentReason] = React.useState("");
 
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  const load = React.useCallback(async () => {
+      setError(null);
       try {
-        const r = await fetch("/api/leads");
+        const r = await fetch("/api/leads", { cache: "no-store" });
         const res = await r.json().catch(() => ({}));
-        if (cancelled) return;
-        if (r.ok && res.ok) setLeads(res.leads);
+        if (r.ok && res.ok) {
+          setLeads(res.leads);
+          setCandidates(res.candidates ?? []);
+          setSelectedId((current) => current && res.leads.some((lead: Lead) => lead.id === current) ? current : res.leads[0]?.id ?? null);
+        }
         else setError(res.error || `Could not load leads (HTTP ${r.status}).`);
       } catch {
-        if (!cancelled) setError("Could not reach the server.");
+        setError("Could not reach the server.");
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
   const workLead = async (
     leadId: string,
-    action: "claim" | "release" | "advance",
+    action: "claim" | "release" | "advance" | "assign" | "add-note" | "create-task" | "complete-task",
     toStage?: string,
+    extra: Record<string, unknown> = {},
   ) => {
     setBusyLead(leadId);
     setError(null);
@@ -88,22 +123,33 @@ export default function MarketingPage() {
       const r = await fetch("/api/leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, action, toStage }),
+        body: JSON.stringify({ leadId, action, toStage, ...extra }),
       });
       const res = await r.json().catch(() => ({}));
       if (!r.ok || !res.ok) {
         setError(res.error || `Could not update lead (HTTP ${r.status}).`);
         return;
       }
-      setLeads((current) =>
-        current?.map((lead) => (lead.id === leadId ? res.lead : lead)) ?? current,
-      );
+      await load();
     } catch {
       setError("Could not reach the server.");
     } finally {
       setBusyLead(null);
     }
   };
+
+  const selected = React.useMemo(
+    () => (leads ?? []).find((lead) => lead.id === selectedId) ?? null,
+    [leads, selectedId],
+  );
+
+  React.useEffect(() => {
+    if (!selected) return;
+    setNewOwner(selected.ownerStaffId ?? "");
+    setTaskAssignee(selected.ownerStaffId ?? candidates[0]?.id ?? "");
+    setNote("");
+    setReassignmentReason("");
+  }, [selected, candidates]);
 
   const bySource = React.useMemo(() => {
     if (!leads) return [];
@@ -128,6 +174,10 @@ export default function MarketingPage() {
 
   const stalled = React.useMemo(
     () => (leads ?? []).filter((l) => l.stage === "new"),
+    [leads],
+  );
+  const overdueFirstResponse = React.useMemo(
+    () => (leads ?? []).filter((lead) => !lead.firstContactedAt && new Date(lead.firstResponseDueAt).getTime() < Date.now()),
     [leads],
   );
 
@@ -169,7 +219,7 @@ export default function MarketingPage() {
 
       {leads && leads.length > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <Stat label="Leads captured" value={leads.length} />
             <Stat
               label="Completed intake"
@@ -180,6 +230,11 @@ export default function MarketingPage() {
               label="Converted to client"
               value={leads.filter((l) => l.convertedClientId).length}
               hint={`${pct(leads.filter((l) => l.convertedClientId).length, leads.length)} of captured`}
+            />
+            <Stat
+              label="Response SLA overdue"
+              value={overdueFirstResponse.length}
+              hint="15-minute initial target"
             />
           </div>
 
@@ -202,6 +257,99 @@ export default function MarketingPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="label-eyebrow">Authoritative work queue</p>
+                <p className="mt-1 max-w-2xl text-detail text-ink-500">
+                  Ownership, speed-to-lead, append-only notes, and durable follow-up tasks.
+                  Reassignment requires a reason and every mutation is ledger witnessed.
+                </p>
+              </div>
+              <Badge tone={overdueFirstResponse.length ? "high" : "optimal"}>
+                {overdueFirstResponse.length} response clock{overdueFirstResponse.length === 1 ? "" : "s"} overdue
+              </Badge>
+            </div>
+            <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(300px,0.85fr)_minmax(480px,1.35fr)]">
+              <ol className="max-h-[620px] space-y-2 overflow-y-auto pr-1">
+                {leads.map((lead) => {
+                  const responseLate = !lead.firstContactedAt && new Date(lead.firstResponseDueAt).getTime() < Date.now();
+                  const openTasks = lead.tasks.filter((task) => task.status === "open");
+                  return (
+                    <li key={lead.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(lead.id)}
+                        className={`w-full rounded-control border p-3 text-left transition ${selected?.id === lead.id ? "border-gold-400/50 bg-gold-400/[0.06]" : "border-ink-800 bg-ink-950/20 hover:border-ink-600"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="truncate text-detail font-medium text-ink-100">{[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Unnamed lead"}</p>
+                          <Badge tone={responseLate ? "high" : lead.firstContactedAt ? "optimal" : "watch"}>{lead.stage.replaceAll("-", " ")}</Badge>
+                        </div>
+                        <p className="mt-2 text-micro text-ink-500">{lead.ownerName ?? "Unassigned"} · {openTasks.length} open task{openTasks.length === 1 ? "" : "s"}</p>
+                        <p className={`mt-1 text-micro ${responseLate ? "text-high" : "text-ink-500"}`}>
+                          {lead.firstContactedAt ? `First contact ${new Date(lead.firstContactedAt).toLocaleString()}` : `Response due ${new Date(lead.firstResponseDueAt).toLocaleString()}`}
+                        </p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {selected && (
+                <div className="rounded-control border border-ink-800 bg-ink-950/25 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-display text-heading text-ink-50">{[selected.firstName, selected.lastName].filter(Boolean).join(" ") || "Unnamed lead"}</h3>
+                      <p className="mt-1 text-detail text-ink-400">{selected.email ?? "No email"} · {selected.phone ?? "No phone"}</p>
+                    </div>
+                    <Badge>{selected.stage.replaceAll("-", " ")}</Badge>
+                  </div>
+                  {selected.reason && <p className="mt-4 rounded-control border border-ink-800 bg-ink-900/40 p-3 text-detail leading-relaxed text-ink-300">{selected.reason}</p>}
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <label className="text-detail text-ink-300">Owner<Select className="mt-2" value={newOwner} onChange={(event) => setNewOwner(event.target.value)}><option value="">Unassigned</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</Select></label>
+                    <label className="text-detail text-ink-300">Reassignment reason<Input className="mt-2" value={reassignmentReason} onChange={(event) => setReassignmentReason(event.target.value)} placeholder="Coverage, workload, handoff…" /></label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button size="sm" disabled={busyLead === selected.id || newOwner === (selected.ownerStaffId ?? "") || !reassignmentReason.trim()} onClick={() => void workLead(selected.id, "assign", undefined, { assigneeStaffId: newOwner || null, note: reassignmentReason })}>Save owner</Button>
+                    {!selected.ownerStaffId && <Button size="sm" variant="outline" disabled={busyLead === selected.id} onClick={() => void workLead(selected.id, "claim")}>Claim as me</Button>}
+                    {selected.stage === "new" && <Button size="sm" variant="success" disabled={busyLead === selected.id} onClick={() => void workLead(selected.id, "advance", "contacted")}>Mark contacted</Button>}
+                    {selected.stage !== "lost" && selected.stage !== "converted" && <Button size="sm" variant="danger" disabled={busyLead === selected.id} onClick={() => { const reason = window.prompt("Why was this opportunity lost?"); if (reason) void workLead(selected.id, "advance", "lost", { note: reason }); }}>Mark lost</Button>}
+                    {selected.stage === "lost" && <Button size="sm" variant="outline" disabled={busyLead === selected.id} onClick={() => void workLead(selected.id, "advance", "new", { note: "Opportunity reopened" })}>Reopen</Button>}
+                  </div>
+
+                  <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                    <section>
+                      <div className="flex items-center gap-2"><ClipboardList className="h-4 w-4 text-teal-300" /><h4 className="text-body font-medium text-ink-100">Working notes</h4></div>
+                      <Textarea className="mt-3 min-h-20" value={note} onChange={(event) => setNote(event.target.value)} placeholder="What happened and what is next?" />
+                      <Button className="mt-2" size="sm" disabled={busyLead === selected.id || note.trim().length < 2} onClick={() => void workLead(selected.id, "add-note", undefined, { note })}>Add note</Button>
+                      <ol className="mt-4 max-h-56 space-y-3 overflow-y-auto">
+                        {selected.notes.map((entry) => <li key={entry.id} className="border-l border-ink-700 pl-3 text-detail"><p className="text-ink-300">{entry.body}</p><p className="mt-1 text-micro text-ink-500">{entry.authorName} · {new Date(entry.createdAt).toLocaleString()}</p></li>)}
+                        {!selected.notes.length && <li className="text-detail text-ink-500">No working notes yet.</li>}
+                      </ol>
+                    </section>
+
+                    <section>
+                      <div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-watch" /><h4 className="text-body font-medium text-ink-100">Follow-up tasks</h4></div>
+                      <Input className="mt-3" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Call, confirm, schedule…" />
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <Select value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</Select>
+                        <Input type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+                      </div>
+                      <Button className="mt-2" size="sm" disabled={busyLead === selected.id || !taskTitle.trim() || !taskDue || !taskAssignee} onClick={() => void workLead(selected.id, "create-task", undefined, { title: taskTitle, dueAt: new Date(taskDue).toISOString(), assigneeStaffId: taskAssignee })}>Create task</Button>
+                      <ol className="mt-4 max-h-56 space-y-2 overflow-y-auto">
+                        {selected.tasks.map((task) => <li key={task.id} className="flex items-start gap-2 rounded-control border border-ink-800 p-3 text-detail"><button type="button" disabled={task.status !== "open" || busyLead === selected.id} onClick={() => void workLead(selected.id, "complete-task", undefined, { taskId: task.id })} className="mt-0.5 text-ink-500 hover:text-optimal disabled:text-optimal"><CheckCircle2 className="h-4 w-4" /></button><div><p className={task.status === "completed" ? "text-ink-500 line-through" : "text-ink-200"}>{task.title}</p><p className="mt-1 text-micro text-ink-500">Due {new Date(task.dueAt).toLocaleString()}</p></div></li>)}
+                        {!selected.tasks.length && <li className="text-detail text-ink-500">No follow-up tasks yet.</li>}
+                      </ol>
+                    </section>
+                  </div>
+                  {busyLead === selected.id && <p className="mt-4 flex items-center gap-2 text-detail text-ink-400"><Loader2 className="h-4 w-4 animate-spin" /> Confirming durable change…</p>}
+                </div>
+              )}
             </div>
           </Card>
 

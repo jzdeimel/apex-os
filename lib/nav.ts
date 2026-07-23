@@ -132,6 +132,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       items: [
         { href: "/clinic", label: "Today", icon: LayoutDashboard },
         { href: "/clinic/escalations", label: "Escalations", icon: Siren, spotlight: true },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
         { href: "/clinic/population", label: "Risk radar", icon: Activity },
         { href: "/clinic/sign", label: "Sign queue", icon: FileSignature, spotlight: true },
         { href: "/clinic/lab-draws", label: "Lab draw queue", icon: Syringe },
@@ -171,6 +172,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/coach/messages", label: "Patient messages", icon: MessageSquare, spotlight: true },
         { href: "/coach/roster", label: "My members", icon: Users },
         { href: "/coach/gaps", label: "Care gaps", icon: LifeBuoy, spotlight: true },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
         { href: "/coach/consults", label: "Consults", icon: ClipboardList },
         { href: "/tasks", label: "Tasks", icon: ListChecks },
         { href: "/agent", label: "Ask Apex", icon: Bot },
@@ -250,6 +252,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Look someone up",
       items: [
         { href: "/tasks", label: "Tasks", icon: ClipboardList },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
         { href: "/desk/community", label: "Community", icon: UsersRound, spotlight: true },
       ],
     },
@@ -297,6 +300,8 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
         { href: "/clinic/ledger", label: "Audit trail", icon: History },
         { href: "/clinic/controlled", label: "Controlled substances", icon: Pill },
         { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
+        { href: "/admin/cases", label: "Support & records", icon: LifeBuoy, spotlight: true },
+        { href: "/admin/migration-preview", label: "Imported Alpha patients", icon: Rows3, spotlight: true },
       ],
     },
     {

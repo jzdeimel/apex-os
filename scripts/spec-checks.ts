@@ -79,6 +79,19 @@ import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
 import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
+  leadFirstResponseDueAt,
+  leadNoteAcceptable,
+  leadSlaState,
+  leadTaskAcceptable,
+  lostReasonAcceptable,
+} from "@/lib/crm/work";
+import {
+  operationalCaseClocks,
+  operationalCaseClosureAcceptable,
+  operationalCaseInputAcceptable,
+  operationalCaseTransitionAllowed,
+} from "@/lib/operations/cases";
+import {
   invoiceNumber,
   invoiceRequestId,
   invoiceTotals,
@@ -1091,6 +1104,11 @@ eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescrip
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
+eq("front desk may open an operations case", can(actor("front-desk"), "create:operations-case").allowed, true);
+eq("a coach may open a service-recovery case", can(actor("coach", "Coach"), "create:operations-case").allowed, true);
+eq("a coach cannot read the operations-wide case queue", can(actor("coach", "Coach"), "read:operations-cases").allowed, false);
+eq("operations may own and work the case queue", can(actor("operations"), "work:operations-cases").allowed, true);
+eq("an owner may work the case queue", can(actor("owner"), "work:operations-cases").allowed, true);
 eq("a coach may work their owned community queue", can(actor("coach", "Coach"), "moderate:community").allowed, true);
 eq("a provider may report a community concern", can(actor("provider", "Medical"), "report:community").allowed, true);
 eq("a provider cannot close a community moderation case", can(actor("provider", "Medical"), "moderate:community").allowed, false);
@@ -1223,6 +1241,87 @@ eq("a lost lead may be deliberately reopened", leadTransitionAllowed("lost", "ne
 eq("a converted lead cannot be moved backward", leadTransitionAllowed("converted", "contacted"), false);
 eq("a pipeline button cannot manually manufacture conversion", leadTransitionAllowed("consult-booked", "converted"), false);
 eq("unknown lead stages fail closed", leadTransitionAllowed("new", "maybe"), false);
+eq(
+  "a captured lead receives the initial 15-minute response clock",
+  leadFirstResponseDueAt("2026-07-23T12:00:00.000Z").toISOString(),
+  "2026-07-23T12:15:00.000Z",
+);
+eq(
+  "contact before the response clock records a met SLA",
+  leadSlaState({
+    dueAt: "2026-07-23T12:15:00.000Z",
+    firstContactedAt: "2026-07-23T12:10:00.000Z",
+    now: "2026-07-23T13:00:00.000Z",
+  }),
+  "met",
+);
+eq(
+  "an untouched lead past the response clock is overdue",
+  leadSlaState({
+    dueAt: "2026-07-23T12:15:00.000Z",
+    now: "2026-07-23T12:16:00.000Z",
+  }),
+  "overdue",
+);
+eq("blank CRM notes fail closed", leadNoteAcceptable(" "), false);
+eq("a durable follow-up needs a valid due time", leadTaskAcceptable({ title: "Call patient", dueAt: "not-a-date" }), false);
+eq("lost opportunities require a substantive reason", lostReasonAcceptable("no"), false);
+
+section("Authoritative support and records cases");
+const recordAccessClocks = operationalCaseClocks(
+  "record-access",
+  "normal",
+  "2026-07-23T12:00:00.000Z",
+);
+eq(
+  "record access receives the federal 30-day outer action clock",
+  recordAccessClocks.dueAt.toISOString(),
+  "2026-08-22T12:00:00.000Z",
+);
+eq(
+  "record amendments receive the federal 60-day outer action clock",
+  operationalCaseClocks("record-amendment", "normal", "2026-07-23T12:00:00.000Z").dueAt.toISOString(),
+  "2026-09-21T12:00:00.000Z",
+);
+eq(
+  "urgent service recovery receives a 15-minute first-response clock",
+  operationalCaseClocks("complaint", "urgent", "2026-07-23T12:00:00.000Z").firstResponseDueAt.toISOString(),
+  "2026-07-23T12:15:00.000Z",
+);
+eq("new cases may be accepted into active work", operationalCaseTransitionAllowed("new", "in-progress"), true);
+eq("a closed case cannot silently become assigned", operationalCaseTransitionAllowed("closed", "assigned"), false);
+eq(
+  "a record request without scope fails closed",
+  operationalCaseInputAcceptable({
+    kind: "record-access",
+    subject: "My record",
+    detail: "Please send my record.",
+    recordScope: "",
+  }) === null,
+  false,
+);
+eq(
+  "an amendment requires the exact record and proposed correction",
+  operationalCaseInputAcceptable({
+    kind: "record-amendment",
+    subject: "Correct my record",
+    detail: "This entry is inaccurate.",
+    recordScope: "Visit note",
+    amendmentRecordReference: "2026-07-20 visit",
+    amendmentRequestedText: "",
+  }) === null,
+  false,
+);
+eq(
+  "fulfilled cases require a documented resolution",
+  operationalCaseClosureAcceptable({ status: "fulfilled", resolution: "" }),
+  false,
+);
+eq(
+  "denied records work requires a denial reason",
+  operationalCaseClosureAcceptable({ status: "denied", denialReason: "" }),
+  false,
+);
 
 section("Authoritative billing lifecycle");
 eq("a retried membership request keeps one opaque id", membershipRequestId("client-1", "request_12345678"), membershipRequestId("client-1", "request_12345678"));

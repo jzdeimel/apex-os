@@ -14,6 +14,7 @@ import {
   consultAddendum,
   lead as leadTable,
   leadStageEvent,
+  leadOwnerEvent,
   consent as consentTable,
   intakeInvite,
   intakeSubmission,
@@ -77,6 +78,7 @@ import { inferAccessProfile } from "@/lib/authz/profiles";
 import { NCV_COMPONENTS, type NcvComponentId } from "@/lib/scheduling/ncv";
 import { parseCredential } from "@/lib/scheduling/credentials";
 import { resourceSuitableForVisit } from "@/lib/clinic-resources/lifecycle";
+import { leadFirstResponseDueAt } from "@/lib/crm/work";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -2620,6 +2622,8 @@ export async function createLeadWithInvite(input: {
       utmCampaign: input.utmCampaign ?? null,
       stage: "new",
       createdAt: at,
+      firstResponseDueAt: leadFirstResponseDueAt(at),
+      updatedAt: at,
     });
 
     await tx.insert(leadStageEvent).values({
@@ -2805,7 +2809,7 @@ export async function submitIntake(input: {
     });
     await tx
       .update(leadTable)
-      .set({ stage: "intake-submitted" })
+      .set({ stage: "intake-submitted", updatedAt: at })
       .where(eq(leadTable.id, claimed.leadId));
 
     const ledger = await appendLedgerInTx(
@@ -2896,7 +2900,7 @@ export async function updateLeadPipeline(input: {
       }
       [updated] = await tx
         .update(leadTable)
-        .set({ ownerStaffId: input.actorId })
+        .set({ ownerStaffId: input.actorId, updatedAt: at })
         .where(
           and(
             eq(leadTable.id, input.leadId),
@@ -2912,7 +2916,7 @@ export async function updateLeadPipeline(input: {
       }
       [updated] = await tx
         .update(leadTable)
-        .set({ ownerStaffId: null })
+        .set({ ownerStaffId: null, updatedAt: at })
         .where(and(eq(leadTable.id, input.leadId), eq(leadTable.ownerStaffId, input.actorId)))
         .returning();
       reason = "CRM lead released";
@@ -2935,6 +2939,9 @@ export async function updateLeadPipeline(input: {
           stage: toStage,
           ownerStaffId: current.ownerStaffId ?? input.actorId,
           lostReason: toStage === "lost" ? input.note!.trim().slice(0, 1000) : null,
+          firstContactedAt:
+            toStage === "contacted" && !current.firstContactedAt ? at : current.firstContactedAt,
+          updatedAt: at,
         })
         .where(and(eq(leadTable.id, input.leadId), eq(leadTable.stage, current.stage)))
         .returning();
@@ -2980,6 +2987,18 @@ export async function updateLeadPipeline(input: {
       },
       input.at,
     );
+    if (current.ownerStaffId !== updated.ownerStaffId) {
+      await tx.insert(leadOwnerEvent).values({
+        id: `loe-${input.leadId}-${at.getTime().toString(36)}`,
+        leadId: input.leadId,
+        fromStaffId: current.ownerStaffId,
+        toStaffId: updated.ownerStaffId,
+        reason,
+        byStaffId: input.actorId,
+        at,
+        ledgerId: ledger.id,
+      });
+    }
     return { ok: true as const, lead: updated, ledger };
   });
 }

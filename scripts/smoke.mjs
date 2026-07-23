@@ -72,6 +72,9 @@ try {
   await expectStatus("GET", "/api/community/moderation", 401);
   await expectStatus("GET", "/api/community/groups", 401);
   await expectStatus("GET", "/api/community/members?q=test", 401);
+  await expectStatus("GET", "/api/operations/cases", 401);
+  await expectStatus("GET", "/api/admin/migration-preview", 401);
+  await expectStatus("GET", "/api/patient/record-requests", 401);
   await expectStatus("POST", "/api/acs/token", 401);
 
   for (const [path, body] of [
@@ -320,6 +323,24 @@ try {
     });
     if (r.status !== 401) fail(`staff lead pipeline update (unauth) => ${r.status}, expected 401`);
     console.log("ok  PATCH /api/leads (unauth) => 401");
+  }
+  {
+    const r = await fetch(`${BASE}/api/operations/cases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.status !== 401) fail(`operations case create (unauth) => ${r.status}, expected 401`);
+    console.log("ok  POST /api/operations/cases (unauth) => 401");
+  }
+  {
+    const r = await fetch(`${BASE}/api/patient/record-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.status !== 401) fail(`patient records request (unauth) => ${r.status}, expected 401`);
+    console.log("ok  POST /api/patient/record-requests (unauth) => 401");
   }
   {
     // Acquisition is OWNER-only: a coach holds read:financial but must not see

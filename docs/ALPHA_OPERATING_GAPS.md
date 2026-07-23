@@ -45,7 +45,7 @@ sit outside the clinical cutover core, is maintained in
 | Inventory, dispensing and fulfillment | Authoritative lot/expiry receiving, immutable stock movements, cycle-count reconciliation, waste, atomic inter-clinic transfer, patient dispensing and recall-to-affected-patient traceability now exist. Patient orders now commit priced lines, lifecycle history, audit evidence and MedSource outbox intent atomically; scoped coach and fulfillment boards read that source of truth. Expired/recalled stock cannot leave, negative stock is rejected, and controlled dispensing requires matching prescription/DEA/PDMP evidence. The outbox worker, inbound MedSource/UPS transport, cold-chain logs, reorder policy and daily reconciliation are not accepted. | Run clinic recall/count/dispense/order drills; implement and monitor outbox delivery plus authenticated inbound events; add temperature evidence and approved reorder thresholds; provision and accept MedSource/UPS credentials, shipment exceptions and daily reconciliation. |
 | Intake, consent and Alpha Plan contracts | Versioned guided intake and immutable signature evidence exist. Final current forms, contract templates, retention/delivery language and operational ownership have not been supplied and accepted. | Medical/legal-approved forms and templates; patient copy delivery; withdrawal/correction process; coach/admin acceptance run; evidence export. |
 | Communications and GHL/Mindbody retirement | Consent, quiet hours, caps, campaigns and suppression logic are prepared. Production transport, complete exports and final delta are absent. | ACS number and A2P 10DLC; STOP/DNC/webhooks; verified email domain/SPF/DKIM/DMARC; bounces/complaints; campaign/UTM attribution; Mindbody/GHL exports and reconciled shutdown. |
-| Security, continuity and support | EasyAuth, RBAC gates, audit ledger, patient session caps and nonprod isolation exist. Production recovery and operating evidence is external. | BAAs; access review; staff idle-lock decision; Key Vault/rotation; backups/PITR restore test; retention; monitoring/on-call; incident response; downtime workflow; penetration/security review. |
+| Security, continuity and support | EasyAuth, RBAC gates, audit ledger, patient session caps and nonprod isolation exist. Staff can open durable support/service-recovery cases and operations can own, work and close a deadline-driven queue. Production recovery, notification transport and operating evidence are external. | BAAs; access review; staff idle-lock decision; Key Vault/rotation; backups/PITR restore test; accepted support SLAs and notifications; monitoring/on-call; incident response; downtime workflow; penetration/security review. |
 
 ## P1 — needed to run well after the P0 operating core is safe
 
@@ -55,15 +55,19 @@ sit outside the clinical cutover core, is maintained in
   provider continuity/co-sign rules and coach-facing communication tasks.
 - Validated outcomes instruments and longitudinal symptom/body-composition
   measures that feed the chart instead of remaining demonstration data.
-- Production CRM funnel: lead ownership, source/UTM/campaign, stage history,
-  conversion cohorts, referral attribution and follow-up SLA.
+- CRM core is now durable: ownership/reassignment, source/UTM/campaign, stage
+  history, a snapshotted first-response clock, first-contact evidence, notes,
+  follow-up tasks and loss/reopen reasons. Remaining work is dedupe, accepted
+  SLA policy, referral/consult linkage, automation and forecasting.
 - Owner reporting based on collected cash and dated lifecycle events rather
   than seeded snapshots or contracted-value estimates.
 - Community moderation is now authoritative for the text pilot: named primary
   and backup moderators, response/resolution SLA, report/block handling,
   immutable evidence, retention and private care-team escalation are built.
   Production moderator assignment/drills and scanned private attachments remain.
-- Data export, legal record release, amendment requests and a full client chart
+- Records access/release/amendment intake is now durable, patient-visible,
+  identity-gated and deadline-driven. Actual data export/delivery, authorization,
+  redaction, accounting of disclosures, legal hold and a full client chart
   archive suitable for continuity of care.
 
 ## Explicitly not a cutover blocker

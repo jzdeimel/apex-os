@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Beaker, CalendarDays, FileCheck2, ShieldCheck, Stethoscope, UsersRound } from "lucide-react";
+import { Beaker, CalendarDays, FileCheck2, FileClock, ShieldCheck, Stethoscope, UsersRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/primitives";
 import { PatientSignOut } from "@/components/patient/PatientSignOut";
 import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
@@ -50,6 +50,23 @@ export default async function PatientPilotPage() {
       </header>
 
       <section className="mt-8 grid gap-5 lg:grid-cols-2" aria-label="Patient record summary">
+        <Link
+          href="/patient/records"
+          className="rounded-panel border border-teal-400/30 bg-teal-400/[0.05] p-6 transition hover:border-teal-400/55 lg:col-span-2"
+        >
+          <div className="flex items-start gap-4">
+            <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+              <FileClock className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-display text-title text-ink-50">Access, send, or amend your record</h2>
+              <p className="mt-2 max-w-2xl text-body leading-relaxed text-ink-400">
+                Open a tracked request and follow its owner, identity check, deadline, and resolution.
+              </p>
+              <p className="mt-3 text-detail font-medium text-teal-300">Manage record requests →</p>
+            </div>
+          </div>
+        </Link>
         {communityEnabled && (
           <Link
             href="/patient/community"
@@ -194,7 +211,7 @@ export default async function PatientPilotPage() {
       </section>
 
       <aside className="mt-8 rounded-panel border border-gold-400/30 bg-gold-400/5 p-5 text-detail leading-relaxed text-ink-300">
-        This patient pilot now supports authoritative messaging to your assigned coach. Appointments, documents, and the rest of the chart remain read-only while those workflows complete validation.
+        This patient pilot supports authoritative coach messaging and tracked record requests. Appointments, documents, and the rest of the chart remain read-only while those workflows complete validation.
       </aside>
     </main>
   );

@@ -49,6 +49,7 @@ export type Capability =
   | "read:messages"
   | "read:community"
   | "read:community-moderation"
+  | "read:operations-cases"
   /**
    * Acquisition and channel performance across the business. OWNER ONLY, and
    * deliberately NOT read:financial — a coach holds that so they can discuss a
@@ -85,6 +86,8 @@ export type Capability =
   | "write:crm"
   | "write:communications"
   | "write:quality"
+  | "create:operations-case"
+  | "work:operations-cases"
   | "override:schedule"
   | "write:community"
   | "report:community"
@@ -132,6 +135,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:schedule", "write:schedule",
     "write:clinical-history",
     "report:adverse-event", "review:adverse-event",
+    "create:operations-case",
     // The licensed set — this row is the entire reason the role exists.
     "write:prescription", "sign:plan-of-care", "sign:encounter",
     "order:labs", "collect:labs", "record:lab-results", "sign:labs", "override:contraindication",
@@ -142,6 +146,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:community", "report:community",
     "write:consult", "write:clinical-history", "write:contact", "write:task",
     "report:adverse-event",
+    "create:operations-case",
     "collect:labs", "record:lab-results",
     "dispense:inventory",
   ],
@@ -154,6 +159,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
     "report:adverse-event",
+    "create:operations-case",
     "read:schedule", "write:schedule",
     "escalate:provider",
   ],
@@ -161,22 +167,27 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:directory", "read:location-clients", "read:schedule", "read:all-schedules",
     "read:community", "report:community",
     "write:contact", "write:demographics", "write:task", "write:schedule",
+    "create:operations-case",
   ],
   billing: [
     "read:directory", "read:financial", "read:all-clients",
     "write:membership", "write:invoice", "write:payment", "write:refund",
+    "create:operations-case",
   ],
   fulfillment: [
     "read:directory", "read:location-clients", "read:orders", "read:inventory",
     "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment",
+    "create:operations-case",
   ],
   marketing: [
     "read:crm", "read:business-metrics", "write:crm", "write:communications",
+    "create:operations-case",
   ],
   operations: [
     "read:directory", "read:location-clients", "read:financial", "read:ledger", "read:all-clients",
     "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:operations-cases", "create:operations-case", "work:operations-cases",
     "write:contact", "write:demographics", "write:task",
     "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
     "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm", "write:quality",
@@ -194,6 +205,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   owner: [
     "read:directory", "read:financial", "read:ledger", "read:all-clients",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:operations-cases", "create:operations-case", "work:operations-cases",
     "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     "read:business-metrics", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
     "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",

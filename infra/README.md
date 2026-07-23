@@ -49,7 +49,8 @@ It is never printed or written to the repository.
 
 ## Data rule
 
-The environment is tagged `dataClassification=synthetic-only`. Normal development uses
-synthetic data. A migration rehearsal involving production PHI requires a separate approval,
-a documented read-only export, and a time-limited protected copy. Apex tooling must never
-receive write credentials for the Alpha production database.
+The environment is tagged `dataClassification=restricted-phi-nonprod`. Normal development
+still uses synthetic data, but this isolated environment may hold the explicitly authorized
+Alpha migration copy. The source connection is used only inside a read-only transaction;
+all application and migration writes target Apex. Alpha production must never be deployed,
+altered, or used as the migration target.

@@ -12,8 +12,12 @@ patient, a real employee, real medication, and real money?** Where the answer is
 yet "not proven," this README says so plainly. Nothing here claims to be
 integrated, persisted, signed, or sent unless it genuinely is.
 
-> **Data & safety.** No real PHI is loaded — every patient is synthetic and
-> deterministically generated. Apex does not prescribe or fulfil; clinical
+> **Data & safety.** Demo fixtures contain no real PHI — every fixture patient
+> is synthetic and deterministically generated. The isolated Apex nonproduction environment is
+> also approved to hold a protected, one-way Alpha migration copy for
+> pre-cutover validation. `/admin/migration-preview` is the staff-only,
+> audit-witnessed view of that copy and never substitutes demo data. Alpha
+> remains read-only throughout. Apex does not prescribe or fulfil; clinical
 > suggestions are rule-based, category-level, and always require a licensed
 > provider's sign-off (never a dose). Apex is the **system of record** — it has
 > **zero** MindBody and **zero** GoHighLevel integration by design.
@@ -44,6 +48,9 @@ the system of record fills in behind them. This table is the source of truth.
 | Patient-to-coach messaging | **Real** — session-scoped, durable | `/patient`, `GET/POST /api/patient/messages`; coach is the only patient-facing thread |
 | Patient community moderation | **Real for the `/patient` pilot** — text-only, owned, audited | Coach-owned groups, pseudonymous membership, reports, patient blocks, SLA queue, retention deadlines and care-team routing in Postgres |
 | Public lead capture and acquisition attribution | **Real core** — durable first-touch rows | `/book` and `/api/public/leads` persist the lead, intake invite, source and UTM source/medium/campaign; Executive Pipeline and Acquisition read the same Postgres records |
+| CRM ownership and follow-up | **Real core** — durable queue | `/exec/marketing` owns assignment history, a 15-minute first-response clock, first contact, append-only notes, follow-up tasks and loss/reopen reasons |
+| Support, service recovery and records requests | **Real workflow core** — durable and audited | `/support`, `/admin/cases`, and `/patient/records` share accountable cases, deadlines, identity-verification state, immutable events and closure evidence; actual PHI export remains gated |
+| Protected Alpha migration preview | **Real imported data only** — staff-only and audit-witnessed | `/admin/migration-preview` reads only rows carrying `source_system=alpha-v1`; no seeded fallback, source ids, or exception payloads |
 | Consult **draft** autosave and signature | **Real** — durable and role-constrained | `GET/PUT/POST /api/consults/draft`; Coach and Medical use separate allowed note types/channels |
 | Staff Community showcase, rosters, broad portal, protocols and broad analytics… | **Seeded preview** | `lib/mock/*` deterministic data; preview dates and provenance are labeled in the UI |
 
@@ -159,7 +166,7 @@ Authorization is **server-enforced**, never a hidden button.
 
 ---
 
-## Data model (Drizzle, 77 public tables after current migrations)
+## Data model (Drizzle, 82 public tables after current migrations)
 
 Core tables in `lib/db/schema.ts`, migrations in `lib/db/migrations/`:
 
