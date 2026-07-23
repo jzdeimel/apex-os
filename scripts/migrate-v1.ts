@@ -1839,7 +1839,20 @@ async function insertHistoricalSales(tx: TransactionSql, records: MappedRecord<R
   for (const batch of chunks(records.map((record) => record.data), 300)) {
     await tx`
       insert into sale ${tx(batch)}
-      on conflict (id) do nothing
+      on conflict (id) do update set
+        client_id = excluded.client_id,
+        kind = excluded.kind,
+        external_ref = excluded.external_ref,
+        order_number = excluded.order_number,
+        occurred_at = excluded.occurred_at,
+        location_id = excluded.location_id,
+        source_location_label = excluded.source_location_label,
+        coach_id = excluded.coach_id,
+        total_cents = excluded.total_cents,
+        source_item_count = excluded.source_item_count,
+        actual_item_count = excluded.actual_item_count,
+        legacy = excluded.legacy,
+        source_updated_at = excluded.source_updated_at
     `;
   }
 }
@@ -1848,7 +1861,15 @@ async function insertHistoricalSaleLines(tx: TransactionSql, records: MappedReco
   for (const batch of chunks(records.map((record) => record.data), 500)) {
     await tx`
       insert into sale_line ${tx(batch)}
-      on conflict (id) do nothing
+      on conflict (id) do update set
+        sale_id = excluded.sale_id,
+        line_index = excluded.line_index,
+        sku = excluded.sku,
+        description = excluded.description,
+        quantity = excluded.quantity,
+        unit_price_cents = excluded.unit_price_cents,
+        total_cents = excluded.total_cents,
+        returned = excluded.returned
     `;
   }
 }
@@ -1857,7 +1878,18 @@ async function insertHistoricalContacts(tx: TransactionSql, records: MappedRecor
   for (const batch of chunks(records.map((record) => record.data), 300)) {
     await tx`
       insert into contact_entry ${tx(batch)}
-      on conflict (id) do nothing
+      on conflict (id) do update set
+        client_id = excluded.client_id,
+        staff_id = excluded.staff_id,
+        at = excluded.at,
+        channel = excluded.channel,
+        direction = excluded.direction,
+        subject = excluded.subject,
+        outcome = excluded.outcome,
+        notes = excluded.notes,
+        source_has_attachments = excluded.source_has_attachments,
+        source_external_id = excluded.source_external_id,
+        source_updated_at = excluded.source_updated_at
     `;
   }
 }
@@ -1866,7 +1898,35 @@ async function insertHistoricalFulfillment(tx: TransactionSql, records: MappedRe
   for (const batch of chunks(records.map((record) => record.data), 300)) {
     await tx`
       insert into historical_fulfillment_record ${tx(batch)}
-      on conflict (id) do nothing
+      on conflict (id) do update set
+        record_kind = excluded.record_kind,
+        client_id = excluded.client_id,
+        sale_id = excluded.sale_id,
+        order_number = excluded.order_number,
+        external_order_ref = excluded.external_order_ref,
+        partner = excluded.partner,
+        status = excluded.status,
+        source_channel = excluded.source_channel,
+        location_id = excluded.location_id,
+        source_location_label = excluded.source_location_label,
+        coach_id = excluded.coach_id,
+        occurred_at = excluded.occurred_at,
+        completed_at = excluded.completed_at,
+        sku = excluded.sku,
+        item_name = excluded.item_name,
+        quantity = excluded.quantity,
+        items = excluded.items,
+        pickup = excluded.pickup,
+        shipping_type = excluded.shipping_type,
+        tracking = excluded.tracking,
+        carrier = excluded.carrier,
+        est_delivery = excluded.est_delivery,
+        delayed = excluded.delayed,
+        delay_reason = excluded.delay_reason,
+        status_history = excluded.status_history,
+        destination_snapshot = excluded.destination_snapshot,
+        routing_snapshot = excluded.routing_snapshot,
+        source_updated_at = excluded.source_updated_at
     `;
   }
 }
@@ -1895,8 +1955,6 @@ async function upsertBindings(
         target_id = excluded.target_id, source_updated_at = excluded.source_updated_at,
         checksum = excluded.checksum, last_run_id = excluded.last_run_id,
         imported_at = excluded.imported_at
-      where import_binding.entity_type not in ('contact-entry', 'historical-fulfillment', 'sale', 'sale-line')
-         or import_binding.checksum = excluded.checksum
     `;
   }
 }
@@ -1943,6 +2001,7 @@ interface Reconciliation {
   targetRows: number;
   missing: number;
   mismatched: number;
+  mismatchedByEntity: Record<string, number>;
   extra: number;
   expectedChecksum: string;
   bindingChecksum: string;
@@ -1980,9 +2039,14 @@ async function reconcile(
   const bound = new Map(actual.map((row) => [`${row.entityType}:${row.sourceId}`, row.checksum]));
   let missing = 0;
   let mismatched = 0;
+  const mismatchedByEntity: Record<string, number> = {};
   for (const [key, checksum] of expected) {
     if (!bound.has(key)) missing++;
-    else if (bound.get(key) !== checksum) mismatched++;
+    else if (bound.get(key) !== checksum) {
+      mismatched++;
+      const entity = key.slice(0, key.indexOf(":"));
+      mismatchedByEntity[entity] = (mismatchedByEntity[entity] ?? 0) + 1;
+    }
   }
   let extra = 0;
   for (const key of bound.keys()) if (!expected.has(key)) extra++;
@@ -1999,6 +2063,7 @@ async function reconcile(
     targetRows,
     missing,
     mismatched,
+    mismatchedByEntity,
     extra,
     expectedChecksum,
     bindingChecksum,
