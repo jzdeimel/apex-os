@@ -17,11 +17,15 @@ param entraClientSecret string = ''
 
 param tenantId string = '1e7ed424-6240-48b5-a836-9db1c38eb00b'
 param location string = 'eastus2'
+@description('Purchased ACS caller-ID number in E.164. Empty until number provisioning is approved.')
+param acsCallerId string = ''
 
 var appName = 'ca-apex-dev'
 var environmentName = 'cae-apex-nonprod'
 var registryName = 'acrapexnpfcfde'
 var keyVaultName = 'kv-apex-np-fcfde'
+var communicationServiceName = 'acs-apex-np-fcfde'
+var communicationConnectionSecretName = 'acs-connection-string'
 var webAuthClientSecretName = 'web-auth-client-secret'
 // Azure cloud suffixes include their leading dot (for example
 // `.vault.azure.net`), so concatenate rather than inserting another separator.
@@ -52,6 +56,29 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
 resource databaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
   parent: keyVault
   name: 'database-url'
+}
+
+resource communicationService 'Microsoft.Communication/communicationServices@2023-03-31' = {
+  name: communicationServiceName
+  location: 'global'
+  tags: tags
+  properties: {
+    dataLocation: 'United States'
+  }
+}
+
+// Azure resolves the key at deployment time and writes it straight to the
+// nonprod vault. The value is never a parameter, output, CLI argument, image
+// layer, or repository value.
+resource communicationConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: communicationConnectionSecretName
+  properties: {
+    value: communicationService.listKeys().primaryConnectionString
+    attributes: {
+      enabled: true
+    }
+  }
 }
 
 // Secret creation/rotation is a bootstrap-only operation. Routine app
@@ -116,6 +143,11 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: webAuthClientSecretUrl
           identity: runtimeIdentity.id
         }
+        {
+          name: 'acs-connection-string'
+          keyVaultUrl: communicationConnectionSecret.properties.secretUri
+          identity: runtimeIdentity.id
+        }
       ]
     }
     template: {
@@ -151,6 +183,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
               // the shared review environment on Alpha's dark treatment.
               name: 'APEX_UI_SKIN'
               value: 'alpha-dark'
+            }
+            {
+              name: 'ACS_CONNECTION_STRING'
+              secretRef: 'acs-connection-string'
+            }
+            {
+              name: 'ACS_CALLER_ID'
+              value: acsCallerId
             }
           ]
           resources: {
@@ -254,3 +294,4 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
 output appName string = app.name
 output fqdn string = app.properties.configuration.ingress.fqdn
 output image string = image
+output communicationServiceName string = communicationService.name

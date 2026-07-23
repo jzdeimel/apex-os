@@ -79,6 +79,11 @@ import { NCV_COMPONENTS, type NcvComponentId } from "@/lib/scheduling/ncv";
 import { parseCredential } from "@/lib/scheduling/credentials";
 import { resourceSuitableForVisit } from "@/lib/clinic-resources/lifecycle";
 import { leadFirstResponseDueAt } from "@/lib/crm/work";
+import {
+  callNotes,
+  callOutcome,
+  type CallLifecycleEvent,
+} from "@/lib/communications/calling";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -376,6 +381,141 @@ export async function logContact(input: {
     notes: input.notes ?? null,
     templateId: input.templateId ?? null,
     ledgerId: input.ledgerId ?? null,
+  });
+}
+
+/**
+ * Persist one outbound ACS call as one contact-history row while witnessing
+ * every meaningful lifecycle transition in the immutable ledger.
+ *
+ * Browser SDK events can be repeated or arrive late. The row therefore moves
+ * only forward (dialing -> connected -> final), and a replay of the same state
+ * is a no-op rather than a second audit assertion.
+ */
+export async function recordCallEventWithLedger(input: {
+  id: string;
+  clientId: string;
+  clientName: string;
+  staffId: string;
+  staffName: string;
+  staffRole: string;
+  event: CallLifecycleEvent;
+  at: string;
+  callId?: string;
+  durationSeconds?: number;
+  reason?: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: contactEntry.id,
+        clientId: contactEntry.clientId,
+        staffId: contactEntry.staffId,
+        outcome: contactEntry.outcome,
+        notes: contactEntry.notes,
+        ledgerId: contactEntry.ledgerId,
+      })
+      .from(contactEntry)
+      .where(eq(contactEntry.id, input.id))
+      .limit(1);
+
+    if (
+      existing &&
+      (existing.clientId !== input.clientId || existing.staffId !== input.staffId)
+    ) {
+      throw new Error("Call request id was already used for a different subject.");
+    }
+
+    const nextOutcome = callOutcome(input.event);
+    const nextNotes = callNotes(input);
+    const rank: Record<string, number> = {
+      Dialing: 1,
+      Connected: 2,
+      Completed: 3,
+      Failed: 3,
+    };
+    const existingRank = existing?.outcome ? (rank[existing.outcome] ?? 0) : 0;
+    const nextRank = rank[nextOutcome];
+
+    if (
+      existing &&
+      (existingRank === 3 ||
+        existingRank > nextRank ||
+        (existing.outcome === nextOutcome && existing.notes === nextNotes))
+    ) {
+      return { contact: existing, ledger: null, duplicate: true };
+    }
+
+    const before = existing
+      ? { outcome: existing.outcome, notes: existing.notes }
+      : undefined;
+
+    if (existing) {
+      await tx
+        .update(contactEntry)
+        .set({
+          outcome: nextOutcome,
+          notes: nextNotes,
+          sourceExternalId: input.callId ?? null,
+          sourceUpdatedAt: new Date(input.at),
+        })
+        .where(eq(contactEntry.id, input.id));
+    } else {
+      await tx.insert(contactEntry).values({
+        id: input.id,
+        clientId: input.clientId,
+        staffId: input.staffId,
+        at: new Date(input.at),
+        channel: "call",
+        direction: "outbound",
+        subject: "Outbound phone call",
+        outcome: nextOutcome,
+        notes: nextNotes,
+        sourceExternalId: input.callId ?? null,
+        sourceSystem: "apex-acs",
+        sourceId: input.id,
+        sourceUpdatedAt: new Date(input.at),
+      });
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.staffId,
+        actorName: input.staffName,
+        actorRole: input.staffRole,
+        action: existing ? "update" : "create",
+        entity: "note",
+        entityId: input.id,
+        subjectId: input.clientId,
+        subjectName: input.clientName,
+        reason: `ACS outbound call ${input.event}`,
+        before,
+        after: {
+          channel: "ACS PSTN",
+          direction: "outbound",
+          outcome: nextOutcome,
+          callId: input.callId ?? null,
+          durationSeconds: input.durationSeconds ?? null,
+          result: input.reason ?? null,
+        },
+      },
+      input.at,
+    );
+
+    await tx
+      .update(contactEntry)
+      .set({ ledgerId: ledger.id })
+      .where(eq(contactEntry.id, input.id));
+
+    const [contact] = await tx
+      .select()
+      .from(contactEntry)
+      .where(eq(contactEntry.id, input.id))
+      .limit(1);
+
+    return { contact, ledger, duplicate: false };
   });
 }
 

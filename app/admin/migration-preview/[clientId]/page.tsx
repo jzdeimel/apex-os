@@ -14,10 +14,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { CallPatient } from "@/components/comms/CallPatient";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
 
 interface PatientPreview {
   ledgerId: string;
+  canCall: boolean;
   patient: {
     mrn: string;
     firstName: string;
@@ -215,6 +217,14 @@ export default function ImportedAlphaPatientPage() {
         <Card><CardContent className="p-5"><p className="label-eyebrow">Home</p><p className="mt-2 text-body text-ink-100">{p.homeLocationId || "Clinic unresolved"}</p><p className="mt-1 text-detail text-ink-400">{address || "Address unavailable"}</p></CardContent></Card>
         <Card><CardContent className="p-5"><p className="label-eyebrow">Source freshness</p><p className="mt-2 text-body text-ink-100">{dateTime(p.sourceUpdatedAt)}</p><p className="mt-2 flex items-center gap-1.5 text-micro text-optimal"><ShieldCheck className="h-3.5 w-3.5" /> Audited view · {preview.ledgerId}</p></CardContent></Card>
       </div>
+
+      {preview.canCall && (
+        <CallPatient
+          clientId={clientId}
+          clientName={`${p.preferredName || p.firstName} ${p.lastName}`}
+          phone={p.phone}
+        />
+      )}
 
       <Section title="Consult and clinical notes" icon={FileText} count={preview.consults.length}>
         {preview.consults.length ? preview.consults.map((row) => (

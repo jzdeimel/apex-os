@@ -230,6 +230,59 @@ try {
     await roleCtx.close();
   }
 
+  // Calling follows the operating model: the coach is the patient's steward.
+  // Medical may document the chart but does not get a direct dial control.
+  for (const callCase of [
+    {
+      label: "Coach",
+      portal: "coach",
+      email: "t.brooks@alphahealth.demo",
+      name: "Tyler Brooks",
+      oid: "oid-st-005",
+      visible: true,
+    },
+    {
+      label: "Medical",
+      portal: "clinic",
+      email: "m.vale@alphahealth.demo",
+      name: "Marcus Vale",
+      oid: "oid-st-001",
+      visible: false,
+    },
+  ]) {
+    const callCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(callCase.email, callCase.name, callCase.oid),
+      },
+    });
+    await callCtx.addInitScript(
+      ({ key, portal }) => {
+        try { localStorage.setItem(key, portal); } catch {}
+      },
+      { key: "apex_portal_v1", portal: callCase.portal },
+    );
+    const p = await callCtx.newPage();
+    await p.goto(`${BASE}/clients/c-001?tab=contact`, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
+    const hasCallControl = await p
+      .getByRole("button", { name: "Call patient" })
+      .isVisible()
+      .catch(() => false);
+    if (hasCallControl !== callCase.visible) {
+      done(
+        1,
+        `SMOKE-UI FAIL: ${callCase.label} call control visibility was ${hasCallControl}, expected ${callCase.visible}`,
+      );
+    }
+    console.log(
+      `ok  ${callCase.label} patient calling: ${callCase.visible ? "available" : "not exposed"}`,
+    );
+    await callCtx.close();
+  }
+
   // The executive acquisition surface is operational, not a seeded dashboard:
   // claim and stage changes must come back from the authoritative API before
   // the UI reflects them.

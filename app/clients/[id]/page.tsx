@@ -245,7 +245,12 @@ export default function ClientProfilePage() {
         {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}
         {tab === "billing" && <BillingAccountPanel clientId={id} />}
-        {tab === "contact" && <ContactTab id={id} />}
+        {tab === "contact" && (
+          <ContactTab
+            id={id}
+            canCall={portal.id === "coach" || portal.id === "desk" || portal.id === "exec"}
+          />
+        )}
         {tab === "notes" && <NotesTab id={id} />}
       </SwitchView>
     </div>

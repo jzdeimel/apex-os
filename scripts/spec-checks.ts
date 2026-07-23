@@ -164,6 +164,12 @@ import {
   severityForCommunityReport,
 } from "@/lib/community/moderation";
 import { requestIsSameOrigin } from "@/lib/api/origin";
+import {
+  callNotes,
+  callOutcome,
+  normalizeUsPhoneNumber,
+} from "@/lib/communications/calling";
+import { callContactId } from "@/lib/communications/calling.server";
 
 let failures = 0;
 let checks = 0;
@@ -1141,6 +1147,20 @@ eq("a life-threatening review cannot sign without substantive action", adverseEv
 eq("a complete severe-event review can sign", adverseEventReviewAcceptable({ severity: "severe", outcome: "Stabilized", actionTaken: "Provider assessed patient and documented follow-up." }), true);
 eq("an explicit safety deadline overrides the generic urgent window", escalationDueAt({ raisedAt: "2026-07-22T12:00:00.000Z", dueAt: "2026-07-22T12:15:00.000Z", priority: "Urgent" } as never), "2026-07-22T12:15:00.000Z");
 
+section("Audited ACS calling");
+eq("a formatted US number becomes E.164", normalizeUsPhoneNumber("(919) 555-0123"), "+19195550123");
+eq("an explicit E.164 number is preserved", normalizeUsPhoneNumber("+1 984 555 0199"), "+19845550199");
+eq("an ambiguous short number is refused", normalizeUsPhoneNumber("555-0199"), null);
+const callAuditId = callContactId("request_12345678", "staff-1", "client-1");
+eq("a retried call keeps one contact id", callAuditId, callContactId("request_12345678", "staff-1", "client-1"));
+eq("a call contact id does not expose the patient", callAuditId.includes("client-1"), false);
+eq("a connected SDK event maps to a contact outcome", callOutcome("connected"), "Connected");
+eq(
+  "a completed call note retains its duration and ACS reference",
+  callNotes({ event: "ended", durationSeconds: 62, callId: "acs-call-1" }),
+  "ACS outbound call completed. Duration: 62 seconds. ACS call reference: acs-call-1.",
+);
+
 section("Job-specific authorization");
 const actor = (accessProfile: Parameters<typeof can>[0]["accessProfile"], role: Parameters<typeof can>[0]["role"] = "Admin") => ({
   id: "staff-1",
@@ -1175,6 +1195,10 @@ eq("an RN cannot sign or release lab results", can(actor("nursing", "Medical"), 
 eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
+eq("a coach may place an audited patient call", can(actor("coach", "Coach"), "call:patient").allowed, true);
+eq("an owner may place an audited patient call", can(actor("owner"), "call:patient").allowed, true);
+eq("Medical cannot bypass the coach with a patient call", can(actor("provider", "Medical"), "call:patient").allowed, false);
+eq("an executive cannot place a patient call", can(actor("executive"), "call:patient").allowed, false);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
 eq("front desk may open an operations case", can(actor("front-desk"), "create:operations-case").allowed, true);
 eq("a coach may open a service-recovery case", can(actor("coach", "Coach"), "create:operations-case").allowed, true);

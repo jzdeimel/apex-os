@@ -372,7 +372,7 @@ export function OrdersTab({ id }: { id: string }) {
 // ---------------------------------------------------------------------------
 // Contact log — every touch, both directions
 // ---------------------------------------------------------------------------
-export function ContactTab({ id }: { id: string }) {
+export function ContactTab({ id, canCall = false }: { id: string; canCall?: boolean }) {
   const entries = contactLogForClient(id);
   const client = getClient(id);
 
@@ -380,7 +380,7 @@ export function ContactTab({ id }: { id: string }) {
     <div className="space-y-4">
       {/* Reach the patient — voice/video/text over ACS — above the log that
           records every attempt. */}
-      <CallPatient clientId={id} />
+      {canCall && <CallPatient clientId={id} />}
 
       {entries.length === 0 ? (
         <EmptyState icon={<Mail className="h-6 w-6" />} title="No contact yet" />

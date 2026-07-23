@@ -76,6 +76,7 @@ try {
   await expectStatus("GET", "/api/admin/migration-preview", 401);
   await expectStatus("GET", "/api/patient/record-requests", 401);
   await expectStatus("POST", "/api/acs/token", 401);
+  await expectStatus("POST", "/api/communications/calls", 401);
 
   for (const [path, body] of [
     [

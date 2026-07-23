@@ -205,7 +205,8 @@ All routes are Node runtime, `force-dynamic`, and fail closed.
 | POST | `/api/orders/create` | `write:order` | durable order record |
 | POST | `/api/member/log` | authenticated | durable dose/skip/retract/day |
 | GET | `/api/ledger` | `read:ledger` | durable audit ledger |
-| POST | `/api/acs/token` | authenticated | real ACS VoIP/SMS token |
+| POST | `/api/acs/token` | `call:patient` | short-lived ACS VoIP token + caller-ID readiness |
+| POST | `/api/communications/calls` | `call:patient`, care-team scoped | durable outbound call lifecycle + audit witness |
 | GET | `/api/audit` | admin-gated | live referential-integrity check |
 
 `/api/audit` runs a real integrity sweep across the seeded universe (dangling

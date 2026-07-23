@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
+import { can } from "@/lib/authz/capabilities";
 import { nowIso } from "@/lib/clock";
 import { readAlphaMigrationPatient } from "@/lib/db/migrationPreviewRepo";
-import { appendLedgerRow } from "@/lib/db/repo";
+import { appendLedgerRow, readClientCareScope } from "@/lib/db/repo";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,15 @@ export async function GET(
         { status: 404, headers: { "Cache-Control": "no-store, private" } },
       );
     }
+    const careScope = await readClientCareScope(clientId);
+    const canCall = Boolean(
+      careScope &&
+        can(g.actor, "call:patient", {
+          coachId: careScope.assignedCoachId ?? undefined,
+          providerId: careScope.assignedProviderId ?? undefined,
+          locationId: careScope.locationId ?? undefined,
+        }).allowed,
+    );
     const ledger = await appendLedgerRow(
       {
         actorId: g.actor.id,
@@ -43,7 +53,7 @@ export async function GET(
       nowIso(),
     );
     return NextResponse.json(
-      { ok: true, durableAudit: true, ledgerId: ledger.id, ...preview },
+      { ok: true, durableAudit: true, canCall, ledgerId: ledger.id, ...preview },
       { headers: { "Cache-Control": "no-store, private" } },
     );
   } catch (error) {

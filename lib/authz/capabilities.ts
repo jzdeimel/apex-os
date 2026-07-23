@@ -65,6 +65,7 @@ export type Capability =
   | "write:training"        // training split, progression
   | "write:adherence"       // check-ins, habit targets, streaks
   | "write:contact"         // log a touch, message the member
+  | "call:patient"          // place an outbound patient call through ACS
   | "write:demographics"    // fix a phone number, address, email
   | "write:task"
   | "write:clinical-history"
@@ -157,7 +158,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     // Coaching is authorship, not data entry — nutrition and training are the
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
-    "write:contact", "write:demographics", "write:task", "write:order",
+    "write:contact", "call:patient", "write:demographics", "write:task", "write:order",
     "report:adverse-event",
     "create:operations-case",
     "read:schedule", "write:schedule",
@@ -166,7 +167,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   "front-desk": [
     "read:directory", "read:location-clients", "read:schedule", "read:all-schedules",
     "read:community", "report:community",
-    "write:contact", "write:demographics", "write:task", "write:schedule",
+    "write:contact", "call:patient", "write:demographics", "write:task", "write:schedule",
     "create:operations-case",
   ],
   billing: [
@@ -188,7 +189,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "read:operations-cases", "create:operations-case", "work:operations-cases",
-    "write:contact", "write:demographics", "write:task",
+    "write:contact", "call:patient", "write:demographics", "write:task",
     "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
     "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm", "write:quality",
     "read:business-metrics",
@@ -207,7 +208,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "read:operations-cases", "create:operations-case", "work:operations-cases",
     "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
-    "read:business-metrics", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
+    "read:business-metrics", "write:contact", "call:patient", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
     "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",
     "write:communications", "write:quality", "admin:roles", "admin:locations", "admin:community-policy",
     "admin:calendars", "admin:export", "admin:break-glass",
@@ -290,6 +291,7 @@ export function can(
         "read:schedule",
         "write:schedule",
         "write:contact",
+        "call:patient",
         "write:demographics",
         "write:task",
         "write:consult",
@@ -396,6 +398,7 @@ export const CAPABILITY_GROUPS: {
       { id: "write:training", label: "Set the training split" },
       { id: "write:adherence", label: "Check-ins, habits, streaks" },
       { id: "write:contact", label: "Message the member, log a touch" },
+      { id: "call:patient", label: "Place an audited outbound patient call" },
       { id: "write:demographics", label: "Correct phone, email, address" },
     ],
   },
