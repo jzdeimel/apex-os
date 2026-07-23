@@ -127,6 +127,20 @@
       "when": 1784763187228,
       "tag": "0017_atomic-ncv-booking",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784764445041,
+      "tag": "0018_authoritative-lab-lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784764789551,
+      "tag": "0019_lab-result-later-release",
+      "breakpoints": true
     }
   ]
 }

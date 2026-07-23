@@ -126,7 +126,7 @@ type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0
  * leave a signed row nobody witnessed. The advisory lock is transaction-scoped,
  * so taking it here under the outer tx still serialises the whole chain.
  */
-async function appendLedgerInTx(tx: DbTx, draft: LedgerDraft, at: string): Promise<LedgerRow> {
+export async function appendLedgerInTx(tx: DbTx, draft: LedgerDraft, at: string): Promise<LedgerRow> {
   // 4,242 is an arbitrary but fixed key. One lock for the whole chain,
   // because the chain is one sequence.
   await tx.execute(raw`SELECT pg_advisory_xact_lock(4242)`);

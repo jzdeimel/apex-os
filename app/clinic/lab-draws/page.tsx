@@ -10,6 +10,7 @@ import { clientMap, clientName } from "@/lib/mock/clients";
 import { locationMap } from "@/lib/mock/locations";
 import { Badge } from "@/components/ui/primitives";
 import type { LocationId } from "@/lib/types";
+import { LabOperationsBoard } from "@/components/labs/LabOperationsBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,10 @@ export default async function LabDrawQueuePage() {
           );
         })}
       </ul>
+
+      <div className="mt-10 border-t border-ink-800 pt-8">
+        <LabOperationsBoard />
+      </div>
     </div>
   );
 }

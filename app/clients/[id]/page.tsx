@@ -16,6 +16,7 @@ import { alphaScore, scoreColor } from "@/lib/alphaScore";
 import { AlphaScoreRing } from "@/components/AlphaScoreRing";
 import { FavoriteStar } from "@/components/FavoriteStar";
 import { LabUploadSim } from "@/components/LabUploadSim";
+import { AuthoritativeLabsPanel } from "@/components/labs/AuthoritativeLabsPanel";
 import { staffName, staffMap } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { formatDate, formatDateTime, currency, relativeDays } from "@/lib/utils";
@@ -586,11 +587,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 function LabsTab({ id }: { id: string }) {
   const labs = getLabsForClient(id);
+  const client = getClient(id);
   const [selected, setSelected] = useState<string | undefined>();
 
   if (!labs) {
     return (
       <div className="space-y-4">
+        {client && <AuthoritativeLabsPanel clientId={id} locationId={client.locationId} />}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-ink-700 px-6 py-12 text-center">
           <Database className="h-7 w-7 text-ink-500" />
           <div>
@@ -607,7 +610,9 @@ function LabsTab({ id }: { id: string }) {
   const trendData = selectedBm?.history ?? [];
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+    <div>
+      {client && <AuthoritativeLabsPanel clientId={id} locationId={client.locationId} />}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
@@ -652,6 +657,7 @@ function LabsTab({ id }: { id: string }) {
             <p className="text-body leading-relaxed text-ink-300">{labs.summary}</p>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

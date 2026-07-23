@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CalendarDays, FileCheck2, ShieldCheck, Stethoscope } from "lucide-react";
+import { Beaker, CalendarDays, FileCheck2, ShieldCheck, Stethoscope } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/primitives";
 import { PatientSignOut } from "@/components/patient/PatientSignOut";
 import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
@@ -116,6 +116,31 @@ export default async function PatientPilotPage() {
                   escalationId: entry.escalationId,
                 }))}
             />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <Beaker className="h-5 w-5 text-gold-300" aria-hidden />
+              <h2 className="font-display text-title text-ink-50">Reviewed lab results</h2>
+            </div>
+            {summary.labs.length ? (
+              <div className="mt-5 space-y-4">
+                {summary.labs.map((lab) => (
+                  <article key={lab.id} className="rounded-control border border-ink-700 bg-ink-900/40 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-ink-100">Resulted {formatDateTime(lab.resultedAt, summary.patient.timezone)}</p>
+                      <span className={`rounded-full px-2 py-1 text-micro ${lab.critical ? "bg-high/10 text-high" : lab.abnormal ? "bg-watch/10 text-watch" : "bg-optimal/10 text-optimal"}`}>{lab.critical ? "Critical · follow-up documented" : lab.abnormal ? "Outside reference" : "Within reference"}</span>
+                    </div>
+                    <p className="mt-3 text-detail leading-relaxed text-ink-300">{lab.summary}</p>
+                    <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[520px] text-left text-detail"><thead className="text-micro uppercase text-ink-500"><tr><th className="pb-2">Marker</th><th className="pb-2">Value</th><th className="pb-2">Reference</th><th className="pb-2">Flag</th></tr></thead><tbody>{lab.observations.map((row) => <tr key={row.id} className="border-t border-ink-800"><td className="py-2 text-ink-200">{row.name}</td><td className="py-2 text-ink-100">{row.valueNumeric ?? row.valueText} {row.unit ?? ""}</td><td className="py-2 text-ink-400">{row.referenceRange ?? "—"}</td><td className="py-2 text-ink-400">{row.flag}</td></tr>)}</tbody></table></div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-5 text-body text-ink-400">No provider-reviewed lab result has been released to you yet.</p>
+            )}
           </CardContent>
         </Card>
 

@@ -1,10 +1,14 @@
-import { and, asc, desc, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, notInArray, or } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   appointment,
   client,
   clinicLocation,
   message,
+  labObservation,
+  labResult,
+  labResultRelease,
+  labReview,
   patientIdentity,
   patientMagicLink,
   patientSession,
@@ -71,6 +75,23 @@ export interface PatientPortalSummary {
     title: string;
     version: string;
     signedAt: Date;
+  }>;
+  labs: Array<{
+    id: string;
+    status: string;
+    resultedAt: Date;
+    critical: boolean;
+    abnormal: boolean;
+    summary: string;
+    observations: Array<{
+      id: string;
+      name: string;
+      valueText: string | null;
+      valueNumeric: number | null;
+      unit: string | null;
+      referenceRange: string | null;
+      flag: string;
+    }>;
   }>;
 }
 
@@ -274,7 +295,7 @@ export async function patientPortalSummary(
   if (!person) return null;
 
   const careIds = [...new Set([person.assignedCoachId, person.assignedProviderId].filter((id): id is string => Boolean(id)))];
-  const [careRows, appointmentRows, messageRows, documentRows] = await Promise.all([
+  const [careRows, appointmentRows, messageRows, documentRows, releasedLabRows, supersededRows] = await Promise.all([
     careIds.length
       ? db
           .select({ id: staff.id, name: staff.name, title: staff.title, role: staff.role })
@@ -329,7 +350,49 @@ export async function patientPortalSummary(
       .where(eq(signedDocument.clientId, clientId))
       .orderBy(desc(signedDocument.signedAt))
       .limit(10),
+    db
+      .select({
+        id: labResult.id,
+        status: labResult.status,
+        resultedAt: labResult.resultedAt,
+        critical: labResult.critical,
+        abnormal: labResult.abnormal,
+        summary: labReview.summary,
+      })
+      .from(labResult)
+      .innerJoin(labReview, eq(labReview.labResultId, labResult.id))
+      .leftJoin(labResultRelease, eq(labResultRelease.labResultId, labResult.id))
+      .where(and(
+        eq(labResult.clientId, clientId),
+        ne(labResult.status, "preliminary"),
+        or(eq(labReview.patientReleaseStatus, "released"), isNotNull(labResultRelease.id)),
+      ))
+      .orderBy(desc(labResult.resultedAt))
+      .limit(20),
+    db
+      .select({ supersedesId: labResult.supersedesId })
+      .from(labResult)
+      .where(and(eq(labResult.clientId, clientId), isNotNull(labResult.supersedesId))),
   ]);
+
+  const supersededIds = new Set(supersededRows.map((row) => row.supersedesId).filter((id): id is string => Boolean(id)));
+  const currentReleasedLabs = releasedLabRows.filter((row) => !supersededIds.has(row.id));
+  const labObservations = currentReleasedLabs.length
+    ? await db
+        .select({
+          id: labObservation.id,
+          labResultId: labObservation.labResultId,
+          name: labObservation.name,
+          valueText: labObservation.valueText,
+          valueNumeric: labObservation.valueNumeric,
+          unit: labObservation.unit,
+          referenceRange: labObservation.referenceRange,
+          flag: labObservation.flag,
+        })
+        .from(labObservation)
+        .where(inArray(labObservation.labResultId, currentReleasedLabs.map((row) => row.id)))
+        .orderBy(labObservation.name)
+    : [];
 
   const careById = new Map(careRows.map((row) => [row.id, row]));
   const careTeam: PatientPortalSummary["careTeam"] = [];
@@ -350,6 +413,12 @@ export async function patientPortalSummary(
     appointments: appointmentRows,
     messages: messageRows,
     signedDocuments: documentRows,
+    labs: currentReleasedLabs.map((row) => ({
+      ...row,
+      observations: labObservations
+        .filter((observation) => observation.labResultId === row.id)
+        .map(({ labResultId: _labResultId, ...observation }) => observation),
+    })),
   };
 }
 

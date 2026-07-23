@@ -85,6 +85,10 @@ contrast sweep.
   time. Patient self-service remains separate work.
 - Medical-only append-preserving allergy, problem and outside-medication
   reconciliation, with coach read access inside care-team scope.
+- An authoritative lab chain now persists provider orders, specimen identity,
+  immutable preliminary/final/corrected result versions, atomic observations,
+  critical-value alerts, licensed review, and held/released patient visibility.
+  Nursing may collect and record results but cannot sign or release them.
 - A Google busy-only adapter that imports no titles, attendees or clinical
   content and refuses to run without approved service-account configuration.
 - Durable membership and payment-reconciliation schema foundations. The Clover
@@ -109,6 +113,10 @@ contrast sweep.
   graph; V1 history must remain read-only-accessible unless that scope is added.
 - Live Google, Clover, ACS SMS/email, MindBody, and GHL credentials/exports are
   not present in the repository and cannot be inferred.
+- Live laboratory vendor interfaces, result-message authentication, report-file
+  storage, corrected-result reconciliation, and clinic acceptance are external;
+  the current staff UI provides an explicit manual exception path into the same
+  held-for-provider-review lifecycle.
 - The employee roster does not contain working hours, license numbers, license
   expiry, state scope, or supervision relationships.
 - Atomic NCV code is therefore intentionally unable to offer a real slot until

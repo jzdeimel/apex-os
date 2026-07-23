@@ -1753,6 +1753,171 @@ export const historyPhysical = pgTable(
 );
 
 /* ========================================================================== */
+/* Laboratory order-to-review chain                                           */
+/* ========================================================================== */
+
+/** Provider-authored order. Status changes are witnessed in the ledger. */
+export const labOrder = pgTable(
+  "lab_order",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(),
+    encounterId: text("encounter_id").references(() => encounter.id),
+    appointmentId: text("appointment_id"),
+    locationId: text("location_id").notNull(),
+    panelCode: text("panel_code").notNull(),
+    panelName: text("panel_name").notNull(),
+    vendor: text("vendor"),
+    priority: text("priority").notNull().default("routine"),
+    fastingRequired: boolean("fasting_required").notNull().default(false),
+    indications: text("indications").notNull(),
+    instructions: text("instructions"),
+    status: text("status").notNull().default("ordered"),
+    orderedBy: text("ordered_by").notNull(),
+    orderedAt: timestamp("ordered_at", { withTimezone: true }).defaultNow().notNull(),
+    cancelledBy: text("cancelled_by"),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelReason: text("cancel_reason"),
+    sourceSystem: text("source_system"),
+    sourceId: text("source_id"),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    clientIdx: index("lab_order_client_idx").on(t.clientId, t.orderedAt),
+    worklistIdx: index("lab_order_worklist_idx").on(t.locationId, t.status, t.orderedAt),
+    sourceIdx: uniqueIndex("lab_order_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
+/** Physical specimen custody. Accession is vendor-scoped and never reused. */
+export const labSpecimen = pgTable(
+  "lab_specimen",
+  {
+    id: text("id").primaryKey(),
+    labOrderId: text("lab_order_id").notNull().references(() => labOrder.id),
+    accession: text("accession").notNull(),
+    vendor: text("vendor").notNull(),
+    specimenType: text("specimen_type").notNull(),
+    status: text("status").notNull().default("collected"),
+    collectedBy: text("collected_by").notNull(),
+    collectedAt: timestamp("collected_at", { withTimezone: true }).notNull(),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    orderIdx: index("lab_specimen_order_idx").on(t.labOrderId, t.collectedAt),
+    accessionIdx: uniqueIndex("lab_specimen_accession_idx").on(t.vendor, t.accession),
+  }),
+);
+
+/** One immutable version of a vendor result. Corrections append a new row. */
+export const labResult = pgTable(
+  "lab_result",
+  {
+    id: text("id").primaryKey(),
+    labOrderId: text("lab_order_id").notNull().references(() => labOrder.id),
+    clientId: text("client_id").notNull(),
+    vendor: text("vendor").notNull(),
+    externalResultId: text("external_result_id").notNull(),
+    status: text("status").notNull().default("final"),
+    resultedAt: timestamp("resulted_at", { withTimezone: true }).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+    abnormal: boolean("abnormal").notNull().default(false),
+    critical: boolean("critical").notNull().default(false),
+    sourceHash: text("source_hash").notNull(),
+    sourceArtifactId: text("source_artifact_id"),
+    supersedesId: text("supersedes_id"),
+    recordedBy: text("recorded_by").notNull(),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    clientIdx: index("lab_result_client_idx").on(t.clientId, t.resultedAt),
+    orderIdx: index("lab_result_order_idx").on(t.labOrderId, t.receivedAt),
+    externalIdx: uniqueIndex("lab_result_external_idx").on(t.vendor, t.externalResultId),
+  }),
+);
+
+/** Atomic values exactly as received; interpretation belongs in a signed review. */
+export const labObservation = pgTable(
+  "lab_observation",
+  {
+    id: text("id").primaryKey(),
+    labResultId: text("lab_result_id").notNull().references(() => labResult.id),
+    codeSystem: text("code_system"),
+    code: text("code"),
+    name: text("name").notNull(),
+    valueText: text("value_text"),
+    valueNumeric: real("value_numeric"),
+    unit: text("unit"),
+    referenceRange: text("reference_range"),
+    flag: text("flag").notNull().default("normal"),
+    critical: boolean("critical").notNull().default(false),
+    sourcePage: integer("source_page"),
+    sourceRegion: jsonb("source_region"),
+  },
+  (t) => ({
+    resultIdx: index("lab_observation_result_idx").on(t.labResultId, t.name),
+  }),
+);
+
+/** Licensed review controls patient release; the imported result is never edited. */
+export const labReview = pgTable(
+  "lab_review",
+  {
+    id: text("id").primaryKey(),
+    labResultId: text("lab_result_id").notNull().references(() => labResult.id),
+    reviewerId: text("reviewer_id").notNull(),
+    summary: text("summary").notNull(),
+    criticalAcknowledged: boolean("critical_acknowledged").notNull().default(false),
+    followUp: text("follow_up"),
+    patientReleaseStatus: text("patient_release_status").notNull().default("held"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull(),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    resultIdx: uniqueIndex("lab_review_result_idx").on(t.labResultId),
+    reviewerIdx: index("lab_review_reviewer_idx").on(t.reviewerId, t.reviewedAt),
+  }),
+);
+
+/** A held reviewed result may be released later without rewriting the review. */
+export const labResultRelease = pgTable(
+  "lab_result_release",
+  {
+    id: text("id").primaryKey(),
+    labResultId: text("lab_result_id").notNull().references(() => labResult.id),
+    releasedBy: text("released_by").notNull(),
+    releasedAt: timestamp("released_at", { withTimezone: true }).notNull(),
+    reason: text("reason").notNull(),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    resultIdx: uniqueIndex("lab_result_release_result_idx").on(t.labResultId),
+  }),
+);
+
+/** Critical-value acknowledgement is operationally visible until resolved. */
+export const labCriticalAlert = pgTable(
+  "lab_critical_alert",
+  {
+    id: text("id").primaryKey(),
+    labResultId: text("lab_result_id").notNull().references(() => labResult.id),
+    status: text("status").notNull().default("open"),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+    acknowledgedBy: text("acknowledged_by"),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    resolution: text("resolution"),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({
+    resultIdx: uniqueIndex("lab_critical_result_idx").on(t.labResultId),
+    statusIdx: index("lab_critical_status_idx").on(t.status, t.openedAt),
+  }),
+);
+
+/* ========================================================================== */
 /* Feature flags                                                               */
 /* ========================================================================== */
 

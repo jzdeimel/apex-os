@@ -39,6 +39,8 @@ export type LedgerAction =
 export type LedgerEntity =
   | "chart"
   | "lab"
+  | "lab-order"
+  | "lab-result"
   | "note"
   | "recommendation"
   | "protocol"

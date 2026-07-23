@@ -72,6 +72,12 @@ import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
 import { can } from "@/lib/authz/capabilities";
 import { inferAccessProfile } from "@/lib/authz/profiles";
+import {
+  labOrderRequestId,
+  labOrderTransitionAllowed,
+  patientReleaseVerdict,
+  resultRisk,
+} from "@/lib/labs/lifecycle";
 import { staff } from "@/lib/mock/staff";
 import {
   consultChannelForRole,
@@ -355,6 +361,29 @@ eq("an impossible heart rate is refused", vitalsAcceptable(validateVitals({ hear
 eq("a nurse may close a lab draw", credentialSatisfies("RN", [["RN", "LPN"], ["NP", "PA"]]), true);
 eq("an office manager may not", credentialSatisfies("Admin", [["RN", "LPN"], ["NP", "PA"]]), false);
 eq("an unknown credential may not", credentialSatisfies(null, [["RN", "LPN"], ["NP", "PA"]]), false);
+
+section("Lab safety lifecycle");
+eq("an ordered lab may be collected", labOrderTransitionAllowed("ordered", "collected"), true);
+eq("a cancelled order cannot accept results", labOrderTransitionAllowed("cancelled", "resulted"), false);
+eq("a corrected vendor result reopens provider review", labOrderTransitionAllowed("reviewed", "resulted"), true);
+eq(
+  "a critical flag makes the complete result critical",
+  resultRisk([{ flag: "normal" }, { flag: "critical-high" }]),
+  { abnormal: true, critical: true },
+);
+eq(
+  "a critical result stays held until a provider explicitly acknowledges it",
+  patientReleaseVerdict({ isCritical: true, criticalAcknowledged: false, releaseRequested: true }).allowed,
+  false,
+);
+eq(
+  "an acknowledged critical result can be released after licensed review",
+  patientReleaseVerdict({ isCritical: true, criticalAcknowledged: true, releaseRequested: true }).status,
+  "released",
+);
+const labRequest = labOrderRequestId("client-1", "request-12345678");
+eq("a retried lab order keeps the same opaque id", labRequest, labOrderRequestId("client-1", "request-12345678"));
+eq("a lab order id does not expose the patient", labRequest.includes("client-1"), false);
 
 /* ══ Order routing ═══════════════════════════════════════════════════════════
    "GHK doesn't require a doctor's intervention... PT-141 is not on the list of
@@ -823,7 +852,11 @@ eq("front desk cannot refund", can(actor("front-desk"), "write:refund").allowed,
 eq("front desk cannot read a clinical chart", can(actor("front-desk"), "read:clinical").allowed, false);
 eq("an RN may reconcile history", can(actor("nursing", "Medical"), "write:clinical-history").allowed, true);
 eq("an RN cannot prescribe", can(actor("nursing", "Medical"), "write:prescription").allowed, false);
+eq("an RN may collect specimens", can(actor("nursing", "Medical"), "collect:labs").allowed, true);
+eq("an RN may record results for review", can(actor("nursing", "Medical"), "record:lab-results").allowed, true);
+eq("an RN cannot sign or release lab results", can(actor("nursing", "Medical"), "sign:labs").allowed, false);
 eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
+eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
 eq("an unassigned profile has no authority", can(actor("unassigned"), "read:schedule").allowed, false);
 eq(

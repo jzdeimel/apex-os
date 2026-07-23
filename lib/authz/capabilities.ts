@@ -84,6 +84,8 @@ export type Capability =
   | "sign:plan-of-care"     // approve the clinical section
   | "sign:encounter"        // sign a clinical note; makes it immutable
   | "order:labs"
+  | "collect:labs"          // document specimen identity and collection
+  | "record:lab-results"    // transcribe/import results; cannot release them
   | "sign:labs"             // review and sign off results
   | "override:contraindication"
 
@@ -117,12 +119,13 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "write:clinical-history",
     // The licensed set — this row is the entire reason the role exists.
     "write:prescription", "sign:plan-of-care", "sign:encounter",
-    "order:labs", "sign:labs", "override:contraindication",
+    "order:labs", "collect:labs", "record:lab-results", "sign:labs", "override:contraindication",
     "triage:escalation",
   ],
   nursing: [
-    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages",
+    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients",
     "write:consult", "write:clinical-history", "write:contact", "write:task",
+    "collect:labs", "record:lab-results",
   ],
   coach: [
     // Full read on their own book. This is the deliberate inversion.
@@ -255,6 +258,8 @@ export function can(
         "read:inventory",
         "write:inventory",
         "write:fulfillment",
+        "collect:labs",
+        "record:lab-results",
       ].includes(capability);
 
     if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients") && !locationOperational) {
@@ -346,6 +351,8 @@ export const CAPABILITY_GROUPS: {
       { id: "sign:plan-of-care", label: "Approve the clinical plan" },
       { id: "sign:encounter", label: "Sign a clinical note (makes it immutable)" },
       { id: "order:labs", label: "Order a lab panel" },
+      { id: "collect:labs", label: "Collect and identify specimens" },
+      { id: "record:lab-results", label: "Import results for provider review" },
       { id: "sign:labs", label: "Review and sign off results" },
       { id: "override:contraindication", label: "Override a contraindication flag" },
     ],
