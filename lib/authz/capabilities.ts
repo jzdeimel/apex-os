@@ -65,6 +65,8 @@ export type Capability =
   | "write:demographics"    // fix a phone number, address, email
   | "write:task"
   | "write:clinical-history"
+  | "report:adverse-event"
+  | "review:adverse-event"
   | "read:schedule"
   | "write:schedule"
 
@@ -117,6 +119,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "write:contact", "write:demographics", "write:task", "write:order",
     "read:schedule", "write:schedule",
     "write:clinical-history",
+    "report:adverse-event", "review:adverse-event",
     // The licensed set — this row is the entire reason the role exists.
     "write:prescription", "sign:plan-of-care", "sign:encounter",
     "order:labs", "collect:labs", "record:lab-results", "sign:labs", "override:contraindication",
@@ -125,6 +128,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   nursing: [
     "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients",
     "write:consult", "write:clinical-history", "write:contact", "write:task",
+    "report:adverse-event",
     "collect:labs", "record:lab-results",
   ],
   coach: [
@@ -134,6 +138,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
+    "report:adverse-event",
     "read:schedule", "write:schedule",
     "escalate:provider",
   ],
@@ -249,17 +254,21 @@ export function can(
       inLocation &&
       [
         "read:directory",
+        "read:clinical",
         "read:schedule",
         "write:schedule",
         "write:contact",
         "write:demographics",
         "write:task",
+        "write:consult",
+        "write:clinical-history",
         "read:orders",
         "read:inventory",
         "write:inventory",
         "write:fulfillment",
         "collect:labs",
         "record:lab-results",
+        "report:adverse-event",
       ].includes(capability);
 
     if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients") && !locationOperational) {

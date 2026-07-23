@@ -41,6 +41,7 @@ export type LedgerEntity =
   | "lab"
   | "lab-order"
   | "lab-result"
+  | "adverse-event"
   | "note"
   | "recommendation"
   | "protocol"

@@ -70,6 +70,7 @@ import { ShieldAlert } from "lucide-react";
 import { BreakGlassChallenge, BreakGlassBanner } from "@/components/access/BreakGlass";
 import { useBreakGlass } from "@/lib/access/breakGlass";
 import { ChartFundamentals } from "@/components/clinical/ChartFundamentals";
+import { ClinicalSafetyPanel } from "@/components/clinical/ClinicalSafetyPanel";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -88,6 +89,7 @@ const TABS = [
   { id: "plan", label: "Plan of Care" },
   { id: "consults", label: "Consults" },
   { id: "history", label: "Meds & History" },
+  { id: "safety", label: "Safety" },
   { id: "escalations", label: "Escalations" },
   { id: "labs", label: "Labs" },
   { id: "scan", label: "Body Scan" },
@@ -236,6 +238,7 @@ export default function ClientProfilePage() {
           <ConsultsTab id={id} autoStart={searchParams.get("new") === "1"} />
         )}
         {tab === "history" && <ChartFundamentals clientId={id} />}
+        {tab === "safety" && <ClinicalSafetyPanel clientId={id} />}
         {tab === "escalations" && <ClientEscalations clientId={id} />}
         {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}

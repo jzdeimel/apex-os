@@ -10,6 +10,7 @@ import {
   inventoryMovement,
   staff as staffTable,
   consult as consultTable,
+  consultAddendum,
   lead as leadTable,
   leadStageEvent,
   consent as consentTable,
@@ -2336,6 +2337,16 @@ export async function listConsultsForClient(
     )
     .orderBy(desc(consultTable.startedAt), desc(consultTable.updatedAt));
 
+  const addenda = rows.length
+    ? await db.select().from(consultAddendum).where(inArray(consultAddendum.consultId, rows.map((row) => row.id))).orderBy(consultAddendum.signedAt)
+    : [];
+  const addendaByConsult = new Map<string, typeof addenda>();
+  for (const row of addenda) {
+    const list = addendaByConsult.get(row.consultId) ?? [];
+    list.push(row);
+    addendaByConsult.set(row.consultId, list);
+  }
+
   return rows.map((row) => {
     const rawNotes = row.rawNotes ?? "";
     const aiSummary = (row.aiSummary as ConsultSummary | null) ?? undefined;
@@ -2367,7 +2378,13 @@ export async function listConsultsForClient(
       finalSummary: signed ? aiSummary : undefined,
       signedAt: row.signedAt?.toISOString(),
       signedBy: row.signedBy ?? undefined,
-      addenda: [],
+      addenda: (addendaByConsult.get(row.id) ?? []).map((entry) => ({
+        id: entry.id,
+        at: entry.signedAt.toISOString(),
+        authorId: entry.authorId,
+        text: entry.body,
+        reason: entry.reason,
+      })),
       visibleToClient: row.visibleToClient,
     } satisfies Consult;
   });

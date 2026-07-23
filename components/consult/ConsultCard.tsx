@@ -15,7 +15,7 @@ import type { Consult, ConsultChannel } from "@/lib/consult/types";
 import { editedFields } from "@/lib/consult/types";
 import { findingCount } from "@/lib/consult/summarize";
 import { staffName } from "@/lib/mock/staff";
-import { Badge, Card } from "@/components/ui/primitives";
+import { Badge, Button, Card, Input, Textarea } from "@/components/ui/primitives";
 import { ConsultSummaryView } from "@/components/consult/ConsultSummaryView";
 import { ProvenanceDrawer, WhyButton } from "@/components/trace/ProvenanceDrawer";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -41,13 +41,50 @@ const CHANNEL_ICON: Record<ConsultChannel, React.ComponentType<{ className?: str
 export function ConsultCard({
   consult,
   defaultOpen = false,
+  onChanged,
 }: {
   consult: Consult;
   defaultOpen?: boolean;
+  onChanged?: () => void;
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const [showRaw, setShowRaw] = React.useState(false);
   const [whyOpen, setWhyOpen] = React.useState(false);
+  const [addingAddendum, setAddingAddendum] = React.useState(false);
+  const [addendumBody, setAddendumBody] = React.useState("");
+  const [addendumReason, setAddendumReason] = React.useState("");
+  const [addendumAttested, setAddendumAttested] = React.useState(false);
+  const [addendumSaving, setAddendumSaving] = React.useState(false);
+  const [addendumError, setAddendumError] = React.useState<string | null>(null);
+
+  async function signAddendum() {
+    setAddendumSaving(true);
+    setAddendumError(null);
+    try {
+      const response = await fetch("/api/consults/addenda", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          consultId: consult.id,
+          body: addendumBody,
+          reason: addendumReason,
+          attested: addendumAttested,
+          requestId: crypto.randomUUID().replaceAll("-", "_"),
+        }),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "The signed addendum was not saved.");
+      setAddingAddendum(false);
+      setAddendumBody("");
+      setAddendumReason("");
+      setAddendumAttested(false);
+      onChanged?.();
+    } catch (error) {
+      setAddendumError(error instanceof Error ? error.message : "The signed addendum was not saved.");
+    } finally {
+      setAddendumSaving(false);
+    }
+  }
 
   // The signed summary is the record of truth once it exists; before signing,
   // the AI's draft is what the coach is looking at.
@@ -210,6 +247,22 @@ export function ConsultCard({
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {signed && (
+                  <div className="mt-4 border-t border-ink-800 pt-4">
+                    {addingAddendum ? (
+                      <div className="rounded-control border border-gold-400/25 bg-ink-900 p-3">
+                        <p className="text-detail font-medium text-ink-100">Sign an addendum</p>
+                        <p className="mt-1 text-micro text-ink-500">The original note remains immutable. This correction becomes a separately signed, audited record.</p>
+                        {addendumError && <p className="mt-2 text-detail text-high" role="alert">{addendumError}</p>}
+                        <Textarea className="mt-3 min-h-24" value={addendumBody} onChange={(event) => setAddendumBody(event.target.value)} maxLength={20000} placeholder="Correction or additional clinical fact" />
+                        <Input className="mt-2" value={addendumReason} onChange={(event) => setAddendumReason(event.target.value)} maxLength={1000} placeholder="Why this addendum is necessary" />
+                        <label className="mt-3 flex items-start gap-2 text-detail text-ink-300"><input className="mt-1" type="checkbox" checked={addendumAttested} onChange={(event) => setAddendumAttested(event.target.checked)} /><span>I attest that this addendum is accurate, necessary, and does not replace or alter the original signed note.</span></label>
+                        <div className="mt-3 flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => setAddingAddendum(false)}>Back</Button><Button size="sm" onClick={() => void signAddendum()} disabled={addendumSaving || !addendumBody.trim() || !addendumReason.trim() || !addendumAttested}>{addendumSaving ? "Signing…" : "Sign addendum"}</Button></div>
+                      </div>
+                    ) : <Button size="sm" variant="outline" onClick={() => setAddingAddendum(true)}><Pencil className="h-3.5 w-3.5" /> Add signed addendum</Button>}
                   </div>
                 )}
 

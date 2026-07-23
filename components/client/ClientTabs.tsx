@@ -290,7 +290,7 @@ export function ConsultsTab({ id, autoStart = false }: { id: string; autoStart?:
       ) : (
         <div className="space-y-3">
           {list.map((c, i) => (
-            <ConsultCard key={c.id} consult={c} defaultOpen={i === 0} />
+            <ConsultCard key={c.id} consult={c} defaultOpen={i === 0} onChanged={() => void loadStored()} />
           ))}
         </div>
       )}

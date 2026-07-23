@@ -136,7 +136,7 @@ export function EscalationCard({
         <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/clients/${client.id}`}
+              href={`/clients/${client.id}${escalation.kind === "Adverse event" ? "?tab=safety" : ""}`}
               className="truncate rounded text-body font-medium text-ink-50 hover:text-gold-300 focus-ring"
             >
               {clientName(client)}

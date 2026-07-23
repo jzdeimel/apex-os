@@ -53,6 +53,7 @@ function toEscalation(row: EscalationRow): Escalation {
     question: row.question,
     sourceQuote: row.memberQuote ?? row.question,
     raisedAt: row.raisedAt.toISOString(),
+    dueAt: row.dueAt?.toISOString(),
     acknowledgedAt: row.acknowledgedAt?.toISOString(),
     answeredAt: row.answeredAt?.toISOString(),
     answer: row.answer ?? undefined,

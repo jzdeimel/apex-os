@@ -40,6 +40,7 @@ export type EscalationKind =
   | "Dose change request"
   | "Side effect"
   | "Lab concern"
+  | "Adverse event"
   | "Out of scope"
   | "Urgent symptom";
 
@@ -95,6 +96,8 @@ export interface Escalation {
   /** The consult the sourceQuote lives in, when it came from one. */
   sourceConsultId?: string;
   raisedAt: string;
+  /** Explicit shorter operational deadline, when safety policy requires it. */
+  dueAt?: string;
   acknowledgedAt?: string;
   answeredAt?: string;
   answer?: string;

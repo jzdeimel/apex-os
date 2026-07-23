@@ -59,6 +59,7 @@ export function isResolved(e: Escalation): boolean {
 
 /** When this escalation is owed an answer. */
 export function dueAt(e: Escalation): string {
+  if (e.dueAt) return absolute(e.dueAt).toISOString();
   const due = absolute(e.raisedAt).getTime() + SLA_HOURS[e.priority] * HOUR_MS;
   return absolute(due).toISOString();
 }

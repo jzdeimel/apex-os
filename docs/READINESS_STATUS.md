@@ -90,6 +90,10 @@ contrast sweep.
   front-desk schedule read is constrained to assigned locations.
 - Medical-only append-preserving allergy, problem and outside-medication
   reconciliation, with coach read access inside care-team scope.
+- A care-team adverse-event register now preserves the original report,
+  automatically opens the Medical queue for severe/life-threatening events,
+  and permits exactly one immutable licensed review. Signed consult corrections
+  are separate attested addenda; the original note is never edited.
 - An authoritative lab chain now persists provider orders, specimen identity,
   immutable preliminary/final/corrected result versions, atomic observations,
   critical-value alerts, licensed review, and held/released patient visibility.
@@ -122,6 +126,9 @@ contrast sweep.
   storage, corrected-result reconciliation, and clinic acceptance are external;
   the current staff UI provides an explicit manual exception path into the same
   held-for-provider-review lifecycle.
+- Private clinical attachment storage, malware scanning, report-file retention,
+  and patient-copy delivery still require the Azure Blob service and policies;
+  no browser-local or public-URL substitute is treated as complete.
 - The employee roster does not contain working hours, license numbers, license
   expiry, state scope, or supervision relationships.
 - Atomic NCV code is therefore intentionally unable to offer a real slot until

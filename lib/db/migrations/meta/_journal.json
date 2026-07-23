@@ -148,6 +148,13 @@
       "when": 1784765452944,
       "tag": "0020_broad_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784766105457,
+      "tag": "0021_wealthy_red_skull",
+      "breakpoints": true
     }
   ]
 }

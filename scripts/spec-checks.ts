@@ -72,6 +72,7 @@ import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
 import { can } from "@/lib/authz/capabilities";
 import { inferAccessProfile } from "@/lib/authz/profiles";
+import { dueAt as escalationDueAt } from "@/lib/escalations/queue";
 import {
   labOrderRequestId,
   labOrderTransitionAllowed,
@@ -85,6 +86,12 @@ import {
   resourceReservationRequestId,
   resourceSuitableForVisit,
 } from "@/lib/clinic-resources/lifecycle";
+import {
+  adverseEventRequestId,
+  adverseEventRequiresUrgentReview,
+  adverseEventReviewAcceptable,
+  consultAddendumRequestId,
+} from "@/lib/clinical-safety/lifecycle";
 import { staff } from "@/lib/mock/staff";
 import {
   consultChannelForRole,
@@ -846,6 +853,15 @@ eq("a released reservation cannot silently return to use", reservationTransition
 eq("resource request ids are stable across retries", clinicResourceRequestId("raleigh", "request_12345678"), clinicResourceRequestId("raleigh", "request_12345678"));
 eq("reservation request ids remain resource-scoped", resourceReservationRequestId("room-1", "request_12345678") === resourceReservationRequestId("room-2", "request_12345678"), false);
 
+section("Clinical safety and corrections");
+eq("a retried adverse-event report keeps one opaque id", adverseEventRequestId("client-1", "request_12345678"), adverseEventRequestId("client-1", "request_12345678"));
+eq("an adverse-event id does not expose the patient", adverseEventRequestId("client-1", "request_12345678").includes("client-1"), false);
+eq("a signed addendum request is consult-scoped", consultAddendumRequestId("consult-1", "request_12345678") === consultAddendumRequestId("consult-2", "request_12345678"), false);
+eq("a severe adverse event requires urgent review", adverseEventRequiresUrgentReview("severe"), true);
+eq("a life-threatening review cannot sign without substantive action", adverseEventReviewAcceptable({ severity: "life-threatening", outcome: "Transferred", actionTaken: "Called" }), false);
+eq("a complete severe-event review can sign", adverseEventReviewAcceptable({ severity: "severe", outcome: "Stabilized", actionTaken: "Provider assessed patient and documented follow-up." }), true);
+eq("an explicit safety deadline overrides the generic urgent window", escalationDueAt({ raisedAt: "2026-07-22T12:00:00.000Z", dueAt: "2026-07-22T12:15:00.000Z", priority: "Urgent" } as never), "2026-07-22T12:15:00.000Z");
+
 section("Job-specific authorization");
 const actor = (accessProfile: Parameters<typeof can>[0]["accessProfile"], role: Parameters<typeof can>[0]["role"] = "Admin") => ({
   id: "staff-1",
@@ -867,12 +883,16 @@ eq(
 eq("front desk cannot refund", can(actor("front-desk"), "write:refund").allowed, false);
 eq("front desk cannot read a clinical chart", can(actor("front-desk"), "read:clinical").allowed, false);
 eq("an RN may reconcile history", can(actor("nursing", "Medical"), "write:clinical-history").allowed, true);
+eq("an RN may reconcile a patient at an assigned clinic", can(actor("nursing", "Medical"), "write:clinical-history", { providerId: "provider-2", locationId: "raleigh" }).allowed, true);
+eq("an RN cannot reconcile a patient outside assigned clinics", can(actor("nursing", "Medical"), "write:clinical-history", { providerId: "provider-2", locationId: "myrtle-beach" }).allowed, false);
 eq("an RN cannot prescribe", can(actor("nursing", "Medical"), "write:prescription").allowed, false);
 eq("an RN may collect specimens", can(actor("nursing", "Medical"), "collect:labs").allowed, true);
 eq("an RN may record results for review", can(actor("nursing", "Medical"), "record:lab-results").allowed, true);
+eq("an RN may report a suspected adverse event", can(actor("nursing", "Medical"), "report:adverse-event").allowed, true);
 eq("an RN cannot sign or release lab results", can(actor("nursing", "Medical"), "sign:labs").allowed, false);
 eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescription").allowed, true);
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
+eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
 eq("an unassigned profile has no authority", can(actor("unassigned"), "read:schedule").allowed, false);
 eq(

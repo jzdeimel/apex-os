@@ -271,6 +271,10 @@ export const consultAddendum = pgTable("consult_addendum", {
   consultId: text("consult_id").notNull().references(() => consult.id),
   authorId: text("author_id").notNull(), // seeded ref -> staff
   body: text("body").notNull(),
+  reason: text("reason").notNull(),
+  attestation: text("attestation").notNull(),
+  signerCredential: text("signer_credential"),
+  signedAt: timestamp("signed_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   ledgerId: text("ledger_id"),
 });
