@@ -14,7 +14,9 @@ export type V1EntityType =
   | "historical-fulfillment"
   | "sale"
   | "sale-line"
-  | "migration-exception";
+  | "migration-exception"
+  | "source-record"
+  | "binary-asset";
 
 type Dateish = Date | string | null;
 
@@ -201,6 +203,30 @@ export interface V1HistoricalFulfillmentRow {
   createdAt: Dateish;
 }
 
+/** Lossless Alpha business row retained outside Apex's live state machines. */
+export interface V1ArchivedSourceRow {
+  id: string;
+  sourceEntityType: string;
+  personId: string | null;
+  occurredAt: Dateish;
+  sourceUpdatedAt: Dateish;
+  payload: Record<string, unknown>;
+}
+
+/** Exact binary evidence copied from Alpha without its bearer token. */
+export interface V1BinaryAssetRow {
+  id: string;
+  sourceEntityType: "Document" | "OutboundMedia" | "ShippingLabel";
+  personId: string | null;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  data: Buffer;
+  category: string | null;
+  sourceCreatedById: string | null;
+  sourceCreatedAt: Dateish;
+}
+
 export interface V1Extract {
   locations: V1LocationRow[];
   staff: V1StaffRow[];
@@ -212,6 +238,8 @@ export interface V1Extract {
   sales: V1SaleRow[];
   saleLines: V1SaleLineRow[];
   exceptions: V1MigrationExceptionRow[];
+  archivedRecords: V1ArchivedSourceRow[];
+  binaryAssets: V1BinaryAssetRow[];
 }
 
 export interface MappedRecord<T extends Record<string, unknown>> {
@@ -671,6 +699,56 @@ export function mapSaleLine(row: V1SaleLineRow) {
   });
 }
 
+export function mapArchivedSource(row: V1ArchivedSourceRow) {
+  const sourceKey = `${row.sourceEntityType}:${row.id}`;
+  const payloadSha256 = sha256(row.payload);
+  return mapped("source-record", sourceKey, row.sourceUpdatedAt, {
+    id: targetId("source-record", sourceKey),
+    source_system: V1_SOURCE_SYSTEM,
+    source_entity_type: row.sourceEntityType,
+    source_id: row.id,
+    client_id: row.personId ? targetId("person", row.personId) : null,
+    occurred_at: asDate(row.occurredAt),
+    source_updated_at: asDate(row.sourceUpdatedAt),
+    payload: row.payload,
+    payload_sha256: payloadSha256,
+  });
+}
+
+export function mapBinaryAsset(row: V1BinaryAssetRow): MappedRecord<Record<string, unknown>> {
+  const sourceKey = `${row.sourceEntityType}:${row.id}`;
+  if (row.data.length !== row.sizeBytes) {
+    throw new Error(
+      `${row.sourceEntityType} ${row.id} byte count ${row.data.length} does not match source size ${row.sizeBytes}`,
+    );
+  }
+  const contentSha256 = createHash("sha256").update(row.data).digest("hex");
+  const data = {
+    id: targetId("binary-asset", sourceKey),
+    source_system: V1_SOURCE_SYSTEM,
+    source_entity_type: row.sourceEntityType,
+    source_id: row.id,
+    client_id: row.personId ? targetId("person", row.personId) : null,
+    filename: row.filename,
+    content_type: row.contentType,
+    size_bytes: row.sizeBytes,
+    data: row.data,
+    content_sha256: contentSha256,
+    category: row.category,
+    source_created_by_id: row.sourceCreatedById,
+    source_created_at: asDate(row.sourceCreatedAt) ?? new Date(0),
+  };
+  return {
+    entityType: "binary-asset",
+    sourceId: sourceKey,
+    sourceUpdatedAt: asDate(row.sourceCreatedAt),
+    targetId: String(data.id),
+    // Hash metadata plus the byte digest, not Buffer's enumerable byte object.
+    checksum: sha256({ ...data, data: undefined, content_sha256: contentSha256 }),
+    data,
+  };
+}
+
 export function mapExtract(extract: V1Extract) {
   return {
     locations: extract.locations.map(mapLocation),
@@ -683,6 +761,8 @@ export function mapExtract(extract: V1Extract) {
     sales: extract.sales.map(mapSale),
     saleLines: extract.saleLines.map(mapSaleLine),
     exceptions: extract.exceptions.map(mapMigrationException),
+    archivedRecords: extract.archivedRecords.map(mapArchivedSource),
+    binaryAssets: extract.binaryAssets.map(mapBinaryAsset),
   };
 }
 
@@ -699,6 +779,8 @@ export function extractSummary(extract: V1Extract) {
     sales: mappedRows.sales.length,
     saleLines: mappedRows.saleLines.length,
     exceptions: mappedRows.exceptions.length,
+    archivedRecords: mappedRows.archivedRecords.length,
+    binaryAssets: mappedRows.binaryAssets.length,
   };
   const rowDigests = Object.values(mappedRows)
     .flat()

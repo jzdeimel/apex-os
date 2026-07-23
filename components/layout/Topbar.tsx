@@ -9,6 +9,7 @@ import { PersonaSwitcher } from "@/components/layout/PersonaSwitcher";
 import { MotionToggle } from "@/components/layout/MotionToggle";
 import { me } from "@/components/portal/PortalHeader";
 import { BRAND } from "@/lib/brand";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
 
 /**
  * One header, three genuinely different products.
@@ -132,18 +133,21 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <p className="text-micro text-ink-400">
           {isMember ? (
             <>
-              Demonstration build. Synthetic data — not a real health record, and
-              not medical advice.
+              {IS_DEMO_UI
+                ? "Demonstration build. Synthetic data — not a real health record, and not medical advice."
+                : "Your Alpha Health record. Contact your coach for care questions or urgent routing."}
             </>
           ) : portal.id === "clinic" ? (
             <>
-              Demo only. Apex proposes; a licensed clinician decides. Dosing and
-              sign-off are yours alone.
+              {IS_DEMO_UI
+                ? "Demo only. Apex proposes; a licensed clinician decides. Dosing and sign-off are yours alone."
+                : "Restricted clinical workspace. Apex assists; licensed staff retain review and sign-off responsibility."}
             </>
           ) : (
             <>
-              Demo only. Not medical advice. Anything clinical needs provider
-              review before it reaches a member.
+              {IS_DEMO_UI
+                ? "Demo only. Not medical advice. Anything clinical needs provider review before it reaches a member."
+                : "Restricted Alpha Health workspace. Clinical guidance requires licensed review before release."}
             </>
           )}
         </p>

@@ -10,6 +10,7 @@ import { PORTALS } from "@/lib/portals";
 import { ME, useMe, setDemoMember } from "@/components/portal/PortalHeader";
 import { getClient } from "@/lib/mock/clients";
 import { IS_DEMO_UI } from "@/lib/publicConfig";
+import { useCurrentStaff } from "@/lib/auth/useCurrentStaff";
 
 /**
  * Owner-only persona switcher.
@@ -32,6 +33,14 @@ export function PersonaSwitcher() {
   const ref = useRef<HTMLDivElement>(null);
 
   const active = personaFor(portal.id);
+  const currentStaff = useCurrentStaff();
+  const signedInName = currentStaff?.name || (IS_DEMO_UI ? VIEWER.name : "Signed in");
+  const signedInInitials = signedInName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AH";
 
   // Which chart the Member seat renders. DEMO AFFORDANCE — see DEMO_MEMBERS in
   // lib/viewer.ts for why this control exists at all.
@@ -76,9 +85,9 @@ export function PersonaSwitcher() {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900/70 px-2.5 py-1.5">
         <span className="grid h-6 w-6 place-items-center rounded-full bg-gold-500 text-micro font-bold text-white">
-          {VIEWER.initials}
+          {signedInInitials}
         </span>
-        <span className="hidden text-detail font-medium text-ink-200 sm:block">{VIEWER.name}</span>
+        <span className="hidden text-detail font-medium text-ink-200 sm:block">{signedInName}</span>
       </div>
     );
   }

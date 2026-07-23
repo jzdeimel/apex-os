@@ -13,6 +13,7 @@ import { PORTAL_NAV, filterNavByFeatures } from "@/lib/nav";
 import { useFeatures, usePreset } from "@/lib/features/client";
 import { SupportLink } from "@/components/SupportLink";
 import { signOut } from "@/lib/auth/session";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
 
 export function Sidebar({
   mobileOpen,
@@ -90,7 +91,7 @@ export function Sidebar({
           The switcher is an owner affordance for inspecting other surfaces, and
           it must not appear inside the surface being inspected.
         */}
-        {portal.id !== "patient" && (
+        {IS_DEMO_UI && portal.id !== "patient" && (
         <div className="relative mx-3 mb-2">
           <button
             onClick={() => setSwitcherOpen((v) => !v)}
@@ -205,11 +206,12 @@ export function Sidebar({
 
         <div className="m-3 rounded-xl border border-ink-800 bg-ink-900/60 p-3">
           <p className="text-micro font-medium uppercase tracking-wide text-ink-300">
-            Demo environment
+            {IS_DEMO_UI ? "Demo environment" : "Restricted system"}
           </p>
           <p className="mt-1 text-micro leading-relaxed text-ink-500">
-            Mock data only. Not medical advice. Recommendations require licensed
-            provider review.
+            {IS_DEMO_UI
+              ? "Mock data only. Not medical advice. Recommendations require licensed provider review."
+              : "Authorized Alpha Health use only. Access and record views are audited."}
           </p>
         </div>
 

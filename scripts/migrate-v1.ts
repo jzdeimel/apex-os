@@ -9,6 +9,8 @@ import {
   sha256,
   type MappedRecord,
   type V1AppointmentRow,
+  type V1ArchivedSourceRow,
+  type V1BinaryAssetRow,
   type V1ContactEntryRow,
   type V1ConsultRow,
   type V1Extract,
@@ -27,6 +29,7 @@ type Mode = "baseline" | "delta" | "rehearsal";
 interface Options {
   apply: boolean;
   reconcileOnly: boolean;
+  summaryOnly: boolean;
   mode: Mode;
   watermark: Date | null;
   initiatedBy: string | null;
@@ -88,6 +91,7 @@ export function parseOptions(argv: string[]): Options {
   const options: Options = {
     apply: argv.includes("--apply"),
     reconcileOnly: argv.includes("--reconcile-only"),
+    summaryOnly: argv.includes("--summary-only"),
     mode,
     watermark: watermarkRaw ? parseDate(watermarkRaw, "--watermark") : null,
     initiatedBy: value("--initiated-by") ?? process.env.MIGRATION_INITIATED_BY ?? null,
@@ -324,6 +328,7 @@ async function extractUnified(
   return {
     extract: {
       locations, staff, people, appointments, consults: [], contacts: [], fulfillmentHistory: [], sales: [], saleLines: [], exceptions: [],
+      archivedRecords: [], binaryAssets: [],
     } satisfies V1Extract,
     diagnostics: {
       staffNameCollisionGroups: 0, unresolvedStaffNameCollisionGroups: 0,
@@ -346,6 +351,251 @@ async function extractUnified(
   };
 }
 
+const LEGACY_ARCHIVE_TABLES = [
+  "Appointment",
+  "AppointmentAmendment",
+  "AppointmentTemplate",
+  "AuditLog",
+  "ClientProfile",
+  "ClientTouch",
+  "CobrowseEvent",
+  "CobrowseSession",
+  "ContactEntry",
+  "DailyStat",
+  "Document",
+  "EmailGroup",
+  "Feedback",
+  "GeneratedQuiz",
+  "IntakeForm",
+  "InventoryEvent",
+  "InventoryItem",
+  "Invoice",
+  "InvoiceLine",
+  "LabAnalysis",
+  "Lot",
+  "OutboundMedia",
+  "PackageSubscription",
+  "PlanOfCare",
+  "Product",
+  "ProgressNote",
+  "PullDraft",
+  "PulledOrder",
+  "Purchase",
+  "QCRecord",
+  "QuarantineEntry",
+  "QuizAttempt",
+  "QuizSetting",
+  "Reminder",
+  "RoutedOrder",
+  "SaleVerification",
+  "ShipmentNotification",
+  "ShippingLabel",
+  "SupplyItem",
+  "SyncState",
+  "TestBatch",
+  "Ticket",
+  "Vendor",
+  "VendorPrice",
+] as const;
+
+interface LegacyArchivePerson {
+  id: string;
+  nameKey: string | null;
+  mindbodyId: string | null;
+}
+
+interface RawLegacyArchiveRow {
+  id: string;
+  occurredAt: string | null;
+  sourceUpdatedAt: string | null;
+  payload: Record<string, unknown>;
+}
+
+function archivedPersonId(
+  payload: Record<string, unknown>,
+  people: LegacyArchivePerson[],
+): string | null {
+  const asText = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
+  const direct = asText(payload.clientProfileId)
+    ?? asText(payload.clientId)
+    ?? asText(payload.personId);
+  if (direct && people.some((person) => person.id === direct)) return direct;
+
+  const mindbody = asText(payload.clientMindbodyId) ?? asText(payload.mindbodyId);
+  if (mindbody) {
+    const matches = people.filter((person) => person.mindbodyId === mindbody);
+    if (matches.length === 1) return matches[0].id;
+  }
+
+  const nameKey = asText(payload.clientNameKey) ?? asText(payload.nameKey);
+  if (nameKey) {
+    const matches = people.filter((person) => person.nameKey === nameKey);
+    if (matches.length === 1) return matches[0].id;
+  }
+  return null;
+}
+
+async function extractLegacyArchive(
+  tx: TransactionSql,
+  people: LegacyArchivePerson[],
+): Promise<{ records: V1ArchivedSourceRow[]; assets: V1BinaryAssetRow[] }> {
+  const existing = await tx<{ table: string }[]>`
+    select table_name as table
+    from information_schema.tables
+    where table_schema = 'public' and table_name = any(${LEGACY_ARCHIVE_TABLES})
+  `;
+  const existingTables = new Set(existing.map((row) => row.table));
+  const records: V1ArchivedSourceRow[] = [];
+
+  for (const table of LEGACY_ARCHIVE_TABLES) {
+    if (!existingTables.has(table)) continue;
+    const identifier = table.replaceAll('"', '""');
+    const rows = await tx.unsafe<RawLegacyArchiveRow[]>(`
+      select
+        coalesce(to_jsonb(t)->>'id', md5(to_jsonb(t)::text)) as id,
+        coalesce(
+          to_jsonb(t)->>'occurredAt',
+          to_jsonb(t)->>'startTime',
+          to_jsonb(t)->>'submittedAt',
+          to_jsonb(t)->>'receivedAt',
+          to_jsonb(t)->>'createdAt',
+          to_jsonb(t)->>'updatedAt'
+        ) as "occurredAt",
+        coalesce(
+          to_jsonb(t)->>'updatedAt',
+          to_jsonb(t)->>'createdAt',
+          to_jsonb(t)->>'occurredAt',
+          to_jsonb(t)->>'receivedAt'
+        ) as "sourceUpdatedAt",
+        to_jsonb(t)
+          - 'token'
+          - 'shortCode'
+          - 'data'
+          - 'labelData'
+          - 'password'
+          - 'passwordHash'
+          - 'sessionToken'
+          - 'accessToken'
+          - 'refreshToken'
+          - 'secret' as payload
+      from public."${identifier}" t
+      order by 1
+    `);
+    for (const row of rows) {
+      records.push({
+        id: row.id,
+        sourceEntityType: table,
+        personId: archivedPersonId(row.payload, people),
+        occurredAt: row.occurredAt,
+        sourceUpdatedAt: row.sourceUpdatedAt,
+        payload: row.payload,
+      });
+    }
+  }
+
+  const documentRows = existingTables.has("Document")
+    ? await tx<{
+        id: string;
+        filename: string;
+        contentType: string;
+        sizeBytes: number;
+        data: Buffer;
+        category: string | null;
+        sourceCreatedById: string | null;
+        sourceCreatedAt: Date;
+      }[]>`
+        select id, filename, "contentType", octet_length(data)::int as "sizeBytes", data, category,
+               "uploadedBy" as "sourceCreatedById", "createdAt" as "sourceCreatedAt"
+        from public."Document" order by id
+      `
+    : [];
+  const outboundRows = existingTables.has("OutboundMedia")
+    ? await tx<{
+        id: string;
+        personId: string | null;
+        filename: string;
+        contentType: string;
+        sizeBytes: number;
+        data: Buffer;
+        category: string | null;
+        sourceCreatedById: string | null;
+        sourceCreatedAt: Date;
+      }[]>`
+        select m.id, c.id as "personId", m.filename, m."contentType",
+               octet_length(m.data)::int as "sizeBytes", m.data, m.kind as category,
+               m."createdById" as "sourceCreatedById", m."createdAt" as "sourceCreatedAt"
+        from public."OutboundMedia" m
+        left join public."ClientProfile" c on c."nameKey" = m."clientNameKey"
+        order by m.id
+      `
+    : [];
+  const shippingLabelRows = existingTables.has("ShippingLabel")
+    ? await tx<{
+        id: string;
+        personId: string | null;
+        filename: string;
+        contentType: string;
+        sizeBytes: number;
+        data: Buffer;
+        category: string | null;
+        sourceCreatedById: string | null;
+        sourceCreatedAt: Date;
+      }[]>`
+        select l.id, null::text as "personId",
+               concat('shipping-label-', l.tracking, '.', lower(l."labelFormat")) as filename,
+               case upper(l."labelFormat")
+                 when 'GIF' then 'image/gif'
+                 when 'PNG' then 'image/png'
+                 when 'PDF' then 'application/pdf'
+                 else 'application/octet-stream'
+               end as "contentType",
+               octet_length(l."labelData")::int as "sizeBytes",
+               l."labelData" as data,
+               'Shipping label'::text as category,
+               l."createdBy" as "sourceCreatedById",
+               l."createdAt" as "sourceCreatedAt"
+        from public."ShippingLabel" l
+        order by l.id
+      `
+    : [];
+  const assets: V1BinaryAssetRow[] = [
+    ...documentRows.map((row) => ({
+      ...row,
+      sourceEntityType: "Document" as const,
+      personId: null,
+    })),
+    ...outboundRows.map((row) => ({
+      ...row,
+      sourceEntityType: "OutboundMedia" as const,
+    })),
+    ...shippingLabelRows.map((row) => ({
+      ...row,
+      sourceEntityType: "ShippingLabel" as const,
+    })),
+  ];
+  return { records, assets };
+}
+
+function assertLegacyArchiveCoverage(
+  inventory: ContinuityInventoryRow[],
+  records: V1ArchivedSourceRow[],
+) {
+  const archived = new Map<string, number>();
+  for (const row of records) {
+    archived.set(row.sourceEntityType, (archived.get(row.sourceEntityType) ?? 0) + 1);
+  }
+  const incomplete = inventory
+    .filter((row) => row.domain !== "discard-auth" && !row.entity.startsWith("_"))
+    .filter((row) => (archived.get(row.entity) ?? 0) !== row.count);
+  if (incomplete.length) {
+    throw new Error(
+      `lossless Alpha archive coverage failed: ${incomplete
+        .map((row) => `${row.entity} source=${row.count} archived=${archived.get(row.entity) ?? 0}`)
+        .join(", ")}`,
+    );
+  }
+}
+
 async function extractLegacy(
   tx: TransactionSql,
   from: Date | null,
@@ -353,7 +603,7 @@ async function extractLegacy(
   nextWatermark: Date,
 ) {
   interface LegacyPerson {
-    id: string; displayName: string; firstName: string | null; lastName: string | null;
+    id: string; nameKey: string | null; displayName: string; firstName: string | null; lastName: string | null;
     email: string | null; phone: string | null; address1: string | null; address2: string | null;
     city: string | null; state: string | null; zip: string | null; mindbodyId: string | null;
     dob: string | null; gender: string | null; isProspect: boolean; mbActive: boolean | null;
@@ -508,7 +758,7 @@ async function extractLegacy(
   }
   const rawPeople = (forceFull || !from
     ? await tx`
-        select c.id, c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
+        select c.id, c."nameKey", c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
                c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
                c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
                coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
@@ -540,7 +790,7 @@ async function extractLegacy(
         where c."updatedAt" <= ${nextWatermark} order by c.id
       `
     : await tx`
-        select c.id, c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
+        select c.id, c."nameKey", c.name as "displayName", c."firstName", c."lastName", c.email, c.phone,
                c.address1, c.address2, c.city, c.state, c.zip, c."mindbodyId", c.dob, c.gender,
                c."isProspect", c."mbActive", c."assignedCoach", coach.id as "assignedCoachId",
                coach.name as "assignedCoachName", coach.location as "assignedCoachLocation",
@@ -1391,10 +1641,15 @@ async function extractLegacy(
     ) author on true
   `;
   const consults = [...coachConsults, ...progressConsults];
+  const continuityInventory = await legacyContinuityInventory(tx);
+  const archive = await extractLegacyArchive(tx, rawPeople);
+  assertLegacyArchiveCoverage(continuityInventory, archive.records);
   return {
     extract: {
       locations: canonicalLegacyLocations(), staff, people, appointments: [], consults,
       contacts, fulfillmentHistory, sales, saleLines, exceptions,
+      archivedRecords: archive.records,
+      binaryAssets: archive.assets,
     } satisfies V1Extract,
     diagnostics: {
       staffNameCollisionGroups, unresolvedStaffNameCollisionGroups,
@@ -1420,7 +1675,7 @@ async function extractLegacy(
       purchaseItemCountMismatches,
       purchaseLineMathMismatches,
     } satisfies ExtractDiagnostics,
-    continuityInventory: await legacyContinuityInventory(tx),
+    continuityInventory,
     schemaFingerprint,
   };
 }
@@ -1546,6 +1801,40 @@ async function upsertMigrationExceptions(tx: TransactionSql, records: MappedReco
   }
 }
 
+async function upsertArchivedRecords(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 200)) {
+    await tx`
+      insert into legacy_source_record ${tx(batch)}
+      on conflict (id) do update set
+        client_id = excluded.client_id,
+        occurred_at = excluded.occurred_at,
+        source_updated_at = excluded.source_updated_at,
+        payload = excluded.payload,
+        payload_sha256 = excluded.payload_sha256,
+        imported_at = now()
+    `;
+  }
+}
+
+async function upsertBinaryAssets(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
+  for (const batch of chunks(records.map((record) => record.data), 20)) {
+    await tx`
+      insert into legacy_binary_asset ${tx(batch)}
+      on conflict (id) do update set
+        client_id = excluded.client_id,
+        filename = excluded.filename,
+        content_type = excluded.content_type,
+        size_bytes = excluded.size_bytes,
+        data = excluded.data,
+        content_sha256 = excluded.content_sha256,
+        category = excluded.category,
+        source_created_by_id = excluded.source_created_by_id,
+        source_created_at = excluded.source_created_at,
+        imported_at = now()
+    `;
+  }
+}
+
 async function insertHistoricalSales(tx: TransactionSql, records: MappedRecord<Record<string, unknown>>[]) {
   for (const batch of chunks(records.map((record) => record.data), 300)) {
     await tx`
@@ -1628,6 +1917,8 @@ async function applyExtract(
     await insertHistoricalSaleLines(tx, mapped.saleLines);
     await insertHistoricalFulfillment(tx, mapped.fulfillmentHistory);
     await upsertMigrationExceptions(tx, mapped.exceptions);
+    await upsertArchivedRecords(tx, mapped.archivedRecords);
+    await upsertBinaryAssets(tx, mapped.binaryAssets);
     await upsertBindings(tx, runId, [
       ...mapped.locations,
       ...mapped.staff,
@@ -1639,6 +1930,8 @@ async function applyExtract(
       ...mapped.sales,
       ...mapped.saleLines,
       ...mapped.exceptions,
+      ...mapped.archivedRecords,
+      ...mapped.binaryAssets,
     ]);
   });
 }
@@ -1679,6 +1972,8 @@ async function reconcile(
       union all select count(*)::int from migration_exception where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale where source_system = ${V1_SOURCE_SYSTEM}
       union all select count(*)::int from sale_line where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from legacy_source_record where source_system = ${V1_SOURCE_SYSTEM}
+      union all select count(*)::int from legacy_binary_asset where source_system = ${V1_SOURCE_SYSTEM}
     ) counts
   `;
   const expected = new Map(expectedRows.map((row) => [`${row.entityType}:${row.sourceId}`, row.checksum]));
@@ -1816,9 +2111,42 @@ async function main() {
       checksum: summary.checksum,
       continuityInventory,
       diagnostics,
+      archiveCoverage: {
+        sourceRecords: Object.fromEntries(
+          [...new Set(extract.archivedRecords.map((row) => row.sourceEntityType))]
+            .sort()
+            .map((entity) => [
+              entity,
+              extract.archivedRecords.filter((row) => row.sourceEntityType === entity).length,
+            ]),
+        ),
+        binaryAssets: Object.fromEntries(
+          [...new Set(extract.binaryAssets.map((row) => row.sourceEntityType))]
+            .sort()
+            .map((entity) => [
+              entity,
+              extract.binaryAssets.filter((row) => row.sourceEntityType === entity).length,
+            ]),
+        ),
+      },
       reconciliation,
     };
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(
+      options.summaryOnly
+        ? {
+            operation: report.operation,
+            mode: report.mode,
+            runId: report.runId,
+            nextWatermark: report.nextWatermark,
+            counts: report.counts,
+            checksum: report.checksum,
+            archiveCoverage: report.archiveCoverage,
+            reconciliation: report.reconciliation,
+          }
+        : report,
+      null,
+      2,
+    ));
     if (reconciliation && !reconciliation.ok) process.exitCode = 2;
   } finally {
     await source.end({ timeout: 5 });

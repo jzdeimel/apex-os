@@ -10,7 +10,14 @@ import {
   uniqueIndex,
   primaryKey,
   real,
+  customType,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 /**
  * Apex — persistence schema.
@@ -21,13 +28,11 @@ import {
  * dose logs, ledger rows, notes, escalations, bookings and orders all lived in
  * module-level arrays or React state (docs/audit/INVENTORY.md §2).
  *
- * This schema covers the WRITE paths. The 5,000-patient demo corpus stays in
- * lib/mock/** for now, deliberately — converting 59 client-component routes to
- * server-fetched reads is a rewrite of the whole application and buys nothing
- * today. Splitting reads from writes closes the P0 (nothing persists) without
- * that rewrite, and it is the correct migration shape regardless: when real
- * patient data arrives, each seeded read is swapped for a query behind the same
- * server boundary, one table at a time.
+ * This schema covers authoritative writes and the real Alpha history copied
+ * into Apex. Some legacy UI routes still carry seeded read models; shared
+ * production-like entry points must not present those fixtures as live facts.
+ * Each route is replaced behind a server boundary as its workflow becomes
+ * authoritative.
  *
  * Where a column references a seeded entity (a client, a staff member, a SKU)
  * it is a plain `text` id with no FK, because the referent does not live in this
@@ -579,6 +584,78 @@ export const migrationException = pgTable(
   (t) => ({
     sourceIdx: uniqueIndex("migration_exception_source_idx").on(t.sourceSystem, t.sourceEntityType, t.sourceId, t.reasonCode),
     statusIdx: index("migration_exception_status_idx").on(t.status, t.reasonCode),
+  }),
+);
+
+/**
+ * Complete Alpha business-history archive for source domains that do not yet
+ * have an equivalent Apex state machine.
+ *
+ * This is intentionally not a bag of rows exposed to ordinary product reads.
+ * It is the lossless, checksum-bound landing zone that lets Apex retain every
+ * operational record without pretending, for example, that an unlocated Alpha
+ * inventory event is a valid Apex dispense or that a package refill schedule is
+ * already a Clover-backed membership contract.
+ */
+export const legacySourceRecord = pgTable(
+  "legacy_source_record",
+  {
+    id: text("id").primaryKey(),
+    sourceSystem: text("source_system").notNull(),
+    sourceEntityType: text("source_entity_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    clientId: text("client_id"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    payload: jsonb("payload").notNull(),
+    payloadSha256: text("payload_sha256").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    sourceIdx: uniqueIndex("legacy_source_record_source_idx").on(
+      t.sourceSystem,
+      t.sourceEntityType,
+      t.sourceId,
+    ),
+    entityIdx: index("legacy_source_record_entity_idx").on(t.sourceEntityType, t.occurredAt),
+    clientIdx: index("legacy_source_record_client_idx").on(t.clientId, t.occurredAt),
+  }),
+);
+
+/**
+ * Binary evidence from Alpha (documents and outbound media).
+ *
+ * Bearer tokens are never migrated. The exact bytes are retained with their
+ * digest inside the restricted Apex database until private Blob Storage and
+ * malware-scanning custody are enabled, at which point this table is the
+ * auditable transfer source.
+ */
+export const legacyBinaryAsset = pgTable(
+  "legacy_binary_asset",
+  {
+    id: text("id").primaryKey(),
+    sourceSystem: text("source_system").notNull(),
+    sourceEntityType: text("source_entity_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    clientId: text("client_id"),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    data: bytea("data").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    category: text("category"),
+    sourceCreatedById: text("source_created_by_id"),
+    sourceCreatedAt: timestamp("source_created_at", { withTimezone: true }).notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    sourceIdx: uniqueIndex("legacy_binary_asset_source_idx").on(
+      t.sourceSystem,
+      t.sourceEntityType,
+      t.sourceId,
+    ),
+    clientIdx: index("legacy_binary_asset_client_idx").on(t.clientId, t.sourceCreatedAt),
+    checksumIdx: index("legacy_binary_asset_checksum_idx").on(t.contentSha256),
   }),
 );
 

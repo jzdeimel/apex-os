@@ -52,6 +52,8 @@ import {
   exactCents,
   extractSummary,
   mapAppointment,
+  mapArchivedSource,
+  mapBinaryAsset,
   mapContactEntry,
   mapConsult,
   mapHistoricalFulfillment,
@@ -850,6 +852,49 @@ const mappedException = mapMigrationException({
 eq("unlinked Alpha rows are retained in a private migration exception", mappedException.entityType, "migration-exception");
 eq("migration exception target ids do not expose Alpha ids", mappedException.targetId.includes("sensitive-orphan-source-id"), false);
 eq("migration exception payloads carry an integrity digest", String(mappedException.data.payload_sha256).length, 64);
+const mappedArchivedIntake = mapArchivedSource({
+  id: "sensitive-intake-source-id",
+  sourceEntityType: "IntakeForm",
+  personId: v1Person.id,
+  occurredAt: "2026-07-01T14:00:00.000Z",
+  sourceUpdatedAt: "2026-07-01T14:30:00.000Z",
+  payload: { status: "submitted", answers: { retained: true } },
+});
+eq("secondary Alpha records are retained in the restricted archive", mappedArchivedIntake.entityType, "source-record");
+eq("archived Alpha source ids remain opaque in Apex", mappedArchivedIntake.targetId.includes("sensitive-intake-source-id"), false);
+eq("archived Alpha payloads carry an integrity digest", String(mappedArchivedIntake.data.payload_sha256).length, 64);
+const mappedBinaryDocument = mapBinaryAsset({
+  id: "sensitive-document-source-id",
+  sourceEntityType: "Document",
+  personId: null,
+  filename: "historical.pdf",
+  contentType: "application/pdf",
+  sizeBytes: 3,
+  data: Buffer.from([1, 2, 3]),
+  category: "historical",
+  sourceCreatedById: null,
+  sourceCreatedAt: "2026-07-01T14:30:00.000Z",
+});
+eq("Alpha document bytes are retained as binary assets", mappedBinaryDocument.entityType, "binary-asset");
+eq("binary assets carry a SHA-256 content digest", String(mappedBinaryDocument.data.content_sha256).length, 64);
+let mismatchedBinarySizeRefused = false;
+try {
+  mapBinaryAsset({
+    id: "bad-document-size",
+    sourceEntityType: "Document",
+    personId: null,
+    filename: "truncated.pdf",
+    contentType: "application/pdf",
+    sizeBytes: 4,
+    data: Buffer.from([1, 2, 3]),
+    category: null,
+    sourceCreatedById: null,
+    sourceCreatedAt: "2026-07-01T14:30:00.000Z",
+  });
+} catch {
+  mismatchedBinarySizeRefused = true;
+}
+eq("a binary asset with a mismatched source size is refused", mismatchedBinarySizeRefused, true);
 
 const migrationSummary = extractSummary({
   locations: [],
@@ -877,6 +922,8 @@ const migrationSummary = extractSummary({
   sales: [],
   saleLines: [],
   exceptions: [],
+  archivedRecords: [],
+  binaryAssets: [],
 });
 const publicReport = JSON.stringify({ counts: migrationSummary.counts, checksum: migrationSummary.checksum });
 eq("the migration report contains no patient name", publicReport.includes("Sample"), false);

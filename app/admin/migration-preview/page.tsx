@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   Database,
@@ -31,6 +32,8 @@ interface PreviewPatient {
   saleCount: number;
   netSalesCents: number;
   fulfillmentCount: number;
+  archivedRecordCount: number;
+  binaryAssetCount: number;
 }
 
 interface Preview {
@@ -42,6 +45,8 @@ interface Preview {
     sales: number;
     saleLines: number;
     fulfillment: number;
+    archivedRecords: number;
+    binaryAssets: number;
     exceptions: number;
     pendingExceptions: number;
   };
@@ -53,6 +58,7 @@ interface Preview {
     startedAt: string;
     completedAt: string | null;
   } | null;
+  archiveCoverage: Array<{ entity: string; value: number }>;
   query: string;
   page: number;
   pageSize: number;
@@ -131,11 +137,12 @@ export default function AlphaMigrationPreviewPage() {
 
       {preview && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Card><CardContent className="p-5"><p className="text-detail text-ink-400">Patients</p><p className="mt-2 font-display text-display text-ink-50">{preview.summary.clients.toLocaleString()}</p></CardContent></Card>
             <Card><CardContent className="p-5"><p className="text-detail text-ink-400">Consult notes</p><p className="mt-2 font-display text-display text-ink-50">{preview.summary.consults.toLocaleString()}</p></CardContent></Card>
             <Card><CardContent className="p-5"><p className="text-detail text-ink-400">Contact history</p><p className="mt-2 font-display text-display text-ink-50">{preview.summary.contacts.toLocaleString()}</p></CardContent></Card>
             <Card><CardContent className="p-5"><p className="text-detail text-ink-400">Historical sales</p><p className="mt-2 font-display text-display text-ink-50">{preview.summary.sales.toLocaleString()}</p><p className="mt-1 text-micro text-ink-500">{preview.summary.saleLines.toLocaleString()} line items</p></CardContent></Card>
+            <Card><CardContent className="p-5"><p className="text-detail text-ink-400">Source archive</p><p className="mt-2 font-display text-display text-ink-50">{preview.summary.archivedRecords.toLocaleString()}</p><p className="mt-1 text-micro text-ink-500">{preview.summary.binaryAssets.toLocaleString()} exact binary assets</p></CardContent></Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -159,6 +166,22 @@ export default function AlphaMigrationPreviewPage() {
               {" · "}{date(preview.latestRun.completedAt ?? preview.latestRun.startedAt)}
               {preview.latestRun.checksum ? " · reconciled checksum recorded" : ""}
             </p>
+          )}
+
+          {preview.archiveCoverage.length > 0 && (
+            <section className="rounded-panel border border-ink-700 bg-ink-900/30 p-4">
+              <h2 className="font-display text-heading text-ink-100">Preserved Alpha source domains</h2>
+              <p className="mt-1 text-detail text-ink-500">
+                Lossless records retained in Apex without manufacturing unsupported live-workflow states.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {preview.archiveCoverage.map((row) => (
+                  <Badge key={row.entity}>
+                    {row.entity} · {row.value.toLocaleString()}
+                  </Badge>
+                ))}
+              </div>
+            </section>
           )}
         </>
       )}
@@ -207,13 +230,19 @@ export default function AlphaMigrationPreviewPage() {
                   <th className="p-3">Touches</th>
                   <th className="p-3">Sales</th>
                   <th className="p-3">Fulfillment</th>
+                  <th className="p-3">Source records</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.patients.map((patient) => (
                   <tr key={patient.id} className="border-t border-ink-800 align-top">
                     <td className="p-3">
-                      <p className="font-medium text-ink-100">{patient.preferredName || patient.firstName} {patient.lastName}</p>
+                      <Link
+                        href={`/admin/migration-preview/${patient.id}`}
+                        className="font-medium text-ink-100 underline-offset-4 hover:text-gold-300 hover:underline"
+                      >
+                        {patient.preferredName || patient.firstName} {patient.lastName}
+                      </Link>
                       <p className="mt-1 stat-mono text-micro text-ink-500">{patient.mrn}</p>
                     </td>
                     <td className="p-3 text-ink-300">{patient.dateOfBirth || "—"}</td>
@@ -226,6 +255,10 @@ export default function AlphaMigrationPreviewPage() {
                     <td className="p-3 stat-mono text-ink-100">{patient.contactCount.toLocaleString()}</td>
                     <td className="p-3"><p className="stat-mono text-ink-100">{money(patient.netSalesCents)}</p><p className="mt-1 text-micro text-ink-500">{patient.saleCount} transactions</p></td>
                     <td className="p-3 stat-mono text-ink-100">{patient.fulfillmentCount.toLocaleString()}</td>
+                    <td className="p-3">
+                      <p className="stat-mono text-ink-100">{patient.archivedRecordCount.toLocaleString()}</p>
+                      <p className="mt-1 text-micro text-ink-500">{patient.binaryAssetCount.toLocaleString()} assets</p>
+                    </td>
                   </tr>
                 ))}
               </tbody>

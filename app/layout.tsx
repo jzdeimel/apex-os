@@ -7,7 +7,32 @@ import { PortalProvider } from "@/lib/portalStore";
 import { ToastProvider } from "@/components/ui/Toast";
 import { FeatureProvider } from "@/lib/features/client";
 import { featuresForCurrentUser, activePreset } from "@/lib/features/server";
-import { UI_SKIN } from "@/lib/config";
+import { IS_DEMO, UI_SKIN } from "@/lib/config";
+import { currentPrincipal } from "@/lib/auth/principal";
+import type { AccessProfile } from "@/lib/authz/profiles";
+import type { PortalId } from "@/lib/portals";
+
+function portalForProfile(profile: AccessProfile | null | undefined): PortalId | null {
+  switch (profile) {
+    case "provider":
+    case "nursing":
+      return "clinic";
+    case "coach":
+      return "coach";
+    case "front-desk":
+      return "desk";
+    case "owner":
+    case "system-admin":
+    case "executive":
+    case "operations":
+    case "billing":
+    case "fulfillment":
+    case "marketing":
+      return "exec";
+    default:
+      return null;
+  }
+}
 
 /**
  * Fonts are VENDORED (app/fonts/*.woff2), loaded via next/font/local — not
@@ -46,7 +71,7 @@ const mono = localFont({
 export const metadata: Metadata = {
   title: "Apex — Clinic Operating System",
   description:
-    "Apex is the operating system for Alpha Health — hormone, peptide, medical weight loss, diagnostics & wellness. Demo only. Not medical advice.",
+    "Apex is Alpha Health's clinic operating system for coordinated coaching, medical care, scheduling, fulfillment, and member operations.",
 };
 
 /**
@@ -63,7 +88,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const features = await featuresForCurrentUser();
+  const [features, principal] = await Promise.all([
+    featuresForCurrentUser(),
+    IS_DEMO ? Promise.resolve(null) : currentPrincipal(),
+  ]);
   const preset = activePreset();
   const lightSkin = UI_SKIN === "v1-light";
 
@@ -84,7 +112,7 @@ export default async function RootLayout({
       <body>
         <FeatureProvider value={features} preset={preset}>
           <StoreProvider>
-            <PortalProvider>
+            <PortalProvider defaultPortalId={portalForProfile(principal?.accessProfile)}>
               <ToastProvider>
                 <AppShell>{children}</AppShell>
               </ToastProvider>
