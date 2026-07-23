@@ -1965,6 +1965,10 @@ async function applyExtract(
   mapped: ReturnType<typeof extractSummary>["mapped"],
 ) {
   await target.begin("isolation level serializable read write", async (tx) => {
+    // Transaction-local and checked by the immutable-history triggers. Alpha is
+    // still authoritative before cutover, so a corrected source row may refresh
+    // its Apex projection without opening an application-wide mutation path.
+    await tx`select set_config('apex.migration_mode', 'alpha-refresh', true)`;
     await upsertLocations(tx, mapped.locations);
     await upsertStaff(tx, mapped.staff);
     await upsertPeople(tx, mapped.people);
