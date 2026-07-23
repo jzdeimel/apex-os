@@ -313,6 +313,15 @@ try {
     console.log("ok  POST /api/leads (unauth) => 401");
   }
   {
+    const r = await fetch(`${BASE}/api/leads`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.status !== 401) fail(`staff lead pipeline update (unauth) => ${r.status}, expected 401`);
+    console.log("ok  PATCH /api/leads (unauth) => 401");
+  }
+  {
     // Acquisition is OWNER-only: a coach holds read:financial but must not see
     // business-wide funnel performance.
     const r = await fetch(`${BASE}/api/leads`, {

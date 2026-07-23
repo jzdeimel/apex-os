@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
+import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   ledger as ledgerTable,
   memberDay,
@@ -2588,6 +2589,9 @@ export async function createLeadWithInvite(input: {
   modality?: string;
   reason?: string;
   source?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
   mode?: "self-serve" | "coach-guided";
   capturedBy?: string;
   tokenSha256: string;
@@ -2611,6 +2615,9 @@ export async function createLeadWithInvite(input: {
       modality: input.modality ?? null,
       reason: input.reason ?? null,
       source: input.source ?? "website",
+      utmSource: input.utmSource ?? null,
+      utmMedium: input.utmMedium ?? null,
+      utmCampaign: input.utmCampaign ?? null,
       stage: "new",
       createdAt: at,
     });
@@ -2843,6 +2850,138 @@ export async function submitIntake(input: {
 export async function readLeads(limit = 200) {
   const db = requireDb();
   return db.select().from(leadTable).orderBy(desc(leadTable.createdAt)).limit(limit);
+}
+
+export type LeadPipelineAction = "claim" | "release" | "advance";
+
+/**
+ * Work one CRM opportunity with an immutable stage event and ledger witness.
+ *
+ * Conversion is deliberately absent from the manual transition graph. A lead
+ * becomes converted only in the transaction that creates/links the client;
+ * allowing a pipeline button to manufacture a client relationship would make
+ * the funnel lie.
+ */
+export async function updateLeadPipeline(input: {
+  leadId: string;
+  action: LeadPipelineAction;
+  toStage?: string;
+  note?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}): Promise<
+  | { ok: true; lead: typeof leadTable.$inferSelect; ledger: LedgerRow }
+  | { ok: false; reason: "not-found" | "already-owned" | "not-owner" | "invalid-transition" | "conflict" }
+> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(leadTable)
+      .where(eq(leadTable.id, input.leadId))
+      .limit(1);
+    if (!current) return { ok: false as const, reason: "not-found" as const };
+
+    let updated: typeof leadTable.$inferSelect | undefined;
+    let reason: string;
+    let after: Record<string, unknown>;
+
+    if (input.action === "claim") {
+      if (current.ownerStaffId && current.ownerStaffId !== input.actorId) {
+        return { ok: false as const, reason: "already-owned" as const };
+      }
+      [updated] = await tx
+        .update(leadTable)
+        .set({ ownerStaffId: input.actorId })
+        .where(
+          and(
+            eq(leadTable.id, input.leadId),
+            or(isNull(leadTable.ownerStaffId), eq(leadTable.ownerStaffId, input.actorId)),
+          ),
+        )
+        .returning();
+      reason = "CRM lead claimed";
+      after = { ownerStaffId: input.actorId };
+    } else if (input.action === "release") {
+      if (current.ownerStaffId !== input.actorId) {
+        return { ok: false as const, reason: "not-owner" as const };
+      }
+      [updated] = await tx
+        .update(leadTable)
+        .set({ ownerStaffId: null })
+        .where(and(eq(leadTable.id, input.leadId), eq(leadTable.ownerStaffId, input.actorId)))
+        .returning();
+      reason = "CRM lead released";
+      after = { ownerStaffId: null };
+    } else {
+      const toStage = input.toStage ?? "";
+      if (current.ownerStaffId && current.ownerStaffId !== input.actorId) {
+        return { ok: false as const, reason: "already-owned" as const };
+      }
+      if (!leadTransitionAllowed(current.stage, toStage)) {
+        return { ok: false as const, reason: "invalid-transition" as const };
+      }
+      if (toStage === "lost" && !input.note?.trim()) {
+        return { ok: false as const, reason: "invalid-transition" as const };
+      }
+
+      [updated] = await tx
+        .update(leadTable)
+        .set({
+          stage: toStage,
+          ownerStaffId: current.ownerStaffId ?? input.actorId,
+          lostReason: toStage === "lost" ? input.note!.trim().slice(0, 1000) : null,
+        })
+        .where(and(eq(leadTable.id, input.leadId), eq(leadTable.stage, current.stage)))
+        .returning();
+      if (updated) {
+        await tx.insert(leadStageEvent).values({
+          id: `lse-${input.leadId}-${at.getTime().toString(36)}-${toStage}`,
+          leadId: input.leadId,
+          fromStage: current.stage,
+          toStage,
+          at,
+          byStaffId: input.actorId,
+          note: input.note?.trim().slice(0, 1000) || null,
+        });
+      }
+      reason = `CRM lead advanced from ${current.stage} to ${toStage}`;
+      after = {
+        stage: toStage,
+        ownerStaffId: current.ownerStaffId ?? input.actorId,
+        note: input.note?.trim().slice(0, 1000) || null,
+      };
+    }
+
+    if (!updated) return { ok: false as const, reason: "conflict" as const };
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "lead",
+        entityId: input.leadId,
+        subjectId: input.leadId,
+        subjectName: [current.firstName, current.lastName].filter(Boolean).join(" ") || undefined,
+        reason,
+        before: {
+          ownerStaffId: current.ownerStaffId,
+          stage: current.stage,
+          lostReason: current.lostReason,
+        },
+        after,
+      },
+      input.at,
+    );
+    return { ok: true as const, lead: updated, ledger };
+  });
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,12 +1,16 @@
 # What Apex still needs to run all of Alpha Health
 
-Last reviewed: 2026-07-22.
+Last reviewed: 2026-07-23.
 
 This is an operating gap register, not a feature wish list. It reconciles the
 supplied NCV scheduling requirements, July 2026 employee workbook, product
 roadmap, 2026-07-21 meeting transcript, and the current Apex implementation.
 “Built” means an authoritative workflow exists; a polished page over seeded or
 browser-only data is not counted as built.
+
+The broader lifecycle inventory, including Mindbody/HighLevel functions that
+sit outside the clinical cutover core, is maintained in
+`docs/ALPHA_END_TO_END_CAPABILITY_MAP.md`.
 
 ## Operating model now fixed in the product
 
@@ -55,8 +59,10 @@ browser-only data is not counted as built.
   conversion cohorts, referral attribution and follow-up SLA.
 - Owner reporting based on collected cash and dated lifecycle events rather
   than seeded snapshots or contracted-value estimates.
-- Community moderation operations: named moderators, response SLA, report/block
-  handling, content retention and escalation into private coach workflows.
+- Community moderation is now authoritative for the text pilot: named primary
+  and backup moderators, response/resolution SLA, report/block handling,
+  immutable evidence, retention and private care-team escalation are built.
+  Production moderator assignment/drills and scanned private attachments remain.
 - Data export, legal record release, amendment requests and a full client chart
   archive suitable for continuity of care.
 

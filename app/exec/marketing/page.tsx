@@ -8,7 +8,8 @@ import { locationName } from "@/lib/mock/locations";
 /**
  * ACQUISITION — where new patients actually come from.
  *
- * This reads REAL lead rows from Postgres (/api/leads, gated on read:financial),
+ * This reads REAL lead rows from Postgres (/api/leads, gated on
+ * read:business-metrics),
  * not a seeded funnel. Every row here was created by someone submitting the
  * public booking form or a receptionist capturing a walk-in, and the `source`
  * field is what finally separates "the website is working" from "Raleigh's desk
@@ -34,17 +35,29 @@ interface Lead {
   track: string | null;
   preferredLocationId: string | null;
   source: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  ownerStaffId: string | null;
   stage: string;
   createdAt: string;
   convertedClientId: string | null;
   reason: string | null;
 }
 
-const STAGE_ORDER = ["new", "intake-submitted", "consult-booked", "converted", "lost"];
+const STAGE_ORDER = [
+  "new",
+  "contacted",
+  "intake-submitted",
+  "consult-booked",
+  "converted",
+  "lost",
+];
 
 export default function MarketingPage() {
   const [leads, setLeads] = React.useState<Lead[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [busyLead, setBusyLead] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -64,11 +77,39 @@ export default function MarketingPage() {
     };
   }, []);
 
+  const workLead = async (
+    leadId: string,
+    action: "claim" | "release" | "advance",
+    toStage?: string,
+  ) => {
+    setBusyLead(leadId);
+    setError(null);
+    try {
+      const r = await fetch("/api/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, action, toStage }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (!r.ok || !res.ok) {
+        setError(res.error || `Could not update lead (HTTP ${r.status}).`);
+        return;
+      }
+      setLeads((current) =>
+        current?.map((lead) => (lead.id === leadId ? res.lead : lead)) ?? current,
+      );
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setBusyLead(null);
+    }
+  };
+
   const bySource = React.useMemo(() => {
     if (!leads) return [];
     const m = new Map<string, { total: number; converted: number; submitted: number }>();
     for (const l of leads) {
-      const k = l.source ?? "unknown";
+      const k = l.utmSource ?? l.source ?? "unknown";
       const e = m.get(k) ?? { total: 0, converted: 0, submitted: 0 };
       e.total += 1;
       if (l.convertedClientId) e.converted += 1;
@@ -179,6 +220,44 @@ export default function MarketingPage() {
             </div>
           </Card>
 
+          <Card className="p-5">
+            <p className="label-eyebrow">Campaign attribution</p>
+            <p className="mt-1 text-detail text-ink-500">
+              First-touch UTM values captured with the lead. Blank means the booking
+              arrived without campaign parameters; Apex does not guess.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-detail">
+                <thead className="text-micro uppercase tracking-wide text-ink-500">
+                  <tr>
+                    <th className="pb-2 pr-3 font-medium">Lead</th>
+                    <th className="pb-2 pr-3 font-medium">Source</th>
+                    <th className="pb-2 pr-3 font-medium">Medium</th>
+                    <th className="pb-2 pr-3 font-medium">Campaign</th>
+                    <th className="pb-2 font-medium">Captured</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink-800">
+                  {leads.slice(0, 25).map((lead) => (
+                    <tr key={lead.id}>
+                      <td className="py-2 pr-3 text-ink-200">
+                        {[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Unnamed lead"}
+                      </td>
+                      <td className="py-2 pr-3 text-ink-400">
+                        {lead.utmSource ?? lead.source ?? "—"}
+                      </td>
+                      <td className="py-2 pr-3 text-ink-400">{lead.utmMedium ?? "—"}</td>
+                      <td className="py-2 pr-3 text-ink-400">{lead.utmCampaign ?? "—"}</td>
+                      <td className="stat-mono py-2 text-ink-500">
+                        {new Date(lead.createdAt).toISOString().slice(0, 10)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
           {stalled.length > 0 && (
             <Card className="p-5">
               <div className="flex items-center gap-2">
@@ -198,6 +277,9 @@ export default function MarketingPage() {
                       {[l.firstName, l.lastName].filter(Boolean).join(" ") || "Unnamed lead"}
                     </span>
                     <Badge tone="neutral">{l.source ?? "unknown"}</Badge>
+                    <Badge tone={l.ownerStaffId ? "optimal" : "watch"}>
+                      {l.ownerStaffId ? "Owned" : "Unassigned"}
+                    </Badge>
                     {l.preferredLocationId && (
                       <span className="text-micro text-ink-500">
                         {locationName(l.preferredLocationId as never)}
@@ -206,6 +288,24 @@ export default function MarketingPage() {
                     <span className="stat-mono text-micro text-ink-600">
                       {new Date(l.createdAt).toISOString().slice(0, 10)}
                     </span>
+                    {!l.ownerStaffId && (
+                      <button
+                        type="button"
+                        disabled={busyLead === l.id}
+                        onClick={() => void workLead(l.id, "claim")}
+                        className="focus-ring rounded-lg border border-ink-700 px-2.5 py-1 text-micro text-ink-300 transition-colors hover:border-ink-500 hover:text-ink-100 disabled:opacity-50"
+                      >
+                        Claim
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busyLead === l.id}
+                      onClick={() => void workLead(l.id, "advance", "contacted")}
+                      className="focus-ring rounded-lg border border-gold-400/40 bg-gold-400/10 px-2.5 py-1 text-micro text-gold-200 transition-colors hover:bg-gold-400/20 disabled:opacity-50"
+                    >
+                      Mark contacted
+                    </button>
                   </li>
                 ))}
               </ul>

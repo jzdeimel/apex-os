@@ -45,11 +45,16 @@ interface Body {
   locationId?: string;
   modality?: string;
   reason?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 /** 10+ digits after stripping punctuation — permissive, deliberately. */
 const isPhone = (v: string) => v.replace(/\D/g, "").length >= 10;
+const attributionValue = (value: unknown) =>
+  typeof value === "string" ? value.trim().slice(0, 200) || undefined : undefined;
 
 export async function POST(req: Request) {
   const now = Date.now();
@@ -97,6 +102,9 @@ export async function POST(req: Request) {
       modality: body.modality,
       reason: (body.reason ?? "").trim().slice(0, 2000) || undefined,
       source: "website",
+      utmSource: attributionValue(body.utmSource),
+      utmMedium: attributionValue(body.utmMedium),
+      utmCampaign: attributionValue(body.utmCampaign),
       tokenSha256: sha256(minted.token),
       expiresAt: minted.expiresAt,
       at,

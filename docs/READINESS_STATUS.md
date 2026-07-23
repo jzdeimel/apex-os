@@ -39,6 +39,12 @@ contrast sweep.
   and malware scanning are present. The allowlist, size limits, scan/release
   state and retention fields are enforced in code and schema; no unscanned
   attachment can appear in a feed.
+- Public booking now preserves first-touch UTM source, medium and campaign in
+  the authoritative lead row. Executive Pipeline and Acquisition share the
+  same Postgres-backed console; authorized CRM staff can claim a lead and mark
+  first contact with the ownership change, stage event and ledger witness in
+  one transaction. Manual conversion remains impossible outside the future
+  client-link transaction.
 - The coach is the client's steward and single messaging contact. Coach
   consults collect the member-contact type/channel, autosave raw notes
   server-side, build a source-traceable AI summary for human review, sign

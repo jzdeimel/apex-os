@@ -15,8 +15,7 @@ import {
 } from "lucide-react";
 import { BRAND, JOURNEY, PILLARS, CARE_TRACKS, PROOF } from "@/lib/brand";
 import { locations } from "@/lib/mock/locations";
-import { makeIntakeToken, INTAKE_TTL_HOURS } from "@/lib/intake/tokens";
-import { DEMO_INVITE } from "@/lib/mock/intake";
+import { INTAKE_TTL_HOURS } from "@/lib/intake/tokens";
 import type { CareTrackKey } from "@/lib/intake/types";
 import type { LocationId } from "@/lib/types";
 import { Button, Input, Textarea, Badge } from "@/components/ui/primitives";
@@ -128,6 +127,7 @@ export default function BookPage() {
   const send = async () => {
     setSubmitting(true);
     try {
+      const query = new URLSearchParams(window.location.search);
       const r = await fetch("/api/public/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,6 +139,11 @@ export default function BookPage() {
           track: form.track,
           locationId: form.locationId,
           reason: form.reason,
+          // Preserve first-touch campaign context with the durable lead.
+          // Values are bounded again at the public server boundary.
+          utmSource: query.get("utm_source"),
+          utmMedium: query.get("utm_medium"),
+          utmCampaign: query.get("utm_campaign"),
         }),
       });
       const res = await r.json().catch(() => ({}));

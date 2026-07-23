@@ -77,6 +77,7 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
+import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   invoiceNumber,
   invoiceRequestId,
@@ -1214,6 +1215,14 @@ eq(
   DEFAULT_COMMUNITY_POLICY.moderationEvidenceRetentionDays,
   2_555,
 );
+
+section("Authoritative CRM pipeline");
+eq("a new lead may be marked contacted", leadTransitionAllowed("new", "contacted"), true);
+eq("intake may advance to a booked consult", leadTransitionAllowed("intake-submitted", "consult-booked"), true);
+eq("a lost lead may be deliberately reopened", leadTransitionAllowed("lost", "new"), true);
+eq("a converted lead cannot be moved backward", leadTransitionAllowed("converted", "contacted"), false);
+eq("a pipeline button cannot manually manufacture conversion", leadTransitionAllowed("consult-booked", "converted"), false);
+eq("unknown lead stages fail closed", leadTransitionAllowed("new", "maybe"), false);
 
 section("Authoritative billing lifecycle");
 eq("a retried membership request keeps one opaque id", membershipRequestId("client-1", "request_12345678"), membershipRequestId("client-1", "request_12345678"));

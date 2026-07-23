@@ -18,6 +18,11 @@ integrated, persisted, signed, or sent unless it genuinely is.
 > provider's sign-off (never a dose). Apex is the **system of record** — it has
 > **zero** MindBody and **zero** GoHighLevel integration by design.
 
+The complete business-coverage boundary is tracked in
+[`docs/ALPHA_END_TO_END_CAPABILITY_MAP.md`](docs/ALPHA_END_TO_END_CAPABILITY_MAP.md);
+cutover-critical gaps are tracked separately in
+[`docs/ALPHA_OPERATING_GAPS.md`](docs/ALPHA_OPERATING_GAPS.md).
+
 ---
 
 ## What is actually real vs. what is still seeded
@@ -38,8 +43,9 @@ the system of record fills in behind them. This table is the source of truth.
 | In-app voice/video/SMS to patients | **Real tokens** | `POST /api/acs/token` — Azure Communication Services VoIP identity |
 | Patient-to-coach messaging | **Real** — session-scoped, durable | `/patient`, `GET/POST /api/patient/messages`; coach is the only patient-facing thread |
 | Patient community moderation | **Real for the `/patient` pilot** — text-only, owned, audited | Coach-owned groups, pseudonymous membership, reports, patient blocks, SLA queue, retention deadlines and care-team routing in Postgres |
+| Public lead capture and acquisition attribution | **Real core** — durable first-touch rows | `/book` and `/api/public/leads` persist the lead, intake invite, source and UTM source/medium/campaign; Executive Pipeline and Acquisition read the same Postgres records |
 | Consult **draft** autosave and signature | **Real** — durable and role-constrained | `GET/PUT/POST /api/consults/draft`; Coach and Medical use separate allowed note types/channels |
-| Staff Community showcase, rosters, broad portal, protocols, analytics, pipeline… | **Seeded preview** | `lib/mock/*` deterministic data; preview dates and provenance are labeled in the UI |
+| Staff Community showcase, rosters, broad portal, protocols and broad analytics… | **Seeded preview** | `lib/mock/*` deterministic data; preview dates and provenance are labeled in the UI |
 
 The split is intentional. Domain logic is written pure and portable, so moving a
 surface from "seeded read" to "Postgres read" is a transport change, not a
@@ -153,7 +159,7 @@ Authorization is **server-enforced**, never a hidden button.
 
 ---
 
-## Data model (Drizzle, 28 tables)
+## Data model (Drizzle, 77 public tables after current migrations)
 
 Core tables in `lib/db/schema.ts`, migrations in `lib/db/migrations/`:
 

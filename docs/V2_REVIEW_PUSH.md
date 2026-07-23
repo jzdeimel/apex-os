@@ -14,6 +14,9 @@ Alpha OS production remains the live system and is not a deployment target.
 - Patient-to-coach messaging, including coach-to-Medical escalation while the
   coach remains the patient's steward.
 - Owner feature controls and job-specific role boundaries.
+- Authoritative public lead capture and Executive acquisition pipeline:
+  first-touch UTM attribution, durable ownership claim and audited first-contact
+  transition.
 - Text-only patient community pilot: coach-owned groups, backup moderator,
   private handles, opt-in enrollment, report/block tools, severity-based SLA,
   immutable moderation evidence, retention deadlines, post hide/remove,
@@ -45,7 +48,7 @@ reviewers can evaluate their UX. Seeded dates are labeled as preview data.
 
 ## Acceptance evidence
 
-- 262/262 executable requirements pass.
+- 268/268 executable requirements pass.
 - Production build and schema consistency pass.
 - API authentication smoke passes, including every patient/community route.
 - Role browser matrix passes for Coach, Medical, Front Desk, Executive and

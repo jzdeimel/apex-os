@@ -230,6 +230,82 @@ try {
     await roleCtx.close();
   }
 
+  // The executive acquisition surface is operational, not a seeded dashboard:
+  // claim and stage changes must come back from the authoritative API before
+  // the UI reflects them.
+  {
+    const execCtx = await browser.newContext({
+      timezoneId: "America/New_York",
+      extraHTTPHeaders: {
+        "x-ms-client-principal": principal(
+          "zack@goalphahealth.com",
+          "Zack Deimel",
+          "oid-st-owner",
+        ),
+      },
+    });
+    await execCtx.addInitScript((key) => {
+      try { localStorage.setItem(key, "exec"); } catch {}
+    }, "apex_portal_v1");
+    const p = await execCtx.newPage();
+    const errors = [];
+    p.on("pageerror", (error) => errors.push(error.message));
+    let lead = {
+      id: "lead-ui-smoke",
+      firstName: "Apex",
+      lastName: "Prospect",
+      email: "prospect@example.invalid",
+      track: "male",
+      preferredLocationId: "raleigh",
+      source: "website",
+      utmSource: "google",
+      utmMedium: "cpc",
+      utmCampaign: "summer-consult",
+      ownerStaffId: null,
+      stage: "new",
+      createdAt: "2026-07-23T12:00:00.000Z",
+      convertedClientId: null,
+      reason: "Synthetic acquisition UI check",
+    };
+    await p.route("**/api/leads", async (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, leads: [lead] }),
+        });
+      }
+      if (route.request().method() === "PATCH") {
+        const body = route.request().postDataJSON();
+        lead = {
+          ...lead,
+          ownerStaffId: body.action === "claim" ? "st-owner" : lead.ownerStaffId,
+          stage: body.action === "advance" ? body.toStage : lead.stage,
+        };
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, durable: true, lead }),
+        });
+      }
+      return route.continue();
+    });
+    await p.goto(`${BASE}/exec/pipeline`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.getByRole("heading", { name: "Acquisition" }).waitFor({ timeout: 10000 });
+    await p.getByText("summer-consult", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Claim" }).click();
+    await p.getByText("Owned", { exact: true }).waitFor({ timeout: 10000 });
+    await p.getByRole("button", { name: "Mark contacted" }).click();
+    await p.getByText("contacted", { exact: true }).waitFor({ timeout: 10000 });
+    if (errors.length) {
+      done(1, `SMOKE-UI FAIL: acquisition console errors: ${errors.slice(0, 3).join(" | ")}`);
+    }
+    console.log(
+      "ok  Executive acquisition: attribution, durable claim and contacted stage rendered",
+    );
+    await execCtx.close();
+  }
+
   // Patient authentication uses a short-lived opaque link, not the staff
   // principal header. An incomplete link must fail closed without ever exposing
   // a staff shell.

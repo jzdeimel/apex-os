@@ -54,6 +54,7 @@ export type LedgerEntity =
   | "dispense"
   | "order"
   | "consent"
+  | "lead"
   | "document"
   | "session"
   | "message"
