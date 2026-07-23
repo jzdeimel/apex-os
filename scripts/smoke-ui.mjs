@@ -27,6 +27,43 @@ const principal = (email, name, oid) => Buffer.from(
   }),
 ).toString("base64");
 
+const chartResponse = ({ canCall = false, writeConsult = false } = {}) => ({
+  ok: true,
+  authoritative: true,
+  durableAudit: true,
+  ledgerId: "led-ui-chart",
+  canCall,
+  permissions: {
+    clinical: false,
+    contacts: false,
+    financial: false,
+    fulfillment: false,
+    writeConsult,
+  },
+  patient: {
+    mrn: "UI-CHART-001",
+    firstName: "Chart",
+    lastName: "Patient",
+    preferredName: null,
+    dateOfBirth: null,
+    sex: null,
+    email: null,
+    phone: "+19195550101",
+    address1: null,
+    address2: null,
+    city: null,
+    state: null,
+    zip: null,
+    status: "Active",
+    homeLocationId: "raleigh",
+    sourceUpdatedAt: null,
+  },
+  consults: [],
+  contacts: [],
+  sales: [],
+  fulfillment: [],
+});
+
 if (existsSync(".next/standalone")) {
   try { cpSync(".next/static", ".next/standalone/.next/static", { recursive: true }); } catch {}
   try { if (existsSync("public")) cpSync("public", ".next/standalone/public", { recursive: true }); } catch {}
@@ -171,7 +208,7 @@ try {
       email: "m.vale@alphahealth.demo",
       name: "Marcus Vale",
       oid: "oid-st-001",
-      required: ["Clinical console", "Waiting on me"],
+      required: ["AUTHORITATIVE WORKSPACE", "MEDICAL CONSOLE", "Today"],
       forbiddenHrefs: ["/exec"],
     },
     {
@@ -191,7 +228,7 @@ try {
       email: "zack@goalphahealth.com",
       name: "Zack Deimel",
       oid: "oid-st-owner",
-      required: ["OWNER CONSOLE", "What happened yesterday", "Needs you"],
+      required: ["AUTHORITATIVE", "NO ILLUSTRATIVE METRICS", "Executive overview"],
       forbiddenHrefs: [],
     },
   ];
@@ -280,6 +317,13 @@ try {
     );
     const p = await callCtx.newPage();
     let callWrites = 0;
+    await p.route("**/api/clients/c-001", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(chartResponse({ canCall: callCase.visible })),
+      }),
+    );
     if (callCase.visible) {
       await p.route("**/api/acs/token", (route) =>
         route.fulfill({
@@ -749,6 +793,13 @@ try {
     await p.setExtraHTTPHeaders({
       "x-ms-client-principal": principal("t.brooks@alphahealth.demo", "Tyler Brooks", "oid-st-005"),
     });
+    await p.route("**/api/clients/c-001", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(chartResponse({ writeConsult: true })),
+      }),
+    );
     // This smoke owns the UI contract, not a local Postgres instance. Supply
     // the same role-constrained metadata the authenticated draft endpoint
     // returns; executable specs separately verify the server-side rules.
@@ -762,6 +813,17 @@ try {
             durable: true,
             id: "con-smoke",
             updatedAt: "2026-07-22T12:00:00.000Z",
+          }),
+        });
+      }
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            durable: true,
+            consultId: "con-smoke-signed",
           }),
         });
       }
@@ -787,48 +849,40 @@ try {
     await p.waitForFunction(() => document.body.innerText.trim().length >= 200, null, {
       timeout: 10000,
     });
-    // The composer first paints its shell, then applies the authenticated
-    // author metadata returned by /api/consults/draft. A fast local browser can
-    // finish both before networkidle while a cold CI browser may briefly expose
-    // only the shell. Assert the settled workflow, not that intermediate paint.
     await p.waitForFunction(
       () => {
         const body = document.body.innerText.toLowerCase();
         return (
-          body.includes("steward") &&
-          body.includes("ai draft") &&
-          body.includes("sign consult")
+          body.includes("coach consult note") &&
+          body.includes("database-backed") &&
+          body.includes("sign note")
         );
       },
       null,
       { timeout: 10000 },
     );
     const text = (await p.evaluate(() => document.body.innerText)).trim();
-    if (!text.toLowerCase().includes("structured summary")) {
+    const normalizedText = text.toLowerCase();
+    if (
+      !normalizedText.includes("coach consult note") ||
+      !normalizedText.includes("drafts save in apex postgresql") ||
+      !normalizedText.includes("approved model and transcription provider")
+    ) {
       done(
         1,
-        `SMOKE-UI FAIL: consult composer did not open (${JSON.stringify({ excerpt: text.slice(-700) })})`,
+        `SMOKE-UI FAIL: authoritative coach note did not open (${JSON.stringify({ excerpt: text.slice(-700) })})`,
       );
     }
-    const normalizedText = text.toLowerCase();
-    if (!normalizedText.includes("note type") || !normalizedText.includes("visit channel")) {
+    if (!normalizedText.includes("visit type") || !normalizedText.includes("channel")) {
       done(1, "SMOKE-UI FAIL: consult metadata controls did not render");
     }
-    if (!normalizedText.includes("steward") || !normalizedText.includes("ai draft") || !normalizedText.includes("sign consult")) {
-      done(1, "SMOKE-UI FAIL: AI review/sign workflow did not render");
-    }
-    const signButton = p.getByRole("button", { name: "Sign consult" });
-    await p.getByRole("button", { name: "Load a sample consult" }).click();
-    if (!(await signButton.isDisabled())) {
-      done(1, "SMOKE-UI FAIL: a dirty note could be signed before its latest autosave");
-    }
-    await p.waitForFunction(() => {
-      const button = [...document.querySelectorAll("button")]
-        .find((candidate) => candidate.textContent?.includes("Sign consult"));
-      return button && !button.disabled;
-    }, null, { timeout: 5000 });
+    await p.getByLabel("Visit narrative").fill("Authoritative coach consult smoke note.");
+    await p.getByRole("button", { name: "Save draft" }).click();
+    await p.getByRole("button", { name: "Saved" }).waitFor({ timeout: 5000 });
+    await p.getByRole("button", { name: "Sign note" }).click();
+    await p.getByRole("heading", { name: "Visit note signed" }).waitFor({ timeout: 5000 });
     if (errors.length) done(1, `SMOKE-UI FAIL: consult composer errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log(`ok  client consult: note metadata, AI review and signature workflow rendered`);
+    console.log("ok  client consult: authoritative draft and immutable-sign workflow rendered");
     await p.close();
   }
 
@@ -842,6 +896,13 @@ try {
     await p.setExtraHTTPHeaders({
       "x-ms-client-principal": principal("m.vale@alphahealth.demo", "Marcus Vale", "oid-st-001"),
     });
+    await p.route("**/api/clients/c-001", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(chartResponse({ writeConsult: true })),
+      }),
+    );
     await p.route("**/api/consults/draft*", async (route) => {
       if (route.request().method() === "PUT") {
         return route.fulfill({
@@ -852,6 +913,17 @@ try {
             durable: true,
             id: "con-medical-smoke",
             updatedAt: "2026-07-22T12:00:00.000Z",
+          }),
+        });
+      }
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            durable: true,
+            consultId: "con-medical-smoke-signed",
           }),
         });
       }
@@ -875,37 +947,35 @@ try {
       timeout: 30000,
     });
     await p.waitForFunction(
-      () => document.body.innerText.toLowerCase().includes("medical visit documentation"),
+      () => document.body.innerText.toLowerCase().includes("medical visit note"),
       null,
       { timeout: 10000 },
     );
     const text = (await p.evaluate(() => document.body.innerText)).trim().toLowerCase();
     if (
-      !text.includes("medical visit documentation") ||
-      !text.includes("coach remains") ||
-      !text.includes("clinical note · soap") ||
+      !text.includes("medical visit note") ||
+      !text.includes("drafts save in apex postgresql") ||
       !text.includes("subjective") ||
       !text.includes("assessment") ||
-      !text.includes("visit channel")
+      !text.includes("channel")
     ) {
-      done(1, "SMOKE-UI FAIL: Medical visit note or coach-owned messaging boundary did not render");
+      done(1, "SMOKE-UI FAIL: authoritative Medical visit note did not render");
     }
-    const channelOptions = await p.getByLabel("Visit channel").locator("option").allTextContents();
+    const channelOptions = await p.getByLabel("Channel").locator("option").allTextContents();
     if (channelOptions.includes("Messaging")) {
       done(1, "SMOKE-UI FAIL: Medical was offered a direct Messaging encounter channel");
     }
-    const signButton = p.getByRole("button", { name: "Sign Medical note" });
-    await p.getByRole("button", { name: "Load a sample Medical note" }).click();
-    if (!(await signButton.isDisabled())) {
-      done(1, "SMOKE-UI FAIL: a dirty Medical note could be signed before its latest autosave");
-    }
-    await p.waitForFunction(() => {
-      const button = [...document.querySelectorAll("button")]
-        .find((candidate) => candidate.textContent?.includes("Sign Medical note"));
-      return button && !button.disabled;
-    }, null, { timeout: 5000 });
+    await p.getByLabel("Visit narrative").fill("Authoritative medical visit smoke note.");
+    await p.getByLabel("Subjective").fill("Patient-reported history.");
+    await p.getByLabel("Objective").fill("Reviewed available findings.");
+    await p.getByLabel("Assessment").fill("Clinical assessment.");
+    await p.getByLabel("Plan").fill("Documented care plan.");
+    await p.getByRole("button", { name: "Save draft" }).click();
+    await p.getByRole("button", { name: "Saved" }).waitFor({ timeout: 5000 });
+    await p.getByRole("button", { name: "Sign note" }).click();
+    await p.getByRole("heading", { name: "Visit note signed" }).waitFor({ timeout: 5000 });
     if (errors.length) done(1, `SMOKE-UI FAIL: Medical note errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log("ok  Medical visit: authored SOAP, durable draft and coach-owned messaging rendered");
+    console.log("ok  Medical visit: authored SOAP, durable draft, no direct Messaging and immutable sign rendered");
     await p.close();
   }
 
