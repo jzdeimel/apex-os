@@ -73,6 +73,8 @@ export type Capability =
   // ── Commerce ───────────────────────────────────────────────────────────
   | "write:order"           // place or reorder
   | "write:membership"      // change plan, pause, resume
+  | "write:invoice"
+  | "write:payment"
   | "write:refund"
   | "write:inventory"
   | "write:fulfillment"
@@ -148,7 +150,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   ],
   billing: [
     "read:directory", "read:financial", "read:all-clients",
-    "write:membership", "write:refund",
+    "write:membership", "write:invoice", "write:payment", "write:refund",
   ],
   fulfillment: [
     "read:directory", "read:location-clients", "read:orders", "read:inventory",
@@ -161,7 +163,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
     "read:directory", "read:location-clients", "read:financial", "read:ledger", "read:all-clients",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
     "write:contact", "write:demographics", "write:task",
-    "write:schedule", "override:schedule", "write:order", "write:membership",
+    "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
     "write:inventory", "write:fulfillment", "write:crm", "write:quality",
     "read:business-metrics",
     "admin:locations", "admin:calendars", "admin:export", "admin:break-glass",
@@ -175,7 +177,7 @@ const GRANTS: Record<AccessProfile, Capability[]> = {
   owner: [
     "read:directory", "read:financial", "read:ledger", "read:all-clients",
     "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
-    "read:business-metrics", "write:schedule", "override:schedule", "write:membership",
+    "read:business-metrics", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
     "write:refund", "write:inventory", "write:fulfillment", "write:crm",
     "write:communications", "write:quality", "admin:roles", "admin:locations",
     "admin:calendars", "admin:export", "admin:break-glass",
@@ -306,7 +308,7 @@ function resolveHint(capability: Capability): string | undefined {
     return "Requires a licensed provider. Escalate from the consult.";
   if (capability.startsWith("admin:"))
     return "Requires an operations lead.";
-  if (capability === "write:refund") return "Requires an operations lead.";
+  if (capability === "write:refund") return "Requires billing or owner approval.";
   return undefined;
 }
 
@@ -368,10 +370,12 @@ export const CAPABILITY_GROUPS: {
   },
   {
     group: "Commerce",
-    note: "Coaches can place and reorder. Plan changes and refunds sit with the front desk and operations.",
+    note: "Coaches can place and reorder. Billing controls contracts, invoices, payment reconciliation and refunds; operations may manage contracts and invoices but cannot issue refunds.",
     capabilities: [
       { id: "write:order", label: "Place or reorder" },
       { id: "write:membership", label: "Change, pause or resume a plan" },
+      { id: "write:invoice", label: "Issue an itemized invoice" },
+      { id: "write:payment", label: "Reconcile a processor payment" },
       { id: "write:refund", label: "Issue a refund" },
     ],
   },

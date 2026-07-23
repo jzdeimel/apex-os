@@ -71,6 +71,7 @@ import { BreakGlassChallenge, BreakGlassBanner } from "@/components/access/Break
 import { useBreakGlass } from "@/lib/access/breakGlass";
 import { ChartFundamentals } from "@/components/clinical/ChartFundamentals";
 import { ClinicalSafetyPanel } from "@/components/clinical/ClinicalSafetyPanel";
+import { BillingAccountPanel } from "@/components/billing/BillingAccountPanel";
 
 /**
  * One record, one page — and the SAME page for Coach and Medical.
@@ -96,6 +97,7 @@ const TABS = [
   { id: "recs", label: "Recommendations" },
   { id: "schedule", label: "Protocol Schedule" },
   { id: "orders", label: "Orders" },
+  { id: "billing", label: "Billing" },
   { id: "contact", label: "Contact Log" },
   { id: "timeline", label: "Timeline" },
   { id: "replay", label: "Time machine" },
@@ -242,6 +244,7 @@ export default function ClientProfilePage() {
         {tab === "escalations" && <ClientEscalations clientId={id} />}
         {tab === "replay" && <TimeMachine clientId={id} />}
         {tab === "orders" && <OrdersTab id={id} />}
+        {tab === "billing" && <BillingAccountPanel clientId={id} />}
         {tab === "contact" && <ContactTab id={id} />}
         {tab === "notes" && <NotesTab id={id} />}
       </SwitchView>

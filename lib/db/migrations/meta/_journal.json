@@ -155,6 +155,13 @@
       "when": 1784766105457,
       "tag": "0021_wealthy_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784767015867,
+      "tag": "0022_authoritative-billing-lifecycle",
+      "breakpoints": true
     }
   ]
 }

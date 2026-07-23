@@ -70,6 +70,13 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
+import {
+  invoiceNumber,
+  invoiceRequestId,
+  invoiceTotals,
+  membershipRequestId,
+  membershipTransitionAllowed,
+} from "@/lib/billing/lifecycle";
 import { can } from "@/lib/authz/capabilities";
 import { inferAccessProfile } from "@/lib/authz/profiles";
 import { dueAt as escalationDueAt } from "@/lib/escalations/queue";
@@ -894,12 +901,26 @@ eq("a provider may prescribe", can(actor("provider", "Medical"), "write:prescrip
 eq("a provider may sign lab results", can(actor("provider", "Medical"), "sign:labs").allowed, true);
 eq("a provider may sign an adverse-event review", can(actor("provider", "Medical"), "review:adverse-event").allowed, true);
 eq("an owner cannot prescribe", can(actor("owner"), "write:prescription").allowed, false);
+eq("billing may issue invoices", can(actor("billing"), "write:invoice").allowed, true);
+eq("billing may reconcile processor payments", can(actor("billing"), "write:payment").allowed, true);
+eq("a coach cannot alter an invoice", can(actor("coach", "Coach"), "write:invoice").allowed, false);
 eq("an unassigned profile has no authority", can(actor("unassigned"), "read:schedule").allowed, false);
 eq(
   "an ambiguous Nurse title fails closed",
   inferAccessProfile({ role: "Medical", credentials: "Nurse" }),
   "unassigned",
 );
+
+section("Authoritative billing lifecycle");
+eq("a retried membership request keeps one opaque id", membershipRequestId("client-1", "request_12345678"), membershipRequestId("client-1", "request_12345678"));
+eq("membership ids do not expose the patient", membershipRequestId("client-1", "request_12345678").includes("client-1"), false);
+eq("a cancelled membership cannot be resurrected", membershipTransitionAllowed("cancelled", "active"), false);
+eq("a paused membership may resume", membershipTransitionAllowed("paused", "active"), true);
+const billingInvoiceId = invoiceRequestId("client-1", "request_12345678");
+eq("a retried invoice request keeps one opaque id", billingInvoiceId, invoiceRequestId("client-1", "request_12345678"));
+eq("an invoice number is stable across a retry", invoiceNumber("client-1", "request_12345678"), invoiceNumber("client-1", "request_12345678"));
+eq("invoice math uses integer cents", invoiceTotals({ lines: [{ description: "Membership", quantity: 2, unitPriceCents: 1250 }], discountCents: 250, discountReason: "Approved courtesy adjustment.", taxCents: 100 }), { ok: true, subtotalCents: 2500, discountCents: 250, taxCents: 100, totalCents: 2350, hsaEligibleCents: 0 });
+eq("a discount without a reason is refused", invoiceTotals({ lines: [{ description: "Visit", quantity: 1, unitPriceCents: 1000 }], discountCents: 100 }).ok, false);
 
 section("Payment fail-safes");
 const clover = new CloverPaymentPort({

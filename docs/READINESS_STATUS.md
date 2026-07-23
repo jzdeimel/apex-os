@@ -102,7 +102,11 @@ contrast sweep.
   content and refuses to run without approved service-account configuration.
 - Durable membership and payment-reconciliation schema foundations. The Clover
   transport still refuses every money-moving operation until sandbox and
-  merchant acceptance are complete.
+  merchant acceptance are complete. Membership create/pause/resume/cancel now
+  commits with an immutable lifecycle event and audit witness; itemized invoice
+  issue uses integer cents, stable retry ids, fixed totals, immutable lines and
+  a role-scoped client Billing tab. Collected cash remains zero until an actual
+  processor result is reconciled—an invoice never pretends that a card moved.
 - CI gates for typecheck, requirements, migration consistency, lint, build,
   container build, dependency audit, API/UI smoke, and WCAG contrast.
 - A source-to-evidence acceptance ledger in

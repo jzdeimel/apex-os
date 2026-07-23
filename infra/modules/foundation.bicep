@@ -150,6 +150,19 @@ resource postgresDatabase 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2
   }
 }
 
+// Resource-overlap protection uses GiST exclusion constraints. Azure Flexible
+// Server requires every extension to be allow-listed before a migration can
+// CREATE it, so this must travel with the database foundation—not be a portal
+// setting discovered during a release.
+resource postgresExtensions 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-12-01-preview' = {
+  parent: postgres
+  name: 'azure.extensions'
+  properties: {
+    source: 'user-override'
+    value: 'btree_gist'
+  }
+}
+
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: containerRegistryName
   location: location

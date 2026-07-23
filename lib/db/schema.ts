@@ -1171,6 +1171,22 @@ export const membership = pgTable(
   }),
 );
 
+/** Immutable membership lifecycle history. Current state is a projection. */
+export const membershipEvent = pgTable(
+  "membership_event",
+  {
+    id: text("id").primaryKey(),
+    membershipId: text("membership_id").notNull().references(() => membership.id),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+    reason: text("reason").notNull(),
+    actorId: text("actor_id").notNull(),
+    ledgerId: text("ledger_id").notNull(),
+  },
+  (t) => ({ membershipIdx: index("membership_event_membership_idx").on(t.membershipId, t.effectiveAt) }),
+);
+
 /**
  * Time-bound ownership of a physical clinic resource.
  *
