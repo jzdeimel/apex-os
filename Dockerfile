@@ -42,6 +42,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY scripts/migrate-v1.ts scripts/register-alias.mjs scripts/alias-hooks.mjs ./scripts/
 COPY lib/migration/v1.ts ./lib/migration/v1.ts
+COPY lib/authz/profiles.ts ./lib/authz/profiles.ts
 COPY lib/mock/roster.ts ./lib/mock/roster.ts
 
 USER node

@@ -81,6 +81,15 @@ jobs:
           docker build -t apex-os-ci .
           docker build --target migration -t apex-os-migration-ci .
 
+      - name: Migration image reaches its fail-closed entrypoint
+        run: |
+          set +e
+          output="$(docker run --rm apex-os-migration-ci 2>&1)"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          printf '%s\n' "$output" | grep -F '"error":"V1_DATABASE_URL is required"'
+
       - name: Audit (production deps, high+)
         run: npm audit --omit=dev --audit-level=high
 
