@@ -50,6 +50,8 @@ export type LedgerEntity =
   | "session"
   | "message"
   | "appointment"
+  | "clinic-resource"
+  | "resource-reservation"
   | "calendar"
   | "rule-set"
   /**

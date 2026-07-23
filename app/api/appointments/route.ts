@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
   let staffId = request.nextUrl.searchParams.get("staffId") ?? undefined;
   const locationId = request.nextUrl.searchParams.get("locationId") ?? undefined;
   try {
+    if (locationId && !g.actor.locationIds.includes(locationId) && !hasCapability(g.actor.accessProfile, "read:all-clients")) {
+      return fail(403, "This clinic is outside your assigned locations.");
+    }
     if (clientId) {
       const scope = await readClientCareScope(clientId);
       if (!scope || scope.status !== "active") return fail(404, "Unknown active patient.");
@@ -66,6 +69,9 @@ export async function GET(request: NextRequest) {
       clientId,
       staffId,
       locationId,
+      locationIds: !locationId && hasCapability(g.actor.accessProfile, "read:all-schedules") && !hasCapability(g.actor.accessProfile, "read:all-clients")
+        ? g.actor.locationIds
+        : undefined,
     });
     return NextResponse.json({ ok: true, appointments });
   } catch (error) {
@@ -150,6 +156,7 @@ export async function PATCH(request: NextRequest) {
       actorName: g.principal.name,
       actorRole: g.actor.role,
       at: nowIso(),
+      resourceId: typeof body.resourceId === "string" ? body.resourceId : undefined,
       room: typeof body.room === "string" ? body.room : undefined,
       reason: typeof body.reason === "string" ? body.reason : undefined,
       startAt: startAt?.toISOString(),

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Check, DoorOpen, Loader2, RefreshCw, UserCheck, UserX, X } from "lucide-react";
-import { Badge, Button, EmptyState, Input, Textarea } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState, Input, Select, Textarea } from "@/components/ui/primitives";
+import { resourceSuitableForVisit } from "@/lib/clinic-resources/lifecycle";
 
 type LiveAppointment = {
   id: string;
@@ -11,6 +12,7 @@ type LiveAppointment = {
   clientLastName: string;
   clientPreferredName: string | null;
   staffName: string | null;
+  locationId: string | null;
   locationName: string | null;
   visitType: string;
   bookingGroupId: string | null;
@@ -19,8 +21,18 @@ type LiveAppointment = {
   startAt: string;
   endAt: string;
   status: string;
+  resourceId: string | null;
   room: string | null;
   reason: string | null;
+};
+
+type ClinicResource = {
+  id: string;
+  locationId: string;
+  label: string;
+  resourceType: string;
+  kind: string;
+  status: string;
 };
 
 type PendingAction = { row: LiveAppointment; action: "room" | "cancel" | "reschedule" | "reopen" | "no-show" };
@@ -46,6 +58,7 @@ function localInput(value: string) {
 
 export function LiveDeskBoard() {
   const [rows, setRows] = useState<LiveAppointment[]>([]);
+  const [resources, setResources] = useState<ClinicResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -60,10 +73,16 @@ export function LiveDeskBoard() {
     setError(null);
     try {
       const range = bounds();
-      const response = await fetch(`/api/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, { cache: "no-store" });
+      const [response, resourceResponse] = await Promise.all([
+        fetch(`/api/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, { cache: "no-store" }),
+        fetch(`/api/clinic/resources?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, { cache: "no-store" }),
+      ]);
       const payload = await response.json() as { appointments?: LiveAppointment[]; error?: string };
+      const resourcePayload = await resourceResponse.json() as { resources?: ClinicResource[]; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "The live schedule could not be loaded.");
+      if (!resourceResponse.ok) throw new Error(resourcePayload.error ?? "Clinic resources could not be loaded.");
       setRows(payload.appointments ?? []);
+      setResources(resourcePayload.resources ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The live schedule could not be loaded.");
     } finally {
@@ -103,7 +122,7 @@ export function LiveDeskBoard() {
 
   function open(row: LiveAppointment, action: PendingAction["action"]) {
     setPending({ row, action });
-    setRoom(row.room ?? "");
+    setRoom(row.resourceId ?? "");
     setReason("");
     setNewStart(localInput(row.startAt));
     setNewEnd(localInput(row.endAt));
@@ -157,11 +176,28 @@ export function LiveDeskBoard() {
         <div className="rounded-panel border border-gold-400/30 bg-ink-900 p-5">
           <h3 className="font-display text-heading text-ink-50">{pending.action === "room" ? "Assign a room" : pending.action === "reschedule" ? pending.row.bookingGroupId ? "Move complete NCV" : "Move appointment" : pending.action === "reopen" ? "Correct a closed appointment" : pending.action === "no-show" ? "Mark complete NCV no-show" : pending.row.bookingGroupId ? "Cancel complete NCV" : "Cancel appointment"}</h3>
           <p className="mt-1 text-detail text-ink-400">{pending.row.clientPreferredName || pending.row.clientFirstName} · {pending.row.visitType}</p>
-          {pending.action === "room" && <Input className="mt-4" value={room} onChange={(event) => setRoom(event.target.value)} placeholder="Room name or number" />}
+          {pending.action === "room" && (() => {
+            const options = resources.filter((resource) =>
+              resource.locationId === pending.row.locationId &&
+              resource.resourceType === "room" &&
+              resource.status === "active" &&
+              resourceSuitableForVisit(resource.kind, pending.row.visitType),
+            );
+            return options.length ? (
+              <label className="mt-4 block text-detail text-ink-300">Available configured room
+                <Select className="mt-1" value={room} onChange={(event) => setRoom(event.target.value)}>
+                  <option value="">Choose a room</option>
+                  {options.map((resource) => <option key={resource.id} value={resource.id}>{resource.label} · {resource.kind}</option>)}
+                </Select>
+              </label>
+            ) : (
+              <div className="mt-4 rounded-control border border-watch/30 bg-watch/5 p-3 text-detail text-watch">No active room at this clinic is configured for {pending.row.visitType}. Operations must configure the facility before rooming.</div>
+            );
+          })()}
           {pending.action === "reschedule" && <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-detail text-ink-300">Start<Input type="datetime-local" className="mt-1" value={newStart} onChange={(event) => setNewStart(event.target.value)} /></label>{!pending.row.bookingGroupId && <label className="text-detail text-ink-300">End<Input type="datetime-local" className="mt-1" value={newEnd} onChange={(event) => setNewEnd(event.target.value)} /></label>}</div>}
           {pending.action === "reschedule" && pending.row.bookingGroupId && <Textarea className="mt-4 min-h-20" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why the complete NCV is moving (required)" />}
           {(pending.action === "cancel" || pending.action === "reopen" || pending.action === "no-show") && <Textarea className="mt-4 min-h-20" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={pending.action === "reopen" ? "Correction reason (required)" : pending.action === "no-show" ? "No-show reason (required)" : "Cancellation reason (required)"} />}
-          <div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setPending(null)}>Back</Button><Button onClick={() => void move(pending.row, pending.action, pending.action === "room" ? { room } : pending.action === "reschedule" ? pending.row.bookingGroupId ? { startAt: new Date(newStart).toISOString(), reason } : { startAt: new Date(newStart).toISOString(), endAt: new Date(newEnd).toISOString() } : { reason })} disabled={busyId === pending.row.id || (pending.action === "room" && !room.trim()) || (pending.action === "reschedule" && (!newStart || (!pending.row.bookingGroupId && !newEnd) || (Boolean(pending.row.bookingGroupId) && !reason.trim()))) || ((pending.action === "cancel" || pending.action === "reopen" || pending.action === "no-show") && !reason.trim())}>{busyId === pending.row.id ? "Saving…" : "Confirm"}</Button></div>
+          <div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setPending(null)}>Back</Button><Button onClick={() => void move(pending.row, pending.action, pending.action === "room" ? { resourceId: room } : pending.action === "reschedule" ? pending.row.bookingGroupId ? { startAt: new Date(newStart).toISOString(), reason } : { startAt: new Date(newStart).toISOString(), endAt: new Date(newEnd).toISOString() } : { reason })} disabled={busyId === pending.row.id || (pending.action === "room" && !room.trim()) || (pending.action === "reschedule" && (!newStart || (!pending.row.bookingGroupId && !newEnd) || (Boolean(pending.row.bookingGroupId) && !reason.trim()))) || ((pending.action === "cancel" || pending.action === "reopen" || pending.action === "no-show") && !reason.trim())}>{busyId === pending.row.id ? "Saving…" : "Confirm"}</Button></div>
         </div>
       )}
     </div>

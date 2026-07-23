@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, isNull, lt, ne, or, sql as raw } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   ledger as ledgerTable,
@@ -26,6 +26,8 @@ import {
   message as messageTable,
   client as clientTable,
   clinicLocation as clinicLocationTable,
+  clinicResource,
+  resourceReservation,
   appointment as appointmentTable,
   staffAvailabilityRule,
   externalCalendar,
@@ -72,6 +74,7 @@ import {
 import { inferAccessProfile } from "@/lib/authz/profiles";
 import { NCV_COMPONENTS, type NcvComponentId } from "@/lib/scheduling/ncv";
 import { parseCredential } from "@/lib/scheduling/credentials";
+import { resourceSuitableForVisit } from "@/lib/clinic-resources/lifecycle";
 
 /** The transaction handle drizzle hands a `db.transaction(tx => …)` callback. */
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -734,6 +737,7 @@ export async function readAppointments(input: {
   clientId?: string;
   staffId?: string;
   locationId?: string;
+  locationIds?: string[];
 }) {
   const db = requireDb();
   const filters = [
@@ -742,6 +746,7 @@ export async function readAppointments(input: {
     input.clientId ? eq(appointmentTable.clientId, input.clientId) : undefined,
     input.staffId ? eq(appointmentTable.staffId, input.staffId) : undefined,
     input.locationId ? eq(appointmentTable.locationId, input.locationId) : undefined,
+    input.locationIds ? (input.locationIds.length ? inArray(appointmentTable.locationId, input.locationIds) : raw`false`) : undefined,
   ];
   return db
     .select({
@@ -763,6 +768,7 @@ export async function readAppointments(input: {
       status: appointmentTable.status,
       arrivedAt: appointmentTable.arrivedAt,
       roomedAt: appointmentTable.roomedAt,
+      resourceId: appointmentTable.resourceId,
       room: appointmentTable.room,
       completedAt: appointmentTable.completedAt,
       cancelledAt: appointmentTable.cancelledAt,
@@ -1376,6 +1382,13 @@ export async function changeNcvGroupWithLedger(input: {
       return { status: "conflict" as const, reason: "Only an entirely scheduled NCV can be cancelled or rescheduled as a group." };
     }
     const at = new Date(input.at);
+    const groupReservations = await tx.select().from(resourceReservation).where(and(
+      inArray(resourceReservation.appointmentId, rows.map((row) => row.id)),
+      or(eq(resourceReservation.status, "reserved"), eq(resourceReservation.status, "in-use")),
+    ));
+    if (input.action === "reschedule" && groupReservations.length) {
+      return { status: "conflict" as const, reason: "Release or move every clinic resource reservation before rescheduling this NCV." };
+    }
 
     if (input.action === "cancel" || input.action === "no-show") {
       if (!input.reason.trim()) return { status: "invalid" as const, reason: "A reason is required." };
@@ -1415,6 +1428,30 @@ export async function changeNcvGroupWithLedger(input: {
         before: { status: "Scheduled", components: rows.map((row) => row.component) },
         after: { status: terminalStatus, endedAt: input.at },
       }, input.at);
+      for (const reservation of groupReservations) {
+        const terminal = reservation.status === "in-use" ? "released" : "cancelled";
+        const candidateEnd = reservation.endAt > at ? at : reservation.endAt;
+        const actualEnd = candidateEnd > reservation.startAt ? candidateEnd : new Date(reservation.startAt.getTime() + 1);
+        await tx.update(resourceReservation).set({
+          status: terminal,
+          endAt: actualEnd,
+          releasedAt: at,
+          releaseReason: `NCV ${input.action}`,
+        }).where(eq(resourceReservation.id, reservation.id));
+        await appendLedgerInTx(tx, {
+          actorId: input.actorId,
+          actorName: input.actorName,
+          actorRole: input.actorRole,
+          action: "update",
+          entity: "resource-reservation",
+          entityId: reservation.id,
+          subjectId: rows[0].clientId,
+          locationId: rows[0].locationId as LedgerDraft["locationId"],
+          reason: `Released by entire NCV ${input.action}.`,
+          before: { status: reservation.status, endAt: reservation.endAt.toISOString() },
+          after: { status: terminal, endAt: actualEnd.toISOString(), releasedAt: at.toISOString() },
+        }, input.at);
+      }
       return { status: "ok" as const, appointments: rows.map((row) => ({ ...row, status: terminalStatus })), ledger };
     }
 
@@ -1519,6 +1556,7 @@ export async function changeAppointmentWithLedger(input: {
   actorName: string;
   actorRole: string;
   at: string;
+  resourceId?: string;
   room?: string;
   reason?: string;
   startAt?: string;
@@ -1549,7 +1587,31 @@ export async function changeAppointmentWithLedger(input: {
     if (stateChange && !appointmentTransitionAllowed(from, to)) {
       return { status: "conflict" as const, reason: `${from} cannot move to ${to}. Refresh the appointment.` };
     }
-    if (input.action === "room" && !input.room?.trim()) return { status: "invalid" as const, reason: "A room is required." };
+    const at = new Date(input.at);
+    let roomResource: typeof clinicResource.$inferSelect | null = null;
+    if (input.action === "room") {
+      if (!input.resourceId?.trim()) return { status: "invalid" as const, reason: "Choose an active clinic room." };
+      [roomResource] = await tx.select().from(clinicResource).where(eq(clinicResource.id, input.resourceId.trim())).limit(1);
+      if (!roomResource) return { status: "invalid" as const, reason: "The selected clinic room does not exist." };
+      if (roomResource.status !== "active") return { status: "conflict" as const, reason: `${roomResource.label} is not in service.` };
+      if (!current.locationId || roomResource.locationId !== current.locationId) return { status: "conflict" as const, reason: "The selected room belongs to a different clinic." };
+      if (roomResource.resourceType !== "room" || !resourceSuitableForVisit(roomResource.kind, current.visitType)) {
+        return { status: "conflict" as const, reason: `${roomResource.label} is not configured for ${current.visitType}.` };
+      }
+      const expectedEnd = current.endAt > at ? current.endAt : new Date(at.getTime() + 30 * 60_000);
+      const occupied = await tx.select({ id: resourceReservation.id }).from(resourceReservation).where(and(
+        eq(resourceReservation.resourceId, roomResource.id),
+        or(
+          eq(resourceReservation.status, "in-use"),
+          and(
+            eq(resourceReservation.status, "reserved"),
+            lt(resourceReservation.startAt, expectedEnd),
+            gt(resourceReservation.endAt, at),
+          ),
+        ),
+      )).limit(1);
+      if (occupied.length) return { status: "conflict" as const, reason: `${roomResource.label} is already occupied or reserved.` };
+    }
     if ((input.action === "cancel" || input.action === "reopen") && !input.reason?.trim()) {
       return { status: "invalid" as const, reason: "A reason is required for this change." };
     }
@@ -1557,6 +1619,13 @@ export async function changeAppointmentWithLedger(input: {
     const scheduleChange = input.action === "reschedule" || input.action === "reassign";
     if (scheduleChange && from !== "Scheduled") {
       return { status: "conflict" as const, reason: "Only a scheduled appointment can be moved or reassigned." };
+    }
+    if (scheduleChange) {
+      const reservation = await tx.select({ id: resourceReservation.id }).from(resourceReservation).where(and(
+        eq(resourceReservation.appointmentId, current.id),
+        or(eq(resourceReservation.status, "reserved"), eq(resourceReservation.status, "in-use")),
+      )).limit(1);
+      if (reservation.length) return { status: "conflict" as const, reason: "Release or move the clinic resource reservation before changing this appointment." };
     }
     const nextStaffId = input.staffId ?? current.staffId;
     const nextLocationId = input.locationId ?? current.locationId;
@@ -1576,7 +1645,6 @@ export async function changeAppointmentWithLedger(input: {
       if (blocking.length) return { status: "invalid" as const, reason: blocking.join(" "), issues: blocking };
     }
 
-    const at = new Date(input.at);
     const changes: Partial<typeof appointmentTable.$inferInsert> = {
       status: to,
       staffId: nextStaffId,
@@ -1591,7 +1659,8 @@ export async function changeAppointmentWithLedger(input: {
       changes.completedAt = null;
     } else if (to === "Roomed") {
       changes.roomedAt = at;
-      changes.room = input.room!.trim();
+      changes.resourceId = roomResource!.id;
+      changes.room = roomResource!.label;
     } else if (to === "Completed") changes.completedAt = at;
     else if (to === "Cancelled") {
       changes.cancelledAt = at;
@@ -1600,6 +1669,7 @@ export async function changeAppointmentWithLedger(input: {
     } else if (to === "Scheduled" && stateChange) {
       changes.arrivedAt = null;
       changes.roomedAt = null;
+      changes.resourceId = null;
       changes.room = null;
       changes.completedAt = null;
       changes.cancelledAt = null;
@@ -1621,14 +1691,72 @@ export async function changeAppointmentWithLedger(input: {
         reason: input.overrideReason
           ? `${input.action} with operational override: ${input.overrideReason}`
           : input.reason?.trim() || `Appointment ${input.action}`,
-        before: { status: from, staffId: current.staffId, locationId: current.locationId, startAt: current.startAt.toISOString(), endAt: current.endAt.toISOString(), room: current.room },
-        after: { status: to, staffId: nextStaffId, locationId: nextLocationId, startAt: nextStartAt.toISOString(), endAt: nextEndAt.toISOString(), room: changes.room ?? current.room },
+        before: { status: from, staffId: current.staffId, locationId: current.locationId, startAt: current.startAt.toISOString(), endAt: current.endAt.toISOString(), resourceId: current.resourceId, room: current.room },
+        after: { status: to, staffId: nextStaffId, locationId: nextLocationId, startAt: nextStartAt.toISOString(), endAt: nextEndAt.toISOString(), resourceId: changes.resourceId === undefined ? current.resourceId : changes.resourceId, room: changes.room === undefined ? current.room : changes.room },
       },
       input.at,
     );
     changes.ledgerId = ledger.id;
     const [appointment] = await tx.update(appointmentTable).set(changes).where(eq(appointmentTable.id, input.id)).returning();
-    return { status: "ok" as const, appointment, ledger };
+    let resourceLedger: LedgerRow | null = null;
+    if (input.action === "room" && roomResource) {
+      const expectedEnd = current.endAt > at ? current.endAt : new Date(at.getTime() + 30 * 60_000);
+      const reservationId = `reservation-${current.id}-${at.getTime()}`;
+      await tx.insert(resourceReservation).values({
+        id: reservationId,
+        resourceId: roomResource.id,
+        appointmentId: current.id,
+        status: "in-use",
+        startAt: at,
+        endAt: expectedEnd,
+        reservedBy: input.actorId,
+        reservedAt: at,
+        checkedInAt: at,
+      });
+      resourceLedger = await appendLedgerInTx(tx, {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "resource-reservation",
+        entityId: reservationId,
+        subjectId: current.clientId,
+        locationId: current.locationId as LedgerDraft["locationId"],
+        reason: "Assigned an authoritative clinic room at rooming.",
+        after: { resourceId: roomResource.id, resourceLabel: roomResource.label, appointmentId: current.id, status: "in-use", startAt: at.toISOString(), endAt: expectedEnd.toISOString() },
+      }, input.at);
+      await tx.update(resourceReservation).set({ ledgerId: resourceLedger.id }).where(eq(resourceReservation.id, reservationId));
+    } else if (["complete", "cancel", "no-show"].includes(input.action)) {
+      const activeReservations = await tx.select().from(resourceReservation).where(and(
+        eq(resourceReservation.appointmentId, current.id),
+        or(eq(resourceReservation.status, "reserved"), eq(resourceReservation.status, "in-use")),
+      ));
+      for (const reservation of activeReservations) {
+        const terminal = reservation.status === "in-use" ? "released" : "cancelled";
+        const candidateEnd = reservation.endAt > at ? at : reservation.endAt;
+        const actualEnd = candidateEnd > reservation.startAt ? candidateEnd : new Date(reservation.startAt.getTime() + 1);
+        await tx.update(resourceReservation).set({
+          status: terminal,
+          endAt: actualEnd,
+          releasedAt: at,
+          releaseReason: `Appointment ${input.action}`,
+        }).where(eq(resourceReservation.id, reservation.id));
+        resourceLedger = await appendLedgerInTx(tx, {
+          actorId: input.actorId,
+          actorName: input.actorName,
+          actorRole: input.actorRole,
+          action: "update",
+          entity: "resource-reservation",
+          entityId: reservation.id,
+          subjectId: current.clientId,
+          locationId: current.locationId as LedgerDraft["locationId"],
+          reason: `Released by appointment ${input.action}.`,
+          before: { status: reservation.status, endAt: reservation.endAt.toISOString() },
+          after: { status: terminal, endAt: actualEnd.toISOString(), releasedAt: at.toISOString() },
+        }, input.at);
+      }
+    }
+    return { status: "ok" as const, appointment, ledger, resourceLedger };
   });
 }
 

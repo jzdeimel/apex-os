@@ -83,6 +83,11 @@ contrast sweep.
   physical can all be staffed from verified access profiles, in-state licenses,
   clinic policy, approved hours, Apex conflicts, and connected-calendar busy
   time. Patient self-service remains separate work.
+- A durable clinic facility register now owns rooms and equipment, service
+  status, and time-bound reservations. Rooming selects only an active,
+  visit-compatible room at the appointment's clinic; appointment state and the
+  non-overlapping reservation commit together and checkout releases it. The
+  front-desk schedule read is constrained to assigned locations.
 - Medical-only append-preserving allergy, problem and outside-medication
   reconciliation, with coach read access inside care-team scope.
 - An authoritative lab chain now persists provider orders, specimen identity,
@@ -122,6 +127,9 @@ contrast sweep.
 - Atomic NCV code is therefore intentionally unable to offer a real slot until
   those approved roster facts are loaded; an hours exception cannot override a
   collision, missing credential, inactive staff record, or wrong clinic.
+- Rooming is also intentionally blocked until operations verifies and enters
+  the real facility register for every launch clinic. The old room map remains
+  visibly labelled as a planning fixture and is not an authority.
 - The four conflicting/unspecified scheduling policies in the runbook require
   an owner decision.
 

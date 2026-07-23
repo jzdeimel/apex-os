@@ -48,6 +48,7 @@ export async function GET() {
       collectLabs: decide("collect:labs"),
       recordLabResults: decide("record:lab-results"),
       signLabs: decide("sign:labs"),
+      adminLocations: decide("admin:locations"),
     },
   });
 }

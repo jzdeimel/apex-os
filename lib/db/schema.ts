@@ -588,6 +588,32 @@ export const clinicLocation = pgTable(
 );
 
 /**
+ * A room, chair, scanner, or other schedulable physical asset at one clinic.
+ *
+ * Facilities are data, not a source-code fixture: operations can remove an
+ * unsafe room from service immediately without waiting for a deployment.
+ */
+export const clinicResource = pgTable(
+  "clinic_resource",
+  {
+    id: text("id").primaryKey(),
+    locationId: text("location_id").notNull().references(() => clinicLocation.id),
+    label: text("label").notNull(),
+    resourceType: text("resource_type").notNull().default("room"),
+    kind: text("kind").notNull(),
+    capacity: integer("capacity").notNull().default(1),
+    status: text("status").notNull().default("active"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    locationLabelIdx: uniqueIndex("clinic_resource_location_label_idx").on(t.locationId, t.label),
+    availabilityIdx: index("clinic_resource_availability_idx").on(t.locationId, t.status, t.kind),
+  }),
+);
+
+/**
  * Authoritative Master Patient Index for Apex.
  *
  * This replaces the seeded `lib/mock/clients.ts` corpus one read surface at a
@@ -791,6 +817,8 @@ export const appointment = pgTable(
     status: text("status").notNull().default("Scheduled"),
     arrivedAt: timestamp("arrived_at", { withTimezone: true }),
     roomedAt: timestamp("roomed_at", { withTimezone: true }),
+    resourceId: text("resource_id").references(() => clinicResource.id),
+    /** Denormalized display label captured at rooming; resourceId is authority. */
     room: text("room"),
     reason: text("reason"),
     notes: text("notes"),
@@ -1136,6 +1164,36 @@ export const membership = pgTable(
       .on(t.clientId)
       .where(sql`status IN ('active','paused','past_due')`),
     sourceIdx: uniqueIndex("membership_source_idx").on(t.sourceSystem, t.sourceId),
+  }),
+);
+
+/**
+ * Time-bound ownership of a physical clinic resource.
+ *
+ * The database migration adds an exclusion constraint so two replicas cannot
+ * reserve the same room for overlapping intervals. Released/cancelled rows are
+ * retained as the operational history and no longer block the resource.
+ */
+export const resourceReservation = pgTable(
+  "resource_reservation",
+  {
+    id: text("id").primaryKey(),
+    resourceId: text("resource_id").notNull().references(() => clinicResource.id),
+    appointmentId: text("appointment_id").references(() => appointment.id),
+    encounterId: text("encounter_id"),
+    status: text("status").notNull().default("reserved"),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    reservedBy: text("reserved_by").notNull(),
+    reservedAt: timestamp("reserved_at", { withTimezone: true }).defaultNow().notNull(),
+    checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    releaseReason: text("release_reason"),
+    ledgerId: text("ledger_id"),
+  },
+  (t) => ({
+    resourceWindowIdx: index("resource_reservation_window_idx").on(t.resourceId, t.startAt, t.endAt),
+    appointmentIdx: index("resource_reservation_appointment_idx").on(t.appointmentId, t.status),
   }),
 );
 

@@ -78,6 +78,13 @@ import {
   patientReleaseVerdict,
   resultRisk,
 } from "@/lib/labs/lifecycle";
+import {
+  clinicResourceRequestId,
+  reservationTransitionAllowed,
+  resourceKindForVisit,
+  resourceReservationRequestId,
+  resourceSuitableForVisit,
+} from "@/lib/clinic-resources/lifecycle";
 import { staff } from "@/lib/mock/staff";
 import {
   consultChannelForRole,
@@ -829,6 +836,15 @@ eq(
   ).length,
   0,
 );
+
+section("Clinic resource safety");
+eq("a lab draw requires a draw resource", resourceKindForVisit("Lab Draw"), "draw");
+eq("a telehealth visit never invents a physical room", resourceKindForVisit("Telehealth"), null);
+eq("a consult suite may safely host an exam-shaped visit", resourceSuitableForVisit("consult", "Initial Consult"), true);
+eq("an infusion chair cannot host a body scan", resourceSuitableForVisit("infusion", "Body Scan"), false);
+eq("a released reservation cannot silently return to use", reservationTransitionAllowed("released", "in-use"), false);
+eq("resource request ids are stable across retries", clinicResourceRequestId("raleigh", "request_12345678"), clinicResourceRequestId("raleigh", "request_12345678"));
+eq("reservation request ids remain resource-scoped", resourceReservationRequestId("room-1", "request_12345678") === resourceReservationRequestId("room-2", "request_12345678"), false);
 
 section("Job-specific authorization");
 const actor = (accessProfile: Parameters<typeof can>[0]["accessProfile"], role: Parameters<typeof can>[0]["role"] = "Admin") => ({

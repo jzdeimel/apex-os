@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { LocationSwitcher } from "@/components/frontdesk/LocationSwitcher";
 import { RoomBoard } from "@/components/frontdesk/RoomBoard";
+import { AuthoritativeResourceBoard } from "@/components/frontdesk/AuthoritativeResourceBoard";
 
 /**
  * Front desk · Rooms.
@@ -37,6 +38,11 @@ export default function DeskRoomsPage() {
       </section>
 
       <section className="mt-4">
+        <AuthoritativeResourceBoard />
+      </section>
+
+      <section className="mt-8 border-t border-ink-800 pt-6">
+        <p className="mb-3 text-detail text-ink-500">Planning reference below is still seeded until operations verifies the facility register above.</p>
         <RoomBoard />
       </section>
     </div>
