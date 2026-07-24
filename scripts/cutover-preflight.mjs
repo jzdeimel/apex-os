@@ -154,6 +154,9 @@ const patientBoundaryFailures = [
   !demoModeDisabled && "the shared Azure deployment still enables or omits the fail-closed server demo-mode boundary",
 ].filter(Boolean);
 const requiredPublicPaths = [
+  "'/_next/static/*'",
+  "'/_next/image/*'",
+  "'/icon.svg'",
   "'/book'",
   "'/intake'",
   "'/api/public/leads'",
