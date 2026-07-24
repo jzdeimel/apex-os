@@ -12,11 +12,20 @@ patient, a real employee, real medication, and real money?** Where the answer is
 yet "not proven," this README says so plainly. Nothing here claims to be
 integrated, persisted, signed, or sent unless it genuinely is.
 
-> **Data & safety.** No real PHI is loaded — every patient is synthetic and
-> deterministically generated. Apex does not prescribe or fulfil; clinical
+> **Data & safety.** Demo fixtures contain no real PHI — every fixture patient
+> is synthetic and deterministically generated. The isolated Apex nonproduction environment is
+> also approved to hold a protected, one-way Alpha migration copy for
+> pre-cutover validation. `/admin/migration-preview` is the staff-only,
+> audit-witnessed view of that copy and never substitutes demo data. Alpha
+> remains read-only throughout. Apex does not prescribe or fulfil; clinical
 > suggestions are rule-based, category-level, and always require a licensed
 > provider's sign-off (never a dose). Apex is the **system of record** — it has
 > **zero** MindBody and **zero** GoHighLevel integration by design.
+
+The complete business-coverage boundary is tracked in
+[`docs/ALPHA_END_TO_END_CAPABILITY_MAP.md`](docs/ALPHA_END_TO_END_CAPABILITY_MAP.md);
+cutover-critical gaps are tracked separately in
+[`docs/ALPHA_OPERATING_GAPS.md`](docs/ALPHA_OPERATING_GAPS.md).
 
 ---
 
@@ -33,11 +42,17 @@ the system of record fills in behind them. This table is the source of truth.
 | Audit ledger (tamper-evident) | **Real** — hash-chained, durable | `appendLedgerRow` — advisory-locked, transactional, verifiable chain in Postgres |
 | Consult co-sign | **Real** — gated durable write | `POST /api/consults/sign` (`sign:encounter`, Medical-only) |
 | Task completion | **Real** — gated durable write | `POST /api/tasks/complete` (`write:task`) |
-| Order placement (ledger record) | **Real** — gated durable write | `POST /api/orders/create` (`write:order`) |
+| Order placement and fulfillment | **Real** — atomic order/lines/events/audit/outbox write plus scoped worklist | `POST /api/orders/create`, `GET/PATCH /api/orders` |
 | Member self-log (dose / skip / retract / weight / check-in) | **Real** — durable, append-only | `POST /api/member/log` → `dose_log`, `member_day` |
 | In-app voice/video/SMS to patients | **Real tokens** | `POST /api/acs/token` — Azure Communication Services VoIP identity |
-| Everything else (rosters, labs, protocols, analytics, community, pipeline…) | **Seeded** | `lib/mock/*` deterministic data; those ledger writes are in-memory client-side |
-| Consult **draft** autosave | **Client-only (localStorage)** — next slice moves it server-side | `components/consult/ConsultComposer.tsx` |
+| Patient-to-coach messaging | **Real** — session-scoped, durable | `/patient`, `GET/POST /api/patient/messages`; coach is the only patient-facing thread |
+| Patient community moderation | **Real for the `/patient` pilot** — text-only, owned, audited | Coach-owned groups, pseudonymous membership, reports, patient blocks, SLA queue, retention deadlines and care-team routing in Postgres |
+| Public lead capture and acquisition attribution | **Real core** — durable first-touch rows | `/book` and `/api/public/leads` persist the lead, intake invite, source and UTM source/medium/campaign; Executive Pipeline and Acquisition read the same Postgres records |
+| CRM ownership and follow-up | **Real core** — durable queue | `/exec/marketing` owns assignment history, a 15-minute first-response clock, first contact, append-only notes, follow-up tasks and loss/reopen reasons |
+| Support, service recovery and records requests | **Real workflow core** — durable and audited | `/support`, `/admin/cases`, and `/patient/records` share accountable cases, deadlines, identity-verification state, immutable events and closure evidence; actual PHI export remains gated |
+| Protected Alpha migration preview | **Real imported data only** — staff-only and audit-witnessed | `/admin/migration-preview` reads only rows carrying `source_system=alpha-v1`; no seeded fallback, source ids, or exception payloads |
+| Consult **draft** autosave and signature | **Real** — durable and role-constrained | `GET/PUT/POST /api/consults/draft`; Coach and Medical use separate allowed note types/channels |
+| Staff Community showcase, rosters, broad portal, protocols and broad analytics… | **Seeded preview** | `lib/mock/*` deterministic data; preview dates and provenance are labeled in the UI |
 
 The split is intentional. Domain logic is written pure and portable, so moving a
 surface from "seeded read" to "Postgres read" is a transport change, not a
@@ -151,7 +166,7 @@ Authorization is **server-enforced**, never a hidden button.
 
 ---
 
-## Data model (Drizzle, 28 tables)
+## Data model (Drizzle, 82 public tables after current migrations)
 
 Core tables in `lib/db/schema.ts`, migrations in `lib/db/migrations/`:
 
@@ -190,7 +205,8 @@ All routes are Node runtime, `force-dynamic`, and fail closed.
 | POST | `/api/orders/create` | `write:order` | durable order record |
 | POST | `/api/member/log` | authenticated | durable dose/skip/retract/day |
 | GET | `/api/ledger` | `read:ledger` | durable audit ledger |
-| POST | `/api/acs/token` | authenticated | real ACS VoIP/SMS token |
+| POST | `/api/acs/token` | `call:patient` | short-lived ACS VoIP token + caller-ID readiness |
+| POST | `/api/communications/calls` | `call:patient`, care-team scoped | durable outbound call lifecycle + audit witness |
 | GET | `/api/audit` | admin-gated | live referential-integrity check |
 
 `/api/audit` runs a real integrity sweep across the seeded universe (dangling

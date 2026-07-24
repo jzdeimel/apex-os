@@ -4,7 +4,7 @@ import { getLabsForClient } from "@/lib/mock/labs";
 import { consultsForClient } from "@/lib/mock/consults";
 import { ordersForClient } from "@/lib/mock/orders";
 import { contactLogForClient } from "@/lib/mock/contactLog";
-import { escalationsForClient } from "@/lib/escalations/queue";
+import { escalationsForClient } from "@/lib/escalations/fixtureSelectors";
 import { staffName } from "@/lib/mock/staff";
 import type { Biomarker } from "@/lib/types";
 

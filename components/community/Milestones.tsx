@@ -37,7 +37,7 @@ const ICON: Record<MilestoneKind, typeof Trophy> = {
   welcome: Sparkles,
 };
 
-export function Milestones({ clientId }: { clientId: string }) {
+export function Milestones({ clientId, personal = true }: { clientId: string; personal?: boolean }) {
   const mine = useMemo(() => milestonesFor(clientId), [clientId]);
   const feed = useMemo(() => milestoneFeed(40), []);
   const myHandle = handleFor(clientId);
@@ -47,7 +47,7 @@ export function Milestones({ clientId }: { clientId: string }) {
 
   return (
     <div className="space-y-6">
-      {mine.length > 0 && (
+      {personal && mine.length > 0 && (
         <section>
           <h3 className="mb-3 flex items-center gap-2 text-heading text-ink-50">
             <Trophy className="h-4 w-4 text-gold-400" /> Your milestones
@@ -65,7 +65,8 @@ export function Milestones({ clientId }: { clientId: string }) {
           <Sparkles className="h-4 w-4 text-gold-400" /> The community, this month
         </h3>
         <p className="mb-3 text-detail text-ink-500">
-          Every one of these is a real person, further along than they were. You appear here as {myHandle}.
+          Every one of these is a real person, further along than they were.
+          {personal ? ` You appear here as ${myHandle}.` : " Members appear by handle, never by name."}
         </p>
         <Stagger className="space-y-2.5">
           {others.map((m) => (

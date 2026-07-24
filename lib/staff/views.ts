@@ -1,7 +1,8 @@
 import type { Client, ClientStatus, LocationId, RiskLevel } from "@/lib/types";
 import { clientName } from "@/lib/mock/clients";
 import { daysSinceTouch } from "@/lib/mock/contactLog";
-import { escalationsForClient, isResolved } from "@/lib/escalations/queue";
+import { escalationsForClient } from "@/lib/escalations/fixtureSelectors";
+import { isResolved } from "@/lib/escalations/queue";
 import { effectiveClient } from "@/lib/roster/health";
 
 /**

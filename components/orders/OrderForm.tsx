@@ -20,17 +20,9 @@ import {
 import { Card, CardContent, Badge, Button, Input, Select, Textarea, EmptyState } from "@/components/ui/primitives";
 import { FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
-import { Monogram } from "@/components/Monogram";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
-import { clients, clientName, getClient } from "@/lib/mock/clients";
-import { staffMap, staffName } from "@/lib/mock/staff";
-import { locationMap, locations } from "@/lib/mock/locations";
-import { membershipForClient } from "@/lib/mock/memberships";
-import { appendLedger, type LedgerRow } from "@/lib/trace/ledger";
 import { commitOrder } from "@/lib/mock/orders";
-import { shortHash } from "@/lib/trace/hash";
-import { ME_COACH } from "@/components/coach/TodayQueue";
 
 import { catalogFor, searchCatalog, SERVICE_LINES, KIND_LABEL } from "@/lib/catalog/catalog";
 import type { CatalogItem, ServiceLine } from "@/lib/catalog/types";
@@ -46,7 +38,7 @@ import {
   type PlacingActor,
 } from "@/lib/orders/place";
 import type { Order } from "@/lib/orders/types";
-import type { Client, LocationId } from "@/lib/types";
+import type { LocationId } from "@/lib/types";
 
 /**
  * ORDER PLACEMENT.
@@ -67,33 +59,61 @@ import type { Client, LocationId } from "@/lib/types";
  *      structurally impossible — you can only add items that exist in the
  *      catalog, and an unknown SKU is a blocking error (lib/orders/place.ts).
  *
- * DEMO-SHAPED: placing an order constructs the record and appends a real ledger
- * row in memory. Nothing leaves the browser. The MedSource submit is an
- * interface with a demo implementation (lib/orders/medsource.ts) and is not
- * wired here.
+ * The patient directory is loaded from the authenticated, server-scoped
+ * ordering reference. The final order, immutable lines, status events, audit
+ * witness, and partner handoff intent commit in one database transaction.
  */
 
 const NOW = "2026-06-12T09:00:00";
 
-/** The coach whose console this is. Matches the rest of the coach surfaces. */
-const ACTOR: PlacingActor = {
-  id: ME_COACH,
-  name: staffName(ME_COACH),
-  role: staffMap[ME_COACH]?.role ?? "Coach",
+type ReferenceClient = {
+  id: string;
+  mrn: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  email: string;
+  phone: string;
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  homeLocationId: string | null;
+  assignedCoachId: string | null;
+  assignedProviderId: string | null;
 };
 
+type ReferenceLocation = { id: string; name: string; timezone: string };
+type ReferenceStaff = { id: string; name: string };
+type OrderReference = {
+  clients: ReferenceClient[];
+  staff: ReferenceStaff[];
+  locations: ReferenceLocation[];
+};
+
+function referenceClientName(client: ReferenceClient) {
+  return `${client.preferredName || client.firstName} ${client.lastName}`.trim();
+}
+
+function PatientMonogram({ client, size }: { client: ReferenceClient; size: "sm" | "md" }) {
+  const dims = size === "sm" ? "h-8 w-8 text-detail" : "h-9 w-9 text-body";
+  return (
+    <span className={cn("grid shrink-0 place-items-center rounded-full bg-gold-500/20 font-semibold text-gold-200", dims)}>
+      {initials(client.firstName, client.lastName)}
+    </span>
+  );
+}
+
 type QtyMap = Record<string, number>;
+function newRequestId() { return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 
 /**
  * The result of placing an order, plus the DURABLE witness state.
  *
- * The in-memory record (`order` + local ledger `row`) drives the demo board
- * immediately. Separately, each line is posted to the gated /api/orders/create,
- * which hash-chains a row into Postgres. `durable` tracks that second, real
- * write honestly — "pending" while posting, "saved" once the ledger accepted it,
- * "refused" on an auth/scope 4xx (carrying the server's reason), "unavailable"
- * when there is no database. The in-memory record is NEVER rolled back on
- * failure; the panel simply tells the truth about what did and did not persist.
+ * `durable` tells the truth while the one atomic server request is pending,
+ * accepted, refused, or unavailable. A refusal never reaches the planning
+ * board, so no browser-only order can be mistaken for a fulfillment obligation.
  */
 type DurableState =
   | { status: "pending" }
@@ -109,13 +129,40 @@ type DurableState =
 
 interface PlacedState {
   order: Order;
-  row: LedgerRow;
   totalCents: number;
   durable: DurableState;
 }
 
 export function OrderForm() {
   const { toast } = useToast();
+
+  const [reference, setReference] = React.useState<OrderReference>({ clients: [], staff: [], locations: [] });
+  const [actor, setActor] = React.useState<PlacingActor>();
+  const [referenceLoading, setReferenceLoading] = React.useState(true);
+  const [referenceError, setReferenceError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/orders/reference", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.ok) throw new Error(body.error ?? "The patient order directory is unavailable.");
+        if (!active) return;
+        setReference(body.reference ?? { clients: [], staff: [], locations: [] });
+        setActor(body.actor as PlacingActor);
+        setReferenceError(null);
+      } catch (caught) {
+        if (active) setReferenceError(caught instanceof Error ? caught.message : "The patient order directory is unavailable.");
+      } finally {
+        if (active) setReferenceLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   // --- member selection ----------------------------------------------------
   const [query, setQuery] = React.useState("");
@@ -134,18 +181,19 @@ export function OrderForm() {
   const matches = React.useMemo(() => {
     const q = debounced.trim().toLowerCase();
     if (q.length < 2) return [];
-    return clients
+    return reference.clients
       .filter(
         (c) =>
-          clientName(c).toLowerCase().includes(q) ||
+          referenceClientName(c).toLowerCase().includes(q) ||
           c.email.toLowerCase().includes(q) ||
           c.mrn.toLowerCase().includes(q),
       )
       .slice(0, 6);
-  }, [debounced]);
+  }, [debounced, reference.clients]);
 
-  const client = clientId ? getClient(clientId) : undefined;
-  const membership = clientId ? membershipForClient(clientId) : undefined;
+  const client = clientId ? reference.clients.find((row) => row.id === clientId) : undefined;
+  const staffNames = React.useMemo(() => new Map(reference.staff.map((row) => [row.id, row.name])), [reference.staff]);
+  const locationNames = React.useMemo(() => new Map(reference.locations.map((row) => [row.id, row.name])), [reference.locations]);
 
   // --- order state ---------------------------------------------------------
   const [locationId, setLocationId] = React.useState<LocationId>("raleigh");
@@ -158,6 +206,7 @@ export function OrderForm() {
   const [line, setLine] = React.useState<ServiceLine | "all">("all");
   const [catalogQuery, setCatalogQuery] = React.useState("");
   const [placed, setPlaced] = React.useState<PlacedState | null>(null);
+  const [requestId, setRequestId] = React.useState(newRequestId);
 
   /**
    * Selecting a member autofills everything the clinic already knows: their home
@@ -166,18 +215,23 @@ export function OrderForm() {
    * which is both slow and the origin of most wrong-location orders.
    */
   function selectClient(id: string) {
-    const c = getClient(id);
+    const c = reference.clients.find((row) => row.id === id);
     if (!c) return;
     setClientId(id);
-    setQuery(clientName(c));
-    setLocationId(c.locationId);
+    setQuery(referenceClientName(c));
+    if (c.homeLocationId) setLocationId(c.homeLocationId as LocationId);
     // Telehealth members can only receive by shipment; clinic members default to
     // shipping too, but the toggle is right there.
     setShipping("ship");
-    const loc = locationMap[c.locationId];
     // Apex stores the member's shipping address on the chart; the demo seeds the
     // city/state from their home clinic so the address block starts realistic.
-    setAddr({ line1: "", line2: "", city: loc?.city === "Virtual" ? "" : (loc?.city ?? ""), state: loc?.state === "—" ? "" : (loc?.state ?? ""), postal: "" });
+    setAddr({
+      line1: c.address1 ?? "",
+      line2: c.address2 ?? "",
+      city: c.city ?? "",
+      state: c.state ?? "",
+      postal: c.zip ?? "",
+    });
     setQty({});
     setPlaced(null);
   }
@@ -187,6 +241,7 @@ export function OrderForm() {
     setQuery("");
     setQty({});
     setPlaced(null);
+    setRequestId(newRequestId());
   }
 
   // --- catalog -------------------------------------------------------------
@@ -230,36 +285,39 @@ export function OrderForm() {
   }, [discountDollars]);
 
   const pricing = React.useMemo(
-    () => priceLines(orderLines, membership, discountCents, discountReason),
-    [orderLines, membership, discountCents, discountReason],
+    () => priceLines(orderLines, undefined, discountCents, discountReason),
+    [orderLines, discountCents, discountReason],
   );
 
   const input: PlaceOrderInput = React.useMemo(
     () => ({
       clientId,
-      clientName: client ? clientName(client) : undefined,
-      coachId: client?.coachId ?? ME_COACH,
+      clientName: client ? referenceClientName(client) : undefined,
+      coachId: client?.assignedCoachId ?? "",
       locationId,
       lines: orderLines,
       shipping,
       shipTo: shipping === "ship" ? addr : undefined,
       discountCents,
       discountReason,
-      membership,
       note: note.trim() || undefined,
       at: NOW,
       origin: "coach",
     }),
-    [clientId, client, locationId, orderLines, shipping, addr, discountCents, discountReason, membership, note],
+    [clientId, client, locationId, orderLines, shipping, addr, discountCents, discountReason, note],
   );
 
-  const problems = React.useMemo(() => validateOrder(input), [input]);
+  const problems = React.useMemo(() => validateOrder(input, actor), [input, actor]);
   const errors = problems.filter((p) => p.severity === "error");
   const warnings = problems.filter((p) => p.severity === "warning");
-  const ready = errors.length === 0;
+  const ready = errors.length === 0 && Boolean(actor) && !referenceError;
 
   // --- place ---------------------------------------------------------------
   function handlePlace() {
+    if (!actor) {
+      toast("Order not placed", { tone: "warn", desc: "The authenticated ordering identity is not available." });
+      return;
+    }
     // (The durable POSTs run in a fire-and-forget async IIFE below, so this stays
     // a plain handler and the button never awaits.)
     // A second click must not produce a second order.
@@ -272,7 +330,7 @@ export function OrderForm() {
     // no equivalent guard.
     if (placed) return;
 
-    const result = placeOrder(input, ACTOR);
+    const result = placeOrder(input, actor);
     if (!result.ok) {
       toast("Order not placed", {
         tone: "warn",
@@ -280,93 +338,63 @@ export function OrderForm() {
       });
       return;
     }
-    // The ledger row is appended HERE, by the caller, exactly as placeOrder's
-    // contract requires. In production this insert shares a transaction with the
-    // order insert, so an order that cannot be recorded does not exist.
-    const row = appendLedger(result.ledgerDraft, NOW);
-    // Put it in the book. Without this the ledger recorded the creation of an
-    // order that no board, portal or lookup could resolve — and the panel below
-    // claimed it was "visible in the member's portal", which was not true.
-    commitOrder(result.order);
+    // Build the local preview, but do not publish it to even the planning board
+    // until the server confirms the complete transactional write.
     const lines = result.order.lines;
     setPlaced({
       order: result.order,
-      row,
       totalCents: result.pricing.totalCents,
       durable: { status: "pending" },
     });
-    toast(`Order ${result.order.id} placed`, {
-      desc: `Ledger ${row.id} · ${shortHash(row.hash)} · ${centsToDollars(result.pricing.totalCents)}`,
+    toast("Validating order", {
+      desc: `The complete order is being committed atomically · ${centsToDollars(result.pricing.totalCents)}`,
     });
 
-    // DURABLE WITNESS — one gated POST per line to /api/orders/create, which
-    // hash-chains a row into Postgres server-side (auth + scope enforced there).
-    // The endpoint is single-SKU, orders are multi-line, so this is a line at a
-    // time; the first failure stops and is reported honestly. The in-memory
-    // record above stands regardless — this only records whether it also
-    // persisted, never fakes that it did.
+    // One stable request commits all lines, the order projection, its initial
+    // events, audit witness, and any MedSource outbox intent atomically.
     void (async () => {
-      let savedLines = 0;
-      let firstLedger: { id: string; hash: string } | undefined;
-      let failure: { status: "refused" | "unavailable"; error: string } | undefined;
-
-      for (const l of lines) {
-        try {
-          const r = await fetch("/api/orders/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ clientId, sku: l.sku, quantity: l.qty }),
-          });
-          const res = await r.json().catch(() => ({}));
-          if (r.ok && res.ok && res.durable) {
-            savedLines += 1;
-            if (!firstLedger) firstLedger = { id: res.ledger.id, hash: res.ledger.hash };
-          } else {
-            failure = {
-              status: r.status === 503 ? "unavailable" : "refused",
-              error: res.error || `The ledger refused the write (HTTP ${r.status}).`,
-            };
-            break;
-          }
-        } catch {
-          failure = { status: "unavailable", error: "The durable ledger could not be reached." };
-          break;
+      try {
+        const response = await fetch("/api/orders/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId, clientId, lines: orderLines, shipping,
+            shipTo: shipping === "ship" ? addr : undefined,
+            discountCents, discountReason: discountReason.trim() || undefined,
+            note: note.trim() || undefined,
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.ok || !body.durable) {
+          const failure = {
+            status: response.status === 503 ? "unavailable" as const : "refused" as const,
+            error: body.error || `The order was refused (HTTP ${response.status}).`,
+          };
+          setPlaced((prev) => prev && prev.order.id === result.order.id ? {
+            ...prev, durable: { ...failure, savedLines: 0, totalLines: lines.length },
+          } : prev);
+          toast("Order not committed", { tone: "warn", desc: failure.error });
+          return;
         }
-      }
-
-      setPlaced((prev) =>
-        prev && prev.order.id === result.order.id
-          ? {
-              ...prev,
-              durable: failure
-                ? {
-                    status: failure.status,
-                    error: failure.error,
-                    savedLines,
-                    totalLines: lines.length,
-                    ledgerId: firstLedger?.id,
-                    hash: firstLedger?.hash,
-                  }
-                : {
-                    status: "saved",
-                    savedLines,
-                    totalLines: lines.length,
-                    ledgerId: firstLedger?.id,
-                    hash: firstLedger?.hash,
-                  },
-            }
-          : prev,
-      );
-
-      if (failure) {
-        toast("Recorded in this browser only", {
-          tone: "warn",
-          desc: `Durable ledger did not accept the order: ${failure.error}`,
+        setPlaced((prev) => prev && prev.order.id === result.order.id ? {
+          ...prev,
+          order: body.order as Order,
+          totalCents: body.pricing?.totalCents ?? prev.totalCents,
+          durable: {
+            status: "saved", savedLines: lines.length, totalLines: lines.length,
+            ledgerId: body.ledger?.id, hash: body.ledger?.hash,
+          },
+        } : prev);
+        commitOrder(body.order as Order);
+        toast(body.duplicate ? "Existing order returned safely" : "Order committed", {
+          desc: `${body.ledger?.id ?? "Audit witness retained"} · ${body.fulfillment === "queued-for-partner" ? "partner handoff queued" : "in-clinic fulfillment"}`,
         });
-      } else if (firstLedger) {
-        toast("Written to the durable ledger", {
-          desc: `${firstLedger.id} · persisted to Postgres`,
-        });
+      } catch {
+        const failure = { status: "unavailable" as const, error: "The authoritative order service could not be reached." };
+        setPlaced((prev) => prev && prev.order.id === result.order.id ? {
+          ...prev, durable: { ...failure, savedLines: 0, totalLines: lines.length },
+        } : prev);
+        toast("Order not committed", { tone: "warn", desc: failure.error });
       }
     })();
   }
@@ -384,7 +412,10 @@ export function OrderForm() {
           client={client}
           onSelect={selectClient}
           onClear={clearClient}
-          membershipTier={membership?.tier}
+          staffNames={staffNames}
+          locationNames={locationNames}
+          loading={referenceLoading}
+          error={referenceError}
         />
 
         {/* Location — autofilled, still overridable, because a member really
@@ -396,19 +427,20 @@ export function OrderForm() {
               <Select
                 className="mt-2"
                 value={locationId}
+                disabled={Boolean(client)}
                 onChange={(e) => {
                   setLocationId(e.target.value as LocationId);
                   setPlaced(null);
                 }}
               >
-                {locations.map((l) => (
+                {reference.locations.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.short}
+                    {l.name}
                   </option>
                 ))}
               </Select>
               <p className="mt-2 text-detail text-ink-500">
-                The catalog below is filtered to what this location may sell.
+                The patient home clinic owns inventory and fulfillment routing.
               </p>
             </div>
             <div>
@@ -430,7 +462,7 @@ export function OrderForm() {
               <p className="mt-2 text-detail text-ink-500">
                 {shipping === "ship"
                   ? "In-clinic services cannot ship and will flag below."
-                  : `Held for pickup at ${locationMap[locationId]?.short ?? "the clinic"}.`}
+                  : `Held for pickup at ${locationNames.get(locationId) ?? "the clinic"}.`}
               </p>
             </div>
           </CardContent>
@@ -497,7 +529,6 @@ export function OrderForm() {
         <SummaryPanel
           pricing={pricing}
           onBump={bump}
-          membershipTier={membership?.tier}
         />
 
         <Card>
@@ -521,7 +552,7 @@ export function OrderForm() {
               />
             </div>
             <p className="text-detail text-ink-500">
-              Applied after the membership credit. The reason is recorded on the ledger row.
+              Applied after the subtotal. Membership benefits require an authoritative plan benefit before they can reduce an order.
             </p>
           </CardContent>
         </Card>
@@ -569,15 +600,21 @@ function MemberPicker({
   client,
   onSelect,
   onClear,
-  membershipTier,
+  staffNames,
+  locationNames,
+  loading,
+  error,
 }: {
   query: string;
   setQuery: (v: string) => void;
-  matches: Client[];
-  client?: Client;
+  matches: ReferenceClient[];
+  client?: ReferenceClient;
   onSelect: (id: string) => void;
   onClear: () => void;
-  membershipTier?: string;
+  staffNames: Map<string, string>;
+  locationNames: Map<string, string>;
+  loading: boolean;
+  error: string | null;
 }) {
   const showResults = !client && matches.length > 0;
 
@@ -588,17 +625,16 @@ function MemberPicker({
 
         {client ? (
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3">
-            <Monogram client={client} size="md" />
+            <PatientMonogram client={client} size="md" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-body font-medium text-ink-50">{clientName(client)}</p>
+              <p className="truncate text-body font-medium text-ink-50">{referenceClientName(client)}</p>
               <p className="stat-mono truncate text-detail text-ink-500">
-                {client.mrn} · {locationMap[client.locationId]?.short}
+                {client.mrn} · {client.homeLocationId ? locationNames.get(client.homeLocationId) : "No home clinic"}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {membershipTier && <Badge tone="gold">{membershipTier}</Badge>}
-              <Badge tone="neutral">Coach {staffName(client.coachId)}</Badge>
-              <Badge tone="neutral">Provider {staffName(client.providerId)}</Badge>
+              <Badge tone="neutral">Coach {client.assignedCoachId ? staffNames.get(client.assignedCoachId) ?? client.assignedCoachId : "unassigned"}</Badge>
+              <Badge tone="neutral">Provider {client.assignedProviderId ? staffNames.get(client.assignedProviderId) ?? client.assignedProviderId : "unassigned"}</Badge>
               <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear member">
                 <X className="h-4 w-4" />
               </Button>
@@ -612,6 +648,7 @@ function MemberPicker({
               placeholder="Search by name, email or MRN…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              disabled={loading || Boolean(error)}
             />
             {showResults && (
               <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-ink-700 bg-ink-850 shadow-card">
@@ -621,19 +658,19 @@ function MemberPicker({
                     onClick={() => onSelect(c.id)}
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-ink-800 focus-ring"
                   >
-                    <Monogram client={c} size="sm" />
+                    <PatientMonogram client={c} size="sm" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body text-ink-100">{clientName(c)}</span>
+                      <span className="block truncate text-body text-ink-100">{referenceClientName(c)}</span>
                       <span className="stat-mono block truncate text-micro text-ink-500">
-                        {c.mrn} · {locationMap[c.locationId]?.short}
+                        {c.mrn} · {c.homeLocationId ? locationNames.get(c.homeLocationId) : "No home clinic"}
                       </span>
                     </span>
                   </button>
                 ))}
               </div>
             )}
-            <p className="mt-2 text-detail text-ink-500">
-              Selecting a member fills in their location, coach, provider and plan.
+            <p className={cn("mt-2 text-detail", error ? "text-high" : "text-ink-500")}>
+              {error ?? (loading ? "Loading your scoped patient directory…" : "Selecting a patient fills in the authoritative clinic, care team, and shipping address.")}
             </p>
           </div>
         )}
@@ -815,19 +852,14 @@ function Chip({
 function SummaryPanel({
   pricing,
   onBump,
-  membershipTier,
 }: {
   pricing: ReturnType<typeof priceLines>;
   onBump: (sku: string, by: number) => void;
-  membershipTier?: string;
 }) {
   return (
     <Card>
       <CardContent className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="label-eyebrow">THIS ORDER</p>
-          {membershipTier && <Badge tone="gold">{membershipTier}</Badge>}
-        </div>
+        <p className="label-eyebrow">THIS ORDER</p>
 
         {pricing.lines.length === 0 ? (
           <p className="mt-3 text-body text-ink-500">
@@ -979,7 +1011,7 @@ function PlacedPanel({
   onReset: () => void;
 }) {
   const { durable } = placed;
-  const { order, row, totalCents } = placed;
+  const { order, totalCents } = placed;
   return (
     <FadeIn>
       <Card className="border-optimal/30">
@@ -1011,10 +1043,6 @@ function PlacedPanel({
 
           {/* The committed ledger row id, shown rather than hidden. This is the
               receipt: the order and the record of it are the same event. */}
-          <p className="stat-mono text-micro text-ink-500">
-            Session ledger {row.id} · {shortHash(row.hash)}
-          </p>
-
           {/* The DURABLE witness — the honest state of the real Postgres write. */}
           {durable.status === "pending" && (
             <p className="inline-flex items-center gap-1.5 text-micro text-ink-400">
@@ -1031,19 +1059,15 @@ function PlacedPanel({
             <div className="flex items-start gap-2 rounded-lg border border-critical/40 bg-critical/10 p-2.5 text-micro text-critical">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                <strong>Recorded in this browser only.</strong> The durable ledger did not accept
-                this order: {durable.error}
-                {durable.totalLines > 1 &&
-                  ` (${durable.savedLines} of ${durable.totalLines} lines were recorded durably)`}
-                .
+                <strong>Not committed.</strong> No fulfillment obligation or partner handoff was created: {durable.error}.
               </span>
             </div>
           )}
 
           <p className="text-micro leading-relaxed text-ink-600">
             {durable.status === "saved"
-              ? "Submitted to fulfillment and durably recorded in the audit ledger. The MedSource hand-off is demo-only."
-              : "Submitted to fulfillment and shown in the member's portal for this session. The MedSource hand-off is demo-only."}
+              ? "Durably recorded with immutable lines and status history. Partner work remains queued until the configured transport acknowledges it."
+              : "This is only a preview. Nothing was sent to fulfillment."}
           </p>
 
           <Button variant="outline" className="w-full" onClick={onReset}>

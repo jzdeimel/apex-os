@@ -35,6 +35,9 @@ import { duration, hhmm, deskNowIso } from "@/lib/frontdesk/clock";
 import { useDeskDay } from "@/lib/frontdesk/useDesk";
 import { RoomPicker } from "@/components/frontdesk/RoomPicker";
 import { DeskClockStrip } from "@/components/frontdesk/DeskClockStrip";
+import { DeskExceptionStrip } from "@/components/frontdesk/DeskExceptionStrip";
+import { NextMoveRail } from "@/components/intelligence/NextMoveRail";
+import { deskMoves } from "@/lib/intelligence/deskMoves";
 import { cn } from "@/lib/utils";
 
 /**
@@ -420,6 +423,11 @@ export function DeskBoard() {
   }, [day.upcoming, now]);
 
   const empty = day.all.length === 0;
+  const nextName = day.nextArrival
+    ? day.nextArrival.client
+      ? `${day.nextArrival.client.firstName} ${day.nextArrival.client.lastName}`
+      : day.nextArrival.appt.clientName
+    : undefined;
 
   return (
     <div className="space-y-5">
@@ -475,6 +483,24 @@ export function DeskBoard() {
       )}
 
       {/* ── Closed out ────────────────────────────────────────────────────── */}
+      {!empty && (
+        <section className="space-y-3 border-t border-ink-800/60 pt-4">
+          <DeskExceptionStrip day={day} />
+          <NextMoveRail
+            eyebrow="Desk brief"
+            title="Keep the day moving"
+            detail="A read-only follow-up list from the rows above: waiting, rooms, late arrivals and the next person due."
+            moves={deskMoves({
+              waitingCount: day.waitingCount,
+              inRoomCount: day.inRoomCount,
+              longestWaitMin: day.longestWaitMin,
+              nextName,
+              nextInMin: day.nextArrivalInMin,
+            })}
+          />
+        </section>
+      )}
+
       {day.closed.length > 0 && (
         <section className="space-y-1.5">
           <button

@@ -40,6 +40,7 @@ export type EscalationKind =
   | "Dose change request"
   | "Side effect"
   | "Lab concern"
+  | "Adverse event"
   | "Out of scope"
   | "Urgent symptom";
 
@@ -81,10 +82,16 @@ export interface EscalationEvent {
 export interface Escalation {
   id: string;
   clientId: string;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientName?: string;
   /** The coach who raised it. They get to watch it, not just fire it off. */
   raisedByStaffId: string;
+  raisedByName?: string;
   /** A Medical staff member covering this member's location. */
   assignedToStaffId: string;
+  assignedToName?: string;
+  assignedToCredential?: string;
   kind: EscalationKind;
   priority: EscalationPriority;
   status: EscalationStatus;
@@ -95,9 +102,13 @@ export interface Escalation {
   /** The consult the sourceQuote lives in, when it came from one. */
   sourceConsultId?: string;
   raisedAt: string;
+  /** Explicit shorter operational deadline, when safety policy requires it. */
+  dueAt?: string;
   acknowledgedAt?: string;
   answeredAt?: string;
   answer?: string;
   answeredByStaffId?: string;
+  answeredByName?: string;
+  answeredByCredential?: string;
   statusHistory: EscalationEvent[];
 }

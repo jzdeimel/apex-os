@@ -1,7 +1,18 @@
 import { AlertTriangle, Phone, ShieldAlert, Clock } from "lucide-react";
-import { CARD_DISCLAIMER, cardForToken, type EmergencyCard } from "@/lib/emergency/card";
+import {
+  authoritativeEmergencyCardForToken,
+  CARD_DISCLAIMER,
+  type AuthoritativeEmergencyCard,
+} from "@/lib/emergency/authoritative";
 import { BRAND } from "@/lib/brand";
-import { formatDay } from "@/lib/protocol/runway";
+import { headers } from "next/headers";
+
+function formatDay(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "date unavailable"
+    : new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
+}
 
 /**
  * PUBLIC EMERGENCY CARD — /card/<token>
@@ -61,7 +72,7 @@ function NotFound() {
   );
 }
 
-function CardBody({ card }: { card: EmergencyCard }) {
+function CardBody({ card }: { card: AuthoritativeEmergencyCard }) {
   const stale = STALE_STYLE[card.staleness];
 
   return (
@@ -100,11 +111,15 @@ function CardBody({ card }: { card: EmergencyCard }) {
           {card.name}
         </h1>
         <p className="stat-mono mt-2 text-heading text-ink-200">
-          Age {card.age} · {card.sex === "male" ? "Male" : "Female"} · MRN {card.mrn}
+          {card.dateOfBirth
+            ? `DOB ${card.dateOfBirth}`
+            : card.age !== null
+              ? `Age ${card.age}`
+              : "DOB not recorded"}{" "}
+          · {card.sex || "Sex not recorded"} · MRN {card.mrn}
         </p>
         <p className="mt-1.5 text-body leading-relaxed text-ink-500">
-          Alpha Health records age and an Alpha-issued MRN. No date of birth is printed here because none is
-          held — confirm identity with the patient or their ID.
+          Confirm identity with the patient or government-issued identification.
         </p>
       </header>
 
@@ -147,10 +162,14 @@ function CardBody({ card }: { card: EmergencyCard }) {
                 </li>
               ))}
             </ul>
+          ) : card.noKnownAllergies ? (
+            <div className="rounded-2xl border border-optimal/40 bg-optimal/10 p-4">
+              <p className="text-heading font-medium leading-relaxed text-ink-50">
+                The Apex chart contains an explicit “no known allergies” entry.
+                Confirm independently before treatment.
+              </p>
+            </div>
           ) : (
-            /* Never "No known allergies". We hold no allergy record, and printing
-               a clearance we cannot support is the single most dangerous thing
-               this page could do. */
             <div className="flex items-start gap-2.5 rounded-2xl border border-watch/40 bg-watch/10 p-4">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-watch" />
               <p className="text-heading font-medium leading-relaxed text-ink-50">
@@ -222,16 +241,31 @@ function CardBody({ card }: { card: EmergencyCard }) {
           Generated {formatDay(card.generatedOn)} · record last changed {formatDay(card.sourcedOn)}
         </p>
         <p className="mt-2 text-body leading-relaxed text-ink-500">
-          {BRAND.name} — {BRAND.tagline}. Demo data. Not medical advice and not a medical record.
+          Expires {formatDay(card.expiresOn)}. {BRAND.name} — {BRAND.tagline}.
+          This is a limited patient-directed disclosure, not a prescription.
         </p>
       </footer>
     </main>
   );
 }
 
+async function resolveCard(
+  token: string,
+): Promise<AuthoritativeEmergencyCard | null> {
+  try {
+    const h = await headers();
+    return await authoritativeEmergencyCardForToken(token, {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-client-ip") ?? undefined,
+      userAgent: h.get("user-agent") ?? undefined,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default async function EmergencyCardPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const card = cardForToken(token);
+  const card = await resolveCard(token);
   if (!card) return <NotFound />;
   return <CardBody card={card} />;
 }

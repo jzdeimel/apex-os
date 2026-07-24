@@ -207,7 +207,21 @@ export const catalog: CatalogItem[] = [
     availableAt: EVERYWHERE,
     packSize: "5,000 IU vial",
     active: true,
-    version: 2,
+    /**
+     * SELL-THROUGH, decided 2026-07-21.
+     *
+     * Matt Chilson: "hCG, we are shipping from MedSource in North Carolina —
+     * that is considered a controlled substance." Paul Kennard: "the real
+     * question is whether MedSource should continue to carry hCG. The proper
+     * answer is probably no. We run through this batch and then we're done."
+     *
+     * So: existing stock may still be dispensed to patients already on it, and
+     * nothing may reorder. It retires itself when inventory reaches zero rather
+     * than on a date someone has to remember.
+     */
+    lifecycle: "sell-through",
+    controlled: true,
+    version: 3,
   },
   {
     id: "cat-022",

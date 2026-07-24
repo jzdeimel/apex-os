@@ -14,11 +14,8 @@ import {
   CreditCard,
 } from "lucide-react";
 import { BRAND, JOURNEY, PILLARS, CARE_TRACKS, PROOF } from "@/lib/brand";
-import { locations } from "@/lib/mock/locations";
-import { makeIntakeToken, INTAKE_TTL_HOURS } from "@/lib/intake/tokens";
-import { DEMO_INVITE } from "@/lib/mock/intake";
+import { INTAKE_TTL_HOURS } from "@/lib/intake/tokens";
 import type { CareTrackKey } from "@/lib/intake/types";
-import type { LocationId } from "@/lib/types";
 import { Button, Input, Textarea, Badge } from "@/components/ui/primitives";
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -36,8 +33,9 @@ import { cn } from "@/lib/utils";
  * PRE-AUTH SURFACE. Standalone layout, own header, no app chrome. See the note
  * in app/intake/[token]/page.tsx for why that matters beyond aesthetics.
  *
- * Demo-shaped, not live: submitting mints a token deterministically and renders
- * the confirmation. No network call, no email, no SMS.
+ * Submitting creates an authoritative lead and single-use intake invitation.
+ * Delivery remains manual until an approved email/SMS transport is configured,
+ * so the one raw intake link is shown to the prospect immediately.
  */
 
 // ---------------------------------------------------------------------------
@@ -80,24 +78,84 @@ interface Form {
   lastName: string;
   email: string;
   phone: string;
-  locationId: LocationId;
+  locationId: string;
   track: CareTrackKey;
   reason: string;
 }
 
+interface PublicLocation {
+  id: string;
+  code: string;
+  name: string;
+  address1: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  timezone: string;
+}
+
+function shortLocationName(location: PublicLocation) {
+  return location.name.replace(/^Alpha Health\s*[—-]\s*/i, "") || location.name;
+}
+
+function locationAddress(location: PublicLocation) {
+  return [
+    location.address1,
+    [location.city, location.state].filter(Boolean).join(", "),
+    location.zip,
+  ].filter(Boolean).join(" ");
+}
+
 export default function BookPage() {
+  const [locations, setLocations] = React.useState<PublicLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = React.useState(true);
+  const [locationsError, setLocationsError] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<Form>({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    locationId: "raleigh",
+    locationId: "",
     track: "male",
     reason: "",
   });
   const [error, setError] = React.useState<string | null>(null);
   const [booked, setBooked] = React.useState<null | { intakePath: string; expiresAt: string }>(null);
   const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/public/locations", {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok || !Array.isArray(payload.locations)) {
+          throw new Error(payload.error || "Clinic choices are unavailable.");
+        }
+        const active = payload.locations as PublicLocation[];
+        if (!active.length) throw new Error("No clinic is currently accepting online requests.");
+        setLocations(active);
+        setForm((current) => ({
+          ...current,
+          locationId:
+            current.locationId && active.some((location) => location.id === current.locationId)
+              ? current.locationId
+              : active[0].id,
+        }));
+        setLocationsError(null);
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        setLocationsError(
+          cause instanceof Error ? cause.message : "Clinic choices are unavailable.",
+        );
+      })
+      .finally(() => setLocationsLoading(false));
+    return () => controller.abort();
+  }, []);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -114,6 +172,10 @@ export default function BookPage() {
       setError("We need a phone number. The consultation happens on a call.");
       return;
     }
+    if (!form.locationId || !locations.some((location) => location.id === form.locationId)) {
+      setError("Choose an active clinic before continuing.");
+      return;
+    }
     setError(null);
     void send();
   };
@@ -128,6 +190,7 @@ export default function BookPage() {
   const send = async () => {
     setSubmitting(true);
     try {
+      const query = new URLSearchParams(window.location.search);
       const r = await fetch("/api/public/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,6 +202,12 @@ export default function BookPage() {
           track: form.track,
           locationId: form.locationId,
           reason: form.reason,
+          // Preserve first-touch campaign context with the durable lead.
+          // Values are bounded again at the public server boundary.
+          utmSource: query.get("utm_source"),
+          utmMedium: query.get("utm_medium"),
+          utmCampaign: query.get("utm_campaign"),
+          referralCode: query.get("ref"),
         }),
       });
       const res = await r.json().catch(() => ({}));
@@ -166,7 +235,11 @@ export default function BookPage() {
 
       <main className="flex-1">
         {booked ? (
-          <Confirmation form={form} intakePath={booked.intakePath} />
+          <Confirmation
+            form={form}
+            intakePath={booked.intakePath}
+            locationName={chosen ? shortLocationName(chosen) : "the clinic"}
+          />
         ) : (
           <>
             {/* ---------------------------------------------------------------
@@ -352,22 +425,25 @@ export default function BookPage() {
                               />
                               <span className="min-w-0">
                                 <span className="block text-body font-medium text-ink-100">
-                                  {l.short}
+                                  {shortLocationName(l)}
                                 </span>
                                 <span className="block text-detail leading-relaxed text-ink-500">
-                                  {l.address ?? "Nationwide by video and phone"}
+                                  {locationAddress(l) || "Address confirmation pending"}
                                 </span>
-                                {l.phone && (
-                                  <span className="stat-mono mt-0.5 block text-detail text-ink-600">
-                                    {l.phone}
-                                  </span>
-                                )}
                               </span>
                             </span>
                           </button>
                         );
                       })}
                     </div>
+                    {locationsLoading && (
+                      <p className="mt-2 text-detail text-ink-500">Loading active clinics…</p>
+                    )}
+                    {locationsError && (
+                      <p className="mt-2 text-detail text-high" role="alert">
+                        {locationsError} Call {BRAND.telehealthPhone} to book.
+                      </p>
+                    )}
                   </div>
 
                   {/* Contact */}
@@ -430,8 +506,9 @@ export default function BookPage() {
                     variant="primary"
                     className="mt-5 h-11 w-full gap-2 text-body"
                     onClick={submit}
+                    disabled={submitting || locationsLoading || Boolean(locationsError)}
                   >
-                    Book my free consultation
+                    {submitting ? "Saving your request…" : "Book my free consultation"}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
@@ -449,7 +526,7 @@ export default function BookPage() {
                     <ol className="mt-3 space-y-3">
                       {[
                         "We call within one business day to book your consultation.",
-                        `You get a private intake link by email and text. It expires in ${INTAKE_TTL_HOURS} hours.`,
+                        `Continue with the private intake link on the confirmation screen. It expires in ${INTAKE_TTL_HOURS} hours.`,
                         "You spend four minutes on intake, so the call is about you.",
                         "You meet a clinician. No plan, no charge, no pressure — yet.",
                       ].map((s, i) => (
@@ -466,8 +543,8 @@ export default function BookPage() {
                       <p className="label-eyebrow">Your selection</p>
                       <p className="mt-2 text-body text-ink-200">{track.label}</p>
                       <p className="text-detail leading-relaxed text-ink-500">
-                        {chosen?.name ?? "—"}
-                        {chosen?.address ? ` · ${chosen.address}` : ""}
+                        {chosen?.name ?? "Loading active clinics…"}
+                        {chosen ? ` · ${locationAddress(chosen)}` : ""}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {track.services.map((s) => (
@@ -488,8 +565,8 @@ export default function BookPage() {
       <footer className="mt-8 border-t border-ink-800/80">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
           <p className="text-detail leading-relaxed text-ink-600">
-            Demo environment. {BRAND.name} · {BRAND.motto} · Nothing on this page is
-            transmitted or treated as medical advice. Telehealth {BRAND.telehealthPhone}.
+            {BRAND.name} · {BRAND.motto}. This form creates a secure follow-up request;
+            it is not medical advice or emergency care. Telehealth {BRAND.telehealthPhone}.
           </p>
         </div>
       </footer>
@@ -504,19 +581,28 @@ export default function BookPage() {
 function Confirmation({
   form,
   intakePath,
+  locationName,
 }: {
   form: Form;
   intakePath: string;
+  locationName: string;
 }) {
   const [copied, setCopied] = React.useState(false);
-  const chosen = locations.find((l) => l.id === form.locationId);
+  const [copyFailed, setCopyFailed] = React.useState(false);
   const link = intakePath;
 
-  const copy = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(link).catch(() => undefined);
+  const copy = async () => {
+    if (typeof window === "undefined" || !navigator.clipboard) {
+      setCopyFailed(true);
+      return;
     }
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(new URL(link, window.location.origin).toString());
+      setCopied(true);
+      setCopyFailed(false);
+    } catch {
+      setCopyFailed(true);
+    }
   };
 
   return (
@@ -529,7 +615,7 @@ function Confirmation({
           You're on the list, {form.firstName}.
         </h1>
         <p className="mt-2 text-body leading-relaxed text-ink-300">
-          Someone from {chosen?.short ?? "the clinic"} calls within one business day to book
+          Someone from {locationName} calls within one business day to book
           your free consultation. If you'd rather not wait, call{" "}
           <a href={`tel:${BRAND.telehealthPhone}`} className="text-gold-300 hover:underline">
             {BRAND.telehealthPhone}
@@ -540,20 +626,29 @@ function Confirmation({
         <div className="card mt-7 p-5">
           <p className="label-eyebrow">Your private intake link</p>
           <p className="mt-2 text-body leading-relaxed text-ink-400">
-            We're sending this to <span className="text-ink-100">{form.email}</span> and{" "}
-            <span className="stat-mono text-ink-100">{form.phone}</span>. Fill it in before
-            your call and the clinician reads it beforehand.
+            Continue securely on this device, or copy the link for later. Alpha Health will
+            follow up at <span className="text-ink-100">{form.email}</span> or{" "}
+            <span className="stat-mono text-ink-100">{form.phone}</span> to finish scheduling.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <code className="stat-mono min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-ink-700 bg-ink-950/70 px-3 py-2 text-detail text-ink-300">
               {link}
             </code>
-            <Button variant="outline" size="sm" onClick={copy} className="gap-1.5">
+            <Link href={link}>
+              <Button variant="primary" size="sm">Continue intake</Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={() => void copy()} className="gap-1.5">
               <Copy className="h-3.5 w-3.5" />
               {copied ? "Copied" : "Copy"}
             </Button>
           </div>
+
+          {copyFailed && (
+            <p className="mt-2 text-detail text-high" role="alert">
+              Copy was blocked by this browser. Use Continue intake on this device.
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-detail text-ink-500">
             <span>Expires in {INTAKE_TTL_HOURS} hours</span>

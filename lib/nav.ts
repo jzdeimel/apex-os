@@ -19,6 +19,7 @@ import {
   GraduationCap,
   Heart,
   History,
+  KeyRound,
   LayoutDashboard,
   LifeBuoy,
   ListChecks,
@@ -35,6 +36,7 @@ import {
   Settings,
   ShieldAlert,
   Siren,
+  SlidersHorizontal,
   Sparkles,
   Stethoscope,
   Syringe,
@@ -45,6 +47,9 @@ import {
   Workflow,
 } from "lucide-react";
 import type { PortalId } from "@/lib/portals";
+import { featureForPath } from "@/lib/features/catalog";
+import { labelFor } from "@/lib/nav/v1Parity";
+import { isFixtureOnlyPath } from "@/lib/productionSurfaces";
 
 export interface NavItem {
   href: string;
@@ -82,43 +87,23 @@ export interface NavGroup {
 export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
   patient: [
     {
-      section: "Every day",
+      section: "Your care",
       items: [
-        { href: "/portal", label: "Today", icon: Heart, spotlight: true },
-        { href: "/portal/progress", label: "Progress", icon: TrendingUp },
-        { href: "/portal/protocol", label: "My Protocol", icon: Syringe },
-        { href: "/portal/sites", label: "Injection sites", icon: Activity },
-      ],
-    },
-    {
-      section: "My health",
-      items: [
-        { href: "/portal/labs", label: "Lab Results", icon: FlaskConical },
-        { href: "/portal/journal", label: "How I feel", icon: PenLine },
-        { href: "/portal/food", label: "Food", icon: Compass },
-        { href: "/portal/train", label: "Training", icon: Gauge },
+        { href: "/patient", label: "Today", icon: Heart, spotlight: true },
+        { href: "/patient/progress", label: "Progress", icon: TrendingUp },
+        { href: "/patient/plans", label: "Food & training plans", icon: ClipboardList },
+        { href: "/patient/records", label: "Record requests", icon: FileText },
+        { href: "/patient/book", label: "Book a follow-up", icon: CalendarDays },
       ],
     },
     {
       section: "Explore",
       items: [
-        { href: "/portal/explore", label: "What's available", icon: Sparkles, spotlight: true },
-        { href: "/portal/learn", label: "Learn", icon: GraduationCap },
-        { href: "/portal/library", label: "Peptide library", icon: FlaskConical },
-        { href: "/portal/community", label: "Community", icon: UsersRound, spotlight: true },
-      ],
-    },
-    {
-      section: "Account",
-      items: [
-        { href: "/portal/messages", label: "Messages", icon: MessageSquare },
-        { href: "/portal/book-visit", label: "Book a visit", icon: CalendarDays },
-        { href: "/portal/team", label: "My care team", icon: Stethoscope },
-        { href: "/portal/costs", label: "Costs", icon: Wallet },
-        { href: "/portal/receipts", label: "Receipts", icon: Receipt },
-        { href: "/portal/refer", label: "Refer a friend", icon: Award },
-        { href: "/portal/access", label: "Who viewed my chart", icon: Eye, spotlight: true },
-        { href: "/portal/consents", label: "Consents", icon: FileSignature },
+        { href: "/patient/services", label: "What's available", icon: Compass },
+        { href: "/patient/learn", label: "Learn", icon: GraduationCap },
+        { href: "/patient/library", label: "Peptide library", icon: FlaskConical },
+        { href: "/patient/refer", label: "Refer a friend", icon: UserPlus },
+        { href: "/patient/community", label: "Community", icon: UsersRound, spotlight: true },
       ],
     },
   ],
@@ -129,11 +114,10 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       items: [
         { href: "/clinic", label: "Today", icon: LayoutDashboard },
         { href: "/clinic/escalations", label: "Escalations", icon: Siren, spotlight: true },
-        { href: "/clinic/population", label: "Risk radar", icon: Activity },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
         { href: "/clinic/sign", label: "Sign queue", icon: FileSignature, spotlight: true },
         { href: "/clients", label: "Patients", icon: Users },
         { href: "/recommendations", label: "Awaiting sign-off", icon: Sparkles },
-        { href: "/coach/consults", label: "Consults", icon: ClipboardList },
         { href: "/schedule", label: "Schedule", icon: CalendarDays },
       ],
     },
@@ -141,18 +125,14 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Intelligence",
       items: [
         { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/clinic/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/agent", label: "Ask Apex", icon: Bot },
-        { href: "/coach/documents", label: "Documents", icon: FileText },
       ],
     },
     {
       section: "Governance",
       items: [
         { href: "/clinic/ledger", label: "Audit trail", icon: History, spotlight: true },
-        { href: "/clinic/controlled", label: "Controlled substances", icon: Pill, spotlight: true },
-        { href: "/admin/roster", label: "Roster health", icon: Rows3 },
-        { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
-        { href: "/settings", label: "Settings", icon: Settings },
       ],
     },
   ],
@@ -162,9 +142,9 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "My Day",
       items: [
         { href: "/coach", label: "Today", icon: Gauge, spotlight: true },
-        { href: "/coach/roster", label: "My members", icon: Users },
-        { href: "/coach/gaps", label: "Care gaps", icon: LifeBuoy, spotlight: true },
-        { href: "/coach/consults", label: "Consults", icon: ClipboardList },
+        { href: "/coach/messages", label: "Patient messages", icon: MessageSquare, spotlight: true },
+        { href: "/clients", label: "My members", icon: Users },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
         { href: "/tasks", label: "Tasks", icon: ListChecks },
         { href: "/agent", label: "Ask Apex", icon: Bot },
       ],
@@ -172,16 +152,14 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
     {
       section: "Ordering",
       items: [
-        { href: "/coach/order", label: "Place an order", icon: PlusCircle, spotlight: true },
-        { href: "/coach/orders", label: "Orders", icon: Package },
-        { href: "/coach/subscriptions", label: "Refills", icon: Repeat },
-        { href: "/supply-chain", label: "Stock & vendors", icon: Boxes },
+        { href: "/supply-chain", label: "Stock & fulfillment", icon: Boxes },
       ],
     },
     {
       section: "Growth",
       items: [
         { href: "/insights", label: "What we're seeing", icon: Brain },
+        { href: "/coach/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/coach/winback", label: "Lapsed members", icon: Repeat },
         { href: "/automations", label: "Automations", icon: Workflow },
         // Analytics (revenue/MRR) is an owner surface — it lives on the exec
@@ -191,12 +169,8 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
     {
       section: "Team",
       items: [
-        { href: "/coach/documents", label: "Documents", icon: FileText },
-        { href: "/coach/training", label: "Training", icon: GraduationCap, spotlight: true },
-        { href: "/coach/handoff", label: "Handoff packet", icon: Rows3 },
         { href: "/schedule", label: "Team calendar", icon: CalendarDays },
         { href: "/swarm", label: "Background agents", icon: Network },
-        { href: "/settings", label: "Settings", icon: Settings },
       ],
     },
   ],
@@ -232,8 +206,7 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "The counter",
       items: [
         { href: "/desk", label: "Today", icon: ListChecks, spotlight: true },
-        { href: "/desk/walk-in", label: "New walk-in", icon: UserPlus, spotlight: true },
-        { href: "/desk/book", label: "Book a caller", icon: PhoneCall, spotlight: true },
+        { href: "/desk/book", label: "Book caller or walk-in", icon: PhoneCall, spotlight: true },
         { href: "/desk/rooms", label: "Rooms", icon: DoorOpen },
         { href: "/schedule", label: "Who's on today", icon: CalendarDays },
       ],
@@ -242,13 +215,14 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Look someone up",
       items: [
         { href: "/tasks", label: "Tasks", icon: ClipboardList },
+        { href: "/support", label: "Operations support", icon: LifeBuoy },
+        { href: "/desk/community", label: "Community", icon: UsersRound, spotlight: true },
       ],
     },
     {
       section: "Site",
       items: [
         { href: "/supply-chain", label: "Stock", icon: Boxes },
-        { href: "/settings", label: "Settings", icon: Settings },
       ],
     },
   ],
@@ -274,29 +248,26 @@ export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
       section: "Ownership",
       items: [
         { href: "/exec", label: "Morning", icon: Gauge, spotlight: true },
-        { href: "/exec/capacity", label: "Capacity & load", icon: Activity },
         { href: "/exec/marketing", label: "Acquisition", icon: Megaphone },
-        { href: "/clinic/population", label: "Clinical risk radar", icon: ShieldAlert },
-        { href: "/exec/pipeline", label: "Lead pipeline", icon: Workflow },
       ],
     },
     {
       section: "Look deeper",
       items: [
-        { href: "/admin/daily-report", label: "Daily order report", icon: Receipt },
-        { href: "/analytics", label: "Analytics", icon: BarChart3 },
         { href: "/clinic/ledger", label: "Audit trail", icon: History },
-        { href: "/clinic/controlled", label: "Controlled substances", icon: Pill },
-        { href: "/admin/quality", label: "Quality", icon: ShieldAlert },
+        { href: "/admin/cases", label: "Support & records", icon: LifeBuoy, spotlight: true },
+        { href: "/admin/migration-preview", label: "Imported Alpha patients", icon: Rows3, spotlight: true },
+        { href: "/admin/patient-access", label: "Patient access", icon: KeyRound },
       ],
     },
     {
       section: "The clinic",
       items: [
         { href: "/clients", label: "Members", icon: Users },
+        { href: "/exec/community", label: "Community", icon: UsersRound, spotlight: true },
         { href: "/schedule", label: "Team calendar", icon: CalendarDays },
         { href: "/supply-chain", label: "Stock & vendors", icon: Boxes },
-        { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/exec/features", label: "Features", icon: SlidersHorizontal },
       ],
     },
   ],
@@ -319,6 +290,51 @@ export function allNavItems(): NavItem[] {
         out.push(item);
       }
     }
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Feature filtering                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Drop nav items whose route belongs to a disabled feature.
+ *
+ * PURE, AND THEREFORE NOT THE ENFORCEMENT. `lib/features/gate.tsx` is what
+ * actually refuses a request; this only stops the sidebar advertising a link
+ * that would 404. Both are needed and neither substitutes for the other: a nav
+ * that lies wastes a click, a missing gate exposes a surface.
+ *
+ * Groups that empty out are removed entirely, so a section heading never sits
+ * above nothing — "Growth" with no items under it reads as a broken build.
+ */
+export function filterNavByFeatures(
+  groups: NavGroup[],
+  enabled: Record<string, boolean>,
+  /**
+   * The active release preset. Under `clinic-v1` the labels switch to the words
+   * Alpha OS V1 uses, so a coach who spent two weeks learning "Clients" is not
+   * asked to learn "My members" on the morning of the cutover. See
+   * lib/nav/v1Parity.ts — the mapping is taken from V1's own nav, verbatim.
+   */
+  preset: string = "clinic-v1",
+): NavGroup[] {
+  const allowFixtures =
+    process.env.NEXT_PUBLIC_APEX_DEMO_MODE === "true";
+  const out: NavGroup[] = [];
+  for (const group of groups) {
+    const items = group.items
+      .filter((item) => {
+        if (!allowFixtures && isFixtureOnlyPath(item.href)) return false;
+        const owner = featureForPath(item.href);
+        return !owner || enabled[owner.key] !== false;
+      })
+      .map((item) => {
+        const label = labelFor(item.href, item.label, preset);
+        return label === item.label ? item : { ...item, label };
+      });
+    if (items.length > 0) out.push({ ...group, items });
   }
   return out;
 }

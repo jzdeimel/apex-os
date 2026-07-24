@@ -2,6 +2,7 @@
 
 import { MemberLogProvider } from "@/lib/member/logStore";
 import { useMe } from "@/components/portal/PortalHeader";
+import { CelebrationProvider } from "@/components/celebrate/CelebrationProvider";
 
 /**
  * Everything under /portal shares one member log.
@@ -45,7 +46,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const meId = useMe();
   return (
     <MemberLogProvider clientId={meId} nowIso={NOW}>
-      {children}
+      <CelebrationProvider>{children}</CelebrationProvider>
     </MemberLogProvider>
   );
 }

@@ -1,276 +1,492 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Phone, Video, MessageSquare, X, ShieldCheck, Loader2, CircleAlert } from "lucide-react";
-import { getClient, clientName } from "@/lib/mock/clients";
-import { appendLedger } from "@/lib/trace/ledger";
-import { VIEWER } from "@/lib/viewer";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CircleAlert,
+  MessageSquare,
+  Mic,
+  MicOff,
+  Phone,
+  PhoneOff,
+  ShieldCheck,
+} from "lucide-react";
+import type {
+  Call,
+  CallClient,
+  CallState,
+} from "@azure/communication-calling";
 
-/**
- * Reach a patient — voice, video, text — from inside the chart.
- *
- * WHAT IS REAL HERE, STATED PLAINLY
- * ---------------------------------
- * The clinic runs on Azure Communication Services (the `acs-apex` resource in
- * apex-prod). "Start video" acquires a REAL ACS access token from the server
- * (/api/acs/token), which is issued and signed by that resource — the same token
- * the ACS Calling SDK uses to place a call — and turns on the operator's camera
- * so the call is genuinely set up on this end. That token is the proof the pipe
- * is live, not a mock.
- *
- * WHAT IS HONESTLY PENDING
- * ------------------------
- * Two things need real-world provisioning that has a lead time, and Apex refuses
- * to fake either:
- *   - Dialing a patient's actual PHONE (PSTN) needs a purchased ACS number.
- *   - TEXTING a patient needs that number verified for A2P messaging (toll-free
- *     verification or 10DLC registration), which takes days and rides on the
- *     signed BAA and patient consent.
- * Until a number is provisioned, those two show the pending state rather than a
- * dialer that connects to nothing. Every attempt — connected or pending — is
- * written to the contact log on the chain, because a call that left no record is
- * the failure this product is audited against.
- */
+import { normalizeUsPhoneNumber } from "@/lib/communications/calling";
 
-type Mode = "idle" | "video" | "phone" | "text";
-
-export function CallPatient({ clientId }: { clientId: string }) {
-  const client = getClient(clientId);
-  const [mode, setMode] = useState<Mode>("idle");
-
-  if (!client) return null;
-
-  return (
-    <div className="rounded-panel border border-ink-700/70 bg-ink-850/60">
-      <header className="flex items-center justify-between border-b border-ink-800/70 px-4 py-3">
-        <p className="text-detail font-medium text-ink-100">Reach {client.firstName}</p>
-        <span className="text-micro text-ink-500">Azure Communication Services</span>
-      </header>
-
-      <div className="p-4">
-        {mode === "idle" ? (
-          <div className="grid grid-cols-3 gap-2">
-            <ActionButton icon={Video} label="Video" onClick={() => setMode("video")} live />
-            <ActionButton icon={Phone} label="Call" onClick={() => setMode("phone")} />
-            <ActionButton icon={MessageSquare} label="Text" onClick={() => setMode("text")} />
-          </div>
-        ) : mode === "video" ? (
-          <VideoCall clientId={clientId} onClose={() => setMode("idle")} />
-        ) : (
-          <PendingChannel clientId={clientId} kind={mode} onClose={() => setMode("idle")} />
-        )}
-      </div>
-    </div>
-  );
+interface CallPatientProps {
+  clientId: string;
+  clientName?: string;
+  phone?: string | null;
 }
 
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  live,
-}: {
-  icon: typeof Phone;
-  label: string;
-  onClick: () => void;
-  live?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="focus-ring group relative flex flex-col items-center gap-1.5 rounded-control border border-ink-700 bg-ink-900/40 py-3 transition-colors hover:border-ink-500 hover:bg-ink-800/60"
-    >
-      <Icon className="h-5 w-5 text-ink-300 group-hover:text-ink-50" aria-hidden />
-      <span className="text-detail text-ink-300 group-hover:text-ink-50">{label}</span>
-      {live && (
-        <span className="absolute right-1.5 top-1.5 flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald/70" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald" />
-        </span>
-      )}
-    </button>
-  );
+interface AcsTokenResponse {
+  ok?: boolean;
+  error?: string;
+  token?: string;
+  userId?: string;
+  expiresOn?: string;
+  displayName?: string;
+  callerId?: string | null;
+  pstnConfigured?: boolean;
 }
 
-function VideoCall({ clientId, onClose }: { clientId: string; onClose: () => void }) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [status, setStatus] = useState<"connecting" | "ready" | "error">("connecting");
-  const [detail, setDetail] = useState<string>("Acquiring a call token from Azure…");
-  const [tokenInfo, setTokenInfo] = useState<{ userId: string; expiresOn?: string } | null>(null);
+type UiCallState = "idle" | "preparing" | "error" | CallState;
+
+function stateLabel(state: UiCallState) {
+  switch (state) {
+    case "idle":
+      return "Ready";
+    case "preparing":
+      return "Preparing secure call";
+    case "Connecting":
+      return "Dialing";
+    case "Ringing":
+      return "Ringing";
+    case "Connected":
+      return "Connected";
+    case "Disconnecting":
+      return "Ending";
+    case "Disconnected":
+      return "Call ended";
+    case "error":
+      return "Call not started";
+    default:
+      return state;
+  }
+}
+
+function elapsedLabel(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+export function CallPatient({
+  clientId,
+  clientName,
+  phone,
+}: CallPatientProps) {
+  const patientName = clientName || "patient";
+  const rawPhone = phone ?? null;
+  const dialNumber = useMemo(
+    () => normalizeUsPhoneNumber(rawPhone),
+    [rawPhone],
+  );
+
+  const [state, setState] = useState<UiCallState>("idle");
+  const [muted, setMuted] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [auditWarning, setAuditWarning] = useState<string | null>(null);
+  const [callerId, setCallerId] = useState<string | null>(null);
+
+  const callRef = useRef<Call | null>(null);
+  const clientRef = useRef<CallClient | null>(null);
+  const requestIdRef = useRef<string | null>(null);
+  const connectedAtRef = useRef<number | null>(null);
+  const connectedLoggedRef = useRef(false);
+  const finalLoggedRef = useRef(false);
+  const auditCreatedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let cancelled = false;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const call = callRef.current;
+      if (call && call.state !== "Disconnected") void call.hangUp();
+      void clientRef.current?.dispose();
+    };
+  }, []);
 
-    async function setup() {
-      // 1) Real ACS token — the proof the call pipe is live.
-      let tokenOk = false;
-      try {
-        const res = await fetch("/api/acs/token", { method: "POST" });
-        const data = await res.json();
-        if (!cancelled && data.ok) {
-          tokenOk = true;
-          setTokenInfo({ userId: data.userId, expiresOn: data.expiresOn });
-        } else if (!cancelled) {
-          setDetail(data.error ?? "ACS token unavailable.");
-        }
-      } catch {
-        if (!cancelled) setDetail("Could not reach the ACS token endpoint.");
+  useEffect(() => {
+    if (state !== "Connected") return;
+    const timer = window.setInterval(() => {
+      const connectedAt = connectedAtRef.current;
+      if (connectedAt) {
+        setElapsed(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)));
       }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [state]);
 
-      // 2) Real local media — the operator's camera actually turns on.
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        setStatus("ready");
-        setDetail(
-          tokenOk
-            ? "Camera live and an ACS call token is issued. Sending the patient a join link connects the call."
-            : "Camera live. ACS token endpoint is not configured on this deployment, so a call cannot connect yet.",
-        );
-      } catch {
-        if (!cancelled) {
-          setStatus(tokenOk ? "ready" : "error");
-          setDetail(
-            tokenOk
-              ? "ACS call token issued, but this device has no camera/mic or denied access."
-              : "No camera access and no ACS token — nothing to connect.",
-          );
-        }
-      }
+  async function recordCallEvent(
+    event: "started" | "connected" | "ended" | "failed",
+    options: {
+      callId?: string;
+      durationSeconds?: number;
+      reason?: string;
+      keepalive?: boolean;
+    } = {},
+  ) {
+    const requestId = requestIdRef.current;
+    if (!requestId) throw new Error("The call request has no audit reference.");
+    const response = await fetch("/api/communications/calls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        requestId,
+        event,
+        callId: options.callId,
+        durationSeconds: options.durationSeconds,
+        reason: options.reason?.slice(0, 500),
+      }),
+      keepalive: options.keepalive,
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; error?: string }
+      | null;
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "The call audit record was not saved.");
+    }
+  }
 
-      // Record the attempt regardless of outcome.
-      appendLedger({
-        actorId: VIEWER.id,
-        actorName: VIEWER.name,
-        actorRole: VIEWER.role,
-        action: "create",
-        entity: "note",
-        entityId: `call-${clientId}-video`,
-        subjectId: clientId,
-        reason: "Video call initiated via ACS",
-        after: { channel: "ACS video", tokenIssued: tokenOk },
+  async function markFinal(
+    event: "ended" | "failed",
+    call: Call | null,
+    reason?: string,
+  ) {
+    if (finalLoggedRef.current) return;
+    finalLoggedRef.current = true;
+    const connectedAt = connectedAtRef.current;
+    const durationSeconds = connectedAt
+      ? Math.max(0, Math.round((Date.now() - connectedAt) / 1000))
+      : undefined;
+    try {
+      await recordCallEvent(event, {
+        callId: call?.id,
+        durationSeconds,
+        reason,
+        keepalive: true,
       });
+    } catch {
+      if (mountedRef.current) {
+        setAuditWarning(
+          "The call ended, but its final status did not save. Keep this chart open and retry before documenting another contact.",
+        );
+      }
+    }
+  }
+
+  async function startCall() {
+    if (!dialNumber || state === "preparing") return;
+
+    setState("preparing");
+    setDetail(null);
+    setAuditWarning(null);
+    setCallerId(null);
+    setElapsed(0);
+    setMuted(false);
+    connectedAtRef.current = null;
+    connectedLoggedRef.current = false;
+    finalLoggedRef.current = false;
+    auditCreatedRef.current = false;
+    requestIdRef.current = crypto.randomUUID();
+
+    let token: AcsTokenResponse;
+    try {
+      const response = await fetch("/api/acs/token", { method: "POST" });
+      token = (await response.json()) as AcsTokenResponse;
+      if (!response.ok || !token.ok || !token.token) {
+        throw new Error(token.error || "Azure calling is unavailable.");
+      }
+      if (!token.pstnConfigured || !token.callerId) {
+        throw new Error(
+          "Apex ACS is connected, but a public caller-ID number has not been provisioned.",
+        );
+      }
+      setCallerId(token.callerId);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Azure calling is unavailable.";
+      setState("error");
+      setDetail(message);
+      return;
     }
 
-    setup();
-    return () => {
-      cancelled = true;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    };
-  }, [clientId]);
+    try {
+      const [{ CallClient }, { AzureCommunicationTokenCredential }] =
+        await Promise.all([
+          import("@azure/communication-calling"),
+          import("@azure/communication-common"),
+        ]);
+      const credential = new AzureCommunicationTokenCredential(token.token);
+      const callClient = new CallClient();
+      clientRef.current = callClient;
+
+      const deviceManager = await callClient.getDeviceManager();
+      const permission = await deviceManager.askDevicePermission({
+        audio: true,
+        video: false,
+      });
+      if (!permission.audio) {
+        throw new Error(
+          "Microphone access is required. Allow it in the browser and try again.",
+        );
+      }
+
+      const callAgent = await callClient.createCallAgent(credential, {
+        displayName: token.displayName || "Alpha Health",
+      });
+
+      // Configuration and device permission checks do not contact the patient,
+      // so they do not manufacture a contact-history row. Immediately before
+      // dialing, however, the durable attempt must exist. If it cannot be
+      // written, Apex refuses to place an unrecorded call.
+      try {
+        await recordCallEvent("started");
+        auditCreatedRef.current = true;
+      } catch (error) {
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : "The call was not started because its audit record could not be created.",
+        );
+      }
+
+      const call = callAgent.startCall(
+        [{ phoneNumber: dialNumber }],
+        { alternateCallerId: { phoneNumber: token.callerId } },
+      );
+      callRef.current = call;
+      setState(call.state);
+
+      const onMuted = () => {
+        if (mountedRef.current) setMuted(call.isMuted);
+      };
+      const onState = () => {
+        if (!mountedRef.current) return;
+        setState(call.state);
+
+        if (call.state === "Connected" && !connectedLoggedRef.current) {
+          connectedLoggedRef.current = true;
+          connectedAtRef.current = Date.now();
+          void recordCallEvent("connected", { callId: call.id }).catch(() => {
+            if (mountedRef.current) {
+              setAuditWarning(
+                "The call is connected, but its connected status has not saved yet.",
+              );
+            }
+          });
+        }
+
+        if (call.state === "Disconnected") {
+          const reason = call.callEndReason
+            ? `ACS ${call.callEndReason.code}${
+                call.callEndReason.subCode
+                  ? `/${call.callEndReason.subCode}`
+                  : ""
+              }`
+            : undefined;
+          void markFinal(
+            connectedAtRef.current ? "ended" : "failed",
+            call,
+            reason,
+          );
+          call.off("stateChanged", onState);
+          call.off("isMutedChanged", onMuted);
+          void clientRef.current?.dispose();
+          clientRef.current = null;
+          callRef.current = null;
+        }
+      };
+
+      call.on("stateChanged", onState);
+      call.on("isMutedChanged", onMuted);
+      // Reconcile the state that exists at subscription time, then enrich the
+      // already-durable attempt with the ACS reference. The repository refuses
+      // a late "started" event from regressing a connected/final call.
+      onState();
+      void recordCallEvent("started", { callId: call.id }).catch(() => {
+        if (mountedRef.current) {
+          setAuditWarning(
+            "The call started, but its ACS reference has not saved yet.",
+          );
+        }
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "The call could not be started.";
+      if (auditCreatedRef.current) {
+        await markFinal("failed", callRef.current, message);
+      }
+      setState("error");
+      setDetail(message);
+      void clientRef.current?.dispose();
+      clientRef.current = null;
+      callRef.current = null;
+    }
+  }
+
+  async function toggleMute() {
+    const call = callRef.current;
+    if (!call) return;
+    try {
+      if (call.isMuted) await call.unmute();
+      else await call.mute();
+    } catch {
+      setDetail("The microphone control did not apply. Check the browser permission.");
+    }
+  }
+
+  async function hangUp() {
+    const call = callRef.current;
+    if (!call) return;
+    setState("Disconnecting");
+    try {
+      await call.hangUp();
+    } catch {
+      setDetail("The hang-up request did not complete. Close this call panel.");
+    }
+  }
+
+  const active =
+    state !== "idle" &&
+    state !== "error" &&
+    state !== "Disconnected";
 
   return (
-    <div className="space-y-3">
-      <div className="relative overflow-hidden rounded-control bg-ink-950">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="aspect-video w-full bg-ink-950 object-cover"
-        />
-        <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-ink-950/70 px-2 py-0.5 text-micro text-ink-200">
-          {status === "connecting" ? (
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-          ) : status === "ready" ? (
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-          ) : (
-            <CircleAlert className="h-3 w-3 text-high" aria-hidden />
-          )}
-          {status === "connecting" ? "Connecting" : status === "ready" ? "You" : "No media"}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="focus-ring absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-ink-950/70 text-ink-200 hover:text-white"
-          aria-label="End"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <p className="text-detail leading-relaxed text-ink-400">{detail}</p>
-
-      {tokenInfo && (
-        <div className="flex items-start gap-1.5 rounded-control border border-emerald/25 bg-emerald/5 px-3 py-2">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald" aria-hidden />
-          <p className="text-micro leading-relaxed text-ink-300">
-            Live ACS token issued to <span className="stat-mono text-ink-200">{tokenInfo.userId.slice(0, 22)}…</span>
-            {tokenInfo.expiresOn ? ` · valid until ${new Date(tokenInfo.expiresOn).toLocaleTimeString()}` : ""}. This
-            is a real token from the acs-apex resource, not a mock.
-          </p>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={onClose}
-        className="focus-ring w-full rounded-control bg-high/90 px-4 py-2 text-detail font-medium text-white transition-colors hover:bg-high"
-      >
-        End call
-      </button>
-    </div>
-  );
-}
-
-function PendingChannel({
-  clientId,
-  kind,
-  onClose,
-}: {
-  clientId: string;
-  kind: "phone" | "text";
-  onClose: () => void;
-}) {
-  const client = getClient(clientId);
-  useEffect(() => {
-    appendLedger({
-      actorId: VIEWER.id,
-      actorName: VIEWER.name,
-      actorRole: VIEWER.role,
-      action: "create",
-      entity: "note",
-      entityId: `contact-${clientId}-${kind}`,
-      subjectId: clientId,
-      reason: `${kind === "phone" ? "Phone call" : "Text"} attempted via ACS (no number provisioned)`,
-      after: { channel: kind === "phone" ? "ACS PSTN" : "ACS SMS", state: "pending-number" },
-    });
-  }, [clientId, kind]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-start gap-2 rounded-control border border-watch/30 bg-watch/5 px-3 py-3">
-        <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-watch" aria-hidden />
+    <section className="rounded-panel border border-ink-700/70 bg-ink-850/60">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/70 px-4 py-3">
         <div>
-          <p className="text-detail font-medium text-watch">
-            {kind === "phone" ? "Phone dialing" : "Texting"} needs a provisioned number
+          <p className="text-detail font-medium text-ink-100">
+            Call {patientName}
           </p>
-          <p className="mt-0.5 text-micro leading-relaxed text-ink-400">
-            {kind === "phone"
-              ? "Dialing a patient's actual phone requires a purchased ACS phone number. The call pipe is live (see Video); the number is the missing piece."
-              : "Texting a patient requires an ACS number verified for A2P messaging (toll-free verification or 10DLC), which takes days and rides on the signed BAA and the patient's consent. Apex will not fake a send."}
+          <p className="mt-0.5 text-micro text-ink-500">
+            Outbound voice through Azure Communication Services
           </p>
         </div>
+        <span className="flex items-center gap-1.5 text-micro text-ink-500">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald" aria-hidden />
+          Care-team scoped · audited
+        </span>
+      </header>
+
+      <div className="space-y-4 p-4">
+        {!dialNumber ? (
+          <div className="flex items-start gap-2 rounded-control border border-watch/30 bg-watch/5 px-3 py-3">
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-watch" aria-hidden />
+            <div>
+              <p className="text-detail font-medium text-watch">
+                Correct the phone number before calling
+              </p>
+              <p className="mt-1 text-micro leading-relaxed text-ink-400">
+                Apex could not safely convert this chart value to a US E.164
+                number. The call was not attempted.
+              </p>
+            </div>
+          </div>
+        ) : !active && state !== "Disconnected" ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => void startCall()}
+              className="focus-ring flex items-center justify-center gap-2 rounded-control bg-emerald px-4 py-3 text-detail font-semibold text-ink-950 transition-colors hover:bg-emerald/90"
+            >
+              <Phone className="h-4 w-4" aria-hidden />
+              {state === "error" ? "Try call again" : "Call patient"}
+            </button>
+            <button
+              type="button"
+              disabled
+              className="flex cursor-not-allowed items-center justify-center gap-2 rounded-control border border-ink-800 px-4 py-3 text-detail text-ink-600"
+              title="SMS requires a verified messaging number and patient consent workflow."
+            >
+              <MessageSquare className="h-4 w-4" aria-hidden />
+              Text · setup pending
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-control border border-ink-700 bg-ink-950/50 p-4">
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  state === "Connected"
+                    ? "bg-emerald"
+                    : state === "Disconnected"
+                      ? "bg-ink-600"
+                      : "animate-pulse bg-gold-300"
+                }`}
+              />
+              <div>
+                <p className="text-body font-medium text-ink-100">
+                  {stateLabel(state)}
+                </p>
+                <p className="text-micro text-ink-500">
+                  {state === "Connected"
+                    ? elapsedLabel(elapsed)
+                    : dialNumber}
+                  {callerId ? ` · from ${callerId}` : ""}
+                </p>
+              </div>
+            </div>
+
+            {active && (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void toggleMute()}
+                  disabled={!callRef.current}
+                  className="focus-ring flex items-center justify-center gap-2 rounded-control border border-ink-700 px-4 py-2.5 text-detail text-ink-200 hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {muted ? (
+                    <MicOff className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <Mic className="h-4 w-4" aria-hidden />
+                  )}
+                  {muted ? "Unmute" : "Mute"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void hangUp()}
+                  disabled={!callRef.current}
+                  className="focus-ring flex items-center justify-center gap-2 rounded-control bg-high/90 px-4 py-2.5 text-detail font-medium text-white hover:bg-high disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PhoneOff className="h-4 w-4" aria-hidden />
+                  End call
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {state === "Disconnected" && (
+          <button
+            type="button"
+            onClick={() => {
+              setState("idle");
+              setDetail(null);
+              setAuditWarning(null);
+            }}
+            className="focus-ring w-full rounded-control border border-ink-700 px-4 py-2.5 text-detail text-ink-200 hover:bg-ink-800"
+          >
+            Start another call
+          </button>
+        )}
+
+        {detail && (
+          <p className="rounded-control border border-high/30 bg-high/5 px-3 py-2 text-micro leading-relaxed text-high">
+            {detail}
+          </p>
+        )}
+        {auditWarning && (
+          <p className="rounded-control border border-watch/30 bg-watch/5 px-3 py-2 text-micro leading-relaxed text-watch">
+            {auditWarning}
+          </p>
+        )}
+
+        <p className="text-micro leading-relaxed text-ink-600">
+          Apex creates the patient contact record before dialing and records
+          connection, completion, duration, and ACS result without storing an
+          audio recording.
+        </p>
       </div>
-      <p className="text-micro leading-relaxed text-ink-600">
-        {client?.firstName}&apos;s outreach preferences and consent are on file; the moment a verified
-        number is attached, this becomes a real {kind === "phone" ? "call" : "text"} through the same
-        guarded path the portal messages already use.
-      </p>
-      <button
-        type="button"
-        onClick={onClose}
-        className="focus-ring w-full rounded-control border border-ink-700 px-4 py-2 text-detail text-ink-300 transition-colors hover:text-ink-50"
-      >
-        Back
-      </button>
-    </div>
+    </section>
   );
 }

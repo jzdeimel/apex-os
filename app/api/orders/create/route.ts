@@ -1,132 +1,127 @@
-import { runMutation, RefusedError } from "@/lib/api/gateway";
-import { appendLedgerRow } from "@/lib/db/repo";
-import { getClient, clientName } from "@/lib/mock/clients";
-import type { Client } from "@/lib/types";
-import { staffMap } from "@/lib/mock/staff";
-import { membershipForClient } from "@/lib/mock/memberships";
-import {
-  placeOrder,
-  blockingProblems,
-  type PlaceOrderInput,
-  type ShippingMode,
-  type ShippingAddress,
-} from "@/lib/orders/place";
+import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Create an order — through the REAL order pipeline.
- *
- * WHAT THIS USED TO DO, AND WHY IT WAS UNSAFE. It accepted `{clientId, sku,
- * quantity}`, checked only the broad `write:order` capability, and appended a
- * ledger row. That bypassed `validateOrder` entirely — including RULE 4, the
- * prescriber gate — so a COACH could place a line item marked
- * `requiresProviderApproval` (testosterone, a Schedule III drug) just by
- * POSTing to it, and the ledger would record the order as legitimately placed.
- * The UI enforced that gate; the endpoint behind the UI did not, and an endpoint
- * is not protected by the form in front of it.
- *
- * It also wrote ONLY a ledger row: an audit entry asserting an order no board,
- * portal or fulfilment path could resolve.
- *
- * Now it runs `placeOrder`, which runs `validateOrder(input, actor)` with the
- * SERVER-RESOLVED actor. Blocking problems come back as a refusal listing every
- * one of them, and only a clean order is witnessed in the durable ledger.
- *
- * STILL HONEST ABOUT ITS LIMIT: there is no `order` table yet, so the durable
- * artefact is the hash-chained ledger row, not the order itself. The order id
- * is returned so an order table can adopt it later. That gap is tracked, not
- * papered over.
- */
+import { fail, unavailable } from "@/lib/api/respond";
+import { guard } from "@/lib/auth/guard";
+import { can } from "@/lib/authz/capabilities";
+import { catalog } from "@/lib/catalog/catalog";
+import { nowIso } from "@/lib/clock";
+import { readInventory } from "@/lib/db/inventoryRepo";
+import { createOrderWithLedger, readOrderPatient } from "@/lib/db/orderRepo";
+import { orderRequestId } from "@/lib/orders/authoritative";
+import { blockingProblems, placeOrder, type ShippingAddress } from "@/lib/orders/place";
+import type { LocationId } from "@/lib/types";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-interface Body {
-  clientId: string;
-  lines: { sku: string; qty: number }[];
-  shipping: ShippingMode;
-  /** Required when shipping === "ship"; validateOrder enforces completeness. */
-  shipTo?: ShippingAddress;
-  note?: string;
+function sameOrigin(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
 }
 
-export async function POST(req: Request) {
-  return runMutation<Body, Client, { orderId: string; ledger: { id: string; hash: string } }>(req, {
-    context: "orders.create",
-    capability: "write:order",
-    unavailableMessage: "The order could not be recorded. Please try again.",
+function shippingAddress(value: unknown): ShippingAddress | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.line1 !== "string" || typeof row.city !== "string" || typeof row.state !== "string" || typeof row.postal !== "string") return null;
+  return {
+    line1: row.line1.trim(), line2: typeof row.line2 === "string" ? row.line2.trim() : undefined,
+    city: row.city.trim(), state: row.state.trim().toUpperCase(), postal: row.postal.trim(),
+  };
+}
 
-    parse: (raw) => {
-      const b = (raw ?? {}) as Partial<Body> & { sku?: string; quantity?: number };
-      if (typeof b.clientId !== "string" || !b.clientId) return "clientId is required.";
+export async function POST(request: NextRequest) {
+  if (!sameOrigin(request)) return fail(403, "This order came from an untrusted origin.");
+  const g = await guard("write:order");
+  if (!g.ok) return g.res;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body || typeof body.requestId !== "string" || body.requestId.length < 8 || body.requestId.length > 200 ||
+      typeof body.clientId !== "string" || !Array.isArray(body.lines) || body.lines.length < 1 || body.lines.length > 50 ||
+      typeof body.shipping !== "string" || !["ship", "pickup"].includes(body.shipping)) {
+    return fail(400, "Stable request id, patient, one to fifty lines, and shipping mode are required.");
+  }
+  const lines: Array<{ sku: string; qty: number }> = [];
+  for (const value of body.lines) {
+    if (!value || typeof value !== "object") return fail(400, "Every order line requires a SKU and positive whole quantity.");
+    const line = value as Record<string, unknown>;
+    if (typeof line.sku !== "string" || !line.sku.trim() || line.sku.length > 100 || !Number.isSafeInteger(line.qty) || (line.qty as number) <= 0 || (line.qty as number) > 10_000) {
+      return fail(400, "Every order line requires a SKU and positive whole quantity.");
+    }
+    lines.push({ sku: line.sku.trim(), qty: line.qty as number });
+  }
+  const prescriberOnly = lines
+    .map((line) => catalog.find((item) => item.sku === line.sku))
+    .filter((item) => item?.requiresProviderApproval);
+  if (prescriberOnly.length && g.actor.role !== "Medical") {
+    return fail(422, `Order refused: ${prescriberOnly.map((item) => item!.name).join(", ")} requires a prescriber.`);
+  }
+  if (body.discountCents !== undefined && (!Number.isSafeInteger(body.discountCents) || (body.discountCents as number) < 0 || (body.discountCents as number) > 100_000_000)) {
+    return fail(400, "discountCents must be a non-negative whole-cent amount.");
+  }
+  if ((body.discountCents as number | undefined) && (typeof body.discountReason !== "string" || body.discountReason.trim().length < 3 || body.discountReason.length > 1_000)) {
+    return fail(400, "Every discount requires a reason.");
+  }
+  const address = body.shipping === "ship" ? shippingAddress(body.shipTo) : null;
+  if (body.shipping === "ship" && !address) return fail(400, "A complete shipping address is required.");
 
-      // Accept the legacy single-SKU shape so existing callers keep working,
-      // but normalise to lines: the pipeline is multi-line and the prescriber
-      // gate is evaluated per line item.
-      const lines =
-        Array.isArray(b.lines) && b.lines.length
-          ? b.lines
-          : b.sku
-            ? [{ sku: b.sku, qty: Number(b.quantity ?? 1) }]
-            : [];
-      if (!lines.length) return "At least one order line is required.";
-      for (const l of lines) {
-        if (!l || typeof l.sku !== "string" || !l.sku) return "Every line needs a sku.";
-        if (!Number.isFinite(l.qty) || l.qty <= 0) return `Quantity for ${l.sku} must be positive.`;
-      }
-      const shipping: ShippingMode = b.shipping === "pickup" ? "pickup" : "ship";
-      // shipTo is passed through rather than validated here: validateOrder owns
-      // address completeness, and duplicating that rule is how the two drift.
-      return { clientId: b.clientId, lines, shipping, shipTo: b.shipTo, note: b.note };
-    },
+  try {
+    const person = await readOrderPatient(body.clientId);
+    if (!person || person.status !== "active" || person.isProspect) return fail(404, "Unknown active patient.");
+    if (!person.homeLocationId || !person.assignedCoachId) return fail(409, "The patient needs an authoritative home clinic and assigned coach before an order can be placed.");
+    const decision = can(g.actor, "write:order", {
+      coachId: person.assignedCoachId,
+      providerId: person.assignedProviderId ?? undefined,
+      locationId: person.homeLocationId,
+    });
+    if (!decision.allowed) return fail(403, decision.reason);
 
-    // Subject loaded server-side; scope comes off the RECORD, not the request.
-    loadSubject: (body) => getClient(body.clientId) ?? null,
-    scopeOf: (client) => ({
-      coachId: client.coachId,
-      providerId: client.providerId,
-      locationId: client.locationId,
-    }),
-
-    execute: async ({ body, subject: client, actor }) => {
-      const input: PlaceOrderInput = {
-        clientId: client.id,
-        clientName: clientName(client),
-        coachId: client.coachId,
-        locationId: client.locationId,
-        lines: body.lines,
-        shipping: body.shipping,
-        shipTo: body.shipTo,
-        membership: membershipForClient(client.id),
-        note: body.note,
-      };
-
-      // The actor is the SERVER-RESOLVED principal — this is what makes RULE 4
-      // (the prescriber gate) real rather than advisory.
-      const me = staffMap[actor.id];
-      const result = placeOrder(input, {
-        id: actor.id,
-        name: me?.name ?? actor.id,
-        role: actor.role,
-      });
-
-      if (!result.ok) {
-        // Every blocking problem, not just the first — a caller that learns one
-        // problem per attempt is taught to retry rather than to read.
-        const blocking = blockingProblems(result.problems);
-        throw new RefusedError(`Order refused: ${blocking.map((p) => p.message).join(" ")}`);
-      }
-
-      const row = await appendLedgerRow(
-        {
-          ...result.ledgerDraft,
-          // Attribute to the authenticated placer, whatever the draft carried.
-          actorId: actor.id,
-          actorName: me?.name ?? actor.id,
-          actorRole: actor.role,
-        },
-        new Date().toISOString(),
+    const inventory = await readInventory([person.homeLocationId]);
+    const quantityOnHand: Record<string, number> = Object.fromEntries(
+      catalog.filter((item) => item.lifecycle === "sell-through").map((item) => [item.sku, 0]),
+    );
+    for (const lot of inventory.lots) {
+      if (lot.status === "active") quantityOnHand[lot.sku] = (quantityOnHand[lot.sku] ?? 0) + lot.onHand;
+    }
+    const at = nowIso();
+    const id = orderRequestId(person.id, body.requestId);
+    const patientName = `${person.preferredName || person.firstName} ${person.lastName}`.trim();
+    const pickupAddress: ShippingAddress = {
+      line1: "Clinic pickup", city: person.city || "Clinic", state: (person.state || "").toUpperCase(), postal: person.zip || "00000",
+    };
+    const result = placeOrder({
+      clientId: person.id, clientName: patientName, coachId: person.assignedCoachId,
+      locationId: person.homeLocationId as LocationId, lines,
+      shipping: body.shipping as "ship" | "pickup", shipTo: address ?? pickupAddress,
+      discountCents: typeof body.discountCents === "number" ? body.discountCents : 0,
+      discountReason: typeof body.discountReason === "string" ? body.discountReason.trim() : undefined,
+      quantityOnHand, note: typeof body.note === "string" ? body.note.trim().slice(0, 2_000) : undefined,
+      at, orderId: id, origin: "coach",
+    }, { id: g.actor.id, name: g.principal.name, role: g.actor.role });
+    if (!result.ok) {
+      const blocking = blockingProblems(result.problems);
+      return fail(422, `Order refused: ${blocking.map((problem) => problem.message).join(" ")}`);
+    }
+    if (result.order.fulfillmentPartner === "MedSource") {
+      return fail(
+        503,
+        "MedSource transport is not connected. No order was created or represented as sent. Use the approved external workflow until the signed partner integration and outbox worker pass acceptance.",
       );
-
-      return { orderId: result.order.id, ledger: { id: row.id, hash: row.hash } };
-    },
-  });
+    }
+    const committed = await createOrderWithLedger({
+      order: result.order, pricing: result.pricing, shipping: body.shipping as "ship" | "pickup",
+      shipTo: address ?? undefined, discountReason: typeof body.discountReason === "string" ? body.discountReason : undefined,
+      origin: "coach", actorId: g.actor.id, actorName: g.principal.name, actorRole: g.actor.role,
+      patientName, at, ledgerDraft: result.ledgerDraft,
+    });
+    if (committed.status !== "ok") return fail(committed.status === "missing" ? 404 : 409, committed.reason ?? "This request conflicts with an existing order.");
+    return NextResponse.json({
+      ok: true, durable: true, duplicate: committed.duplicate,
+      order: result.order, record: committed.order, pricing: result.pricing,
+      ledger: committed.ledger ? { id: committed.ledger.id, hash: committed.ledger.hash } : { id: committed.order?.ledgerId },
+      fulfillment: "in-clinic",
+      warnings: result.warnings,
+    });
+  } catch (error) {
+    return unavailable("orders.create", error, "The order was not committed. Nothing was sent to fulfillment; please retry.");
+  }
 }

@@ -69,7 +69,7 @@ export function AgentChat() {
               className={cn(
                 "grid h-8 w-8 shrink-0 place-items-center rounded-full",
                 m.role === "agent"
-                  ? "bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950"
+                  ? "bg-gradient-to-br from-gold-300 to-gold-600 text-white"
                   : "bg-ink-700 text-ink-200",
               )}
             >
@@ -105,7 +105,7 @@ export function AgentChat() {
         ))}
         {thinking && (
           <div className="flex gap-3">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-ink-950">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-600 text-white">
               <Bot className="h-4 w-4" />
             </span>
             <div className="flex items-center gap-1 rounded-2xl bg-ink-800/80 px-4 py-3.5">
@@ -148,7 +148,7 @@ export function AgentChat() {
         />
         <button
           type="submit"
-          className="grid h-11 w-11 place-items-center rounded-xl bg-gold-400 text-ink-950 transition-colors hover:bg-gold-300 focus-ring"
+          className="grid h-11 w-11 place-items-center rounded-xl bg-gold-400 text-white transition-colors hover:bg-gold-300 focus-ring"
           aria-label="Send"
         >
           <Send className="h-4 w-4" />

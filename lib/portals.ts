@@ -82,18 +82,15 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     label: "Client Portal",
     persona: "Members",
     tagline: "Your protocol, your labs, your progress — and a full record of who has looked at it.",
-    home: "/portal",
-    prefixes: ["/portal"],
+    home: "/patient",
+    prefixes: ["/patient"],
     identity: {
-      // Members cannot sign in at all today: EasyAuth is single-tenant and a
-      // patient has no @goalphahealth.com account. This portal is reachable
-      // only by staff previewing it.
-      method: "Staff preview only",
-      session: "No patient sign-in yet",
-      planned: "Passkey or magic link · 30-day rolling · device-bound",
+      method: "Single-use magic link · pilot cohort",
+      session: "15-minute idle · 12-hour absolute · server-enforced",
+      planned: "External ID or passkey · device-bound · recovery policy",
     },
     accent: {
-      hex: "#34d399",
+      hex: "var(--c-optimal)",
       text: "text-optimal",
       bg: "bg-optimal",
       border: "border-optimal/30",
@@ -110,11 +107,11 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     prefixes: ["/clinic"],
     identity: {
       method: "Entra ID · Alpha Health tenant",
-      session: "Platform session · no re-auth on sign yet",
+      session: "EasyAuth · fixed 8-hour · no re-auth on sign yet",
       planned: "MFA enforced · 8-hour · re-auth to sign",
     },
     accent: {
-      hex: "#e93d3d",
+      hex: "var(--chart-brand)",
       text: "text-gold-400",
       bg: "bg-gold-500",
       border: "border-gold-400/30",
@@ -134,11 +131,11 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     prefixes: ["/coach"],
     identity: {
       method: "Entra ID · Alpha Health tenant",
-      session: "Platform session",
+      session: "EasyAuth · fixed 8-hour",
       planned: "Google Workspace · domain-locked · 8-hour · least-privilege",
     },
     accent: {
-      hex: "#e0bd6e",
+      hex: "var(--c-watch)",
       text: "text-watch",
       bg: "bg-watch",
       border: "border-watch/30",
@@ -172,11 +169,11 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       // Deliberately NOT "auto-locks at the counter". No idle lock exists
       // anywhere in Apex (GAP_ANALYSIS, COMPLIANCE, "Session timeout" — P0) and
       // a shared reception terminal is the single worst place to imply one.
-      session: "Platform session",
+      session: "EasyAuth · fixed 8-hour · no idle lock",
       planned: "Shared workstation · badge tap · shift-length",
     },
     accent: {
-      hex: "#60a5fa",
+      hex: "var(--c-low)",
       text: "text-low",
       bg: "bg-low",
       border: "border-low/30",
@@ -217,7 +214,7 @@ export const PORTALS: Record<PortalId, PortalDef> = {
       // No claim of an idle lock: none exists anywhere in Apex (GAP_ANALYSIS,
       // COMPLIANCE, "Session timeout" — P0), and this console renders
       // clinic-wide financials.
-      session: "Platform session · no idle lock",
+      session: "EasyAuth · fixed 8-hour · no idle lock",
       planned: "MFA enforced · 8-hour · owner account",
     },
     accent: {

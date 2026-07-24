@@ -9,6 +9,8 @@ import { checkToken, GENERIC_TOKEN_FAILURE, SHORT_CODE_BITS } from "@/lib/intake
 import { BRAND } from "@/lib/brand";
 import { Button, Badge } from "@/components/ui/primitives";
 import { locationName } from "@/lib/mock/locations";
+import { IS_DEMO } from "@/lib/config";
+import { redirect } from "next/navigation";
 
 /**
  * Public intake — /intake/<token>
@@ -65,8 +67,9 @@ function PublicFooter() {
     <footer className="mt-12 border-t border-ink-800/80">
       <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
         <p className="text-detail leading-relaxed text-ink-600">
-          Demo environment. {BRAND.name} · {BRAND.motto} · Nothing on this page is
-          transmitted, stored, or treated as medical advice.
+          {IS_DEMO
+            ? `Demo environment. ${BRAND.name} · ${BRAND.motto} · Nothing on this page is transmitted, stored, or treated as medical advice.`
+            : `${BRAND.name} · ${BRAND.motto}. If you received this link by mistake, call us and we will void it.`}
         </p>
       </div>
     </footer>
@@ -111,7 +114,7 @@ function InvalidLink() {
 
       {/* Demo affordance. In production nothing like this exists — the whole
           point of the generic message is that the visitor learns nothing. */}
-      <div className="mt-5 rounded-2xl border border-dashed border-ink-700 p-5">
+      {IS_DEMO && <div className="mt-5 rounded-2xl border border-dashed border-ink-700 p-5">
         <p className="label-eyebrow">Demo note</p>
         <p className="mt-2 text-body leading-relaxed text-ink-400">
           You reached the same screen an expired link, a used link, and a link that
@@ -131,7 +134,7 @@ function InvalidLink() {
             </li>
           ))}
         </ul>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -174,14 +177,19 @@ async function resolveInvite(
       return { invite, verdict: checkToken(invite, new Date().toISOString()) };
     }
   } catch {
-    // No database configured — fall through to the seeded corpus.
+    // Demo builds can survive without a database. Production cannot quietly
+    // promote the seeded corpus into an intake authority.
   }
+  if (!IS_DEMO) return { invite: undefined, verdict: "unknown" };
   const seeded = inviteByToken(raw);
   return { invite: seeded, verdict: checkToken(seeded, NOW) };
 }
 
 export default async function IntakeTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // Path-carried bearer tokens are a demo-only compatibility route. A real
+  // token belongs in /intake#token=... so it never reaches access logs.
+  if (!IS_DEMO) redirect("/intake");
   const { invite, verdict } = await resolveInvite(decodeURIComponent(token));
 
   return (

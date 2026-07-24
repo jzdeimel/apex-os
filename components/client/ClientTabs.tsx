@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Lock, Plus, StickyNote, Boxes, Mail } from "lucide-react";
 import { getClient, clientName } from "@/lib/mock/clients";
 import { CallPatient } from "@/components/comms/CallPatient";
@@ -13,6 +13,8 @@ import { isStuck, clientFacingStatus, progressPercent } from "@/lib/orders/lifec
 import { contactLogForClient } from "@/lib/mock/contactLog";
 import { ConsultComposer } from "@/components/consult/ConsultComposer";
 import { ConsultCard } from "@/components/consult/ConsultCard";
+import { MessageEscalation } from "@/components/escalations/MessageEscalation";
+import type { Consult } from "@/lib/consult/types";
 import { ProvenanceDrawer, WhyButton } from "@/components/trace/ProvenanceDrawer";
 import {
   Card,
@@ -207,9 +209,44 @@ function MacroTile({ label, value, unit }: { label: string; value: string; unit:
 // ---------------------------------------------------------------------------
 // Consults
 // ---------------------------------------------------------------------------
-export function ConsultsTab({ id }: { id: string }) {
-  const [composing, setComposing] = useState(false);
-  const list = consultsForClient(id);
+export function ConsultsTab({ id, autoStart = false }: { id: string; autoStart?: boolean }) {
+  const [composing, setComposing] = useState(autoStart);
+  const [stored, setStored] = useState<Consult[]>([]);
+  const [loadingStored, setLoadingStored] = useState(true);
+  const [storedError, setStoredError] = useState<string | null>(null);
+
+  const loadStored = useCallback(async () => {
+    setLoadingStored(true);
+    try {
+      const response = await fetch(`/api/consults?clientId=${encodeURIComponent(id)}`, {
+        headers: { Accept: "application/json" },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        setStoredError(body.error ?? "Saved consult history is unavailable.");
+        return;
+      }
+      setStored(Array.isArray(body.consults) ? body.consults : []);
+      setStoredError(null);
+    } catch {
+      setStoredError("Saved consult history is unavailable.");
+    } finally {
+      setLoadingStored(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void loadStored();
+  }, [loadStored]);
+
+  const list = useMemo(() => {
+    // A seeded note may have been mirrored into Postgres when it was co-signed.
+    // The durable version wins and ids are de-duplicated at this boundary.
+    const byId = new Map<string, Consult>();
+    for (const consult of consultsForClient(id)) byId.set(consult.id, consult);
+    for (const consult of stored) byId.set(consult.id, consult);
+    return [...byId.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  }, [id, stored]);
 
   return (
     <div className="space-y-4">
@@ -225,7 +262,24 @@ export function ConsultsTab({ id }: { id: string }) {
         </Button>
       </div>
 
-      {composing && <ConsultComposer clientId={id} onSigned={() => setComposing(false)} />}
+      {composing && (
+        <ConsultComposer
+          clientId={id}
+          onSigned={() => {
+            setComposing(false);
+            void loadStored();
+          }}
+        />
+      )}
+
+      {loadingStored && (
+        <p className="text-micro text-ink-500">Loading signed notes from Apex…</p>
+      )}
+      {storedError && (
+        <p className="rounded-lg border border-watch/30 bg-watch/[0.06] px-3 py-2 text-micro text-watch">
+          {storedError} Seeded rehearsal notes are still shown below.
+        </p>
+      )}
 
       {list.length === 0 ? (
         <EmptyState
@@ -236,7 +290,7 @@ export function ConsultsTab({ id }: { id: string }) {
       ) : (
         <div className="space-y-3">
           {list.map((c, i) => (
-            <ConsultCard key={c.id} consult={c} defaultOpen={i === 0} />
+            <ConsultCard key={c.id} consult={c} defaultOpen={i === 0} onChanged={() => void loadStored()} />
           ))}
         </div>
       )}
@@ -303,7 +357,7 @@ export function OrdersTab({ id }: { id: string }) {
                     <span className="text-ink-300">{e.status}</span>
                     <span>·</span>
                     <span>{e.actor}</span>
-                    <span className="text-ink-700">({e.source})</span>
+                    <span className="text-ink-500">({e.source})</span>
                   </div>
                 ))}
               </div>
@@ -318,7 +372,7 @@ export function OrdersTab({ id }: { id: string }) {
 // ---------------------------------------------------------------------------
 // Contact log — every touch, both directions
 // ---------------------------------------------------------------------------
-export function ContactTab({ id }: { id: string }) {
+export function ContactTab({ id, canCall = false }: { id: string; canCall?: boolean }) {
   const entries = contactLogForClient(id);
   const client = getClient(id);
 
@@ -326,7 +380,7 @@ export function ContactTab({ id }: { id: string }) {
     <div className="space-y-4">
       {/* Reach the patient — voice/video/text over ACS — above the log that
           records every attempt. */}
-      <CallPatient clientId={id} />
+      {canCall && <CallPatient clientId={id} />}
 
       {entries.length === 0 ? (
         <EmptyState icon={<Mail className="h-6 w-6" />} title="No contact yet" />
@@ -380,6 +434,13 @@ function ContactLogList({
                 </div>
                 {e.body && (
                   <p className="mt-1 text-detail leading-relaxed text-ink-300">{e.body}</p>
+                )}
+                {e.direction === "inbound" && e.consentScopeUsed === "clinical" && e.body && (
+                  <MessageEscalation
+                    clientId={e.clientId}
+                    messageId={e.id}
+                    memberQuote={e.body}
+                  />
                 )}
                 <p className="mt-1 text-micro text-ink-600">
                   <span className="stat-mono">{formatDateTime(e.at)}</span> · consent:{" "}

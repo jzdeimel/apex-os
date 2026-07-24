@@ -67,9 +67,18 @@ export interface LocationScope {
  * appointments from the person answering the phone about them.
  */
 export function scopeFor(staffId: string | null): LocationScope {
-  // The owner sees everything. Checked first and by identity, so a future
-  // role rename cannot silently narrow ownership.
-  if (staffId && staffId === VIEWER.id) {
+  /**
+   * The owner sees everything.
+   *
+   * WAS an identity comparison against the hardcoded `VIEWER.id`, which meant
+   * ownership was a property of one demo account: hire a second owner and they
+   * silently get a narrowed board, and rotate the demo account and the real
+   * owner loses reach. Ownership is a ROLE, so it is read from the staff
+   * record — the same row `principal.mapToStaff` resolves and the same row an
+   * `UPDATE staff SET role = ...` can change without a deploy.
+   */
+  const isOwner = staffId ? staffMap[staffId]?.role === "Admin" : false;
+  if (isOwner) {
     return {
       allowed: ALL_LOCATIONS,
       unrestricted: true,

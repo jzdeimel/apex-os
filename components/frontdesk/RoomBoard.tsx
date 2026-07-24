@@ -220,10 +220,10 @@ export function RoomBoard() {
       </section>
 
       <p className="border-t border-ink-800/60 pt-4 text-detail leading-relaxed text-ink-600">
-        Occupancy is derived from the encounter journal — a room is in use because somebody was
-        roomed into it on the day board, not because a second room-status field says so. It is
-        in-memory and resets when the server process does.{" "}
-        {day.inRoomCount === 0 && "Nothing is in a room right now."}
+        This lower map is a seeded planning reference and its occupancy journal resets with the
+        process. The authoritative facility register and reservations are shown above; only those
+        records may be used for live rooming.{" "}
+        {day.inRoomCount === 0 && "The planning fixture currently shows no occupied rooms."}
       </p>
     </div>
   );

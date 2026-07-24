@@ -1,7 +1,16 @@
 import type { Appointment } from "@/lib/types";
 import { clientMap, clientName } from "@/lib/mock/clients";
 
-type Seed = Omit<Appointment, "clientName">;
+/**
+ * Seeds omit `modality` and it is derived below, not typed in 15 times.
+ *
+ * Deriving it is not a shortcut — it is the migration being honest. These rows
+ * predate the distinction Paul Kennard drew on 2026-07-21, so the only signal
+ * they carry is the legacy `type: "Telehealth"`. Writing a modality by hand
+ * here would invent information the fixture never had; deriving it records
+ * exactly what was knowable. Real appointments set it explicitly at booking.
+ */
+type Seed = Omit<Appointment, "clientName" | "modality">;
 
 const seed: Seed[] = [
   { id: "ap-01", clientId: "c-013", staffId: "st-001", locationId: "raleigh", type: "Follow-Up", start: "2026-06-12T09:30:00", durationMin: 30, status: "Completed" },
@@ -24,6 +33,7 @@ const seed: Seed[] = [
 
 export const appointments: Appointment[] = seed.map((a) => ({
   ...a,
+  modality: a.type === "Telehealth" ? ("virtual" as const) : ("in-person" as const),
   clientName: clientMap[a.clientId] ? clientName(clientMap[a.clientId]) : a.clientId,
 }));
 

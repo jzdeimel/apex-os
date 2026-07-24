@@ -118,7 +118,7 @@ function CallerSearch({ onPick }: { onPick: (c: Client) => void }) {
               className="flex w-full min-w-0 items-center gap-3 rounded-panel border border-ink-700 bg-ink-850/70 px-3 py-2.5 text-left transition-colors hover:border-low/50 hover:bg-low/[0.06] focus-ring"
             >
               <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-bold text-ink-950"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-bold text-[color:var(--on-swatch)]"
                 style={{ background: c.avatarColor }}
               >
                 {c.firstName[0]}
@@ -335,7 +335,7 @@ export function PhoneBooking() {
           away is whose appointment this is. */}
       <div className="card flex flex-wrap items-center gap-3 px-3 py-2.5">
         <span
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-detail font-bold text-ink-950"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-detail font-bold text-[color:var(--on-swatch)]"
           style={{ background: caller.avatarColor }}
         >
           {caller.firstName[0]}

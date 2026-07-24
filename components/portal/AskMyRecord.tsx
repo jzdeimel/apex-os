@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -115,10 +115,12 @@ function Handoff({
   result,
   onSend,
   sent,
+  sending,
 }: {
   result: RecordAnswer;
   onSend: () => void;
   sent: boolean;
+  sending: boolean;
 }) {
   const refusal = result.refused!;
 
@@ -137,9 +139,13 @@ function Handoff({
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button variant="primary" size="sm" onClick={onSend} disabled={sent}>
+            <Button variant="primary" size="sm" onClick={onSend} disabled={sent || sending}>
               <Send className="h-3.5 w-3.5" />
-              {sent ? "Sent to your care team" : `Send this to ${refusal.handoffName}`}
+              {sending
+                ? "Sending..."
+                : sent
+                  ? "Sent to your care team"
+                  : `Send this to ${refusal.handoffName}`}
             </Button>
             {sent && <Badge tone="optimal">You&rsquo;ll get a reply in your messages</Badge>}
           </div>
@@ -152,11 +158,21 @@ function Handoff({
 export function AskMyRecord({ clientId }: { clientId: string }) {
   const [draft, setDraft] = useState("");
   const [result, setResult] = useState<RecordAnswer | null>(null);
+  const [checking, setChecking] = useState(false);
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
 
   const client = getClient(clientId);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
   if (!client) return null;
 
   const ask = (question: string) => {
@@ -164,7 +180,14 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
     if (!trimmed) return;
     setDraft(trimmed);
     setSent(false);
-    setResult(answer(clientId, trimmed));
+    setResult(null);
+    setChecking(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setResult(answer(clientId, trimmed));
+      setChecking(false);
+      timerRef.current = null;
+    }, 420);
   };
 
   /**
@@ -241,9 +264,9 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
             aria-label="Ask a question about your record"
             className="sm:flex-1"
           />
-          <Button type="submit" variant="primary" disabled={!draft.trim()} className="sm:w-auto">
+          <Button type="submit" variant="primary" disabled={!draft.trim() || checking} className="sm:w-auto">
             <Send className="h-3.5 w-3.5" />
-            Ask
+            {checking ? "Checking" : "Ask"}
           </Button>
         </form>
 
@@ -256,14 +279,36 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
               <button
                 key={s}
                 type="button"
+                disabled={checking}
                 onClick={() => ask(s)}
-                className="focus-ring rounded-control border border-ink-700 bg-ink-900/40 px-3 py-2 text-left text-micro text-ink-300 transition-colors hover:border-gold-400/40 hover:text-ink-100"
+                className="focus-ring rounded-control border border-ink-700 bg-ink-900/40 px-3 py-2 text-left text-micro text-ink-300 transition-colors hover:border-gold-400/40 hover:text-ink-100 disabled:pointer-events-none disabled:opacity-50"
               >
                 {s}
               </button>
             ))}
           </div>
         </div>
+
+        {checking && (
+          <SwitchView k={`checking-${draft}`}>
+            <FadeIn>
+              <div className="flex items-start gap-3 border-t border-ink-700/70 pt-4">
+                <span className="relative mt-1 flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-gold-300" />
+                </span>
+                <div>
+                  <p className="text-detail font-medium text-ink-200">
+                    Reading your labs, orders and notes.
+                  </p>
+                  <p className="mt-1 text-micro leading-relaxed text-ink-500">
+                    Apex only answers from your own record, and hands clinical judgement to your care team.
+                  </p>
+                </div>
+              </div>
+            </FadeIn>
+          </SwitchView>
+        )}
 
         {result && (
           <SwitchView k={result.question}>
@@ -273,7 +318,7 @@ export function AskMyRecord({ clientId }: { clientId: string }) {
                   <span className="text-ink-500">You asked:</span> {result.question}
                 </p>
                 {result.refused ? (
-                  <Handoff result={result} onSend={handoff} sent={sent} />
+                  <Handoff result={result} onSend={handoff} sent={sent} sending={sending} />
                 ) : (
                   <AnswerBlock result={result} />
                 )}

@@ -6,9 +6,15 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { CommandBar } from "@/components/CommandBar";
-import { DemoTour } from "@/components/DemoTour";
 import { usePortal } from "@/lib/portalStore";
-import { motion, AnimatePresence } from "framer-motion";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
+import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+
+const DemoTour = dynamic(
+  () => import("@/components/DemoTour").then((module) => module.DemoTour),
+  { ssr: false },
+);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           these are operator affordances, and putting them on a member surface
           is how a patient portal ends up feeling like internal software. */}
       {!isMember && <CommandBar />}
-      {!isMember && <DemoTour />}
+      {!isMember && IS_DEMO_UI && <DemoTour />}
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <BottomNav />
       <div className="lg:pl-64">
@@ -77,8 +83,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         <footer className="mx-auto w-full max-w-[1400px] px-4 pb-24 lg:px-8 lg:pb-10">
           <p className="border-t border-ink-800/60 pt-4 text-center text-micro text-ink-600">
-            Apex — demonstration build. Synthetic data, Apex-owned. No PHI, no
-            real prescribing, no real fulfillment. © Alpha Health (demo).
+            {IS_DEMO_UI
+              ? "Apex — demonstration build. Synthetic data only. © Alpha Health."
+              : "Apex OS — Alpha Health restricted clinical system. Authorized use only."}
           </p>
         </footer>
       </div>

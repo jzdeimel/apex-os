@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { fail, serverError, unavailable } from "@/lib/api/respond";
-import { createLeadWithInvite } from "@/lib/db/repo";
-import { mintIntakeToken } from "@/lib/intake/mint";
+import { unavailable } from "@/lib/api/respond";
+import { createLeadWithInvite, readPublicLocations } from "@/lib/db/repo";
+import { intakeEntryPath, mintIntakeToken } from "@/lib/intake/mint";
 import { sha256 } from "@/lib/trace/hash";
 import { rateLimit, clientIp } from "@/lib/api/rateLimit";
 
@@ -45,11 +45,17 @@ interface Body {
   locationId?: string;
   modality?: string;
   reason?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  referralCode?: string;
 }
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 /** 10+ digits after stripping punctuation — permissive, deliberately. */
 const isPhone = (v: string) => v.replace(/\D/g, "").length >= 10;
+const attributionValue = (value: unknown) =>
+  typeof value === "string" ? value.trim().slice(0, 200) || undefined : undefined;
 
 export async function POST(req: Request) {
   const now = Date.now();
@@ -72,6 +78,8 @@ export async function POST(req: Request) {
   const lastName = (body.lastName ?? "").trim();
   const email = (body.email ?? "").trim().toLowerCase();
   const phone = (body.phone ?? "").trim();
+  const referralCode =
+    typeof body.referralCode === "string" ? body.referralCode.trim() : "";
 
   const problems: string[] = [];
   if (!firstName) problems.push("First name is required.");
@@ -79,6 +87,8 @@ export async function POST(req: Request) {
   if (!email || !isEmail(email)) problems.push("A valid email is required.");
   if (!phone || !isPhone(phone)) problems.push("A valid phone number is required.");
   if (body.track && !TRACKS.has(body.track)) problems.push("Unknown care track.");
+  if (!body.locationId) problems.push("Choose an active clinic.");
+  if (referralCode.length > 200) problems.push("Referral code is invalid.");
   if (problems.length) {
     return NextResponse.json({ ok: false, error: problems.join(" "), problems }, { status: 400 });
   }
@@ -87,6 +97,13 @@ export async function POST(req: Request) {
   const minted = mintIntakeToken(at);
 
   try {
+    const publicLocations = await readPublicLocations();
+    if (!publicLocations.some((location) => location.id === body.locationId)) {
+      return NextResponse.json(
+        { ok: false, error: "That clinic is not currently accepting online requests." },
+        { status: 400 },
+      );
+    }
     const { leadId } = await createLeadWithInvite({
       firstName,
       lastName,
@@ -96,7 +113,11 @@ export async function POST(req: Request) {
       preferredLocationId: body.locationId,
       modality: body.modality,
       reason: (body.reason ?? "").trim().slice(0, 2000) || undefined,
-      source: "website",
+      source: referralCode ? "patient-referral" : "website",
+      utmSource: referralCode ? "patient-referral" : attributionValue(body.utmSource),
+      utmMedium: attributionValue(body.utmMedium),
+      utmCampaign: attributionValue(body.utmCampaign),
+      referralCodeSha256: referralCode ? sha256(referralCode) : undefined,
       tokenSha256: sha256(minted.token),
       expiresAt: minted.expiresAt,
       at,
@@ -107,7 +128,7 @@ export async function POST(req: Request) {
       ok: true,
       durable: true,
       leadId,
-      intakePath: `/intake/${minted.token}`,
+      intakePath: intakeEntryPath(minted.token),
       expiresAt: minted.expiresAt,
     });
   } catch (err) {

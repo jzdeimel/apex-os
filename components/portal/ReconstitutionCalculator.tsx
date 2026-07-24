@@ -288,7 +288,7 @@ function Syringe({
   const clamped = Math.min(Math.max(units, 0), barrelUnits);
   const fillW = (clamped / barrelUnits) * bw;
   const markX = bx + fillW;
-  const fill = exceeds ? "#f87171" : between ? "#e0bd6e" : "#e0bd6e";
+  const fill = exceeds ? "var(--c-high)" : between ? "var(--c-watch)" : "var(--c-watch)";
 
   // Ticks every 10 units.
   const ticks: number[] = [];

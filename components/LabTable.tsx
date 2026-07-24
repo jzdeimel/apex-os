@@ -26,7 +26,7 @@ function RangeBar({ b }: { b: Biomarker }) {
   const optLoPct = b.optimalLow !== undefined ? Math.max(0, Math.min(100, ((b.optimalLow - lo) / (hi - lo || 1)) * 100)) : 25;
   const optHiPct = b.optimalHigh !== undefined ? Math.max(0, Math.min(100, ((b.optimalHigh - lo) / (hi - lo || 1)) * 100)) : 75;
   const dotColor =
-    b.status === "optimal" ? "#34d399" : b.status === "watch" ? "#e0bd6e" : b.status === "low" ? "#60a5fa" : "#f87171";
+    b.status === "optimal" ? "var(--c-optimal)" : b.status === "watch" ? "var(--c-watch)" : b.status === "low" ? "var(--c-low)" : "var(--c-high)";
   return (
     <div className="relative h-1.5 w-24 rounded-full bg-ink-700/80">
       <div

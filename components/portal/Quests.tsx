@@ -132,7 +132,7 @@ function QuestCard({
           <RingCloseBurst trigger={burst} hex={quest.hex} className="shrink-0">
             <div className="relative grid h-16 w-16 place-items-center">
               <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90">
-                <circle cx="32" cy="32" r={RING_R} fill="none" stroke="#23272d" strokeWidth="6" />
+                <circle cx="32" cy="32" r={RING_R} fill="none" stroke="var(--chart-grid)" strokeWidth="6" />
                 <motion.circle
                   cx="32"
                   cy="32"

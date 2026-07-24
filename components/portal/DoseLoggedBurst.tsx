@@ -197,7 +197,7 @@ export function DoseLoggedBurst({
                   {/* Beat 2 — a pulse runs N to C, the direction the chain is
                       read and synthesised. */}
                   {!reduce && (
-                    <circle r="4" fill="#34d399">
+                    <circle r="4" fill="var(--c-optimal)">
                       <animateMotion dur="0.5s" begin="0.35s" fill="freeze" path={path} />
                       <animate attributeName="opacity" values="0;1;1;0" dur="0.5s" begin="0.35s" fill="freeze" />
                     </circle>
@@ -209,7 +209,7 @@ export function DoseLoggedBurst({
                   cy={32}
                   r="10"
                   fill="none"
-                  stroke="#34d399"
+                  stroke="var(--c-optimal)"
                   strokeWidth="2"
                   initial={reduce ? false : { scale: 0.4, opacity: 1 }}
                   animate={{ scale: 2.2, opacity: 0 }}
@@ -228,7 +228,7 @@ export function DoseLoggedBurst({
                   <motion.path
                     d={cPath}
                     fill="none"
-                    stroke="#e0bd6e"
+                    stroke="var(--c-watch)"
                     strokeWidth="1.8"
                     initial={reduce ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}

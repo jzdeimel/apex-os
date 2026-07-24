@@ -1,0 +1,308 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Activity, Beaker, BookOpen, CalendarDays, Dumbbell, FileCheck2, FileClock, Gift, GraduationCap, ShieldCheck, Sparkles, Stethoscope, UsersRound } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/primitives";
+import { PatientSignOut } from "@/components/patient/PatientSignOut";
+import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
+import { PatientEmergencyCard } from "@/components/patient/PatientEmergencyCard";
+import { patientPortalSummary, patientSubjectForToken } from "@/lib/auth/patientRepo";
+import { PATIENT_SESSION_COOKIE } from "@/lib/auth/patientTokens";
+import { isFeatureEnabledFor } from "@/lib/features/server";
+
+export const dynamic = "force-dynamic";
+
+function formatDateTime(value: Date, timezone: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone,
+    timeZoneName: "short",
+  }).format(value);
+}
+
+export default async function PatientPortalPage() {
+  const cookieStore = await cookies();
+  const subject = await patientSubjectForToken(cookieStore.get(PATIENT_SESSION_COOKIE)?.value);
+  if (!subject) redirect("/patient-sign-in");
+  const summary = await patientPortalSummary(subject.clientId);
+  if (!summary) redirect("/patient-sign-in");
+  const communityEnabled = await isFeatureEnabledFor("community", { clientId: subject.clientId });
+  const emergencyCardEnabled = await isFeatureEnabledFor("emergency-card", { clientId: subject.clientId });
+  const educationEnabled = await isFeatureEnabledFor("member-education", { clientId: subject.clientId });
+  const servicesEnabled = await isFeatureEnabledFor("member-explore", { clientId: subject.clientId });
+  const progressEnabled = await isFeatureEnabledFor("gamification", { clientId: subject.clientId });
+  const plansEnabled = await isFeatureEnabledFor("member-nutrition", { clientId: subject.clientId });
+  const referralsEnabled = await isFeatureEnabledFor("member-referrals", { clientId: subject.clientId });
+  const selfBookingEnabled = await isFeatureEnabledFor("self-booking", { clientId: subject.clientId });
+
+  const displayName = summary.patient.preferredName || summary.patient.firstName;
+  const coach = summary.careTeam.find((member) => member.relationship === "coach");
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+      <header className="flex flex-col gap-5 border-b border-ink-700/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-detail text-teal-300">
+            <ShieldCheck className="h-4 w-4" aria-hidden />
+            Secure Alpha Health portal
+          </div>
+          <h1 className="mt-3 font-display text-display text-ink-50">Welcome, {displayName}.</h1>
+          <p className="mt-3 max-w-2xl text-body leading-relaxed text-ink-400">
+            Appointments, messages, results, documents, and care-team details come from your authenticated Alpha Health record.
+          </p>
+        </div>
+        <PatientSignOut />
+      </header>
+
+      <section className="mt-8 grid gap-5 lg:grid-cols-2" aria-label="Patient record summary">
+        {emergencyCardEnabled && (
+          <div className="lg:col-span-2">
+            <PatientEmergencyCard />
+          </div>
+        )}
+        <Link
+          href="/patient/records"
+          className="rounded-panel border border-teal-400/30 bg-teal-400/[0.05] p-6 transition hover:border-teal-400/55 lg:col-span-2"
+        >
+          <div className="flex items-start gap-4">
+            <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+              <FileClock className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-display text-title text-ink-50">Access, send, or amend your record</h2>
+              <p className="mt-2 max-w-2xl text-body leading-relaxed text-ink-400">
+                Open a tracked request and follow its owner, identity check, deadline, and resolution.
+              </p>
+              <p className="mt-3 text-detail font-medium text-teal-300">Manage record requests →</p>
+            </div>
+          </div>
+        </Link>
+        {communityEnabled && (
+          <Link
+            href="/patient/community"
+            className="rounded-panel border border-gold-400/30 bg-gold-400/[0.05] p-6 transition hover:border-gold-400/55 lg:col-span-2"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300">
+                <UsersRound className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h2 className="font-display text-title text-ink-50">Your moderated community</h2>
+                <p className="mt-2 max-w-2xl text-body leading-relaxed text-ink-400">
+                  Habits, training, food, events, and wins in a coach-owned room. You use a
+                  private handle, and every report has a named moderator and response clock.
+                </p>
+                <p className="mt-3 text-detail font-medium text-gold-300">Open community →</p>
+              </div>
+            </div>
+          </Link>
+        )}
+        {educationEnabled && (
+          <>
+            <Link
+              href="/patient/learn"
+              className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50"
+            >
+              <div className="flex items-start gap-4">
+                <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+                  <GraduationCap className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-title text-ink-50">Learn</h2>
+                  <p className="mt-2 text-body leading-relaxed text-ink-400">
+                    Reviewed education for your care track, with no invented personalization.
+                  </p>
+                </div>
+              </div>
+            </Link>
+            <Link
+              href="/patient/library"
+              className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-gold-400/50"
+            >
+              <div className="flex items-start gap-4">
+                <span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300">
+                  <BookOpen className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-title text-ink-50">Compound library</h2>
+                  <p className="mt-2 text-body leading-relaxed text-ink-400">
+                    Evidence-aware reference material without doses or treatment claims.
+                  </p>
+                </div>
+              </div>
+            </Link>
+          </>
+        )}
+        {servicesEnabled && (
+          <Link
+            href="/patient/services"
+            className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-purple-400/50"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-purple-400/12 p-2.5 text-purple-300">
+                <Sparkles className="h-5 w-5" aria-hidden />
+              </span>
+              <div><h2 className="font-display text-title text-ink-50">What’s available</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Your current membership and Alpha Health’s factual service overview.</p></div>
+            </div>
+          </Link>
+        )}
+        {progressEnabled && (
+          <Link
+            href="/patient/progress"
+            className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+                <Activity className="h-5 w-5" aria-hidden />
+              </span>
+              <div><h2 className="font-display text-title text-ink-50">Progress</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Durable check-ins, streaks, levels, and quests derived from your record.</p></div>
+            </div>
+          </Link>
+        )}
+        {plansEnabled && (
+          <Link href="/patient/plans" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-gold-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300"><Dumbbell className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Food and training plans</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Current versions published by your care team.</p></div></div>
+          </Link>
+        )}
+        {referralsEnabled && (
+          <Link href="/patient/refer" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-purple-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-purple-400/12 p-2.5 text-purple-300"><Gift className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Refer a friend</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Tracked intake link with visible attribution status.</p></div></div>
+          </Link>
+        )}
+        {selfBookingEnabled && (
+          <Link href="/patient/book" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300"><CalendarDays className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Book a coach follow-up</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Verified openings from approved hours and your coach’s connected calendar.</p></div></div>
+          </Link>
+        )}
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <CalendarDays className="h-5 w-5 text-gold-300" aria-hidden />
+              <h2 className="font-display text-title text-ink-50">Upcoming visits</h2>
+            </div>
+            {summary.appointments.length ? (
+              <ol className="mt-5 space-y-4">
+                {summary.appointments.map((visit) => (
+                  <li key={visit.id} className="rounded-control border border-ink-700 bg-ink-900/40 p-4">
+                    <p className="font-medium text-ink-100">{visit.visitType}</p>
+                    <p className="mt-1 text-detail text-ink-300">
+                      {formatDateTime(visit.startAt, summary.patient.timezone)} · {visit.modality}
+                    </p>
+                    <p className="mt-1 text-detail text-ink-400">
+                      {[visit.staffName, visit.locationName].filter(Boolean).join(" · ") || "Assignment pending"}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-5 text-body text-ink-400">No upcoming visit is currently scheduled.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <Stethoscope className="h-5 w-5 text-teal-300" aria-hidden />
+              <h2 className="font-display text-title text-ink-50">Your care team</h2>
+            </div>
+            {summary.careTeam.length ? (
+              <ul className="mt-5 space-y-4">
+                {summary.careTeam.map((member) => (
+                  <li key={`${member.relationship}-${member.id}`} className="rounded-control border border-ink-700 bg-ink-900/40 p-4">
+                    <p className="font-medium text-ink-100">{member.name}</p>
+                    <p className="mt-1 text-detail capitalize text-ink-400">
+                      {member.relationship}{member.title ? ` · ${member.title}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-5 text-body text-ink-400">Care-team assignments are still being confirmed.</p>
+            )}
+            {summary.patient.homeLocation && (
+              <p className="mt-5 text-detail text-ink-400">Home clinic: {summary.patient.homeLocation}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card id="coach-messages" className="lg:col-span-2">
+          <CardContent className="p-6">
+            <PatientCoachMessages
+              coachName={coach?.name ?? null}
+              timezone={summary.patient.timezone}
+              initialMessages={summary.messages
+                .filter((entry) => entry.thread === "coach")
+                .reverse()
+                .map((entry) => ({
+                  id: entry.id,
+                  senderKind: entry.senderKind,
+                  body: entry.body,
+                  sentAt: entry.sentAt.toISOString(),
+                  readAt: entry.readAt?.toISOString() ?? null,
+                  escalationId: entry.escalationId,
+                }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <Beaker className="h-5 w-5 text-gold-300" aria-hidden />
+              <h2 className="font-display text-title text-ink-50">Reviewed lab results</h2>
+            </div>
+            {summary.labs.length ? (
+              <div className="mt-5 space-y-4">
+                {summary.labs.map((lab) => (
+                  <article key={lab.id} className="rounded-control border border-ink-700 bg-ink-900/40 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-ink-100">Resulted {formatDateTime(lab.resultedAt, summary.patient.timezone)}</p>
+                      <span className={`rounded-full px-2 py-1 text-micro ${lab.critical ? "bg-high/10 text-high" : lab.abnormal ? "bg-watch/10 text-watch" : "bg-optimal/10 text-optimal"}`}>{lab.critical ? "Critical · follow-up documented" : lab.abnormal ? "Outside reference" : "Within reference"}</span>
+                    </div>
+                    <p className="mt-3 text-detail leading-relaxed text-ink-300">{lab.summary}</p>
+                    <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[520px] text-left text-detail"><thead className="text-micro uppercase text-ink-500"><tr><th className="pb-2">Marker</th><th className="pb-2">Value</th><th className="pb-2">Reference</th><th className="pb-2">Flag</th></tr></thead><tbody>{lab.observations.map((row) => <tr key={row.id} className="border-t border-ink-800"><td className="py-2 text-ink-200">{row.name}</td><td className="py-2 text-ink-100">{row.valueNumeric ?? row.valueText} {row.unit ?? ""}</td><td className="py-2 text-ink-400">{row.referenceRange ?? "—"}</td><td className="py-2 text-ink-400">{row.flag}</td></tr>)}</tbody></table></div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-5 text-body text-ink-400">No provider-reviewed lab result has been released to you yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <FileCheck2 className="h-5 w-5 text-purple-300" aria-hidden />
+              <h2 className="font-display text-title text-ink-50">Signed documents</h2>
+            </div>
+            {summary.signedDocuments.length ? (
+              <ol className="mt-5 space-y-3">
+                {summary.signedDocuments.map((document) => (
+                  <li key={document.id} className="flex items-center justify-between gap-4 rounded-control border border-ink-700 bg-ink-900/40 p-4">
+                    <div>
+                      <p className="font-medium text-ink-100">{document.title}</p>
+                      <p className="mt-1 text-detail text-ink-500">Version {document.version}</p>
+                    </div>
+                    <FileCheck2 className="h-5 w-5 shrink-0 text-teal-300" aria-label="Signed" />
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-5 text-body text-ink-400">No signed document is available in Apex yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <aside className="mt-8 rounded-panel border border-gold-400/30 bg-gold-400/5 p-5 text-detail leading-relaxed text-ink-300">
+        Your coach is your primary Alpha Health contact. Messages go to your coach, who can escalate clinical questions to Medical. Appointments, reviewed labs, signed documents, and record requests are shown from your Apex record.
+      </aside>
+    </main>
+  );
+}

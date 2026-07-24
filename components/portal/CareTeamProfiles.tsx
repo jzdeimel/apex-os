@@ -170,7 +170,7 @@ function PrimaryPersonCard({
             only styled action — everything above is a fallback, not a peer. */}
         <Link
           href="/portal/messages"
-          className="focus-ring mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-control bg-gold-500 px-4 text-detail font-medium text-white transition-colors hover:bg-gold-400 motion-reduce:transition-none"
+          className="focus-ring mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-control bg-gold-500 px-4 text-detail font-medium text-[color:var(--on-swatch)] transition-colors hover:bg-gold-400 motion-reduce:transition-none"
         >
           <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Message {s.name.split(" ").slice(-1)[0]}

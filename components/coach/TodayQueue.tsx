@@ -522,7 +522,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
                       <span className="text-micro uppercase tracking-wide text-ink-600">
                         {item.owner}
                       </span>
-                      <span className="stat-mono text-micro text-ink-700">#{item.priority}</span>
+                      <span className="stat-mono text-micro text-ink-500">#{item.priority}</span>
                       <span className="stat-mono text-micro text-ink-600">
                         {item.kind === "signature" && item.consult
                           ? relativeDays(item.consult.startedAt)
@@ -617,7 +617,7 @@ export function TodayQueue({ coachId = ME_COACH }: { coachId?: string }) {
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card border-optimal/25 bg-optimal/5 p-4 text-center"
+          className="card relative overflow-hidden border-optimal/25 bg-optimal/5 p-4 text-center"
         >
           <p className="font-display text-body font-semibold text-optimal">Queue cleared</p>
           <p className="mt-1 text-detail text-ink-400">

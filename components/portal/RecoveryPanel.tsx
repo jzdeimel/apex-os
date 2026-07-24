@@ -63,7 +63,7 @@ export function RecoveryPanel({ clientId }: { clientId: string }) {
   if (recoveryRx.length === 0 && !onRecoveryTrack) return null;
 
   const band =
-    readiness == null ? null : readiness >= 75 ? { label: "Recovered — push", tone: "text-emerald", ring: "#34d399" } : readiness >= 50 ? { label: "Moderate — train smart", tone: "text-gold-300", ring: "#e0bd6e" } : { label: "Under-recovered — ease off", tone: "text-high", ring: "#f87171" };
+    readiness == null ? null : readiness >= 75 ? { label: "Recovered — push", tone: "text-emerald", ring: "var(--c-optimal)" } : readiness >= 50 ? { label: "Moderate — train smart", tone: "text-gold-300", ring: "var(--c-watch)" } : { label: "Under-recovered — ease off", tone: "text-high", ring: "var(--c-high)" };
 
   return (
     <section className="rounded-panel border border-ink-700/70 bg-ink-850/60">
@@ -125,7 +125,7 @@ function ReadinessRing({ value, color, hydrated }: { value: number | null; color
   const circ = 2 * Math.PI * r;
   return (
     <svg width="72" height="72" viewBox="0 0 72 72" className="shrink-0">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="#23272d" strokeWidth="6" />
+      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--chart-grid)" strokeWidth="6" />
       {hydrated && value != null && (
         <motion.circle
           cx="36"
@@ -141,7 +141,7 @@ function ReadinessRing({ value, color, hydrated }: { value: number | null; color
           transition={{ duration: 0.8, ease: "easeOut" }}
         />
       )}
-      <text x="36" y="40" textAnchor="middle" className="stat-mono" fontSize="15" fill="#e7e9ec">
+      <text x="36" y="40" textAnchor="middle" className="stat-mono" fontSize="15" fill="var(--chart-tooltip-text)">
         {hydrated && value != null ? value : "—"}
       </text>
     </svg>

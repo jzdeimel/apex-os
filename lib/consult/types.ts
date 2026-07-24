@@ -1,7 +1,7 @@
 import type { Goal, Symptom } from "@/lib/types";
 
 /**
- * Consults — the record of a coach or provider actually talking to a member.
+ * Consults — the longitudinal record that supports the coach-led relationship.
  *
  * The design rule that everything else follows from: **the coach's raw typing
  * is never thrown away.** AI produces a summary, the coach edits it, the coach
@@ -20,6 +20,11 @@ export type ConsultKind =
   | "Coach consult"
   | "Check-in"
   | "Intake"
+  | "Medical visit"
+  | "Medical follow-up"
+  | "Medical telehealth"
+  | "Medical chart review"
+  /** Historical import value. New Medical notes use the explicit Medical kinds above. */
   | "Provider visit"
   | "Follow-up"
   | "Telehealth";
@@ -32,7 +37,28 @@ export type ConsultStatus =
   /** Human reviewed and signed. Immutable from here — corrections are addenda. */
   | "Signed";
 
-export type ConsultChannel = "In person" | "Phone" | "Video" | "Messaging";
+export type ConsultChannel =
+  | "In person"
+  | "Phone"
+  | "Video"
+  | "Messaging"
+  | "Chart review"
+  /** Honest historical value when Alpha did not record a contact method. */
+  | "Unspecified legacy";
+
+/**
+ * The clinician-authored record of a Medical encounter.
+ *
+ * These fields are not inferred from the AI summary. They are written by the
+ * clinician, autosaved with the working narrative, and locked by the same
+ * signature as the rest of the consult.
+ */
+export interface ClinicalNoteFields {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
 
 /** A single AI-extracted structured field, each traceable to its source text. */
 export interface ExtractedItem {
@@ -93,7 +119,7 @@ export interface ConsultAddendum {
 export interface Consult {
   id: string;
   clientId: string;
-  /** Coach or provider who ran the consult. */
+  /** Coach who met with the member, or Medical author of a clinical encounter/review. */
   authorId: string;
   kind: ConsultKind;
   channel: ConsultChannel;
@@ -105,6 +131,9 @@ export interface Consult {
 
   /** Immutable. The coach's own words, exactly as typed. */
   rawNotes: string;
+
+  /** Authored SOAP fields for Medical notes. Never synthesized by the AI. */
+  clinicalNote?: ClinicalNoteFields;
 
   /** What the model produced. Null until summarization runs. */
   aiSummary?: ConsultSummary;

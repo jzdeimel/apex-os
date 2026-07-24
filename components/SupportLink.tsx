@@ -43,7 +43,7 @@ export function SupportLink({ compact = false }: { compact?: boolean }) {
     "Sent from Apex. The lines below help us reproduce it.",
     `Page:   ${pathname}`,
     `Portal: ${portal.label}`,
-    "Build:  Apex demo",
+    "Build:  Apex nonproduction",
     "",
     "If it is visual, a screenshot helps more than anything else.",
   ].join("\n");

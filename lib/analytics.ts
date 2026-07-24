@@ -102,12 +102,12 @@ export function analyticsFor(locationFilter: LocationId | "all") {
 
   // Stacked revenue-by-service over the last 6 months.
   const serviceKeys = [
-    { key: "weight", label: "Weight mgmt", color: "#e93d3d", weight: 0.3 },
-    { key: "hormone", label: "Hormone", color: "#34d399", weight: 0.24 },
-    { key: "peptides", label: "Peptides", color: "#60a5fa", weight: 0.18 },
-    { key: "diagnostics", label: "Diagnostics", color: "#a78bfa", weight: 0.12 },
-    { key: "iv", label: "IV / NAD+", color: "#2dd4bf", weight: 0.1 },
-    { key: "aesthetics", label: "Aesthetics", color: "#e0bd6e", weight: 0.06 },
+    { key: "weight", label: "Weight mgmt", color: "var(--chart-brand)", weight: 0.3 },
+    { key: "hormone", label: "Hormone", color: "var(--c-optimal)", weight: 0.24 },
+    { key: "peptides", label: "Peptides", color: "var(--c-low)", weight: 0.18 },
+    { key: "diagnostics", label: "Diagnostics", color: "var(--chart-series-4)", weight: 0.12 },
+    { key: "iv", label: "IV / NAD+", color: "var(--chart-series-6)", weight: 0.1 },
+    { key: "aesthetics", label: "Aesthetics", color: "var(--c-watch)", weight: 0.06 },
   ];
   const revByServiceTrend = months.map((m, i) => {
     const t = i / (months.length - 1);

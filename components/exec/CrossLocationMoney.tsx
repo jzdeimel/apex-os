@@ -18,10 +18,10 @@ import { currency, cn } from "@/lib/utils";
  */
 
 const SIGNAL: Record<MoneySignal, { label: string; cls: string; bar: string }> = {
-  leading: { label: "Leading", cls: "text-emerald border-emerald/30 bg-emerald/5", bar: "#34d399" },
-  steady: { label: "Steady", cls: "text-sky-300 border-sky-400/30 bg-sky-400/5", bar: "#60a5fa" },
-  watch: { label: "Watch", cls: "text-gold-300 border-gold-400/30 bg-gold-400/5", bar: "#e0bd6e" },
-  "at-risk": { label: "At risk", cls: "text-high border-high/40 bg-high/10", bar: "#f87171" },
+  leading: { label: "Leading", cls: "text-emerald border-emerald/30 bg-emerald/5", bar: "var(--c-optimal)" },
+  steady: { label: "Steady", cls: "text-low border-low/30 bg-low/5", bar: "var(--c-low)" },
+  watch: { label: "Watch", cls: "text-gold-300 border-gold-400/30 bg-gold-400/5", bar: "var(--c-watch)" },
+  "at-risk": { label: "At risk", cls: "text-high border-high/40 bg-high/10", bar: "var(--c-high)" },
 };
 
 export function CrossLocationMoney() {

@@ -31,12 +31,12 @@ export interface SwarmAgentDef {
 }
 
 export const AGENTS: SwarmAgentDef[] = [
-  { id: "scout", name: "Scout", role: "Lead Intake", icon: "Radar", color: "#e93d3d" },
-  { id: "concierge", name: "Concierge", role: "Scheduling", icon: "CalendarClock", color: "#60a5fa" },
-  { id: "phlebo", name: "Phlebo", role: "Lab Orchestration", icon: "FlaskConical", color: "#a78bfa" },
-  { id: "clio", name: "Clio", role: "Clinical AI", icon: "Brain", color: "#34d399" },
+  { id: "scout", name: "Scout", role: "Lead Intake", icon: "Radar", color: "var(--chart-brand)" },
+  { id: "concierge", name: "Concierge", role: "Scheduling", icon: "CalendarClock", color: "var(--c-low)" },
+  { id: "phlebo", name: "Phlebo", role: "Lab Orchestration", icon: "FlaskConical", color: "var(--chart-series-4)" },
+  { id: "clio", name: "Clio", role: "Clinical AI", icon: "Brain", color: "var(--c-optimal)" },
   { id: "sentinel", name: "Sentinel", role: "Compliance & Safety", icon: "ShieldCheck", color: "#f59e0b" },
-  { id: "coach", name: "Coach", role: "Client Engagement", icon: "MessageSquare", color: "#2dd4bf" },
+  { id: "coach", name: "Coach", role: "Client Engagement", icon: "MessageSquare", color: "var(--chart-series-6)" },
   { id: "quartermaster", name: "Quartermaster", role: "Supply Chain", icon: "Boxes", color: "#fb923c" },
   { id: "ledger", name: "Ledger", role: "Billing & Membership", icon: "Receipt", color: "#818cf8" },
   { id: "atlas", name: "Atlas", role: "Analytics", icon: "BarChart3", color: "#38bdf8" },
@@ -67,7 +67,7 @@ export const WORKFLOWS: WorkflowDef[] = [
     id: "onboarding",
     name: "New Patient Onboarding",
     trigger: "Lead created",
-    color: "#e93d3d",
+    color: "var(--chart-brand)",
     steps: [
       { label: "Capture & enrich lead", agent: "scout", ticks: 2 },
       { label: "Book initial consult", agent: "concierge", ticks: 2 },
@@ -83,7 +83,7 @@ export const WORKFLOWS: WorkflowDef[] = [
     id: "resultsPlan",
     name: "Results → Plan",
     trigger: "Results ready",
-    color: "#a78bfa",
+    color: "var(--chart-series-4)",
     steps: [
       { label: "Verify resulted panel", agent: "phlebo", ticks: 2 },
       { label: "Generate recommendations", agent: "clio", ticks: 3 },
@@ -133,7 +133,7 @@ export const WORKFLOWS: WorkflowDef[] = [
     id: "refill",
     name: "Refill Check-in",
     trigger: "Protocol day 25 of 30",
-    color: "#2dd4bf",
+    color: "var(--chart-series-6)",
     steps: [
       { label: "Send check-in", agent: "coach", ticks: 2 },
       { label: "Re-order follow-up labs", agent: "phlebo", ticks: 2 },

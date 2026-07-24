@@ -26,15 +26,16 @@ import {
   GOAL_OPTIONS,
   SYMPTOM_OPTIONS,
   consentTextHash,
-  makeConsentRecord,
-  NOW,
-} from "@/lib/mock/intake";
+} from "@/lib/intake/content";
 import { JOURNEY, BRAND } from "@/lib/brand";
-import { locationMap } from "@/lib/mock/locations";
 import { shortHash } from "@/lib/trace/hash";
 import { Button, Input, Textarea, Badge, Progress } from "@/components/ui/primitives";
 import { SwitchView, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
+import {
+  CURRENT_FORM_VERSION,
+  validateSubmission,
+} from "@/lib/intake/formDefinition";
 
 /**
  * The intake wizard.
@@ -52,9 +53,9 @@ import { cn } from "@/lib/utils";
  *  3. CONSENTS ARE FOUR SEPARATE CHECKBOXES. Marketing has its own box, its own
  *     record, and no bearing on whether you can submit. See lib/intake/types.ts.
  *
- * Demo-shaped, not live: `onFinish` writes nothing and calls nothing. The finish
- * screen renders exactly what WOULD be created, including the ledger draft, so
- * the mechanism is legible without any of it being real.
+ * Submission is durable: the public intake API atomically consumes the invite,
+ * stores the versioned answers and signature evidence, advances the lead, and
+ * appends the audit record. The raw invite token stays only in browser memory.
  */
 
 const STEPS: { id: IntakeStepId; label: string; short: string; icon: React.ElementType }[] = [
@@ -67,6 +68,16 @@ const STEPS: { id: IntakeStepId; label: string; short: string; icon: React.Eleme
 ];
 
 const REQUIRED_CONSENTS = CONSENT_DEFINITIONS.filter((c) => c.required).map((c) => c.kind);
+
+type ConsentReceipt = { kind: ConsentKind; granted: boolean };
+
+function locationLabel(id: string) {
+  return id
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 function emptyAnswers(invite: IntakeInvite): IntakeAnswers {
   return {
@@ -83,12 +94,35 @@ function emptyAnswers(invite: IntakeInvite): IntakeAnswers {
       conditions: "",
       medications: [{ name: "", dose: "" }],
       allergies: "",
-      usesTobacco: false,
-      priorHormoneTherapy: false,
-      familyCardiacHistory: false,
-      ...(invite.prefill.track === "female" ? { pregnantOrTrying: false } : {}),
+      missingOrgans: "",
+      surgeries: null,
+      cancerHistory: null,
+      cancerDetail: "",
+      familyCancerHistory: "",
+      usesTobacco: null,
+      priorHormoneTherapy: null,
+      familyCardiacHistory: "",
+      ...(invite.prefill.track === "female" ? { pregnantOrTrying: null } : {}),
     },
     consents: [],
+  };
+}
+
+/** The versioned answer envelope stored against the published question set. */
+function versionedAnswers(answers: IntakeAnswers): Record<string, unknown> {
+  return {
+    allergies: answers.history.allergies,
+    "missing-organs": answers.history.missingOrgans,
+    "surgical-history": answers.history.surgeries ?? undefined,
+    "major-diseases": answers.history.conditions,
+    "cancer-history": answers.history.cancerHistory ?? undefined,
+    "cancer-detail": answers.history.cancerDetail,
+    "family-cancer-history": answers.history.familyCancerHistory,
+    medications: answers.history.medications.filter((medication) => medication.name.trim()),
+    "prior-hormone-therapy": answers.history.priorHormoneTherapy ?? undefined,
+    tobacco: answers.history.usesTobacco ?? undefined,
+    "family-cardiac-history": answers.history.familyCardiacHistory,
+    "pregnant-or-trying": answers.history.pregnantOrTrying ?? undefined,
   };
 }
 
@@ -162,7 +196,7 @@ function YesNo({
 }: {
   label: string;
   detail?: string;
-  value: boolean;
+  value: boolean | null;
   onChange: (v: boolean) => void;
 }) {
   return (
@@ -207,6 +241,9 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
     marketing: false,
   });
   const [submitted, setSubmitted] = React.useState(false);
+  const [signatureName, setSignatureName] = React.useState("");
+  const [electronicConsentGiven, setElectronicConsentGiven] = React.useState(false);
+  const [attestedRead, setAttestedRead] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [sendError, setSendError] = React.useState<string | null>(null);
   const [receipt, setReceipt] = React.useState<{ submissionId: string; ledgerId: string } | null>(
@@ -228,6 +265,10 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
    * product could tell.
    */
   const doSubmit = async () => {
+    if (!signatureName.trim() || !electronicConsentGiven || !attestedRead) {
+      setSendError("Type your signature and confirm both signing statements.");
+      return;
+    }
     setSending(true);
     setSendError(null);
     try {
@@ -241,7 +282,11 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
           goals: answers.goals,
           symptoms: answers.symptoms,
           history: answers.history,
-          signatureName: `${answers.firstName ?? ""} ${answers.lastName ?? ""}`.trim() || "Patient",
+          answers: versionedAnswers(answers),
+          formVersion: CURRENT_FORM_VERSION.version,
+          signatureName: signatureName.trim(),
+          electronicConsentGiven,
+          attestedRead,
           consents: CONSENT_DEFINITIONS.map((d) => ({
             scope: d.kind,
             documentVersion: d.version,
@@ -308,6 +353,14 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
         return null;
       case "goals":
         return answers.goals.length === 0 ? "Pick at least one — this shapes everything after." : null;
+      case "history": {
+        const problems = validateSubmission(
+          CURRENT_FORM_VERSION,
+          versionedAnswers(answers),
+          answers.sex,
+        );
+        return problems[0]?.message ?? null;
+      }
       case "consents": {
         const missing = REQUIRED_CONSENTS.filter((k) => !consentState[k]);
         return missing.length ? "Please review and accept the required items above." : null;
@@ -327,19 +380,19 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const location = locationMap[answers.locationId];
+  const selectedLocationLabel = locationLabel(answers.locationId);
 
   // -------------------------------------------------------------------------
   // Finished
   // -------------------------------------------------------------------------
   if (submitted) {
-    const records = CONSENT_DEFINITIONS.map((d) =>
-      makeConsentRecord(d.kind, consentState[d.kind], NOW),
-    );
+    const records: ConsentReceipt[] = CONSENT_DEFINITIONS.map((definition) => ({
+      kind: definition.kind,
+      granted: consentState[definition.kind],
+    }));
     return (
       <SubmittedPanel
         answers={answers}
-        invite={invite}
         consentRecords={records}
         receipt={receipt}
       />
@@ -532,7 +585,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                 <div className="space-y-4">
                   <Field
                     label="Conditions you've been diagnosed with"
-                    hint="Plain language is fine. Nothing here is coded or billed."
+                    hint="Major diseases and illnesses count. If none, say none."
                   >
                     <Textarea
                       rows={3}
@@ -541,6 +594,112 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                       placeholder="e.g. high blood pressure, sleep apnea, hypothyroidism"
                     />
                   </Field>
+
+                  <Field
+                    label="Organs you have had removed"
+                    hint="Gallbladder, appendix, thyroid, spleen, kidney, uterus, ovaries, testicle — or none."
+                  >
+                    <Textarea
+                      rows={2}
+                      value={answers.history.missingOrgans}
+                      onChange={(e) => setHistory("missingOrgans", e.target.value)}
+                      placeholder="List the organ and approximate year, or 'none'"
+                    />
+                  </Field>
+
+                  <div>
+                    <span className="mb-1.5 block text-body font-medium text-ink-200">
+                      Surgical history
+                    </span>
+                    {answers.history.surgeries === null ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setHistory("surgeries", [])}>
+                          I have had no surgeries
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistory("surgeries", [{ procedure: "", year: "", notes: "" }])}
+                        >
+                          + Add a surgery
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {answers.history.surgeries.length === 0 && (
+                          <p className="text-detail text-ink-500">No surgeries reported.</p>
+                        )}
+                        {answers.history.surgeries.map((surgery, i) => (
+                          <div key={i} className="rounded-xl border border-ink-700 p-3">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr_1fr]">
+                              <Input
+                                value={surgery.procedure}
+                                placeholder="Procedure"
+                                onChange={(e) =>
+                                  setHistory(
+                                    "surgeries",
+                                    answers.history.surgeries!.map((item, j) =>
+                                      j === i ? { ...item, procedure: e.target.value } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                              <Input
+                                value={surgery.year}
+                                placeholder="Approx. year"
+                                onChange={(e) =>
+                                  setHistory(
+                                    "surgeries",
+                                    answers.history.surgeries!.map((item, j) =>
+                                      j === i ? { ...item, year: e.target.value } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                            </div>
+                            <Input
+                              className="mt-2"
+                              value={surgery.notes}
+                              placeholder="Anything we should know (optional)"
+                              onChange={(e) =>
+                                setHistory(
+                                  "surgeries",
+                                  answers.history.surgeries!.map((item, j) =>
+                                    j === i ? { ...item, notes: e.target.value } : item,
+                                  ),
+                                )
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() =>
+                                setHistory(
+                                  "surgeries",
+                                  answers.history.surgeries!.filter((_, j) => j !== i),
+                                )
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setHistory("surgeries", [
+                              ...answers.history.surgeries!,
+                              { procedure: "", year: "", notes: "" },
+                            ])
+                          }
+                        >
+                          + Add another surgery
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
                   <div>
                     <span className="mb-1.5 block text-body font-medium text-ink-200">
@@ -599,6 +758,31 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                     />
                   </Field>
 
+                  <YesNo
+                    label="Have you ever been diagnosed with cancer?"
+                    detail="Any type, at any age, including cancers treated and resolved."
+                    value={answers.history.cancerHistory}
+                    onChange={(v) => setHistory("cancerHistory", v)}
+                  />
+                  {answers.history.cancerHistory === true && (
+                    <Field label="Tell us about the cancer diagnosis">
+                      <Textarea
+                        rows={2}
+                        value={answers.history.cancerDetail}
+                        onChange={(e) => setHistory("cancerDetail", e.target.value)}
+                        placeholder="Type, roughly when, and how it was treated"
+                      />
+                    </Field>
+                  )}
+                  <Field label="Cancer in your immediate family" hint="Parents, siblings, or children. If none, say none.">
+                    <Textarea
+                      rows={2}
+                      value={answers.history.familyCancerHistory}
+                      onChange={(e) => setHistory("familyCancerHistory", e.target.value)}
+                      placeholder="Relative, cancer type, and approximate age — or 'none'"
+                    />
+                  </Field>
+
                   <div className="space-y-2.5">
                     <YesNo
                       label="Do you use tobacco or nicotine?"
@@ -612,11 +796,14 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                       value={answers.history.priorHormoneTherapy}
                       onChange={(v) => setHistory("priorHormoneTherapy", v)}
                     />
-                    <YesNo
-                      label="Heart attack, stroke or clot in a close relative before 60?"
-                      value={answers.history.familyCardiacHistory}
-                      onChange={(v) => setHistory("familyCardiacHistory", v)}
-                    />
+                    <Field label="Heart disease or early cardiac death in your family">
+                      <Textarea
+                        rows={2}
+                        value={answers.history.familyCardiacHistory}
+                        onChange={(e) => setHistory("familyCardiacHistory", e.target.value)}
+                        placeholder="Who and what happened — or 'none'"
+                      />
+                    </Field>
                     {/* Asked on the women's track only. A question that cannot
                         apply should not be rendered and quietly ignored — an
                         answered-then-discarded field is worse than no field. */}
@@ -715,7 +902,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                     </p>
                     <p className="mt-1 text-detail text-ink-500">
                       {answers.sex === "female" ? "Women's health" : "Men's health"} ·{" "}
-                      {location?.name ?? answers.locationId}
+                      {selectedLocationLabel}
                     </p>
                   </ReviewBlock>
 
@@ -770,6 +957,35 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                         </li>
                       ))}
                     </ul>
+                  </ReviewBlock>
+
+                  <ReviewBlock label="Electronic signature">
+                    <Field label="Type your full legal name">
+                      <Input
+                        value={signatureName}
+                        onChange={(event) => setSignatureName(event.target.value)}
+                        autoComplete="name"
+                        placeholder={`${answers.firstName} ${answers.lastName}`.trim()}
+                      />
+                    </Field>
+                    <label className="mt-3 flex items-start gap-3 text-body text-ink-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-gold-500"
+                        checked={attestedRead}
+                        onChange={(event) => setAttestedRead(event.target.checked)}
+                      />
+                      <span>I confirm that I reviewed the answers and documents above.</span>
+                    </label>
+                    <label className="mt-3 flex items-start gap-3 text-body text-ink-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-gold-500"
+                        checked={electronicConsentGiven}
+                        onChange={(event) => setElectronicConsentGiven(event.target.checked)}
+                      />
+                      <span>I agree to use this typed name as my electronic signature.</span>
+                    </label>
                   </ReviewBlock>
                 </div>
 
@@ -878,26 +1094,16 @@ function TagList({ items, empty }: { items: string[]; empty: string }) {
 // ---------------------------------------------------------------------------
 
 /**
- * The finish screen does double duty.
- *
- * For the member it is the "what happens next" they actually need — the clinic's
- * own four-step journey, in the clinic's own words, so the language on this page
- * matches the language on the phone call they get tomorrow.
- *
- * For anyone evaluating Apex it is the receipt: the records that would be
- * created and the exact ledger row that would be appended. Showing the write
- * rather than performing it keeps the demo deterministic and keeps this page
- * honest about being a demo.
+ * The finish screen reports only facts returned by the durable submission. It
+ * does not preview client rows, tasks, or audit data that were not committed.
  */
 function SubmittedPanel({
   answers,
-  invite,
   consentRecords,
   receipt,
 }: {
   answers: IntakeAnswers;
-  invite: IntakeInvite;
-  consentRecords: ReturnType<typeof makeConsentRecord>[];
+  consentRecords: ConsentReceipt[];
   /** Server-issued proof of what was actually written. Null only pre-submit. */
   receipt: { submissionId: string; ledgerId: string } | null;
 }) {
@@ -906,28 +1112,6 @@ function SubmittedPanel({
   // The server's receipt. When present these are FACTS about rows that exist in
   // Postgres — not a preview of a write we chose not to perform.
   const durable = receipt !== null;
-
-  // The draft that would go to appendLedger() in lib/trace/ledger.ts. Built, not
-  // committed — a demo page that mutates the audit chain on render is a demo
-  // page that produces a different chain on every reload.
-  const ledgerDraft = {
-    actorId: "public-intake",
-    actorName: `${answers.firstName} ${answers.lastName}`,
-    actorRole: "Client",
-    action: "sign" as const,
-    entity: "consent" as const,
-    entityId: `int-${invite.id}`,
-    subjectName: `${answers.firstName} ${answers.lastName}`,
-    locationId: answers.locationId,
-    reason: "Public intake submitted via tokenised link",
-    after: {
-      consentsGranted: granted,
-      consentsTotal: consentRecords.length,
-      marketing: consentRecords.find((c) => c.kind === "marketing")?.granted ?? false,
-      goals: answers.goals.length,
-      symptoms: answers.symptoms.length,
-    },
-  };
 
   return (
     <FadeIn>
@@ -989,7 +1173,7 @@ function SubmittedPanel({
         {/* The receipt. Real ids when the server accepted the submission. */}
         {durable && (
           <div className="mt-5 rounded-xl border border-optimal/40 bg-optimal/10 p-4">
-            <p className="text-body font-medium text-optimal">Recorded to your chart</p>
+            <p className="text-body font-medium text-optimal">Intake recorded securely</p>
             <p className="stat-mono mt-1 text-detail text-ink-300">
               Submission {receipt!.submissionId}
               {receipt!.ledgerId ? ` · ledger ${receipt!.ledgerId}` : ""}
@@ -1001,7 +1185,7 @@ function SubmittedPanel({
           </div>
         )}
 
-        <div className="mt-7 rounded-xl border border-dashed border-ink-700 bg-ink-900/40 p-4">
+        <div className="mt-7 rounded-xl border border-ink-700 bg-ink-900/40 p-4">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gold-300" />
             <p className="text-body font-medium text-ink-100">
@@ -1011,36 +1195,20 @@ function SubmittedPanel({
 
           <ul className="mt-3 space-y-1.5 text-body text-ink-300">
             <li>
-              · One <span className="text-ink-100">Client</span> record at status{" "}
-              <span className="text-ink-100">Consult Booked</span>, with{" "}
+              · Your intake submission includes{" "}
               {answers.goals.length} goal{answers.goals.length === 1 ? "" : "s"} and{" "}
-              {answers.symptoms.length} symptom{answers.symptoms.length === 1 ? "" : "s"}{" "}
-              already populated — no re-keying.
+              {answers.symptoms.length} symptom{answers.symptoms.length === 1 ? "" : "s"}.
             </li>
             <li>
               · {consentRecords.length} separate{" "}
-              <span className="text-ink-100">ConsentRecord</span> rows ({granted} granted),
+              <span className="text-ink-100">consent decisions</span> ({granted} granted),
               each pinned to its own text version and hash.
             </li>
             <li>
-              · One <span className="text-ink-100">Task</span> for the location's coach:
-              call to schedule the free consultation.
-            </li>
-            <li>
-              · Intake link <span className="stat-mono text-ink-100">{invite.shortCode}</span>{" "}
-              marked used. Single-use — the link is now dead.
+              · The lead moved to <span className="text-ink-100">intake submitted</span>,
+              and this single-use link is now spent.
             </li>
           </ul>
-
-          <p className="label-eyebrow mt-4 mb-2">Ledger row appended</p>
-          <pre className="stat-mono overflow-x-auto rounded-lg border border-ink-700/70 bg-ink-950/70 p-3 text-micro leading-relaxed text-ink-300">
-{JSON.stringify(ledgerDraft, null, 2)}
-          </pre>
-          <p className="mt-2 text-detail leading-relaxed text-ink-500">
-            Note the action is <span className="text-ink-300">sign</span> and the entity is{" "}
-            <span className="text-ink-300">consent</span>. A signature that leaves no
-            hash-chained trace is a signature you cannot defend two years later.
-          </p>
         </div>
       </div>
     </FadeIn>

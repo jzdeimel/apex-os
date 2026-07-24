@@ -42,7 +42,7 @@ function seeded(seed: string) {
   };
 }
 
-export function AmbientField({ accent = "#e93d3d" }: { accent?: string }) {
+export function AmbientField({ accent = "var(--chart-brand)" }: { accent?: string }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {

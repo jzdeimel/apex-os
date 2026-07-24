@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { PackageCheck, Truck, Store, AlertTriangle, Clock, Check } from "lucide-react";
 import type { Client } from "@/lib/types";
 import {
@@ -148,6 +149,8 @@ export function RefillRunway({ client }: { client: Client }) {
       <div className="grid grid-cols-1 gap-4">
         {runway.lines.map((line) => {
           const asked = requested.includes(line.subscriptionId);
+          const level = fillPct(line);
+          const MarkerIcon = line.shipping === "ship" ? Truck : Store;
           return (
             <Card key={line.subscriptionId}>
               <CardContent className="p-5 sm:p-6">
@@ -174,7 +177,20 @@ export function RefillRunway({ client }: { client: Client }) {
                   {line.memberLine}
                 </p>
 
-                <Progress value={fillPct(line)} tone={BAR_TONE[line.status]} className="mt-3" />
+                <div className="relative mt-3 pb-5">
+                  <Progress value={level} tone={BAR_TONE[line.status]} />
+                  <motion.div
+                    aria-hidden
+                    className="pointer-events-none absolute left-0 top-2 flex h-4 min-w-4 items-center justify-end"
+                    initial={false}
+                    animate={{ width: `${level}%` }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <span className="grid h-5 w-5 translate-x-1/2 place-items-center rounded-full border border-ink-700 bg-ink-950 shadow-sm">
+                      <MarkerIcon className="h-3 w-3 text-ink-300" />
+                    </span>
+                  </motion.div>
+                </div>
 
                 <p className="mt-3 max-w-prose text-body leading-relaxed text-ink-300">
                   {line.automatic}

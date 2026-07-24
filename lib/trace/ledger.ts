@@ -31,19 +31,49 @@ export type LedgerAction =
   | "decline"
   | "deny"
   | "export"
+  | "archive"
+  | "deliver"
   | "login"
   | "break-glass";
 
 export type LedgerEntity =
   | "chart"
   | "lab"
+  | "lab-order"
+  | "lab-result"
+  | "adverse-event"
   | "note"
   | "recommendation"
   | "protocol"
+  | "membership"
+  | "invoice"
+  | "payment"
+  | "inventory-lot"
+  | "inventory-movement"
+  | "inventory-recall"
+  | "dispense"
   | "order"
   | "consent"
+  | "lead"
+  | "lead-note"
+  | "lead-task"
+  | "operational-case"
+  | "document"
   | "session"
-  | "rule-set";
+  | "message"
+  | "appointment"
+  | "clinic-resource"
+  | "resource-reservation"
+  | "calendar"
+  | "rule-set"
+  | "community"
+  /**
+   * A feature flag change. Distinct from "rule-set", which versions CLINICAL
+   * rules — this is configuration that changes what the clinic can see and do.
+   * It earns a ledger entity because turning a surface off changes what gets
+   * recorded, and a change to what gets recorded must itself be recorded.
+   */
+  | "feature-flag";
 
 export interface LedgerPayload {
   seq: number;

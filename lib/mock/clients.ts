@@ -13,14 +13,14 @@ import { seededRandom , absolute } from "@/lib/utils";
 
 // Monogram palette (gold + clinical accents)
 const C = {
-  gold: "#e93d3d",
-  emerald: "#34d399",
-  blue: "#60a5fa",
-  slate: "#94a1a6",
-  rose: "#f87171",
-  violet: "#a78bfa",
-  amber: "#e0bd6e",
-  teal: "#2dd4bf",
+  gold: "var(--chart-brand)",
+  emerald: "var(--c-optimal)",
+  blue: "var(--c-low)",
+  slate: "var(--chart-axis)",
+  rose: "var(--c-high)",
+  violet: "var(--chart-series-4)",
+  amber: "var(--c-watch)",
+  teal: "var(--chart-series-6)",
 };
 
 const heroClients: Client[] = [

@@ -13,13 +13,14 @@ import {
   Check,
   RotateCcw,
 } from "lucide-react";
-import type { ConsultSummary, ExtractedItem } from "@/lib/consult/types";
+import type {
+  ClinicalNoteFields,
+  ConsultChannel,
+  ConsultKind,
+  ConsultSummary,
+  ExtractedItem,
+} from "@/lib/consult/types";
 import { summarizeConsult, stampFor, findingCount, ENGINE_VERSION } from "@/lib/consult/summarize";
-import { appendLedger } from "@/lib/trace/ledger";
-import { getClient, clientName } from "@/lib/mock/clients";
-import { staffName } from "@/lib/mock/staff";
-import { raiseEscalation, SLA_HOURS } from "@/lib/escalations/queue";
-import { commitEscalation } from "@/lib/mock/escalations";
 import { NOTE_TEMPLATE_SAMPLES } from "@/lib/mock/consults";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Card } from "@/components/ui/primitives";
@@ -36,13 +37,35 @@ const NOW = "2026-06-12T09:00:00";
 
 const DEBOUNCE_MS = 450;
 
-const PLACEHOLDER = `type the way you actually type — this is not a form
+const COACH_PLACEHOLDER = `type the way you actually type — this is not a form
 
 weighed in at 214, down 3.2 from last month
 energy better in the mornings, still crashes ~3pm
 sleep is the problem, waking 2-3x
 asked about a peptide for sleep — flagging for the provider
 rebook 4 weeks`;
+
+const MEDICAL_PLACEHOLDER = `document the visit narrative, clinically relevant context,
+decisions made, and anything the coach needs to communicate or follow up on`;
+
+const MEDICAL_SAMPLE = `Reviewed the member's recent labs and coach consult.
+No urgent contraindication identified in the available record.
+Continue the current plan pending repeat labs in 6 weeks.
+Coach to review adherence, expected monitoring, and follow-up timing with the member.`;
+
+const EMPTY_CLINICAL_NOTE: ClinicalNoteFields = {
+  subjective: "",
+  objective: "",
+  assessment: "",
+  plan: "",
+};
+
+const MEDICAL_SAMPLE_NOTE: ClinicalNoteFields = {
+  subjective: "Member reports improved morning energy. Sleep remains interrupted two to three times nightly. No new adverse effects reported.",
+  objective: "Recent laboratory panel and active medication list reviewed. Vitals and examination findings documented for this encounter.",
+  assessment: "Clinical response is improving. Sleep disruption remains the primary unresolved concern; no urgent contraindication identified in the available record.",
+  plan: "Continue the current plan, repeat indicated labs in six weeks, and route adherence and monitoring instructions to the coach for client follow-up.",
+};
 
 /** Slower than the summarizer: the summary is local and free, a PUT is neither. */
 const SAVE_DEBOUNCE_MS = 1200;
@@ -78,16 +101,23 @@ export function ConsultComposer({
   onSigned,
 }: {
   clientId: string;
-  onSigned?: (raw: string) => void;
+  onSigned?: (consultId: string) => void;
 }) {
   const { toast } = useToast();
 
   const [raw, setRaw] = React.useState("");
+  const [kind, setKind] = React.useState<ConsultKind>("Coach consult");
+  const [channel, setChannel] = React.useState<ConsultChannel>("In person");
+  const [allowedKinds, setAllowedKinds] = React.useState<ConsultKind[]>(["Coach consult"]);
+  const [allowedChannels, setAllowedChannels] = React.useState<ConsultChannel[]>(["In person"]);
+  const [authorRole, setAuthorRole] = React.useState<"Coach" | "Medical" | null>(null);
+  const [clinicalNote, setClinicalNote] = React.useState<ClinicalNoteFields>(EMPTY_CLINICAL_NOTE);
   const [summary, setSummary] = React.useState<ConsultSummary | null>(null);
   const [summarizing, setSummarizing] = React.useState(false);
   const [hovered, setHovered] = React.useState<ExtractedItem | null>(null);
   const [done, setDone] = React.useState<Record<string, boolean>>({});
   const [escalated, setEscalated] = React.useState<Record<string, boolean>>({});
+  const [escalating, setEscalating] = React.useState<Record<string, boolean>>({});
   const [confirmSign, setConfirmSign] = React.useState(false);
   const [signed, setSigned] = React.useState(false);
   const [signing, setSigning] = React.useState(false);
@@ -99,6 +129,9 @@ export function ConsultComposer({
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedAt, setSavedAt] = React.useState<string | null>(null);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  // Incremented only by a human edit. Save-state changes must not retrigger the
+  // debounce, or a successful autosave becomes an endless save loop.
+  const [saveRevision, setSaveRevision] = React.useState(0);
 
   const textRef = React.useRef<HTMLTextAreaElement>(null);
   const highlightRef = React.useRef<HTMLDivElement>(null);
@@ -108,11 +141,17 @@ export function ConsultComposer({
   const inFlight = React.useRef(false);
   const dirtyAfterSave = React.useRef(false);
   const rawRef = React.useRef("");
+  const clinicalNoteRef = React.useRef<ClinicalNoteFields>(EMPTY_CLINICAL_NOTE);
   const summaryRef = React.useRef<ConsultSummary | null>(null);
+  const kindRef = React.useRef<ConsultKind>(kind);
+  const channelRef = React.useRef<ConsultChannel>(channel);
   React.useEffect(() => {
     rawRef.current = raw;
+    clinicalNoteRef.current = clinicalNote;
     summaryRef.current = summary;
-  }, [raw, summary]);
+    kindRef.current = kind;
+    channelRef.current = channel;
+  }, [raw, clinicalNote, summary, kind, channel]);
 
   // -- Restore -------------------------------------------------------------
   // Fetch the caller's server-side draft on mount. Never reads localStorage —
@@ -128,12 +167,28 @@ export function ConsultComposer({
         });
         const res = await r.json().catch(() => ({}));
         if (cancelled) return;
-        if (r.ok && res.ok && res.draft?.rawNotes) {
-          setRaw(res.draft.rawNotes);
-          setSummary(summarizeConsult(res.draft.rawNotes));
+        const kinds = Array.isArray(res.allowedKinds) ? res.allowedKinds as ConsultKind[] : [];
+        const channels = Array.isArray(res.allowedChannels) ? res.allowedChannels as ConsultChannel[] : [];
+        if (kinds.length > 0) setAllowedKinds(kinds);
+        if (channels.length > 0) setAllowedChannels(channels);
+        if (res.authorRole === "Coach" || res.authorRole === "Medical") {
+          setAuthorRole(res.authorRole);
+        }
+        if (r.ok && res.ok && res.draft) {
+          const restoredRaw = res.draft.rawNotes ?? "";
+          setRaw(restoredRaw);
+          setSummary(restoredRaw.trim() ? summarizeConsult(restoredRaw) : null);
+          const restoredClinicalNote = res.draft.clinicalNote ?? EMPTY_CLINICAL_NOTE;
+          setClinicalNote(restoredClinicalNote);
+          clinicalNoteRef.current = restoredClinicalNote;
+          setKind(res.draft.kind ?? res.suggestedKind ?? "Coach consult");
+          setChannel(res.draft.channel ?? res.suggestedChannel ?? "In person");
           setSavedAt(res.draft.updatedAt ?? null);
           setSaveStatus("saved");
           setRestored(true);
+        } else if (r.ok && res.ok && res.suggestedKind) {
+          setKind(res.suggestedKind);
+          setChannel(res.suggestedChannel ?? "In person");
         }
       } catch {
         // Offline / no DB — start empty. The "not saving" state below will show
@@ -179,7 +234,10 @@ export function ConsultComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId,
+          kind: kindRef.current,
+          channel: channelRef.current,
           rawNotes: rawRef.current,
+          clinicalNote: authorRole === "Medical" ? clinicalNoteRef.current : undefined,
           aiSummary: summaryRef.current ?? undefined,
         }),
       });
@@ -203,16 +261,15 @@ export function ConsultComposer({
         void persist();
       }
     }
-  }, [clientId]);
+  }, [clientId, authorRole]);
 
   React.useEffect(() => {
-    // Nothing to save while hydrating, after signing, or before the first
-    // keystroke against an empty draft.
-    if (hydrating || signed) return;
-    if (!raw && saveStatus === "idle") return;
+    // Only a human edit schedules an autosave. `saveStatus` is deliberately not
+    // a dependency: saving → saved is an outcome, not another change to persist.
+    if (hydrating || signed || saveRevision === 0) return;
     const t = window.setTimeout(() => void persist(), SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [raw, hydrating, signed, saveStatus, persist]);
+  }, [saveRevision, hydrating, signed, persist]);
 
   // Keep the highlight underlay scrolled in lockstep with the textarea, or the
   // highlight drifts off the word it is supposed to be marking.
@@ -224,24 +281,56 @@ export function ConsultComposer({
   }, []);
 
   const stamp = React.useMemo(() => (raw ? stampFor(raw, NOW) : null), [raw]);
+  const requiredClinicalSections: readonly (keyof ClinicalNoteFields)[] =
+    kind === "Medical chart review"
+      ? ["assessment", "plan"]
+      : ["subjective", "objective", "assessment", "plan"];
+  const medicalNoteComplete =
+    authorRole !== "Medical" ||
+    requiredClinicalSections.every((field) => clinicalNote[field].trim().length > 0);
+
+  function markDirty() {
+    setSaveStatus("idle");
+    setSaveError(null);
+    setSaveRevision((revision) => revision + 1);
+  }
+
+  function updateClinicalField(field: keyof ClinicalNoteFields, value: string) {
+    setClinicalNote((current) => {
+      const next = { ...current, [field]: value };
+      clinicalNoteRef.current = next;
+      return next;
+    });
+    markDirty();
+  }
 
   function loadSample() {
-    const sample = NOTE_TEMPLATE_SAMPLES[0];
+    const sample = authorRole === "Medical" ? MEDICAL_SAMPLE : NOTE_TEMPLATE_SAMPLES[0];
     setRaw(sample);
+    if (authorRole === "Medical") {
+      setClinicalNote(MEDICAL_SAMPLE_NOTE);
+      clinicalNoteRef.current = MEDICAL_SAMPLE_NOTE;
+    }
     setSummary(summarizeConsult(sample));
     setSummarizing(false);
     setRestored(false);
+    markDirty();
     textRef.current?.focus();
   }
 
   function clearDraft() {
     setRaw("");
+    setClinicalNote(EMPTY_CLINICAL_NOTE);
     setSummary(null);
     setRestored(false);
     setSigned(false);
+    rawRef.current = "";
+    clinicalNoteRef.current = EMPTY_CLINICAL_NOTE;
+    summaryRef.current = null;
     // Persist the cleared state so a navigate-away doesn't restore old notes.
     // Empty is a legitimate draft; the effect above will PUT rawNotes: "".
     setSaveStatus("saving");
+    setSaveRevision((revision) => revision + 1);
     void persist();
   }
 
@@ -267,10 +356,10 @@ export function ConsultComposer({
       const res = await r.json().catch(() => ({}));
       if (r.ok && res.ok) {
         setSigned(true);
-        toast("Consult signed", {
+        toast(authorRole === "Medical" ? "Medical note signed" : "Consult signed", {
           desc: `Immutable. Recorded durably as ${res.ledger.id} · ${shortHash(res.ledger.hash)}`,
         });
-        onSigned?.(raw);
+        onSigned?.(res.consultId);
       } else if (r.status === 409) {
         // No live draft on the server — usually because the autosave never
         // reached it. Say so plainly instead of forging a signature.
@@ -294,6 +383,43 @@ export function ConsultComposer({
     }
   }
 
+  async function escalateFinding(item: ExtractedItem, key: string) {
+    if (escalated[key] || escalating[key]) return;
+    setEscalating((current) => ({ ...current, [key]: true }));
+    try {
+      const response = await fetch("/api/messages/escalate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          kind: "Clinical question",
+          priority: "Prompt",
+          question: item.value,
+          memberQuote: item.sourceQuote,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        toast("Medical handoff failed", {
+          tone: "warn",
+          desc: body.error || `The server refused the escalation (HTTP ${response.status}).`,
+        });
+        return;
+      }
+      setEscalated((current) => ({ ...current, [key]: true }));
+      toast("In Medical's durable queue", {
+        desc: `Answer due ${formatDateTime(body.dueAt)} · ledger ${body.ledger.id} · ${shortHash(body.ledger.hash)}`,
+      });
+    } catch {
+      toast("Medical handoff failed", {
+        tone: "warn",
+        desc: "The escalation could not reach the server. Nothing was routed.",
+      });
+    } finally {
+      setEscalating((current) => ({ ...current, [key]: false }));
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* ================= LEFT: raw notes ================= */}
@@ -308,7 +434,7 @@ export function ConsultComposer({
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={loadSample}>
               <FileText className="h-3.5 w-3.5" />
-              Load a sample consult
+              {authorRole === "Medical" ? "Load a sample Medical note" : "Load a sample consult"}
             </Button>
             {raw && (
               <Button size="sm" variant="ghost" onClick={clearDraft} aria-label="Clear draft">
@@ -318,7 +444,114 @@ export function ConsultComposer({
           </div>
         </div>
 
+        <div className="border-b border-ink-800 bg-ink-950/25 px-4 py-3">
+          <div className="mb-3 rounded-lg border border-gold-500/25 bg-gold-500/5 px-3 py-2 text-detail leading-relaxed text-ink-300">
+            {authorRole === null ? (
+              <span className="text-ink-500">Loading note permissions…</span>
+            ) : authorRole === "Medical" ? (
+              <>
+                <strong className="text-ink-100">Medical visit documentation.</strong>{" "}
+                Record each clinical encounter here. The coach remains the member&apos;s messaging contact and relays follow-up guidance.
+              </>
+            ) : (
+              <>
+                <strong className="text-ink-100">You are this member&apos;s steward.</strong>{" "}
+                This note captures the client conversation and keeps the coach as the single point of contact.
+              </>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-micro font-medium uppercase tracking-wide text-ink-500">
+              Note type
+              <select
+                value={kind}
+                disabled={signed || authorRole === null}
+                onChange={(event) => {
+                  const nextKind = event.target.value as ConsultKind;
+                  setKind(nextKind);
+                  kindRef.current = nextKind;
+                  if (nextKind === "Medical chart review") {
+                    setChannel("Chart review");
+                    channelRef.current = "Chart review";
+                  } else if (channelRef.current === "Chart review") {
+                    setChannel("In person");
+                    channelRef.current = "In person";
+                  }
+                  markDirty();
+                }}
+                className="focus-ring mt-1 block w-full rounded-control border border-ink-700 bg-ink-900 px-3 py-2 text-detail normal-case tracking-normal text-ink-100"
+              >
+                {allowedKinds.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-micro font-medium uppercase tracking-wide text-ink-500">
+              Visit channel
+              <select
+                value={channel}
+                disabled={signed || authorRole === null}
+                onChange={(event) => {
+                  const nextChannel = event.target.value as ConsultChannel;
+                  setChannel(nextChannel);
+                  channelRef.current = nextChannel;
+                  markDirty();
+                }}
+                className="focus-ring mt-1 block w-full rounded-control border border-ink-700 bg-ink-900 px-3 py-2 text-detail normal-case tracking-normal text-ink-100"
+              >
+                {allowedChannels.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {authorRole === "Medical" && (
+          <div className="border-b border-ink-800 bg-ink-900/20 p-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="label-eyebrow">Clinical note · SOAP</p>
+                <p className="mt-1 text-detail text-ink-500">
+                  Authored by you, saved to the chart, and locked with your signature. AI does not fill these fields.
+                </p>
+              </div>
+              <Badge tone={medicalNoteComplete ? "optimal" : "watch"}>
+                {medicalNoteComplete ? "Required sections complete" : "Complete required sections"}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+              {([
+                ["subjective", "Subjective", "History, symptoms, concerns and the member's report."],
+                ["objective", "Objective", "Vitals, examination, observations and reviewed results."],
+                ["assessment", "Assessment", "Clinical impression, diagnoses and risk assessment."],
+                ["plan", "Plan", "Treatment, orders, monitoring, follow-up and coach instructions."],
+              ] as const).map(([field, label, placeholder]) => {
+                const required = requiredClinicalSections.includes(field);
+                return (
+                  <label key={field} className="text-micro font-medium uppercase tracking-wide text-ink-500">
+                    {label} {required ? <span className="text-watch">· required</span> : <span>· optional</span>}
+                    <textarea
+                      rows={4}
+                      value={clinicalNote[field]}
+                      disabled={signed}
+                      onChange={(event) => updateClinicalField(field, event.target.value)}
+                      placeholder={placeholder}
+                      className="focus-ring mt-1 block w-full resize-y rounded-control border border-ink-700 bg-ink-950/55 px-3 py-2 text-detail normal-case leading-relaxed tracking-normal text-ink-100 placeholder:text-ink-600"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="relative flex-1 p-4">
+          <div className="mb-2">
+            <p className="label-eyebrow">
+              {authorRole === "Medical" ? "Encounter narrative / working notes" : "Conversation notes"}
+            </p>
+          </div>
           {/*
             Source highlighting is done with an underlay: a div that renders the
             same text with the matched span marked, sitting exactly beneath a
@@ -336,11 +569,14 @@ export function ConsultComposer({
             <textarea
               ref={textRef}
               value={raw}
-              onChange={(e) => setRaw(e.target.value)}
+              onChange={(e) => {
+                setRaw(e.target.value);
+                markDirty();
+              }}
               onScroll={syncScroll}
               spellCheck={false}
               disabled={signed}
-              placeholder={PLACEHOLDER}
+              placeholder={authorRole === "Medical" ? MEDICAL_PLACEHOLDER : COACH_PLACEHOLDER}
               className={cn(
                 // Transparent background so the highlight underlay shows through;
                 // the underlay owns the border and fill.
@@ -355,7 +591,7 @@ export function ConsultComposer({
               <span className="stat-mono">{raw.length}</span> chars
               {saveStatus === "saving" && (
                 <>
-                  <span className="text-ink-700">·</span>
+                  <span className="text-ink-500">·</span>
                   <span className="inline-flex items-center gap-1 text-ink-400">
                     <Save className="h-3 w-3 animate-pulse" /> Saving…
                   </span>
@@ -363,7 +599,7 @@ export function ConsultComposer({
               )}
               {saveStatus === "saved" && savedAt && (
                 <>
-                  <span className="text-ink-700">·</span>
+                  <span className="text-ink-500">·</span>
                   <span className="inline-flex items-center gap-1 text-optimal">
                     <Check className="h-3 w-3" /> Draft saved{" "}
                     <span className="stat-mono">{formatTime(savedAt)}</span>
@@ -397,7 +633,7 @@ export function ConsultComposer({
             <div>
               <p className="label-eyebrow">Structured summary</p>
               <p className="mt-0.5 text-detail text-ink-500">
-                Hover any item to see the words it came from.
+                AI draft · review and sign before it becomes part of the chart.
               </p>
             </div>
           </div>
@@ -442,19 +678,22 @@ export function ConsultComposer({
                 <section>
                   <div className="mb-2 flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 text-high" />
-                    <p className="label-eyebrow text-high">Escalate to provider</p>
+                    <p className="label-eyebrow text-high">
+                      {authorRole === "Medical" ? "Coach communication points" : "Escalate internally to Medical"}
+                    </p>
                   </div>
-                  {/*
-                    Scope stated up front, because the toast below says "in
-                    their queue now" and that has to be exactly as true as it
-                    sounds. It is: the escalation lands in the same store the
-                    provider console reads. What it does NOT survive is a page
-                    reload — the queue is in memory in this prototype. Saying so
-                    here is cheaper than a coach discovering it.
-                  */}
                   <p className="mb-2 text-micro leading-relaxed text-ink-600">
-                    Routes to the member&apos;s provider with an SLA clock. Prototype: the queue is
-                    held in memory and resets on reload.
+                    {authorRole === "Medical" ? (
+                      <>
+                        These stay in the signed internal review for the coach to communicate.
+                        No client message is sent from this screen.
+                      </>
+                    ) : (
+                      <>
+                        Routes durably to the member&apos;s Medical queue with an SLA clock.
+                        Medical&apos;s answer returns to the coach; it does not open a direct client thread.
+                      </>
+                    )}
                   </p>
                   <ul className="space-y-2">
                     {summary.escalations.map((e, i) => {
@@ -473,106 +712,28 @@ export function ConsultComposer({
                             <span className="stat-mono text-micro text-ink-500">
                               conf {(e.confidence * 100).toFixed(0)}%
                             </span>
-                            <Button
+                            {authorRole === "Coach" ? <Button
                               size="sm"
                               variant={escalated[key] ? "success" : "danger"}
-                              onClick={() => {
-                                // This used to be a toast claiming it had
-                                // routed the item to a queue that did not
-                                // exist — worse than no button, because the
-                                // coach believed the provider had it. It now
-                                // raises a real escalation with a clock on it.
-                                const client = getClient(clientId);
-                                const esc = raiseEscalation({
-                                  /**
-                                   * Scoped by client as well as by item index.
-                                   * `esc-live-esc-0` alone collides across
-                                   * members — the second coach to escalate the
-                                   * first finding on any chart would overwrite
-                                   * the first member's escalation in the store,
-                                   * because commitEscalation replaces by id.
-                                   */
-                                  id: `esc-live-${clientId}-${key}`,
-                                  clientId,
-                                  raisedByStaffId: client?.coachId ?? "unknown",
-                                  assignedToStaffId: client?.providerId ?? "unknown",
-                                  kind: "Clinical question",
-                                  question: e.value,
-                                  // The provider reads the coach's original
-                                  // words, never a paraphrase.
-                                  sourceQuote: e.sourceQuote,
-                                  raisedAt: NOW,
-                                });
-
-                                /**
-                                 * THE MISSING WRITE.
-                                 *
-                                 * The audit found `raiseEscalation()`'s return
-                                 * value being discarded here — only a boolean
-                                 * survived, to flip the button to "Routed".
-                                 * `raiseEscalation` is a pure constructor; it
-                                 * builds an Escalation and hands it back, and
-                                 * the caller is what puts it in the queue. So
-                                 * the button rendered "Routed", toasted an SLA,
-                                 * and the provider's queue never changed. A
-                                 * coach escalating chest pain got the same
-                                 * green tick as one escalating a sleep peptide,
-                                 * and both went nowhere.
-                                 *
-                                 * `commitEscalation` puts it in the shared
-                                 * store, which is what `queueFor(providerId)`
-                                 * reads — so it genuinely appears on the clinic
-                                 * console and in /clinic/escalations. Same
-                                 * pattern as commitOrder / CoachGroup's
-                                 * member-initiated escalation.
-                                 */
-                                const committed = commitEscalation(esc);
-
-                                const row = appendLedger({
-                                  actorId: committed.raisedByStaffId,
-                                  actorName: staffName(committed.raisedByStaffId),
-                                  actorRole: "Coach",
-                                  action: "create",
-                                  entity: "recommendation",
-                                  entityId: committed.id,
-                                  subjectId: clientId,
-                                  subjectName: client ? clientName(client) : undefined,
-                                  locationId: client?.locationId,
-                                  reason: `Escalated to ${staffName(committed.assignedToStaffId)}`,
-                                  after: {
-                                    priority: committed.priority,
-                                    dueWithinHours: SLA_HOURS[committed.priority],
-                                    assignedTo: staffName(committed.assignedToStaffId),
-                                  },
-                                });
-
-                                setEscalated((s) => ({ ...s, [key]: true }));
-                                /**
-                                 * The toast now describes what happened rather
-                                 * than what was intended. "In their queue now"
-                                 * is a claim we can only make because of the
-                                 * commit above — before it, this string was
-                                 * false, and the SLA it quoted was a clock on
-                                 * an object nobody held.
-                                 */
-                                toast(`${committed.priority} — in ${staffName(committed.assignedToStaffId)}'s queue`, {
-                                  tone: committed.priority === "Urgent" ? "warn" : undefined,
-                                  desc: `Due within ${SLA_HOURS[committed.priority]}h · open it under Clinic → Escalations · ledger ${row.id} · ${shortHash(row.hash)}`,
-                                });
-                              }}
+                              disabled={escalated[key] || escalating[key]}
+                              onClick={() => void escalateFinding(e, key)}
                             >
                               {escalated[key] ? (
                                 <>
                                   <Check className="h-3.5 w-3.5" />
                                   Routed
                                 </>
+                              ) : escalating[key] ? (
+                                <>Routing…</>
                               ) : (
                                 <>
                                   <ArrowUpRight className="h-3.5 w-3.5" />
                                   Escalate
                                 </>
                               )}
-                            </Button>
+                            </Button> : (
+                              <Badge tone="info">Included for coach communication</Badge>
+                            )}
                           </div>
                         </li>
                       );
@@ -723,7 +884,7 @@ export function ConsultComposer({
                   Signing makes this immutable
                 </p>
                 <p className="mt-1.5 text-detail leading-relaxed text-ink-300">
-                  Your raw notes and this summary are locked together and hashed. Later
+                  Your authored note, raw narrative and this summary are locked together and hashed. Later
                   corrections attach as addenda rather than editing the record — which is
                   what lets anyone reading this in a year tell what you actually wrote.
                 </p>
@@ -753,11 +914,11 @@ export function ConsultComposer({
               >
                 <Button
                   variant="primary"
-                  disabled={!summary || signing || saveStatus === "error" || saveStatus === "saving"}
+                  disabled={!summary || summarizing || signing || saveStatus !== "saved" || !medicalNoteComplete}
                   onClick={() => setConfirmSign(true)}
                 >
                   <PenLine className="h-4 w-4" />
-                  {signing ? "Signing…" : "Sign consult"}
+                  {signing ? "Signing…" : authorRole === "Medical" ? "Sign Medical note" : "Sign consult"}
                 </Button>
                 <Button variant="outline" disabled={!raw || saveStatus === "saving"} onClick={saveDraft}>
                   <Save className="h-4 w-4" />
@@ -766,6 +927,8 @@ export function ConsultComposer({
                 <span className="text-micro text-ink-600">
                   {saveStatus === "error"
                     ? "Resolve the save error before signing."
+                    : authorRole === "Medical" && !medicalNoteComplete
+                      ? "Complete the required clinical sections before signing."
                     : "Drafts autosave to your account — restored on any device."}
                 </span>
               </motion.div>

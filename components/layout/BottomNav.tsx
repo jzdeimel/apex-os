@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, TrendingUp, Syringe, FlaskConical, MessageSquare } from "lucide-react";
-import { LayoutDashboard, Users, Brain, ListChecks, Bot } from "lucide-react";
+import { Heart, TrendingUp, FlaskConical, FileText, UsersRound } from "lucide-react";
+import { LayoutDashboard, Users, ListChecks, Bot } from "lucide-react";
 import { DoorOpen, PhoneCall, CalendarDays } from "lucide-react";
-import { Gauge, Activity, Workflow, Receipt } from "lucide-react";
+import { Gauge, Activity, Workflow } from "lucide-react";
 import { usePortal } from "@/lib/portalStore";
 import type { PortalId } from "@/lib/portals";
+import { useFeatures, usePreset } from "@/lib/features/client";
+import { featureForPath } from "@/lib/features/catalog";
+import { labelFor } from "@/lib/nav/v1Parity";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,24 +40,24 @@ interface Item {
 
 const BY_PORTAL: Record<PortalId, Item[]> = {
   patient: [
-    { href: "/portal", label: "Today", icon: Heart },
-    { href: "/portal/progress", label: "Progress", icon: TrendingUp },
-    { href: "/portal/protocol", label: "Protocol", icon: Syringe },
-    { href: "/portal/labs", label: "Labs", icon: FlaskConical },
-    { href: "/portal/messages", label: "Messages", icon: MessageSquare },
+    { href: "/patient", label: "Today", icon: Heart },
+    { href: "/patient/progress", label: "Progress", icon: TrendingUp },
+    { href: "/patient/plans", label: "Plans", icon: FlaskConical },
+    { href: "/patient/community", label: "Community", icon: UsersRound },
+    { href: "/patient/records", label: "Records", icon: FileText },
   ],
   coach: [
     { href: "/coach", label: "Today", icon: LayoutDashboard },
-    { href: "/coach/roster", label: "Members", icon: Users },
-    { href: "/coach/consults", label: "Consults", icon: ListChecks },
+    { href: "/clients", label: "Members", icon: Users },
     { href: "/tasks", label: "Tasks", icon: ListChecks },
+    { href: "/coach/community", label: "Community", icon: UsersRound },
     { href: "/agent", label: "Ask Apex", icon: Bot },
   ],
   clinic: [
     { href: "/clinic", label: "Today", icon: LayoutDashboard },
     { href: "/clinic/sign", label: "Sign", icon: ListChecks },
     { href: "/clients", label: "Patients", icon: Users },
-    { href: "/insights", label: "Seeing", icon: Brain },
+    { href: "/clinic/community", label: "Community", icon: UsersRound },
     { href: "/agent", label: "Ask Apex", icon: Bot },
   ],
   /**
@@ -72,7 +75,7 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
     // no business reading, and can write notes to. Removed here as well as from
     // lib/nav.ts; the desk's own pages answer the reception question.
     { href: "/schedule", label: "Schedule", icon: CalendarDays },
-    { href: "/schedule", label: "Staff", icon: CalendarDays },
+    { href: "/desk/community", label: "Community", icon: UsersRound },
   ],
   /**
    * The owner reads this on a phone, standing up, before the drive in — which
@@ -82,9 +85,9 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
    */
   exec: [
     { href: "/exec", label: "Morning", icon: Gauge },
-    { href: "/exec/capacity", label: "Capacity", icon: Activity },
+    { href: "/schedule", label: "Capacity", icon: Activity },
     { href: "/exec/pipeline", label: "Pipeline", icon: Workflow },
-    { href: "/admin/daily-report", label: "Orders", icon: Receipt },
+    { href: "/exec/community", label: "Community", icon: UsersRound },
     { href: "/clients", label: "Members", icon: Users },
   ],
 };
@@ -92,7 +95,20 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
 export function BottomNav() {
   const pathname = usePathname();
   const { portal } = usePortal();
-  const items = BY_PORTAL[portal.id] ?? BY_PORTAL.coach;
+  const features = useFeatures();
+
+  // Feature-filtered like the sidebar. This bar IS the navigation on mobile, so
+  // a link to a disabled surface is not a cosmetic problem here — it is a dead
+  // thumb target in one of five positions someone taps all day.
+  const preset = usePreset();
+  const items = (BY_PORTAL[portal.id] ?? BY_PORTAL.coach)
+    .filter((item) => {
+      const owner = featureForPath(item.href);
+      return !owner || features[owner.key] !== false;
+    })
+    // Same V1 vocabulary as the sidebar. A bar that says "Members" while the
+    // sidebar says "Clients" is worse than either word on its own.
+    .map((item) => ({ ...item, label: labelFor(item.href, item.label, preset) }));
 
   // Longest-prefix match, so /portal/progress highlights Progress rather than
   // Today — a plain startsWith would light up both, since /portal prefixes them.
@@ -102,7 +118,13 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-800 bg-ink-950/95 backdrop-blur-xl lg:hidden">
-      <div className="grid grid-cols-5">
+      {/* Column count follows the surviving items. A fixed grid-cols-5 with a
+          feature switched off leaves a dead cell and shifts every thumb target
+          off the position muscle memory expects. */}
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}
+      >
         {items.map((it) => {
           const active = it.href === activeHref;
           return (

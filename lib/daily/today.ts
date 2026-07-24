@@ -117,9 +117,9 @@ export const PROTECTED_REASONS = [
 ] as const;
 
 const RING_META: Record<RingId, { label: string; hex: string }> = {
-  protocol: { label: "Protocol", hex: "#e93d3d" },
-  fuel: { label: "Fuel", hex: "#34d399" },
-  train: { label: "Train", hex: "#60a5fa" },
+  protocol: { label: "Protocol", hex: "var(--chart-brand)" },
+  fuel: { label: "Fuel", hex: "var(--c-optimal)" },
+  train: { label: "Train", hex: "var(--c-low)" },
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

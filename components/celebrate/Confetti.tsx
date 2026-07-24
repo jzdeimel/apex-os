@@ -30,7 +30,7 @@ const MAX_PARTICLES = 160;
 /** Hoisted so the default props keep a stable identity across renders — an
  *  inline `colors={[...]}` default would re-run the effect every render and
  *  re-fire the burst on every parent state change. */
-const DEFAULT_COLORS = ["#e93d3d", "#e0bd6e", "#34d399", "#60a5fa", "#a78bfa"];
+const DEFAULT_COLORS = ["var(--chart-brand)", "var(--c-watch)", "var(--c-optimal)", "var(--c-low)", "var(--chart-series-4)"];
 const DEFAULT_ORIGIN = { x: 0.5, y: 0.45 };
 
 const GRAVITY = 0.0011; // px per ms²

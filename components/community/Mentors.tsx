@@ -11,7 +11,13 @@ import { useMentors, SPECIALTY_LABEL } from "@/lib/community/mentors";
  * member offers to be that person. Never a substitute for the clinician —
  * companionship for the parts that are lonely rather than medical.
  */
-export function Mentors({ clientId }: { clientId: string }) {
+export function Mentors({
+  clientId,
+  memberActions = true,
+}: {
+  clientId: string;
+  memberActions?: boolean;
+}) {
   const { toast } = useToast();
   const {
     guides,
@@ -34,7 +40,7 @@ export function Mentors({ clientId }: { clientId: string }) {
       </p>
 
       {/* Your current guide, if requested */}
-      {hydrated && requested && (
+      {memberActions && hydrated && requested && (
         <Card className="border-emerald/25">
           <CardContent className="flex items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
@@ -58,7 +64,7 @@ export function Mentors({ clientId }: { clientId: string }) {
       )}
 
       {/* Become a guide */}
-      {hydrated && canBeGuide && (
+      {memberActions && hydrated && canBeGuide && (
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
@@ -112,6 +118,7 @@ export function Mentors({ clientId }: { clientId: string }) {
                         </Badge>
                       </div>
                       <p className="flex-1 text-detail leading-relaxed text-ink-400">“{g.note}”</p>
+                      {memberActions ? (
                       <Button
                         size="sm"
                         variant={isMine ? "success" : "primary"}
@@ -124,6 +131,9 @@ export function Mentors({ clientId }: { clientId: string }) {
                       >
                         {isMine ? <><Check className="h-3.5 w-3.5" /> Your guide</> : requestedGuideId ? "Guide chosen" : "Ask to be guided"}
                       </Button>
+                      ) : (
+                        <Badge tone="neutral">Available to members</Badge>
+                      )}
                     </CardContent>
                   </Card>
                 </StaggerItem>

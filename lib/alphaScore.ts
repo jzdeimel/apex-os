@@ -123,5 +123,5 @@ export function alphaScore(client: Client): AlphaScoreResult {
 
 export function scoreColor(band: AlphaScoreResult["band"]): string {
   // Health-quality gradient (semantic, not brand): green → lime → amber → coral.
-  return band === "optimal" ? "#34d399" : band === "strong" ? "#a3e635" : band === "building" ? "#e0bd6e" : "#f87171";
+  return band === "optimal" ? "var(--c-optimal)" : band === "strong" ? "var(--c-optimal)" : band === "building" ? "var(--c-watch)" : "var(--c-high)";
 }

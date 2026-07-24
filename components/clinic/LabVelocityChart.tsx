@@ -40,17 +40,17 @@ import type { VelocityResult } from "@/lib/labs/velocity";
  * chart when the residual scatter is large.
  */
 
-const OBSERVED = "#e93d3d";
-const FIT = "#e0bd6e";
-const BAND = "#e0bd6e";
-const REF = "#6f7884";
+const OBSERVED = "var(--chart-brand)";
+const FIT = "var(--c-watch)";
+const BAND = "var(--c-watch)";
+const REF = "var(--chart-axis)";
 
 const tooltipStyle = {
-  background: "#17191e",
+  background: "var(--chart-tooltip-bg)",
   border: "1px solid #343a42",
   borderRadius: 10,
   fontSize: 12,
-  color: "#e7e9ec",
+  color: "var(--chart-tooltip-text)",
   padding: "8px 10px",
 };
 
@@ -98,11 +98,11 @@ export function LabVelocityChart({ v, height = 240 }: { v: VelocityResult; heigh
     <div className="min-w-0">
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={rows} margin={{ top: 8, right: 12, left: -6, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#262a30" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
 
           {/* The clinic's optimal window, where the panel defines one. */}
           {v.optimalLow !== undefined && v.optimalHigh !== undefined && (
-            <ReferenceArea y1={v.optimalLow} y2={v.optimalHigh} fill="#34d399" fillOpacity={0.06} />
+            <ReferenceArea y1={v.optimalLow} y2={v.optimalHigh} fill="var(--c-optimal)" fillOpacity={0.06} />
           )}
 
           <XAxis
@@ -111,14 +111,14 @@ export function LabVelocityChart({ v, height = 240 }: { v: VelocityResult; heigh
             tickLine={false}
             axisLine={false}
             minTickGap={24}
-            tick={{ fontSize: 11, fill: "#6f7884" }}
+            tick={{ fontSize: 11, fill: "var(--chart-axis)" }}
           />
           <YAxis
             domain={[lo, hi]}
             tickLine={false}
             axisLine={false}
             width={44}
-            tick={{ fontSize: 11, fill: "#6f7884" }}
+            tick={{ fontSize: 11, fill: "var(--chart-axis)" }}
           />
           <Tooltip
             contentStyle={tooltipStyle}
@@ -137,7 +137,7 @@ export function LabVelocityChart({ v, height = 240 }: { v: VelocityResult; heigh
           <ReferenceLine y={v.refLow} stroke={REF} strokeDasharray="4 4" />
 
           {/* Where measurement stops and extrapolation starts. */}
-          {firstProjected && <ReferenceLine x={firstProjected} stroke="#343a42" />}
+          {firstProjected && <ReferenceLine x={firstProjected} stroke="var(--chart-grid)" />}
 
           <Area
             type="monotone"

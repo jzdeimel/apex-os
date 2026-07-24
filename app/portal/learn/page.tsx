@@ -26,6 +26,7 @@ import { FaqAccordion } from "@/components/portal/FaqAccordion";
 import { PROOF, BRAND, journeyStepFor, JOURNEY } from "@/lib/brand";
 import { FadeIn } from "@/components/portal/still";
 import { GraduationCap } from "lucide-react";
+import { getLabsForClient } from "@/lib/mock/labs";
 
 export default function PortalLearnPage() {
   // Audit fix (GAP_ANALYSIS.md, "Portal renderable as a woman"): this was the
@@ -33,6 +34,7 @@ export default function PortalLearnPage() {
   const meId = useMe();
   const client = useMeClient();
   const step = journeyStepFor(client.status);
+  const labs = getLabsForClient(client.id);
 
   return (
     <div className="space-y-10">
@@ -70,7 +72,16 @@ export default function PortalLearnPage() {
         </div>
       </FadeIn>
 
-      <EducationCentre clientId={meId} />
+      <EducationCentre
+        profile={{
+          stableId: meId,
+          sex: client.sex,
+          journeyStep: step.step,
+          goals: client.goals,
+          symptoms: client.symptoms,
+          markers: labs?.biomarkers,
+        }}
+      />
 
       {/* ------------------------------------------------------------------ */}
       {/* The clinic's published FAQ, verbatim.                              */}

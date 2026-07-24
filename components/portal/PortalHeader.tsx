@@ -16,6 +16,7 @@ import type { Client } from "@/lib/types";
 import { getClient } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
 import { isDemoMemberId } from "@/lib/viewer";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
 
 /**
  * The DEFAULT demo member.
@@ -74,6 +75,7 @@ function notify() {
 function restoreOnce() {
   if (restored) return;
   restored = true;
+  if (!IS_DEMO_UI) return;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (isDemoMemberId(raw) && getClient(raw)) {
@@ -87,6 +89,7 @@ function restoreOnce() {
 
 /** Switch the portal's subject. Demo only. */
 export function setDemoMember(id: string) {
+  if (!IS_DEMO_UI) return;
   if (!isDemoMemberId(id) || !getClient(id)) return;
   selectedMemberId = id;
   try {

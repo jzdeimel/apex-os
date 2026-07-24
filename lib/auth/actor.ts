@@ -1,6 +1,5 @@
 import type { Principal } from "@/lib/auth/principal";
 import type { Actor } from "@/lib/authz/capabilities";
-import { staffMap } from "@/lib/mock/staff";
 
 /**
  * Turn an authenticated principal into an authorization Actor.
@@ -11,16 +10,17 @@ import { staffMap } from "@/lib/mock/staff";
  * but not a staff member) has no role and therefore is NOT an actor: every write
  * path treats that as "cannot", which is the correct fail-closed answer.
  *
- * The staff lookup still reads the seeded roster (lib/mock/staff) at this stage;
- * when the staff table moves into Postgres (with an entraObjectId column), this
- * function reads it there and nothing downstream changes.
+ * The location scope now travels with the principal from the same staff row
+ * that supplied the role. Keeping role in the DB but scope in the seeded roster
+ * would let a database revocation/deployment drift leave the app authorizing
+ * against two different staff records.
  */
 export function actorFromPrincipal(p: Principal): Actor | null {
-  if (!p.staffId || !p.role) return null;
-  const s = staffMap[p.staffId];
+  if (!p.staffId || !p.role || !p.accessProfile) return null;
   return {
     id: p.staffId,
     role: p.role,
-    locationIds: s?.locationIds ?? [],
+    accessProfile: p.accessProfile,
+    locationIds: p.locationIds,
   };
 }

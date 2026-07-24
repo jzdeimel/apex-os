@@ -295,11 +295,11 @@ export function residues(seq: string): Residue[] {
 
 /** Colour per residue class. Kept here so chart and card agree. */
 export const CLASS_COLOR: Record<ResidueClass, string> = {
-  hydrophobic: "#e0bd6e",
-  polar: "#60a5fa",
-  acidic: "#f87171",
-  basic: "#34d399",
-  special: "#a78bfa",
+  hydrophobic: "var(--c-watch)",
+  polar: "var(--c-low)",
+  acidic: "var(--c-high)",
+  basic: "var(--c-optimal)",
+  special: "var(--chart-series-4)",
 };
 
 export const CLASS_LABEL: Record<ResidueClass, string> = {

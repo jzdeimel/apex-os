@@ -36,11 +36,12 @@ import { DailyRings } from "@/components/portal/DailyRings";
 import { TodayBlock } from "@/components/portal/TodayBlock";
 import { WeeklyReview } from "@/components/portal/WeeklyReview";
 import { StreakCard } from "@/components/portal/StreakCard";
-import { SeasonArc } from "@/components/portal/SeasonArc";
-import { Quests } from "@/components/portal/Quests";
-import { LevelCard } from "@/components/portal/LevelCard";
+import { HabitDrawer } from "@/components/portal/HabitDrawer";
 import { RefillRunway } from "@/components/portal/RefillRunway";
 import { AskMyRecord } from "@/components/portal/AskMyRecord";
+import { ClientMomentumPanel } from "@/components/portal/ClientMomentumPanel";
+import { NextMoveRail } from "@/components/intelligence/NextMoveRail";
+import { memberMoves } from "@/lib/intelligence/memberMoves";
 import { ArrowRight, MessageSquare, ShieldCheck } from "lucide-react";
 
 /**
@@ -175,6 +176,13 @@ export default function PortalHomePage() {
       {/* record of one. What you have to do now sits above everything that    */}
       {/* reports on what you did.                                             */}
       {/* ================================================================== */}
+      <NextMoveRail
+        eyebrow="Apex intelligence"
+        title="Worth checking today"
+        detail="Apex summarizes recent record changes, care-team messages and practical next steps in one place."
+        moves={memberMoves(client, NOW)}
+      />
+
       <TodayBlock clientId={meId} iso={NOW} />
 
       <DailyRings clientId={meId} />
@@ -195,6 +203,8 @@ export default function PortalHomePage() {
       {/* ------------------------------------------------------------------ */}
       <WeeklyReview client={client} />
 
+      <ClientMomentumPanel client={client} />
+
       {/* ------------------------------------------------------------------ */}
       {/* 2b · The habit layer.                                              */}
       {/*                                                                     */}
@@ -213,19 +223,7 @@ export default function PortalHomePage() {
         <RefillRunway client={client} />
       </div>
 
-      <details className="group rounded-panel border border-ink-800 bg-ink-900/30">
-        <summary className="focus-ring cursor-pointer list-none px-4 py-3 text-detail text-ink-400 transition-colors hover:text-ink-100">
-          Season, quests and level
-          <span className="float-right text-ink-600 transition-transform group-open:rotate-180">⌄</span>
-        </summary>
-        <div className="space-y-4 px-4 pb-4">
-          <SeasonArc clientId={meId} />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Quests clientId={meId} />
-            <LevelCard clientId={meId} />
-          </div>
-        </div>
-      </details>
+      <HabitDrawer clientId={meId} />
       </div>
 
       {/* Ask-your-record last on this screen: it answers a question the member
@@ -437,7 +435,7 @@ export default function PortalHomePage() {
             ].map(({ s, what, blurb }) => (
               <div key={what} className="flex items-start gap-4 py-4">
                 <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-detail font-semibold text-ink-950"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-detail font-semibold text-[color:var(--on-swatch)]"
                   style={{ background: portal.accent.hex }}
                 >
                   {s?.avatarInitials}

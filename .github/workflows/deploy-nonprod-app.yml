@@ -1,0 +1,69 @@
+name: Deploy Apex non-production app
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Immutable tag already present in acrapexnpfcfde/apex-os
+        required: true
+        type: string
+      mode:
+        description: Validate with what-if or deploy ca-apex-dev
+        required: true
+        default: Validate
+        type: choice
+        options:
+          - Validate
+          - Apply
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: apex-nonprod-app
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: nonprod
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy authenticated development app
+        shell: pwsh
+        run: >-
+          ./scripts/deploy-nonprod-app.ps1
+          -Mode '${{ inputs.mode }}'
+          -Image 'acrapexnpfcfde.azurecr.io/apex-os:${{ inputs.image_tag }}'
+          -WebClientId '${{ vars.APEX_WEB_CLIENT_ID }}'
+          -ExpectedSubscriptionId '${{ vars.AZURE_SUBSCRIPTION_ID }}'
+
+      - name: Verify public health endpoint
+        if: inputs.mode == 'Apply'
+        shell: pwsh
+        run: |
+          $fqdn = az containerapp show -g apex-nonprod -n ca-apex-dev --query properties.configuration.ingress.fqdn -o tsv
+          $lastError = $null
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+            try {
+              $health = Invoke-RestMethod "https://$fqdn/api/health" -TimeoutSec 30
+              if ($health.status -eq 'ok' -and $health.database -eq 'configured' -and $health.migration -eq 'applied') {
+                exit 0
+              }
+              $lastError = "Unexpected response: $($health | ConvertTo-Json -Compress)"
+            }
+            catch {
+              $lastError = $_.Exception.Message
+            }
+            Start-Sleep -Seconds 10
+          }
+          throw "Health check failed after retries: $lastError"

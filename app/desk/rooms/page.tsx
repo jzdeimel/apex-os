@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { LocationSwitcher } from "@/components/frontdesk/LocationSwitcher";
-import { RoomBoard } from "@/components/frontdesk/RoomBoard";
+import { AuthoritativeResourceBoard } from "@/components/frontdesk/AuthoritativeResourceBoard";
 
 /**
  * Front desk · Rooms.
@@ -33,11 +32,7 @@ export default function DeskRoomsPage() {
       </header>
 
       <section className="mt-4">
-        <LocationSwitcher />
-      </section>
-
-      <section className="mt-4">
-        <RoomBoard />
+        <AuthoritativeResourceBoard />
       </section>
     </div>
   );

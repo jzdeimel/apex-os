@@ -22,6 +22,7 @@ import { staffMap } from "@/lib/mock/staff";
 import { Card, CardContent, Badge, Button, Textarea } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 import { usePortal } from "@/lib/portalStore";
+import { useFeature } from "@/lib/features/client";
 import { formatDate, formatTime, cn } from "@/lib/utils";
 import { useMe, useMeClient, threadFor, PortalPageHeader, type PortalMessage } from "@/components/portal/PortalHeader";
 import { sendMessage } from "@/lib/comms/send";
@@ -69,8 +70,28 @@ export default function PortalMessagesPage() {
   const [activeId, setActiveId] = useState("t-coach");
   const seq = useRef(0);
 
-  const threads: ThreadDef[] = useMemo(
-    () => [
+  /**
+   * THE COACH IS THE FRONT DOOR. The direct-to-provider thread is off.
+   *
+   * Decided on the 2026-07-21 sync. Paul Kennard, on why: some providers are
+   * contracted for as little as four hours a month and are "functionally
+   * stamping prescriptions". A thread that reaches them directly does not reach
+   * them at all — the member types a clinical question and watches it sit,
+   * which is worse than not offering the channel.
+   *
+   * What replaces it is a route, not a wall: the coach can push any message to
+   * medical (see the coach console), which creates a real escalation with an
+   * SLA, and the member is told that happened. The member never has to know who
+   * to ask; that is the point of the coach relationship.
+   *
+   * Behind `member-provider-thread` rather than deleted, because "some clinics
+   * will want this" is a plausible future and the switch is one row. It ships
+   * OFF in every preset — see lib/features/catalog.ts.
+   */
+  const providerThreadEnabled = useFeature("member-provider-thread");
+
+  const threads: ThreadDef[] = useMemo(() => {
+    const list: ThreadDef[] = [
       {
         id: "t-coach",
         staffId: client.coachId,
@@ -78,17 +99,30 @@ export default function PortalMessagesPage() {
         subtitle: "Your coach · usually replies same day",
         messages: [...threadFor(client), ...(sentByThread["t-coach"] ?? [])],
       },
-      {
+    ];
+    if (providerThreadEnabled) {
+      list.push({
         id: "t-provider",
         staffId: client.providerId,
         title: provider?.name ?? "Your provider",
         subtitle: "Your provider · clinical questions",
         messages: [...(sentByThread["t-provider"] ?? [])],
-      },
-    ],
-    [client, client.coachId, client.providerId, coach?.name, provider?.name, sentByThread],
-  );
+      });
+    }
+    return list;
+  }, [
+    client,
+    client.coachId,
+    client.providerId,
+    coach?.name,
+    provider?.name,
+    sentByThread,
+    providerThreadEnabled,
+  ]);
 
+  // Falls back to the coach thread when the active id no longer resolves —
+  // which happens the moment the provider thread is switched off underneath a
+  // member who had it open.
   const active = threads.find((t) => t.id === activeId) ?? threads[0];
 
   // Day dividers: a thread spanning three weeks with no date breaks is a wall.
@@ -192,7 +226,7 @@ export default function PortalMessagesPage() {
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-ink-950"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-[color:var(--on-swatch)]"
                         style={{ background: isActive ? portal.accent.hex : "#3a4048" }}
                       >
                         {staffMap[t.staffId ?? ""]?.avatarInitials ?? "AH"}
@@ -228,7 +262,7 @@ export default function PortalMessagesPage() {
         <Card className="flex min-h-[34rem] flex-col">
           <div className="hairline flex items-center gap-3 p-4">
             <span
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-ink-950"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold text-[color:var(--on-swatch)]"
               style={{ background: portal.accent.hex }}
             >
               {staffMap[active.staffId ?? ""]?.avatarInitials ?? "AH"}

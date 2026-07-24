@@ -291,13 +291,13 @@ export function VoiceConsult({
             <span>
               <span className="stat-mono">{delivered.length}</span> segments
             </span>
-            <span className="text-ink-700">·</span>
+            <span className="text-ink-500">·</span>
             <span>
               <span className="stat-mono">{raw.length}</span> chars
             </span>
             {finalized && (
               <>
-                <span className="text-ink-700">·</span>
+                <span className="text-ink-500">·</span>
                 <span className="stat-mono">{timecode(finalized.durationMs)}</span>
               </>
             )}
@@ -690,7 +690,7 @@ function SourcedItem({
         <span className="stat-mono">conf {(item.confidence * 100).toFixed(0)}%</span>
         {source && (
           <>
-            <span className="text-ink-700">·</span>
+            <span className="text-ink-500">·</span>
             {/* Attribution travels with the claim, not just with the transcript. */}
             <span>
               said by{" "}

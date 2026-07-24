@@ -1,4 +1,5 @@
 import type { StaffRole } from "@/lib/types";
+import type { AccessProfile } from "@/lib/authz/profiles";
 
 /**
  * Who can do what in Apex.
@@ -39,6 +40,16 @@ export type Capability =
   | "read:financial"        // purchases, invoices, LTV
   | "read:ledger"           // the audit ledger
   | "read:all-clients"      // beyond one's own assigned book
+  | "read:location-clients" // operational minimum within assigned locations
+  | "read:directory"        // minimum patient identity needed for operations
+  | "read:all-schedules"    // clinic-wide schedule, not only the actor's own
+  | "read:orders"
+  | "read:inventory"
+  | "read:crm"
+  | "read:messages"
+  | "read:community"
+  | "read:community-moderation"
+  | "read:operations-cases"
   /**
    * Acquisition and channel performance across the business. OWNER ONLY, and
    * deliberately NOT read:financial — a coach holds that so they can discuss a
@@ -54,19 +65,42 @@ export type Capability =
   | "write:training"        // training split, progression
   | "write:adherence"       // check-ins, habit targets, streaks
   | "write:contact"         // log a touch, message the member
+  | "call:patient"          // place an outbound patient call through ACS
   | "write:demographics"    // fix a phone number, address, email
   | "write:task"
+  | "write:clinical-history"
+  | "report:adverse-event"
+  | "review:adverse-event"
+  | "read:schedule"
+  | "write:schedule"
 
   // ── Commerce ───────────────────────────────────────────────────────────
   | "write:order"           // place or reorder
   | "write:membership"      // change plan, pause, resume
+  | "write:invoice"
+  | "write:payment"
   | "write:refund"
+  | "write:inventory"
+  | "dispense:inventory"
+  | "write:recall"
+  | "write:fulfillment"
+  | "write:crm"
+  | "write:communications"
+  | "write:quality"
+  | "create:operations-case"
+  | "work:operations-cases"
+  | "override:schedule"
+  | "write:community"
+  | "report:community"
+  | "moderate:community"
 
   // ── Licensed authorship — provider only ────────────────────────────────
   | "write:prescription"    // THE DOSE. Never delegable.
   | "sign:plan-of-care"     // approve the clinical section
   | "sign:encounter"        // sign a clinical note; makes it immutable
   | "order:labs"
+  | "collect:labs"          // document specimen identity and collection
+  | "record:lab-results"    // transcribe/import results; cannot release them
   | "sign:labs"             // review and sign off results
   | "override:contraindication"
 
@@ -78,6 +112,8 @@ export type Capability =
   | "admin:roles"
   | "admin:rule-sets"       // publish a clinical rule-set version
   | "admin:locations"
+  | "admin:calendars"
+  | "admin:community-policy"
   | "admin:export"          // export the ledger / a member's record
   | "admin:break-glass";    // emergency read outside assignment
 
@@ -90,35 +126,94 @@ export type Capability =
  * a prescription. Here, `write:prescription` is granted to exactly one role,
  * and no amount of seniority substitutes for a license.
  */
-const GRANTS: Record<StaffRole, Capability[]> = {
-  Medical: [
-    "read:chart", "read:clinical", "read:financial", "read:ledger",
+const GRANTS: Record<AccessProfile, Capability[]> = {
+  provider: [
+    "read:chart", "read:clinical", "read:financial", "read:ledger", "read:messages", "read:orders",
+    "read:inventory", "dispense:inventory",
+    "read:community", "report:community",
     "write:consult", "write:nutrition", "write:training", "write:adherence",
     "write:contact", "write:demographics", "write:task", "write:order",
+    "read:schedule", "write:schedule",
+    "write:clinical-history",
+    "report:adverse-event", "review:adverse-event",
+    "create:operations-case",
     // The licensed set — this row is the entire reason the role exists.
     "write:prescription", "sign:plan-of-care", "sign:encounter",
-    "order:labs", "sign:labs", "override:contraindication",
+    "order:labs", "collect:labs", "record:lab-results", "sign:labs", "override:contraindication",
     "triage:escalation",
   ],
-
-  Coach: [
+  nursing: [
+    "read:chart", "read:clinical", "read:ledger", "read:schedule", "read:messages", "read:location-clients", "read:inventory",
+    "read:community", "report:community",
+    "write:consult", "write:clinical-history", "write:contact", "write:task",
+    "report:adverse-event",
+    "create:operations-case",
+    "collect:labs", "record:lab-results",
+    "dispense:inventory",
+  ],
+  coach: [
     // Full read on their own book. This is the deliberate inversion.
-    "read:chart", "read:clinical", "read:financial",
+    "read:chart", "read:clinical", "read:financial", "read:messages", "read:orders",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
     // Coaching is authorship, not data entry — nutrition and training are the
     // coach's actual expertise and they own them outright.
     "write:consult", "write:nutrition", "write:training", "write:adherence",
-    "write:contact", "write:demographics", "write:task", "write:order",
+    "write:contact", "call:patient", "write:demographics", "write:task", "write:order",
+    "report:adverse-event",
+    "create:operations-case",
+    "read:schedule", "write:schedule",
     "escalate:provider",
   ],
-
-  Admin: [
-    "read:chart", "read:financial", "read:ledger", "read:all-clients",
-    "write:contact", "write:demographics", "write:task",
-    "write:order", "write:membership", "write:refund",
-    "read:business-metrics",
-    "admin:roles", "admin:locations", "admin:export", "admin:break-glass",
-    "triage:escalation",
+  "front-desk": [
+    "read:directory", "read:location-clients", "read:schedule", "read:all-schedules",
+    "read:community", "report:community",
+    "write:contact", "call:patient", "write:demographics", "write:task", "write:schedule",
+    "create:operations-case",
   ],
+  billing: [
+    "read:directory", "read:financial", "read:all-clients",
+    "write:membership", "write:invoice", "write:payment", "write:refund",
+    "create:operations-case",
+  ],
+  fulfillment: [
+    "read:directory", "read:location-clients", "read:orders", "read:inventory",
+    "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment",
+    "create:operations-case",
+  ],
+  marketing: [
+    "read:crm", "read:business-metrics", "write:crm", "write:communications",
+    "create:operations-case",
+  ],
+  operations: [
+    "read:directory", "read:location-clients", "read:financial", "read:ledger", "read:all-clients",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
+    "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:operations-cases", "create:operations-case", "work:operations-cases",
+    "write:contact", "call:patient", "write:demographics", "write:task",
+    "write:schedule", "override:schedule", "write:order", "write:membership", "write:invoice", "write:payment",
+    "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm", "write:quality",
+    "read:business-metrics",
+    "admin:locations", "admin:calendars", "admin:community-policy", "admin:export", "admin:break-glass",
+  ],
+  executive: [
+    "read:financial", "read:ledger", "read:business-metrics", "read:community",
+    "read:community-moderation", "admin:export",
+  ],
+  "system-admin": [
+    "read:ledger", "read:community-moderation", "admin:roles", "admin:locations",
+    "admin:calendars", "admin:community-policy", "admin:export",
+  ],
+  owner: [
+    "read:directory", "read:financial", "read:ledger", "read:all-clients",
+    "read:schedule", "read:all-schedules", "read:orders", "read:inventory", "read:crm", "read:messages",
+    "read:operations-cases", "create:operations-case", "work:operations-cases",
+    "read:community", "read:community-moderation", "write:community", "report:community", "moderate:community",
+    "read:business-metrics", "write:contact", "call:patient", "write:task", "write:schedule", "override:schedule", "write:membership", "write:invoice", "write:payment",
+    "write:refund", "write:inventory", "dispense:inventory", "write:recall", "write:fulfillment", "write:crm",
+    "write:communications", "write:quality", "admin:roles", "admin:locations", "admin:community-policy",
+    "admin:calendars", "admin:export", "admin:break-glass",
+  ],
+  unassigned: [],
 };
 
 /** Roles that may hold a clinical license. Used for credential gating. */
@@ -127,6 +222,8 @@ export const LICENSED_ROLES: StaffRole[] = ["Medical"];
 export interface Actor {
   id: string;
   role: StaffRole;
+  /** Server-resolved job profile. `unassigned` has no capabilities. */
+  accessProfile: AccessProfile;
   /** Location ids this actor covers. Empty = no scope; fails closed. */
   locationIds: string[];
   /** True while an approved break-glass window is open. */
@@ -153,12 +250,12 @@ export function can(
   capability: Capability,
   subject?: { coachId?: string; providerId?: string; locationId?: string },
 ): Decision {
-  const grants = GRANTS[actor.role] ?? [];
+  const grants = GRANTS[actor.accessProfile] ?? [];
 
   if (!grants.includes(capability)) {
     return {
       allowed: false,
-      reason: `${actor.role} cannot ${capability.replace(":", " ")}.`,
+      reason: `${actor.accessProfile} cannot ${capability.replace(":", " ")}.`,
       resolveVia: resolveHint(capability),
     };
   }
@@ -185,7 +282,31 @@ export function can(
     const inLocation =
       !subject.locationId || actor.locationIds.includes(subject.locationId);
 
-    if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients")) {
+    const locationOperational =
+      grants.includes("read:location-clients") &&
+      inLocation &&
+      [
+        "read:directory",
+        "read:clinical",
+        "read:schedule",
+        "write:schedule",
+        "write:contact",
+        "call:patient",
+        "write:demographics",
+        "write:task",
+        "write:consult",
+        "write:clinical-history",
+        "read:orders",
+        "read:inventory",
+        "write:inventory",
+        "dispense:inventory",
+        "write:fulfillment",
+        "collect:labs",
+        "record:lab-results",
+        "report:adverse-event",
+      ].includes(capability);
+
+    if (hasCareTeam && !onCareTeam && !grants.includes("read:all-clients") && !locationOperational) {
       if (actor.breakGlass) {
         return {
           allowed: true,
@@ -220,16 +341,18 @@ function resolveHint(capability: Capability): string | undefined {
     return "Requires a licensed provider. Escalate from the consult.";
   if (capability.startsWith("admin:"))
     return "Requires an operations lead.";
-  if (capability === "write:refund") return "Requires an operations lead.";
+  if (capability === "moderate:community")
+    return "Requires the room's assigned coach moderator or an operations owner.";
+  if (capability === "write:refund") return "Requires billing or owner approval.";
   return undefined;
 }
 
-export function capabilitiesFor(role: StaffRole): Capability[] {
-  return GRANTS[role] ?? [];
+export function capabilitiesFor(profile: AccessProfile): Capability[] {
+  return GRANTS[profile] ?? [];
 }
 
-export function hasCapability(role: StaffRole, capability: Capability): boolean {
-  return (GRANTS[role] ?? []).includes(capability);
+export function hasCapability(profile: AccessProfile, capability: Capability): boolean {
+  return (GRANTS[profile] ?? []).includes(capability);
 }
 
 /**
@@ -244,6 +367,18 @@ export const CAPABILITY_GROUPS: {
   note: string;
   capabilities: { id: Capability; label: string }[];
 }[] = [
+  {
+    group: "Community",
+    note: "Patients may post only in a coach-owned room. Any staff member with community access may report a concern; only the named coach moderator or operations can work the owned queue and close a case.",
+    capabilities: [
+      { id: "read:community", label: "View the pseudonymous community" },
+      { id: "report:community", label: "Report a community post" },
+      { id: "read:community-moderation", label: "View owned moderation cases" },
+      { id: "write:community", label: "Post as visible staff" },
+      { id: "moderate:community", label: "Acknowledge and resolve moderation cases" },
+      { id: "admin:community-policy", label: "Set owners, SLAs, retention and attachment policy" },
+    ],
+  },
   {
     group: "Reading the record",
     note: "Coaches and providers see the same record. Access is scoped to the member's care team and every read is logged to the member's own access log.",
@@ -263,6 +398,7 @@ export const CAPABILITY_GROUPS: {
       { id: "write:training", label: "Set the training split" },
       { id: "write:adherence", label: "Check-ins, habits, streaks" },
       { id: "write:contact", label: "Message the member, log a touch" },
+      { id: "call:patient", label: "Place an audited outbound patient call" },
       { id: "write:demographics", label: "Correct phone, email, address" },
     ],
   },
@@ -274,16 +410,20 @@ export const CAPABILITY_GROUPS: {
       { id: "sign:plan-of-care", label: "Approve the clinical plan" },
       { id: "sign:encounter", label: "Sign a clinical note (makes it immutable)" },
       { id: "order:labs", label: "Order a lab panel" },
+      { id: "collect:labs", label: "Collect and identify specimens" },
+      { id: "record:lab-results", label: "Import results for provider review" },
       { id: "sign:labs", label: "Review and sign off results" },
       { id: "override:contraindication", label: "Override a contraindication flag" },
     ],
   },
   {
     group: "Commerce",
-    note: "Coaches can place and reorder. Plan changes and refunds sit with the front desk and operations.",
+    note: "Coaches can place and reorder. Billing controls contracts, invoices, payment reconciliation and refunds; operations may manage contracts and invoices but cannot issue refunds.",
     capabilities: [
       { id: "write:order", label: "Place or reorder" },
       { id: "write:membership", label: "Change, pause or resume a plan" },
+      { id: "write:invoice", label: "Issue an itemized invoice" },
+      { id: "write:payment", label: "Reconcile a processor payment" },
       { id: "write:refund", label: "Issue a refund" },
     ],
   },

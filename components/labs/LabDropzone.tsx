@@ -16,6 +16,7 @@ import { Badge, Button, Card, CardContent } from "@/components/ui/primitives";
 import { FadeIn } from "@/components/motion";
 import { useToast } from "@/components/ui/Toast";
 import { SourceViewer } from "@/components/labs/SourceViewer";
+import { useCurrentStaff } from "@/lib/auth/useCurrentStaff";
 import {
   ingestLabReport,
   chartCommitDraft,
@@ -115,6 +116,13 @@ export interface LabDropzoneProps {
 
 export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps) {
   const { toast } = useToast();
+  /**
+   * Null until the server answers, and null forever for a sign-in with no staff
+   * record. Both are handled the same way: the import is refused. A lab result
+   * charted against nobody is a chart entry with no author, which is the exact
+   * defect the ledger exists to make impossible.
+   */
+  const staff = useCurrentStaff();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [phase, setPhase] = React.useState<Phase>("idle");
@@ -148,7 +156,13 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
       // The ingest is synchronous and deterministic. It is computed up front,
       // and the stages below only pace the reveal — no stage is allowed to
       // imply work that did not happen.
-      const ingested = ingestLabReport(fileName, clientId);
+      // The actor comes from the signed-in session, never from a module
+      // constant. `useCurrentStaff()` resolves it server-side from the Entra
+      // principal; a client component cannot invent an identity the server did
+      // not give it. No identity means no ingest — a lab import nobody can be
+      // held to is not an improvement on no lab import.
+      if (!staff) return;
+      const ingested = ingestLabReport(fileName, clientId, staff);
 
       setResult(ingested);
       setConfirmed(new Set());
@@ -220,7 +234,8 @@ export function LabDropzone({ clientId = "c-001", className }: LabDropzoneProps)
 
   const commit = () => {
     if (!result || confirmed.size === 0) return;
-    const row = appendLedger(chartCommitDraft(result, confirmed));
+    if (!staff) return;
+    const row = appendLedger(chartCommitDraft(result, confirmed, staff));
     setCommittedId(row.id);
     setPhase("committed");
     const withheld = result.markers.length - confirmed.size;

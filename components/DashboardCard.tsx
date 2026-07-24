@@ -81,7 +81,7 @@ export function DashboardCard({
       {hint && <p className="mt-1 text-detail text-ink-500">{hint}</p>}
       {spark && spark.length > 1 && (
         <div className="-mx-1 mt-auto pt-2 opacity-70 transition-opacity group-hover:opacity-100">
-          <Sparkline data={spark} color={sparkColor ?? (accent ? "#e93d3d" : "#5d646f")} />
+          <Sparkline data={spark} color={sparkColor ?? (accent ? "var(--chart-brand)" : "#5d646f")} />
         </div>
       )}
     </div>

@@ -18,6 +18,7 @@ import {
   type PortalDef,
   type PortalId,
 } from "@/lib/portals";
+import { IS_DEMO_UI } from "@/lib/publicConfig";
 
 /**
  * Tracks which portal the current session is "signed into".
@@ -80,7 +81,13 @@ interface PortalStore {
 
 const Ctx = createContext<PortalStore | null>(null);
 
-export function PortalProvider({ children }: { children: React.ReactNode }) {
+export function PortalProvider({
+  children,
+  defaultPortalId = null,
+}: {
+  children: React.ReactNode;
+  defaultPortalId?: PortalId | null;
+}) {
   const pathname = usePathname() || "/";
   const [chosen, setChosen] = useState<PortalId | null>(null);
   const [playOn, setPlayOnState] = useState(true);
@@ -89,6 +96,10 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   // Hydrate once. Guarded so the persist effect below can't write back an
   // empty value before we've read what was there.
   useEffect(() => {
+    if (!IS_DEMO_UI) {
+      loaded.current = true;
+      return;
+    }
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (isPortalId(raw)) setChosen(raw);
@@ -130,10 +141,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     (fromRoute === null && pathname === "/") ||
     pathname === "/book" ||
     pathname === "/demo" ||
+    pathname === "/patient-sign-in" ||
+    pathname === "/patient" ||
+    pathname.startsWith("/patient/") ||
     pathname.startsWith("/intake/") ||
     pathname.startsWith("/card/");
 
-  const portal = fromRoute ?? (chosen ? PORTALS[chosen] : PORTALS.patient /* AUDIT: least privilege. The fallback for an unknown
+  const portal = fromRoute ?? (!IS_DEMO_UI && defaultPortalId ? PORTALS[defaultPortalId] : chosen ? PORTALS[chosen] : PORTALS.patient /* AUDIT: least privilege. The fallback for an unknown
       viewer was PORTALS.clinic, so anyone the app could not identify became a
       clinician by default — the same inversion as the localStorage role that
       defaulted to "Medical". The safe default is the surface with the least

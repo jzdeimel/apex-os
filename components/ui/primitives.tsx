@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -34,8 +35,11 @@ const buttonVariants: Record<ButtonVariant, string> = {
   success: "bg-optimal/15 text-optimal border border-optimal/30 hover:bg-optimal/25",
 };
 const buttonSizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-detail gap-1.5",
-  md: "h-9 px-4 text-body gap-2",
+  // Explicit length hints keep tailwind-merge from mistaking the custom type
+  // tokens for text colours and silently dropping `text-white` on primary
+  // buttons under the V1 skin.
+  sm: "h-8 px-3 text-[length:0.8125rem] gap-1.5",
+  md: "h-9 px-4 text-[length:0.9375rem] gap-2",
   icon: "h-9 w-9",
 };
 
@@ -147,9 +151,15 @@ Textarea.displayName = "Textarea";
 // ---------------------------------------------------------------------------
 export function Progress({ value, className, tone = "gold" }: { value: number; className?: string; tone?: "gold" | "optimal" | "high" | "low" }) {
   const tones = { gold: "bg-gold-400", optimal: "bg-optimal", high: "bg-high", low: "bg-low" };
+  const clamped = Math.max(0, Math.min(100, value));
   return (
     <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-ink-700/70", className)}>
-      <div className={cn("h-full rounded-full", tones[tone])} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <motion.div
+        className={cn("h-full rounded-full", tones[tone])}
+        initial={false}
+        animate={{ width: `${clamped}%` }}
+        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      />
     </div>
   );
 }

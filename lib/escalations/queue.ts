@@ -1,4 +1,5 @@
 import { absolute } from "@/lib/utils";
+import { nowIso as currentInstant } from "@/lib/clock";
 import type {
   Escalation,
   EscalationEvent,
@@ -6,7 +7,6 @@ import type {
   EscalationPriority,
   EscalationStatus,
 } from "@/lib/escalations/types";
-import { escalations } from "@/lib/mock/escalations";
 
 /**
  * The escalation queue — SLA math and pure state transitions.
@@ -21,10 +21,8 @@ import { escalations } from "@/lib/mock/escalations";
  * Dr. Marcus Vale is the medical director and covers Raleigh + telehealth, so
  * the "Mine" filter has a meaningful, non-empty slice behind it.
  */
-export const ME_PROVIDER = "st-001";
-
-/** Pinned clock. Everything in Apex reads from this, never from a live Date. */
-export const NOW = "2026-06-12T09:00:00";
+/** Shared code uses wall time; explicitly configured demo builds use the demo clock. */
+export const NOW = currentInstant();
 
 /**
  * How long a provider has to answer, by priority.
@@ -59,6 +57,7 @@ export function isResolved(e: Escalation): boolean {
 
 /** When this escalation is owed an answer. */
 export function dueAt(e: Escalation): string {
+  if (e.dueAt) return absolute(e.dueAt).toISOString();
   const due = absolute(e.raisedAt).getTime() + SLA_HOURS[e.priority] * HOUR_MS;
   return absolute(due).toISOString();
 }
@@ -172,26 +171,6 @@ export function answer(
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
-
-export function queueFor(providerId: string): Escalation[] {
-  return escalations.filter((e) => e.assignedToStaffId === providerId);
-}
-
-export function openEscalations(): Escalation[] {
-  return escalations.filter((e) => !isResolved(e));
-}
-
-export function overdueEscalations(nowIso: string = NOW): Escalation[] {
-  return escalations.filter((e) => !isResolved(e) && isOverdue(e, nowIso));
-}
-
-export function escalationsForClient(clientId: string): Escalation[] {
-  return escalations.filter((e) => e.clientId === clientId);
-}
-
-export function escalationsRaisedBy(coachId: string): Escalation[] {
-  return escalations.filter((e) => e.raisedByStaffId === coachId);
-}
 
 // ---------------------------------------------------------------------------
 // Triage

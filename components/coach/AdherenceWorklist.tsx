@@ -88,7 +88,7 @@ function ReasonLine({
           </span>
           {/* The contribution, so the ranking is arithmetic a coach can follow
               rather than a black box that merely asserts an order. */}
-          <span className="stat-mono text-micro text-ink-700">+{reason.points}</span>
+          <span className="stat-mono text-micro text-ink-500">+{reason.points}</span>
         </div>
         <p className="mt-0.5 text-micro leading-relaxed text-ink-500">{reason.detail}</p>
         {isSourced(reason.source) && (
@@ -112,7 +112,7 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
     <div className={cn("card border-l-2 px-3 py-2.5", meta.rule)}>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
-          <span className="stat-mono mt-1 w-4 shrink-0 text-right text-micro text-ink-700">
+          <span className="stat-mono mt-1 w-4 shrink-0 text-right text-micro text-ink-500">
             {rank}
           </span>
           <Monogram client={row.client} size="sm" />
@@ -126,7 +126,7 @@ function WorklistRow({ row, rank }: { row: RiskRow; rank: number }) {
                 {row.name}
               </Link>
               <Badge tone={meta.tone}>{row.band === "high" ? "High risk" : row.band === "medium" ? "Watch" : "Low"}</Badge>
-              <span className="stat-mono text-micro text-ink-700" title="Sort key only — not a measurement of the member">
+              <span className="stat-mono text-micro text-ink-500" title="Sort key only — not a measurement of the member">
                 rank {row.score}
               </span>
             </div>

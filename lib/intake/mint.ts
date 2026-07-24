@@ -62,3 +62,13 @@ export function mintIntakeToken(nowIso: string): MintedInvite {
   expires.setHours(expires.getHours() + INTAKE_TTL_HOURS);
   return { token: randomChars(TOKEN_LENGTH), expiresAt: expires.toISOString() };
 }
+
+/**
+ * Put the bearer credential in the browser fragment, never the request path or
+ * query string. Fragments are not sent to Container Apps, reverse proxies, or
+ * server access logs; /intake removes it from the address bar immediately and
+ * presents it to the public API in a request header/body only.
+ */
+export function intakeEntryPath(token: string): string {
+  return `/intake#token=${encodeURIComponent(token)}`;
+}

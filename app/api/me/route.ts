@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentPrincipal } from "@/lib/auth/principal";
 import { can } from "@/lib/authz/capabilities";
+import { actorFromPrincipal } from "@/lib/auth/actor";
 
 /**
  * Who am I, and what may I do.
@@ -26,10 +27,10 @@ export async function GET() {
   // An authenticated user with no staff record has NO role and therefore no
   // capabilities. Reported explicitly so the state is legible rather than
   // looking like a bug.
-  const actor = p.staffId && p.role ? { id: p.staffId, role: p.role } : null;
+  const actor = actorFromPrincipal(p);
 
   const decide = (cap: Parameters<typeof can>[1]) =>
-    actor ? can(actor as never, cap) : { allowed: false, reason: "No staff record for this sign-in." };
+    actor ? can(actor, cap) : { allowed: false, reason: "No staff record for this sign-in." };
 
   return NextResponse.json({
     authenticated: true,
@@ -43,6 +44,11 @@ export async function GET() {
       signPlanOfCare: decide("sign:plan-of-care"),
       writeConsult: decide("write:consult"),
       readAllClients: decide("read:all-clients"),
+      orderLabs: decide("order:labs"),
+      collectLabs: decide("collect:labs"),
+      recordLabResults: decide("record:lab-results"),
+      signLabs: decide("sign:labs"),
+      adminLocations: decide("admin:locations"),
     },
   });
 }

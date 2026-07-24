@@ -27,6 +27,28 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------------------------------------------------------------------------
+# Controlled migration runner (explicit target only)
+# ---------------------------------------------------------------------------
+# This stage is published separately from the web image. It contains only the
+# V1 importer and its runtime dependency, and defaults to a read-only dry run.
+# An apply still needs all three controls enforced by migrate-v1.ts.
+FROM node:22-alpine AS migration
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY scripts/migrate-v1.ts scripts/register-alias.mjs scripts/alias-hooks.mjs ./scripts/
+COPY lib/migration/v1.ts ./lib/migration/v1.ts
+COPY lib/authz/profiles.ts ./lib/authz/profiles.ts
+COPY lib/mock/roster.ts ./lib/mock/roster.ts
+
+USER node
+CMD ["node", "--experimental-strip-types", "--no-warnings", "--import", "./scripts/register-alias.mjs", "scripts/migrate-v1.ts", "--mode=rehearsal"]
+
+# ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS runner
@@ -62,6 +84,10 @@ COPY --from=builder --chown=node:node /app/public ./public
 #   [apex] migration failed: Can't find meta/_journal.json file
 # on the first database call, which is a long way from the cause.
 COPY --from=builder --chown=node:node /app/lib/db/migrations ./lib/db/migrations
+
+# The scheduled Container Apps job uses the same immutable image but invokes
+# this one-shot process instead of the web server.
+COPY --from=builder --chown=node:node /app/scripts/automation-worker.mjs ./scripts/automation-worker.mjs
 
 EXPOSE 3000
 

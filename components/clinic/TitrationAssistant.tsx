@@ -26,7 +26,7 @@ const DIR_STYLE: Record<
   "consider-increase": { label: "Consider increase", icon: ArrowUpRight, cls: "text-emerald border-emerald/30 bg-emerald/5" },
   "consider-reduce": { label: "Consider reducing", icon: ArrowDownRight, cls: "text-gold-300 border-gold-400/30 bg-gold-400/5" },
   "hold-increase": { label: "Hold — gate open", icon: ShieldAlert, cls: "text-high border-high/30 bg-high/5" },
-  maintain: { label: "Maintain", icon: Equal, cls: "text-sky-300 border-sky-400/30 bg-sky-400/5" },
+  maintain: { label: "Maintain", icon: Equal, cls: "text-low border-low/30 bg-low/5" },
   discuss: { label: "Discuss", icon: MessageSquare, cls: "text-ink-200 border-ink-700 bg-ink-900/40" },
 };
 
@@ -106,7 +106,7 @@ export function TitrationAssistant({ clientId }: { clientId: string }) {
 
 function MarkerCard({ m }: { m: TitrationMarker }) {
   const posLabel: Record<TitrationMarker["position"], { t: string; c: string }> = {
-    below: { t: "Below optimal", c: "text-sky-300" },
+    below: { t: "Below optimal", c: "text-low" },
     optimal: { t: "In optimal", c: "text-emerald" },
     "above-optimal": { t: "Above optimal", c: "text-gold-300" },
     "above-ref": { t: "Above reference", c: "text-high" },
@@ -157,18 +157,18 @@ function Spark({ m }: { m: TitrationMarker }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 text-ink-600" role="img" aria-label={`${m.name} trend`}>
       {/* optimal band */}
-      <rect x={0} y={Math.min(bandTop, bandBot)} width={W} height={Math.abs(bandBot - bandTop)} fill="#34d399" opacity="0.10" />
+      <rect x={0} y={Math.min(bandTop, bandBot)} width={W} height={Math.abs(bandBot - bandTop)} fill="var(--c-optimal)" opacity="0.10" />
       <motion.path
         d={path}
         fill="none"
-        stroke="#e0bd6e"
+        stroke="var(--c-watch)"
         strokeWidth="1.6"
         strokeLinejoin="round"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       />
-      <circle cx={x(last)} cy={y(m.value)} r="2.6" fill="#e0bd6e" />
+      <circle cx={x(last)} cy={y(m.value)} r="2.6" fill="var(--c-watch)" />
     </svg>
   );
 }
