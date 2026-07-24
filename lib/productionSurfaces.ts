@@ -12,9 +12,10 @@
  * non-authoritative dependency.
  */
 const FIXTURE_ONLY_EXACT_PATHS = new Set([
+  "/admin/daily-report",
+  "/admin/effectiveness",
   "/analytics",
   "/automations",
-  "/book",
   "/demo",
   "/desk/community",
   "/exec/capacity",
@@ -52,6 +53,23 @@ const FIXTURE_ONLY_PREFIXES = [
   "/portal",
 ] as const;
 
+/** The parent is authoritative, but legacy descendants still carry demo data. */
+const FIXTURE_ONLY_DESCENDANTS = ["/intake"] as const;
+
+/**
+ * Retired API contracts that still execute fixture or browser-era workflows.
+ *
+ * API routes are not protected by the page redirect list. Keeping this
+ * separate makes the boundary explicit and lets middleware return JSON instead
+ * of redirecting a fetch to an HTML page.
+ */
+const FIXTURE_ONLY_API_EXACT_PATHS = new Set([
+  "/api/audit",
+  "/api/consults/sign",
+  "/api/member/log",
+  "/api/tasks/complete",
+]);
+
 function normalizedPath(pathname: string): string {
   if (!pathname || pathname === "/") return "/";
   const withoutQuery = pathname.split(/[?#]/, 1)[0] || "/";
@@ -63,12 +81,21 @@ function normalizedPath(pathname: string): string {
 export function isFixtureOnlyPath(pathname: string): boolean {
   const path = normalizedPath(pathname);
   if (FIXTURE_ONLY_EXACT_PATHS.has(path)) return true;
+  if (FIXTURE_ONLY_DESCENDANTS.some((prefix) => path.startsWith(`${prefix}/`))) {
+    return true;
+  }
   return FIXTURE_ONLY_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );
 }
 
+export function isFixtureOnlyApiPath(pathname: string): boolean {
+  return FIXTURE_ONLY_API_EXACT_PATHS.has(normalizedPath(pathname));
+}
+
 export const fixtureOnlyPaths = {
   exact: [...FIXTURE_ONLY_EXACT_PATHS],
   prefixes: [...FIXTURE_ONLY_PREFIXES],
+  descendants: [...FIXTURE_ONLY_DESCENDANTS],
+  apiExact: [...FIXTURE_ONLY_API_EXACT_PATHS],
 } as const;

@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 
 export interface ToggleRow {
   key: string;
+  availableInShared: boolean;
+  unavailableReason?: string;
   label: string;
   description: string;
   caution?: string;
@@ -98,6 +100,7 @@ function ToggleItem({ row }: { row: ToggleRow }) {
             <Badge tone="neutral">release default</Badge>
           )}
           <Badge tone="info">global · everyone</Badge>
+          {!row.availableInShared && <Badge tone="watch">withheld from shared Apex</Badge>}
           {row.overrideCount > 1 && (
             <Badge tone="info">{row.overrideCount} scoped rules</Badge>
           )}
@@ -109,6 +112,13 @@ function ToggleItem({ row }: { row: ToggleRow }) {
           <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-watch">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>{row.caution}</span>
+          </p>
+        )}
+
+        {!row.availableInShared && (
+          <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-high">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{row.unavailableReason || "Operational controls are incomplete."}</span>
           </p>
         )}
 
@@ -144,7 +154,7 @@ function ToggleItem({ row }: { row: ToggleRow }) {
           role="switch"
           aria-checked={enabled}
           aria-label={`${row.label}: ${enabled ? "on" : "off"}`}
-          disabled={pending}
+          disabled={pending || !row.availableInShared}
           onClick={() => post({ enabled: !enabled }, !enabled)}
           className={cn(
             "relative h-6 w-11 rounded-full border transition disabled:opacity-50",

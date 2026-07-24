@@ -101,6 +101,12 @@ export async function POST(request: NextRequest) {
       const blocking = blockingProblems(result.problems);
       return fail(422, `Order refused: ${blocking.map((problem) => problem.message).join(" ")}`);
     }
+    if (result.order.fulfillmentPartner === "MedSource") {
+      return fail(
+        503,
+        "MedSource transport is not connected. No order was created or represented as sent. Use the approved external workflow until the signed partner integration and outbox worker pass acceptance.",
+      );
+    }
     const committed = await createOrderWithLedger({
       order: result.order, pricing: result.pricing, shipping: body.shipping as "ship" | "pickup",
       shipTo: address ?? undefined, discountReason: typeof body.discountReason === "string" ? body.discountReason : undefined,
@@ -112,7 +118,7 @@ export async function POST(request: NextRequest) {
       ok: true, durable: true, duplicate: committed.duplicate,
       order: result.order, record: committed.order, pricing: result.pricing,
       ledger: committed.ledger ? { id: committed.ledger.id, hash: committed.ledger.hash } : { id: committed.order?.ledgerId },
-      fulfillment: result.order.fulfillmentPartner === "MedSource" ? "queued-for-partner" : "in-clinic",
+      fulfillment: "in-clinic",
       warnings: result.warnings,
     });
   } catch (error) {

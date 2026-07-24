@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/auth/guard";
 import { setFeatureFlag, clearFeatureFlag } from "@/lib/db/repo";
 import { flagAdminView } from "@/lib/features/server";
-import { isFeatureKey } from "@/lib/features/catalog";
+import { featureDef, isFeatureKey } from "@/lib/features/catalog";
 import { nowIso } from "@/lib/clock";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +61,18 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: "Unknown feature key. See lib/features/catalog.ts." },
       { status: 400 },
+    );
+  }
+  const definition = featureDef(key);
+  if (enabled === true && definition.availableInShared === false) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          definition.unavailableReason ||
+          "This feature is withheld from shared Apex until its operational controls are complete.",
+      },
+      { status: 409 },
     );
   }
   if (typeof scope !== "string" || !SCOPES.has(scope)) {

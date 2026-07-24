@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { fail, serverError, unavailable } from "@/lib/api/respond";
-import { createLeadWithInvite } from "@/lib/db/repo";
+import { unavailable } from "@/lib/api/respond";
+import { createLeadWithInvite, readPublicLocations } from "@/lib/db/repo";
 import { intakeEntryPath, mintIntakeToken } from "@/lib/intake/mint";
 import { sha256 } from "@/lib/trace/hash";
 import { rateLimit, clientIp } from "@/lib/api/rateLimit";
@@ -84,6 +84,7 @@ export async function POST(req: Request) {
   if (!email || !isEmail(email)) problems.push("A valid email is required.");
   if (!phone || !isPhone(phone)) problems.push("A valid phone number is required.");
   if (body.track && !TRACKS.has(body.track)) problems.push("Unknown care track.");
+  if (!body.locationId) problems.push("Choose an active clinic.");
   if (problems.length) {
     return NextResponse.json({ ok: false, error: problems.join(" "), problems }, { status: 400 });
   }
@@ -92,6 +93,13 @@ export async function POST(req: Request) {
   const minted = mintIntakeToken(at);
 
   try {
+    const publicLocations = await readPublicLocations();
+    if (!publicLocations.some((location) => location.id === body.locationId)) {
+      return NextResponse.json(
+        { ok: false, error: "That clinic is not currently accepting online requests." },
+        { status: 400 },
+      );
+    }
     const { leadId } = await createLeadWithInvite({
       firstName,
       lastName,

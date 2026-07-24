@@ -1,4 +1,10 @@
-import { featureLayout } from "@/lib/features/gate";
-
-/** Gated by the `self-booking` feature. See lib/features/catalog.ts. */
-export default featureLayout("self-booking");
+/**
+ * `/book` is authoritative lead capture, not self-booking.
+ *
+ * It records a request against an active database clinic and makes no slot,
+ * confirmation, SMS, or calendar promise. The separate `self-booking` feature
+ * remains unavailable until staffing hours and live calendar controls pass.
+ */
+export default function BookLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}

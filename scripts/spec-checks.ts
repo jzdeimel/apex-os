@@ -82,7 +82,11 @@ import { intakeEntryPath } from "@/lib/intake/mint";
 import { freeWindows, rulesForDate, validateMinuteWindow } from "@/lib/scheduling/capacity";
 import { CloverPaymentPort } from "@/lib/payments/clover";
 import { DUNNING_LADDER } from "@/lib/payments/port";
-import { isFixtureOnlyPath } from "@/lib/productionSurfaces";
+import { featureForPath } from "@/lib/features/catalog";
+import {
+  isFixtureOnlyApiPath,
+  isFixtureOnlyPath,
+} from "@/lib/productionSurfaces";
 import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   leadFirstResponseDueAt,
@@ -209,10 +213,19 @@ eq(
 
 const V2 = evaluateFeatures([], {}, "clinic-v2");
 eq("community ships on in the V2 launch", V2.community, true);
-eq("member education ships on in the V2 launch", V2["member-education"], true);
-eq("member nutrition ships on in the V2 launch", V2["member-nutrition"], true);
-eq("AI recommendations ship on in the V2 launch", V2["ai-recommendations"], true);
-eq("automations ship on in the V2 launch", V2.automations, true);
+eq("fixture-backed member education stays withheld in the V2 launch", V2["member-education"], false);
+eq("browser-only nutrition stays withheld in the V2 launch", V2["member-nutrition"], false);
+eq("unapproved AI recommendations stay withheld in the V2 launch", V2["ai-recommendations"], false);
+eq("simulated automations stay withheld in the V2 launch", V2.automations, false);
+eq(
+  "an override cannot expose a withheld AI feature",
+  evaluateFeatures(
+    [{ key: "ai-recommendations", scope: "global", targetId: null, enabled: true }],
+    {},
+    "full",
+  )["ai-recommendations"],
+  false,
+);
 eq(
   "direct provider messaging stays off in the V2 launch",
   V2["member-provider-thread"],
@@ -1529,11 +1542,18 @@ eq(
 );
 
 section("Shared-environment production surfaces");
-for (const path of ["/clients", "/clients/patient-1", "/coach", "/clinic", "/clinic/sign", "/schedule", "/tasks", "/supply-chain", "/community", "/exec"]) {
+eq("/book is lead capture rather than gated self-booking", featureForPath("/book"), null);
+for (const path of ["/book", "/intake", "/clients", "/clients/patient-1", "/coach", "/clinic", "/clinic/sign", "/schedule", "/tasks", "/supply-chain", "/community", "/exec"]) {
   eq(`${path} remains an authoritative shared route`, isFixtureOnlyPath(path), false);
 }
-for (const path of ["/portal", "/portal/messages", "/card/token", "/analytics", "/automations", "/recommendations", "/agent", "/coach/roster", "/clinic/ledger"]) {
+for (const path of ["/portal", "/portal/messages", "/card/token", "/intake/legacy-token", "/admin/daily-report", "/admin/effectiveness", "/analytics", "/automations", "/recommendations", "/agent", "/coach/roster", "/clinic/ledger"]) {
   eq(`${path} is blocked while it still depends on fixtures`, isFixtureOnlyPath(path), true);
+}
+for (const path of ["/api/audit", "/api/consults/sign", "/api/member/log", "/api/tasks/complete"]) {
+  eq(`${path} is retired outside demo mode`, isFixtureOnlyApiPath(path), true);
+}
+for (const path of ["/api/clients", "/api/consults/draft", "/api/patient/messages", "/api/tasks"]) {
+  eq(`${path} remains an authoritative shared API`, isFixtureOnlyApiPath(path), false);
 }
 
 console.log(

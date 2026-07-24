@@ -3,9 +3,12 @@ import { NextResponse } from "next/server";
 import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { nowIso } from "@/lib/clock";
-import { readEscalations, transitionEscalationWithLedger } from "@/lib/db/repo";
+import {
+  readClientCareScope,
+  readEscalations,
+  transitionEscalationWithLedger,
+} from "@/lib/db/repo";
 import type { Escalation, EscalationEvent, EscalationStatus } from "@/lib/escalations/types";
-import { getClient } from "@/lib/mock/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +23,6 @@ const STATUSES = new Set<EscalationStatus>([
 type EscalationRow = Awaited<ReturnType<typeof readEscalations>>[number];
 
 function toEscalation(row: EscalationRow): Escalation {
-  const client = getClient(row.clientId);
   const status = STATUSES.has(row.status as EscalationStatus)
     ? (row.status as EscalationStatus)
     : "Open";
@@ -31,22 +33,28 @@ function toEscalation(row: EscalationRow): Escalation {
     history.push({
       status: status === "In review" ? "In review" : "Acknowledged",
       at: row.acknowledgedAt.toISOString(),
-      actor: row.acknowledgedBy ?? client?.providerId ?? "medical",
+      actor: row.acknowledgedBy ?? row.assignedProviderId ?? "medical",
     });
   }
   if (row.answeredAt) {
     history.push({
       status: "Answered",
       at: row.answeredAt.toISOString(),
-      actor: row.answeredBy ?? client?.providerId ?? "medical",
+      actor: row.answeredBy ?? row.assignedProviderId ?? "medical",
     });
   }
 
   return {
     id: row.id,
     clientId: row.clientId,
+    clientFirstName: row.clientFirstName,
+    clientLastName: row.clientLastName,
+    clientName: `${row.clientPreferredName || row.clientFirstName} ${row.clientLastName}`.trim(),
     raisedByStaffId: row.raisedByStaffId,
-    assignedToStaffId: client?.providerId ?? "unassigned",
+    raisedByName: row.raisedByName,
+    assignedToStaffId: row.assignedProviderId ?? "unassigned",
+    assignedToName: row.assignedProviderName ?? "Unassigned",
+    assignedToCredential: row.assignedProviderCredential ?? undefined,
     kind: row.kind as Escalation["kind"],
     priority: row.priority as Escalation["priority"],
     status,
@@ -58,6 +66,8 @@ function toEscalation(row: EscalationRow): Escalation {
     answeredAt: row.answeredAt?.toISOString(),
     answer: row.answer ?? undefined,
     answeredByStaffId: row.answeredBy ?? undefined,
+    answeredByName: row.answeredByName ?? undefined,
+    answeredByCredential: row.answeredByCredential ?? undefined,
     statusHistory: history,
   };
 }
@@ -69,12 +79,12 @@ export async function GET(req: Request) {
 
   let filter: { clientId?: string; raisedByStaffId?: string } = {};
   if (clientId) {
-    const client = getClient(clientId);
+    const client = await readClientCareScope(clientId).catch(() => null);
     if (!client) return NextResponse.json({ ok: false, error: "Unknown client." }, { status: 404 });
     const g = await guard("read:chart", {
-      coachId: client.coachId,
-      providerId: client.providerId,
-      locationId: client.locationId,
+      coachId: client.assignedCoachId ?? undefined,
+      providerId: client.assignedProviderId ?? undefined,
+      locationId: client.locationId ?? undefined,
     });
     if (!g.ok) return g.res;
     filter = { clientId };
@@ -147,9 +157,17 @@ export async function PATCH(req: Request) {
         { status: 409 },
       );
     }
+    const [updated] = await readEscalations({ id: result.escalation.id });
+    if (!updated) {
+      return unavailable(
+        "escalation.transition.readback",
+        new Error("Committed escalation could not be read back."),
+        "The update was saved, but the refreshed Medical queue could not be loaded.",
+      );
+    }
     return NextResponse.json({
       ok: true,
-      escalation: toEscalation(result.escalation),
+      escalation: toEscalation(updated),
       ledger: { id: result.ledger.id, hash: result.ledger.hash },
     });
   } catch (error) {

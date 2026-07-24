@@ -29,7 +29,7 @@ import { staffMap, staffName } from "@/lib/mock/staff";
 import { locationName } from "@/lib/mock/locations";
 import { appendLedger } from "@/lib/trace/ledger";
 import { shortHash } from "@/lib/trace/hash";
-import { ME_PROVIDER } from "@/lib/escalations/queue";
+import { ME_PROVIDER } from "@/lib/escalations/fixtureSelectors";
 import type { Consult } from "@/lib/consult/types";
 import type { Client, Recommendation } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";

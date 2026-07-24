@@ -4,7 +4,7 @@ import { getClient } from "@/lib/mock/clients";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { consultsForClient } from "@/lib/mock/consults";
 import { ordersForClient } from "@/lib/mock/orders";
-import { escalationsForClient } from "@/lib/escalations/queue";
+import { escalationsForClient } from "@/lib/escalations/fixtureSelectors";
 import { buildPlanOfCare } from "@/lib/planOfCare/engine";
 import { alphaScore } from "@/lib/alphaScore";
 import { ledgerForSubject, type LedgerRow } from "@/lib/trace/ledger";

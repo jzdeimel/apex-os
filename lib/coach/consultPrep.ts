@@ -6,7 +6,7 @@ import { journalFor } from "@/lib/symptoms/journal";
 import { ordersForClient } from "@/lib/mock/orders";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { appointmentsForClient } from "@/lib/mock/appointments";
-import { escalationsForClient } from "@/lib/escalations/queue";
+import { escalationsForClient } from "@/lib/escalations/fixtureSelectors";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { subscriptionsForClient } from "@/lib/mock/subscriptions";
 import { staffName } from "@/lib/mock/staff";

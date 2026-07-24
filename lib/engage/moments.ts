@@ -2,7 +2,7 @@ import type { Client } from "@/lib/types";
 import { getClient } from "@/lib/mock/clients";
 import { staffMap } from "@/lib/mock/staff";
 import { contactLogForClient } from "@/lib/mock/contactLog";
-import { escalationsForClient } from "@/lib/escalations/queue";
+import { escalationsForClient } from "@/lib/escalations/fixtureSelectors";
 import { getLabsForClient } from "@/lib/mock/labs";
 import { getScanForClient } from "@/lib/mock/bodyscans";
 import { ordersForClient } from "@/lib/mock/orders";

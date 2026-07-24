@@ -4,7 +4,13 @@ import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { can } from "@/lib/authz/capabilities";
 import { nowIso } from "@/lib/clock";
-import { adjustInventoryWithLedger, readInventory, readInventoryLotScope, receiveInventoryWithLedger } from "@/lib/db/inventoryRepo";
+import {
+  adjustInventoryWithLedger,
+  readInventory,
+  readInventoryLocations,
+  readInventoryLotScope,
+  receiveInventoryWithLedger,
+} from "@/lib/db/inventoryRepo";
 import { inventoryLotRequestId, inventoryRequestId } from "@/lib/inventory/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +33,12 @@ export async function GET(request: NextRequest) {
   const requested = request.nextUrl.searchParams.get("locationId");
   if (requested && !g.actor.locationIds.includes(requested)) return fail(403, "This clinic is outside your inventory assignment.");
   try {
-    const inventory = await readInventory(requested ? [requested] : g.actor.locationIds);
-    return NextResponse.json({ ok: true, inventory, permissions: {
+    const scopedLocationIds = requested ? [requested] : g.actor.locationIds;
+    const [inventory, locations] = await Promise.all([
+      readInventory(scopedLocationIds),
+      readInventoryLocations(scopedLocationIds),
+    ]);
+    return NextResponse.json({ ok: true, inventory, locations, permissions: {
       canWrite: can(g.actor, "write:inventory").allowed,
       canDispense: can(g.actor, "dispense:inventory").allowed,
       canRecall: can(g.actor, "write:recall").allowed,

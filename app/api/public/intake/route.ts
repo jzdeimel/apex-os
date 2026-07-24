@@ -3,11 +3,14 @@ import { unavailable } from "@/lib/api/respond";
 import { findInviteByTokenHash, submitIntake, type ConsentDecision } from "@/lib/db/repo";
 import { sha256 } from "@/lib/trace/hash";
 import {
-  CURRENT_FORM_VERSION,
   formVersion,
   formSha256,
   validateSubmission,
 } from "@/lib/intake/formDefinition";
+import {
+  CONSENT_DEFINITIONS,
+  consentTextHash,
+} from "@/lib/intake/content";
 import { GENERIC_TOKEN_FAILURE } from "@/lib/intake/tokens";
 import { rateLimit, clientIp } from "@/lib/api/rateLimit";
 import { IS_DEMO } from "@/lib/config";
@@ -106,8 +109,30 @@ export async function POST(req: Request) {
   }
   if (!body.token || typeof body.token !== "string") return generic();
 
-  const consents = Array.isArray(body.consents) ? body.consents : [];
-  const grantedScopes = new Set(consents.filter((c) => c?.granted).map((c) => c?.scope));
+  const presentedConsents = Array.isArray(body.consents) ? body.consents : [];
+  const allowedScopes = new Set<string>(
+    CONSENT_DEFINITIONS.map((definition) => definition.kind),
+  );
+  const presentedScopes = presentedConsents.map((decision) => decision?.scope);
+  if (
+    presentedScopes.some((scope) => typeof scope !== "string" || !allowedScopes.has(scope)) ||
+    new Set(presentedScopes).size !== presentedScopes.length
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "The consent decisions do not match this intake version." },
+      { status: 400 },
+    );
+  }
+  const byScope = new Map(
+    presentedConsents.map((decision) => [decision.scope, decision]),
+  );
+  const consents: ConsentDecision[] = CONSENT_DEFINITIONS.map((definition) => ({
+    scope: definition.kind,
+    documentVersion: definition.version,
+    textSha256: consentTextHash(definition.kind),
+    granted: byScope.get(definition.kind)?.granted === true,
+  }));
+  const grantedScopes = new Set(consents.filter((c) => c.granted).map((c) => c.scope));
   const missing = REQUIRED_SCOPES.filter((s) => !grantedScopes.has(s));
   if (missing.length) {
     // A content error, not a token error — safe to be specific, and the person
@@ -146,7 +171,18 @@ export async function POST(req: Request) {
    * A medical history with a silent gap is worse than no history: it reads as
    * "asked and answered none".
    */
-  const definition = body.formVersion ? formVersion(body.formVersion) : CURRENT_FORM_VERSION;
+  if (
+    typeof body.formVersion !== "string" ||
+    !body.answers ||
+    typeof body.answers !== "object" ||
+    Array.isArray(body.answers)
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "A published intake form version and its complete answers are required." },
+      { status: 400 },
+    );
+  }
+  const definition = formVersion(body.formVersion);
   if (!definition) {
     return NextResponse.json(
       { ok: false, error: "Unknown intake form version." },
@@ -158,24 +194,22 @@ export async function POST(req: Request) {
   // legacy `history` blob shape is still accepted while the wizard migrates —
   // rejecting it here would take intake down for a UI change that has not
   // shipped, which is a worse failure than a transitional gap.
-  if (body.answers) {
-    const track = body.sex === "female" ? "female" : body.sex === "male" ? "male" : undefined;
-    const problems = validateSubmission(definition, answers, track);
-    if (problems.length) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Some required answers are missing.",
-          problems: problems.map((p) => ({
-            questionId: p.questionId,
-            prompt: p.prompt,
-            message: p.message,
-            mustKnow: p.mustKnow,
-          })),
-        },
-        { status: 400 },
-      );
-    }
+  const track = body.sex === "female" ? "female" : body.sex === "male" ? "male" : undefined;
+  const problems = validateSubmission(definition, answers, track);
+  if (problems.length) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Some required answers are missing.",
+        problems: problems.map((p) => ({
+          questionId: p.questionId,
+          prompt: p.prompt,
+          message: p.message,
+          mustKnow: p.mustKnow,
+        })),
+      },
+      { status: 400 },
+    );
   }
 
   try {

@@ -19,13 +19,10 @@ import {
   isResolved,
   slaState,
 } from "@/lib/escalations/queue";
-import { getClient, clientName } from "@/lib/mock/clients";
-import { staffMap, staffName } from "@/lib/mock/staff";
 import { shortHash } from "@/lib/trace/hash";
 import { Badge, Button, Textarea } from "@/components/ui/primitives";
-import { Monogram } from "@/components/Monogram";
 import { useToast } from "@/components/ui/Toast";
-import { formatDateTime, relativeDays } from "@/lib/utils";
+import { formatDateTime, initials, relativeDays } from "@/lib/utils";
 
 /**
  * One escalation, as a provider reads it.
@@ -67,9 +64,6 @@ export function EscalationCard({
   const [draft, setDraft] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  const client = getClient(escalation.clientId);
-  if (!client) return null;
 
   const resolved = isResolved(escalation);
   const state = slaState(escalation, now);
@@ -125,7 +119,9 @@ export function EscalationCard({
     >
       {/* ── Who, and the clock ────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start gap-3">
-        <Monogram client={client} size="md" />
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink-700 text-body font-semibold text-ink-100">
+          {initials(escalation.clientFirstName ?? "Unknown", escalation.clientLastName ?? "patient")}
+        </span>
 
         {/* `basis-[calc(100%-4rem)]` is what forces the SLA clock onto its own
             row below ~640px. Without it the clock's shrink-0 ~200px plus the
@@ -136,10 +132,10 @@ export function EscalationCard({
         <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/clients/${client.id}${escalation.kind === "Adverse event" ? "?tab=safety" : ""}`}
+              href={`/clients/${escalation.clientId}${escalation.kind === "Adverse event" ? "?tab=safety" : ""}`}
               className="truncate rounded text-body font-medium text-ink-50 hover:text-gold-300 focus-ring"
             >
-              {clientName(client)}
+              {escalation.clientName ?? escalation.clientId}
             </Link>
             <Badge tone={PRIORITY_TONE[escalation.priority]}>
               {escalation.priority === "Urgent" && <AlertTriangle className="h-3 w-3" />}
@@ -161,7 +157,7 @@ export function EscalationCard({
           </div>
 
           <p className="mt-1 text-micro text-ink-500">
-            Raised by {staffName(escalation.raisedByStaffId)} ·{" "}
+            Raised by {escalation.raisedByName ?? escalation.raisedByStaffId} ·{" "}
             <span className="stat-mono">{formatDateTime(escalation.raisedAt)}</span> ·{" "}
             <span className="stat-mono">{relativeDays(escalation.raisedAt)}</span>
           </p>
@@ -186,7 +182,7 @@ export function EscalationCard({
             </p>
             <p className="text-micro text-ink-500">
               {resolved ? (
-                <>by {staffName(escalation.answeredByStaffId)}</>
+                <>by {escalation.answeredByName ?? escalation.answeredByStaffId ?? "Medical"}</>
               ) : (
                 <>due <span className="stat-mono">{formatDateTime(dueAt(escalation))}</span></>
               )}
@@ -220,9 +216,9 @@ export function EscalationCard({
           <div className="flex items-center gap-2">
             <Stethoscope className="h-3.5 w-3.5 text-optimal" />
             <p className="text-micro font-medium text-optimal">
-              {staffName(escalation.answeredByStaffId)}
-              {staffMap[escalation.answeredByStaffId ?? ""]?.credentials
-                ? `, ${staffMap[escalation.answeredByStaffId ?? ""].credentials}`
+              {escalation.answeredByName ?? escalation.answeredByStaffId ?? "Medical"}
+              {escalation.answeredByCredential
+                ? `, ${escalation.answeredByCredential}`
                 : ""}
             </p>
             <span className="stat-mono text-micro text-ink-500">
@@ -243,7 +239,7 @@ export function EscalationCard({
                 rows={4}
                 value={draft}
                 onChange={(ev) => setDraft(ev.target.value)}
-                placeholder={`Answer ${client.firstName}'s question. This goes back to ${staffName(escalation.raisedByStaffId)} and onto the record.`}
+                placeholder={`Answer ${escalation.clientFirstName ?? "the patient"}'s question. This goes back to ${escalation.raisedByName ?? escalation.raisedByStaffId} and onto the record.`}
               />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="primary" onClick={onAnswer} disabled={!draft.trim() || busy}>
@@ -279,7 +275,8 @@ export function EscalationCard({
                 Answer
               </Button>
               <span className="text-micro text-ink-500">
-                Assigned to {staffName(escalation.assignedToStaffId)}
+                Assigned to {escalation.assignedToName ?? escalation.assignedToStaffId}
+                {escalation.assignedToCredential ? `, ${escalation.assignedToCredential}` : ""}
               </span>
             </div>
           )}

@@ -14,6 +14,7 @@
     "contrast:self-test": "node scripts/contrast-sweep.mjs --self-test",
     "cutover:preflight": "node scripts/cutover-preflight.mjs",
     "cutover:go-no-go": "node scripts/cutover-preflight.mjs --go-live",
+    "audit:production-surfaces": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/production-surface-audit.ts",
     "migrate:v1": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/migrate-v1.ts",
     "audit:v1-identity": "node --experimental-strip-types --no-warnings --import ./scripts/register-alias.mjs scripts/audit-v1-identity.ts",
     "schema:check": "drizzle-kit check",

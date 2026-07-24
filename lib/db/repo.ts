@@ -40,7 +40,6 @@ import {
   medication as medicationTable,
   staffCredential,
 } from "@/lib/db/schema";
-import { staff as seededStaff } from "@/lib/mock/staff";
 import type { Consult } from "@/lib/consult/types";
 import type {
   ClinicalNoteFields,
@@ -50,7 +49,7 @@ import type {
 } from "@/lib/consult/types";
 import { normalizeConsultChannel, normalizeConsultKind } from "@/lib/consult/metadata";
 import { stampFor } from "@/lib/consult/summarize";
-import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/ledger";
+import { hashRow, GENESIS_HASH, type LedgerDraft, type LedgerRow } from "@/lib/trace/chain";
 import {
   segmentPlanFor,
   completionVerdict,
@@ -74,7 +73,6 @@ import {
   normalizedAppointmentState,
   type AppointmentState,
 } from "@/lib/scheduling/lifecycle";
-import { inferAccessProfile } from "@/lib/authz/profiles";
 import { NCV_COMPONENTS, type NcvComponentId } from "@/lib/scheduling/ncv";
 import { parseCredential } from "@/lib/scheduling/credentials";
 import { resourceSuitableForVisit } from "@/lib/clinic-resources/lifecycle";
@@ -959,6 +957,31 @@ export async function readSchedulingReference() {
       .orderBy(clinicLocationTable.name),
   ]);
   return { clients, staff: staffRows, locations };
+}
+
+/**
+ * Public clinic choices for lead capture.
+ *
+ * This intentionally returns only non-sensitive location facts. The booking
+ * page previously imported the checked-in demo location array, so a closed or
+ * renamed clinic could remain bookable until the next deployment.
+ */
+export async function readPublicLocations() {
+  const db = requireDb();
+  return db
+    .select({
+      id: clinicLocationTable.id,
+      code: clinicLocationTable.code,
+      name: clinicLocationTable.name,
+      address1: clinicLocationTable.address1,
+      city: clinicLocationTable.city,
+      state: clinicLocationTable.state,
+      zip: clinicLocationTable.zip,
+      timezone: clinicLocationTable.timezone,
+    })
+    .from(clinicLocationTable)
+    .where(eq(clinicLocationTable.active, true))
+    .orderBy(clinicLocationTable.name);
 }
 
 export async function readGoogleCalendarsForSync() {
@@ -2016,18 +2039,80 @@ export async function readOpenEscalations() {
  * filters below. Authorization stays in the API route; the repository only
  * applies the already-authorized scope.
  */
-export async function readEscalations(filter: { clientId?: string; raisedByStaffId?: string } = {}) {
+export async function readEscalations(
+  filter: { id?: string; clientId?: string; raisedByStaffId?: string } = {},
+) {
   const db = requireDb();
-  const clientFilter = filter.clientId ? eq(escalationTable.clientId, filter.clientId) : undefined;
-  const coachFilter = filter.raisedByStaffId
-    ? eq(escalationTable.raisedByStaffId, filter.raisedByStaffId)
-    : undefined;
-  const where = clientFilter && coachFilter ? and(clientFilter, coachFilter) : clientFilter ?? coachFilter;
+  const filters = [];
+  if (filter.id) filters.push(eq(escalationTable.id, filter.id));
+  if (filter.clientId) filters.push(eq(escalationTable.clientId, filter.clientId));
+  if (filter.raisedByStaffId) {
+    filters.push(eq(escalationTable.raisedByStaffId, filter.raisedByStaffId));
+  }
+  const where = filters.length ? and(...filters) : undefined;
 
   const base = db.select().from(escalationTable);
-  return where
+  const rows = await (where
     ? base.where(where).orderBy(desc(escalationTable.raisedAt))
-    : base.orderBy(desc(escalationTable.raisedAt));
+    : base.orderBy(desc(escalationTable.raisedAt)));
+  if (!rows.length) return [];
+
+  const clients = await db
+    .select({
+      id: clientTable.id,
+      firstName: clientTable.firstName,
+      lastName: clientTable.lastName,
+      preferredName: clientTable.preferredName,
+      assignedProviderId: clientTable.assignedProviderId,
+    })
+    .from(clientTable)
+    .where(inArray(clientTable.id, [...new Set(rows.map((row) => row.clientId))]));
+  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const staffIds = new Set<string>();
+  for (const row of rows) {
+    staffIds.add(row.raisedByStaffId);
+    if (row.acknowledgedBy) staffIds.add(row.acknowledgedBy);
+    if (row.answeredBy) staffIds.add(row.answeredBy);
+    const providerId = clientById.get(row.clientId)?.assignedProviderId;
+    if (providerId) staffIds.add(providerId);
+  }
+  const staffRows = staffIds.size
+    ? await db
+      .select({
+        id: staffTable.id,
+        name: staffTable.name,
+        credentials: staffTable.credentials,
+        active: staffTable.active,
+      })
+      .from(staffTable)
+      .where(inArray(staffTable.id, [...staffIds]))
+    : [];
+  const staffById = new Map(staffRows.map((member) => [member.id, member]));
+
+  return rows.map((row) => {
+    const client = clientById.get(row.clientId);
+    const providerId = client?.assignedProviderId ?? null;
+    return {
+      ...row,
+      clientFirstName: client?.firstName ?? "Unknown",
+      clientLastName: client?.lastName ?? "patient",
+      clientPreferredName: client?.preferredName ?? null,
+      raisedByName: staffById.get(row.raisedByStaffId)?.name ?? row.raisedByStaffId,
+      assignedProviderId: providerId,
+      assignedProviderName: providerId
+        ? staffById.get(providerId)?.name ?? providerId
+        : null,
+      assignedProviderCredential: providerId
+        ? staffById.get(providerId)?.credentials ?? null
+        : null,
+      answeredByName: row.answeredBy
+        ? staffById.get(row.answeredBy)?.name ?? row.answeredBy
+        : null,
+      answeredByCredential: row.answeredBy
+        ? staffById.get(row.answeredBy)?.credentials ?? null
+        : null,
+    };
+  });
 }
 
 /** A Medical queue transition and its audit witness commit together. */
@@ -2206,55 +2291,7 @@ export async function stockOnHand(sku: string, locationId: string) {
 /* Staff — identity and clinical authority                                     */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Seed the staff roster into the DB, idempotently.
- *
- * Runs at boot after migrations. Upserts every seeded staff member so the table
- * is populated on a fresh database, and re-running is a no-op that refreshes the
- * row. This is the bridge: the roster still originates in lib/mock/staff for the
- * demo, but the AUTHORITY (who is a prescriber) is now read from the table, so a
- * real deployment adds a provider with an INSERT here rather than a code change.
- * entraObjectId starts null for the seeded rows — a real Entra tenant fills it,
- * and the lookup prefers it once set.
- */
-export async function seedStaff(): Promise<number> {
-  const db = requireDb();
-  for (const s of seededStaff) {
-    await db
-      .insert(staffTable)
-      .values({
-        id: s.id,
-        email: s.email ?? `${s.id}@alphahealth.demo`,
-        name: s.name,
-        role: s.role,
-        accessProfile: inferAccessProfile({
-          id: s.id,
-          role: s.role,
-          credentials: s.credentials,
-          title: s.bio,
-        }),
-        locationIds: s.locationIds ?? [],
-        credentials: s.credentials ?? null,
-        canApprove: s.canApprove ?? false,
-        active: true,
-      })
-      /**
-       * DO NOTHING on conflict. The seed may CREATE a staff row; it must never
-       * overwrite one that already exists.
-       *
-       * This previously re-applied role, locationIds and canApprove on every
-       * boot, which meant the database was not actually the authority it claims
-       * to be: revoke a prescriber by setting their role in the table, restart
-       * the container, and the seed silently promoted them back. Authority
-       * changes have to survive a deploy or they are theatre.
-       *
-       * Deactivation is likewise preserved — an inactive row stays inactive.
-       */
-      .onConflictDoNothing({ target: staffTable.id });
-  }
-  return seededStaff.length;
-}
-
+/** Authoritative active staff identity and clinical authority. */
 export interface StaffRow {
   id: string;
   entraObjectId: string | null;

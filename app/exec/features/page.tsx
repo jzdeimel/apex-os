@@ -102,6 +102,8 @@ export default async function FeaturesPage() {
           <FeatureToggles
             rows={group.map((r) => ({
               key: r.def.key,
+              availableInShared: r.def.availableInShared !== false,
+              unavailableReason: r.def.unavailableReason,
               label: r.def.label,
               description: r.def.description,
               caution: r.def.caution,

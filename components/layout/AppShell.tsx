@@ -6,10 +6,15 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { CommandBar } from "@/components/CommandBar";
-import { DemoTour } from "@/components/DemoTour";
 import { usePortal } from "@/lib/portalStore";
 import { IS_DEMO_UI } from "@/lib/publicConfig";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+
+const DemoTour = dynamic(
+  () => import("@/components/DemoTour").then((module) => module.DemoTour),
+  { ssr: false },
+);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);

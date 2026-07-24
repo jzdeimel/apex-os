@@ -269,6 +269,7 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
         '/intake'
         '/api/public/leads'
         '/api/public/intake'
+        '/api/public/locations'
         '/patient-sign-in'
         '/patient'
         '/patient/*'

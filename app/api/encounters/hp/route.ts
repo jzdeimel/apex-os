@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/auth/guard";
 import { signHistoryPhysical, completeSegment } from "@/lib/db/repo";
 import { nowIso } from "@/lib/clock";
-import { staffMap } from "@/lib/mock/staff";
+import { parseCredential } from "@/lib/scheduling/credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   const g = await guard("sign:encounter");
   if (!g.ok) return g.res;
 
-  const credential = staffMap[g.actor.id]?.credentialClass ?? null;
+  const credential = parseCredential(g.principal.credentials);
   const at = nowIso();
 
   try {

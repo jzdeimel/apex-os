@@ -79,6 +79,10 @@ const server = EXTERNAL_BASE
         TZ: "UTC",
         APEX_FEATURE_PRESET: "full",
         APEX_UI_SKIN: "alpha-dark",
+        // The UI matrix needs deterministic local staff identities when CI has
+        // no Postgres. Browser demo affordances remain compiled off; the
+        // production-shaped HTTP smoke separately verifies fixture retirement.
+        APEX_DEMO_MODE: "true",
       },
       stdio: "inherit",
     });
@@ -115,6 +119,29 @@ try {
     if (text.length < 100) done(1, `SMOKE-UI FAIL: entry screen rendered only ${text.length} chars`);
     if (errors.length) done(1, `SMOKE-UI FAIL: entry page errors: ${errors.slice(0, 3).join(" | ")}`);
     console.log(`ok  entry screen: ${text.length} chars, no page errors`);
+    await p.close();
+  }
+
+  // Public consultation capture is not the withheld self-booking feature. It
+  // must render, and without Postgres it must show an unavailable clinic state
+  // rather than offering seeded locations or accepting a fake reservation.
+  {
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(`${BASE}/book`, { waitUntil: "networkidle", timeout: 30000 });
+    await p.getByRole("heading", { name: "Book your free consultation." }).waitFor({
+      timeout: 10000,
+    });
+    const text = await p.evaluate(() => document.body.innerText);
+    const submitDisabled = await p
+      .getByRole("button", { name: "Book my free consultation" })
+      .isDisabled();
+    if (!/unavailable|no clinic/i.test(text) || !submitDisabled) {
+      done(1, "SMOKE-UI FAIL: /book did not fail closed without database clinics");
+    }
+    if (errors.length) done(1, `SMOKE-UI FAIL: /book errors: ${errors.slice(0, 3).join(" | ")}`);
+    console.log("ok  /book: authoritative lead capture, no seeded clinic fallback");
     await p.close();
   }
 

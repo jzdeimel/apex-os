@@ -1,5 +1,6 @@
 import {
   FEATURES,
+  featureDef,
   presetDefaults,
   type FeatureKey,
   type PresetId,
@@ -113,6 +114,7 @@ export function evaluateFeatures(
 
   for (const row of rows) {
     if (!(row.key in out)) continue; // retired or unknown key — see catalog docblock
+    if (featureDef(row.key as FeatureKey).availableInShared === false) continue;
     if (!matches(row, subject)) continue;
 
     const rank = SCOPE_RANK[row.scope];
@@ -166,6 +168,15 @@ export function explainFeature(
   subject: FeatureSubject,
   preset: PresetId,
 ): FeatureExplanation {
+  if (featureDef(key).availableInShared === false) {
+    return {
+      key,
+      enabled: false,
+      decidedBy: "preset",
+      decidedByTarget: "withheld",
+      overridden: rows.filter((row) => row.key === key),
+    };
+  }
   const matched = rows.filter((r) => r.key === key && matches(r, subject));
   if (matched.length === 0) {
     return {

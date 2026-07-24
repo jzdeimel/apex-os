@@ -82,8 +82,8 @@ export const PORTALS: Record<PortalId, PortalDef> = {
     label: "Client Portal",
     persona: "Members",
     tagline: "Your protocol, your labs, your progress — and a full record of who has looked at it.",
-    home: "/portal",
-    prefixes: ["/portal"],
+    home: "/patient",
+    prefixes: ["/patient"],
     identity: {
       method: "Single-use magic link · pilot cohort",
       session: "15-minute idle · 12-hour absolute · server-enforced",

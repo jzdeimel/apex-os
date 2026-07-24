@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import type { StaffRole } from "@/lib/types";
-import { staff } from "@/lib/mock/staff";
 import { IS_DEMO } from "@/lib/config";
 import { inferAccessProfile, isAccessProfile, type AccessProfile } from "@/lib/authz/profiles";
 
@@ -137,9 +136,9 @@ export async function currentPrincipal(): Promise<Principal | null> {
  *      rename cannot silently re-point clinical authority).
  *   2. The staff table, by email (how a row is claimed before its objectId has
  *      been filled in; the first successful sign-in could stamp it).
- *   3. The seeded roster, by email — ONLY when no database is configured, so a
- *      local build without Postgres still authenticates. When a DB exists it is
- *      authoritative: a row deactivated there is deactivated, full stop.
+ *   3. The seeded roster, by email — ONLY in explicit local demo mode. A
+ *      production-shaped process without Postgres has no authority source and
+ *      fails closed.
  *
  * This closes the audit finding that granting someone prescriber authority was
  * an edit to a TypeScript file: with a DB present, it is now an INSERT/UPDATE on
@@ -207,7 +206,8 @@ async function mapToStaff(
     }
   }
 
-  if (!lower) return null;
+  if (!IS_DEMO || !lower) return null;
+  const { staff } = await import("@/lib/mock/staff");
   const hit = staff.find((s) => s.email?.toLowerCase() === lower);
   return hit
     ? {

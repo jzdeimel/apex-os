@@ -144,6 +144,16 @@ export async function PUT(req: Request) {
   if (!body.clientId || typeof body.rawNotes !== "string") {
     return NextResponse.json({ ok: false, error: "clientId and rawNotes are required." }, { status: 400 });
   }
+  if (body.aiSummary !== undefined) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "AI-authored summaries are disabled until an approved model, provenance record, and clinician-review workflow are configured.",
+      },
+      { status: 409 },
+    );
+  }
 
   // Validate the role-bound note shape before touching the patient record.
   // This keeps malformed/forbidden requests deterministic while the database
@@ -199,7 +209,6 @@ export async function PUT(req: Request) {
       channel,
       rawNotes: body.rawNotes,
       clinicalNote: clinicalNote ?? undefined,
-      aiSummary: body.aiSummary,
       at: new Date().toISOString(),
     });
     return NextResponse.json({ ok: true, durable: true, ...saved });

@@ -1,4 +1,3 @@
-import { locations } from "@/lib/mock/locations";
 import type { LocationId } from "@/lib/types";
 import type { MerchantAccountId } from "@/lib/payments/port";
 
@@ -41,21 +40,34 @@ export interface MerchantBinding {
   envKey: string;
 }
 
-/** Every clinic and whether its account is configured. Drives the settings screen. */
+/**
+ * Deployment configuration keys, not clinic records.
+ *
+ * This reports whether each approved merchant binding is present. Patient
+ * locations and activity still come from PostgreSQL; billing code never reads
+ * the seeded location fixture.
+ */
+const MERCHANT_CONFIG_LOCATIONS: ReadonlyArray<{
+  id: Exclude<LocationId, "telehealth">;
+  name: string;
+}> = [
+  { id: "raleigh", name: "Raleigh" },
+  { id: "raleigh-boutique", name: "Raleigh Boutique" },
+  { id: "southern-pines", name: "Southern Pines" },
+  { id: "myrtle-beach", name: "Myrtle Beach" },
+];
+
+/** Every approved clinic merchant key and whether it is configured. */
 export function merchantBindings(): MerchantBinding[] {
-  return locations
-    // Telehealth is not a clinic and does not hold a merchant account — it is a
-    // panel served by clinic staff, and its patients bill to a real clinic.
-    .filter((l) => l.type === "clinic")
-    .map((l) => {
-      const envKey = envKeyFor(l.id);
-      return {
-        locationId: l.id,
-        locationName: l.short,
-        merchantAccountId: process.env[envKey] ?? null,
-        envKey,
-      };
-    });
+  return MERCHANT_CONFIG_LOCATIONS.map((location) => {
+    const envKey = envKeyFor(location.id);
+    return {
+      locationId: location.id,
+      locationName: location.name,
+      merchantAccountId: process.env[envKey] ?? null,
+      envKey,
+    };
+  });
 }
 
 /**

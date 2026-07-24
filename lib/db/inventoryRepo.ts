@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, sql as raw } from "drizzle-orm";
 import { requireDb } from "@/lib/db/client";
 import {
   client,
+  clinicLocation,
   dispense,
   inventoryLot,
   inventoryMovement,
@@ -46,6 +47,25 @@ export async function readInventory(locationIds: string[]) {
       affectedDispenses: dispenses.filter((row) => row.sku === recall.sku && row.lotNumber === recall.lotNumber).length,
     })),
   };
+}
+
+export async function readInventoryLocations(locationIds: string[]) {
+  const db = requireDb();
+  if (!locationIds.length) return [];
+  return db
+    .select({
+      id: clinicLocation.id,
+      name: clinicLocation.name,
+      timezone: clinicLocation.timezone,
+    })
+    .from(clinicLocation)
+    .where(
+      and(
+        eq(clinicLocation.active, true),
+        inArray(clinicLocation.id, locationIds),
+      ),
+    )
+    .orderBy(clinicLocation.name);
 }
 
 export async function readInventoryLotScope(id: string) {

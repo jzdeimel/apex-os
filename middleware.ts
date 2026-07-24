@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { isFixtureOnlyPath } from "@/lib/productionSurfaces";
+import {
+  isFixtureOnlyApiPath,
+  isFixtureOnlyPath,
+} from "@/lib/productionSurfaces";
 
 function demoEnabled() {
   return process.env.APEX_DEMO_MODE === "true";
@@ -11,7 +14,25 @@ function demoEnabled() {
  * environment. Hiding a sidebar item is useful UX; it is not enforcement.
  */
 export function middleware(request: NextRequest) {
-  if (demoEnabled() || !isFixtureOnlyPath(request.nextUrl.pathname)) {
+  if (demoEnabled()) {
+    return NextResponse.next();
+  }
+
+  if (isFixtureOnlyApiPath(request.nextUrl.pathname)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "This retired demonstration endpoint is unavailable in the shared Apex environment.",
+      },
+      {
+        status: 410,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
+  }
+
+  if (!isFixtureOnlyPath(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
@@ -24,6 +45,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|icon.svg|\\.auth|access-pending|not-ready|patient-sign-in).*)",
+    "/((?!_next/static|_next/image|icon.svg|\\.auth|access-pending|not-ready|patient-sign-in).*)",
   ],
 };

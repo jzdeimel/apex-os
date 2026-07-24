@@ -17,7 +17,6 @@ import type {
 } from "@azure/communication-calling";
 
 import { normalizeUsPhoneNumber } from "@/lib/communications/calling";
-import { getClient } from "@/lib/mock/clients";
 
 interface CallPatientProps {
   clientId: string;
@@ -72,11 +71,8 @@ export function CallPatient({
   clientName,
   phone,
 }: CallPatientProps) {
-  const seeded = getClient(clientId);
-  const patientName =
-    clientName ||
-    (seeded ? `${seeded.firstName} ${seeded.lastName}` : "patient");
-  const rawPhone = phone !== undefined ? phone : (seeded?.phone ?? null);
+  const patientName = clientName || "patient";
+  const rawPhone = phone ?? null;
   const dialNumber = useMemo(
     () => normalizeUsPhoneNumber(rawPhone),
     [rawPhone],

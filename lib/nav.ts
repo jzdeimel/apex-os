@@ -87,43 +87,11 @@ export interface NavGroup {
 export const PORTAL_NAV: Record<PortalId, NavGroup[]> = {
   patient: [
     {
-      section: "Every day",
+      section: "Your care",
       items: [
-        { href: "/portal", label: "Today", icon: Heart, spotlight: true },
-        { href: "/portal/progress", label: "Progress", icon: TrendingUp },
-        { href: "/portal/protocol", label: "My Protocol", icon: Syringe },
-        { href: "/portal/sites", label: "Injection sites", icon: Activity },
-      ],
-    },
-    {
-      section: "My health",
-      items: [
-        { href: "/portal/labs", label: "Lab Results", icon: FlaskConical },
-        { href: "/portal/journal", label: "How I feel", icon: PenLine },
-        { href: "/portal/food", label: "Food", icon: Compass },
-        { href: "/portal/train", label: "Training", icon: Gauge },
-      ],
-    },
-    {
-      section: "Explore",
-      items: [
-        { href: "/portal/explore", label: "What's available", icon: Sparkles, spotlight: true },
-        { href: "/portal/learn", label: "Learn", icon: GraduationCap },
-        { href: "/portal/library", label: "Peptide library", icon: FlaskConical },
-        { href: "/portal/community", label: "Community", icon: UsersRound, spotlight: true },
-      ],
-    },
-    {
-      section: "Account",
-      items: [
-        { href: "/portal/messages", label: "Messages", icon: MessageSquare },
-        { href: "/portal/book-visit", label: "Book a visit", icon: CalendarDays },
-        { href: "/portal/team", label: "My care team", icon: Stethoscope },
-        { href: "/portal/costs", label: "Costs", icon: Wallet },
-        { href: "/portal/receipts", label: "Receipts", icon: Receipt },
-        { href: "/portal/refer", label: "Refer a friend", icon: Award },
-        { href: "/portal/access", label: "Who viewed my chart", icon: Eye, spotlight: true },
-        { href: "/portal/consents", label: "Consents", icon: FileSignature },
+        { href: "/patient", label: "Today", icon: Heart, spotlight: true },
+        { href: "/patient/records", label: "Record requests", icon: FileText },
+        { href: "/patient/community", label: "Community", icon: UsersRound, spotlight: true },
       ],
     },
   ],

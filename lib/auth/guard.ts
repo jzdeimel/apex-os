@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import type { NextResponse } from "next/server";
+import { fail } from "@/lib/api/respond";
 import { currentPrincipal, type Principal } from "@/lib/auth/principal";
 import { actorFromPrincipal } from "@/lib/auth/actor";
 import { can, type Actor, type Capability } from "@/lib/authz/capabilities";
@@ -26,18 +27,18 @@ export async function guard(
 ): Promise<GuardResult> {
   const principal = await currentPrincipal();
   if (!principal) {
-    return { ok: false, res: NextResponse.json({ ok: false, error: "Not authenticated." }, { status: 401 }) };
+    return { ok: false, res: fail(401, "Not authenticated.") };
   }
   const actor = actorFromPrincipal(principal);
   if (!actor) {
     return {
       ok: false,
-      res: NextResponse.json({ ok: false, error: "No staff record for this sign-in." }, { status: 403 }),
+      res: fail(403, "No staff record for this sign-in."),
     };
   }
   const decision = can(actor, capability, subject);
   if (!decision.allowed) {
-    return { ok: false, res: NextResponse.json({ ok: false, error: decision.reason }, { status: 403 }) };
+    return { ok: false, res: fail(403, decision.reason) };
   }
   return { ok: true, actor, principal };
 }

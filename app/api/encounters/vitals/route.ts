@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/auth/guard";
 import { recordVitals, completeSegment } from "@/lib/db/repo";
 import { nowIso } from "@/lib/clock";
-import { staffMap } from "@/lib/mock/staff";
+import { parseCredential } from "@/lib/scheduling/credentials";
 import type { VitalsInput } from "@/lib/encounters/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   // The credential held right now, from the roster the staff row points at.
   // Passed explicitly rather than looked up deeper down, so what was recorded
   // is what was checked.
-  const credential = staffMap[g.actor.id]?.credentialClass ?? null;
+  const credential = parseCredential(g.principal.credentials);
   const at = nowIso();
 
   try {

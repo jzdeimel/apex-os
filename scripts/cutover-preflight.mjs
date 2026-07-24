@@ -31,10 +31,16 @@ const requiredApprovals = {
   CUTOVER_CREDENTIALS_APPROVED: "licenses, state scope, expiry, and supervision loaded",
   CUTOVER_NCV_POLICY_APPROVED: "continuity, female routing, telehealth NCV, and Raleigh DC decided",
   CUTOVER_CALENDAR_APPROVED: "calendar accounts and busy sync accepted",
+  CUTOVER_CALLING_APPROVED: "ACS browser calling passed a real-device audio, mute, hang-up, and audit test",
   CUTOVER_CLOVER_APPROVED: "four merchants and payment acceptance tests passed",
   CUTOVER_CARD_VAULT_APPROVED: "vault migration or card recollection evidenced",
   CUTOVER_SMS_APPROVED: "ACS number, 10DLC, STOP/DNC, and delivery webhook passed",
   CUTOVER_EMAIL_APPROVED: "domain authentication, quota, warmup, and bounce handling passed",
+  CUTOVER_MEDSOURCE_APPROVED: "partner submission, acknowledgement, shipment webhooks, and reconciliation passed",
+  CUTOVER_INVENTORY_APPROVED: "opening lots, quantities, expiries, recalls, and transfers were counted and accepted",
+  CUTOVER_AI_DOCUMENTATION_APPROVED: "approved transcription and synthesis providers passed provenance and clinician-review tests",
+  CUTOVER_CONSENT_CONTENT_APPROVED: "counsel and clinical leadership approved every published intake consent version",
+  CUTOVER_COMMUNITY_APPROVED: "real groups, owners, members, moderation SLA, report, and block flows passed",
   CUTOVER_EXPORTS_APPROVED: "MindBody/GHL exports and final delta rehearsed",
   CUTOVER_PORTAL_READS_APPROVED: "patient routes use the authenticated database client only",
   CUTOVER_HISTORY_APPROVED: "historical clinical and financial continuity is accepted",
@@ -127,6 +133,7 @@ const requiredPublicPaths = [
   "'/intake'",
   "'/api/public/leads'",
   "'/api/public/intake'",
+  "'/api/public/locations'",
 ];
 const publicJourneyFailures = [
   ...requiredPublicPaths

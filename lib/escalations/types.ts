@@ -82,10 +82,16 @@ export interface EscalationEvent {
 export interface Escalation {
   id: string;
   clientId: string;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientName?: string;
   /** The coach who raised it. They get to watch it, not just fire it off. */
   raisedByStaffId: string;
+  raisedByName?: string;
   /** A Medical staff member covering this member's location. */
   assignedToStaffId: string;
+  assignedToName?: string;
+  assignedToCredential?: string;
   kind: EscalationKind;
   priority: EscalationPriority;
   status: EscalationStatus;
@@ -102,5 +108,7 @@ export interface Escalation {
   answeredAt?: string;
   answer?: string;
   answeredByStaffId?: string;
+  answeredByName?: string;
+  answeredByCredential?: string;
   statusHistory: EscalationEvent[];
 }

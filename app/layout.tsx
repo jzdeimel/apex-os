@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
-import { StoreProvider } from "@/lib/store";
 import { PortalProvider } from "@/lib/portalStore";
 import { ToastProvider } from "@/components/ui/Toast";
 import { FeatureProvider } from "@/lib/features/client";
@@ -11,6 +11,13 @@ import { IS_DEMO, UI_SKIN } from "@/lib/config";
 import { currentPrincipal } from "@/lib/auth/principal";
 import type { AccessProfile } from "@/lib/authz/profiles";
 import type { PortalId } from "@/lib/portals";
+
+const DemoStoreProvider = dynamic(
+  () =>
+    import("@/components/demo/DemoStoreProvider").then(
+      (module) => module.DemoStoreProvider,
+    ),
+);
 
 function portalForProfile(profile: AccessProfile | null | undefined): PortalId | null {
   switch (profile) {
@@ -111,13 +118,21 @@ export default async function RootLayout({
     >
       <body>
         <FeatureProvider value={features} preset={preset}>
-          <StoreProvider>
+          {IS_DEMO ? (
+            <DemoStoreProvider>
+              <PortalProvider defaultPortalId={portalForProfile(principal?.accessProfile)}>
+                <ToastProvider>
+                  <AppShell>{children}</AppShell>
+                </ToastProvider>
+              </PortalProvider>
+            </DemoStoreProvider>
+          ) : (
             <PortalProvider defaultPortalId={portalForProfile(principal?.accessProfile)}>
               <ToastProvider>
                 <AppShell>{children}</AppShell>
               </ToastProvider>
             </PortalProvider>
-          </StoreProvider>
+          )}
         </FeatureProvider>
       </body>
     </html>

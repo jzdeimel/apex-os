@@ -9,8 +9,6 @@ import {
 } from "@/lib/escalations/queue";
 import type { Escalation } from "@/lib/escalations/types";
 import { useEscalations } from "@/components/escalations/useEscalations";
-import { staffName } from "@/lib/mock/staff";
-import { getClient, clientName } from "@/lib/mock/clients";
 import { Card, CardContent, Badge, EmptyState } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 
@@ -95,19 +93,19 @@ export function ClientEscalations({ clientId }: { clientId: string }) {
 
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-800/60 pt-2.5 text-micro text-ink-500">
                 <span>
-                  Raised by <span className="text-ink-300">{staffName(e.raisedByStaffId)}</span>
+                  Raised by <span className="text-ink-300">{e.raisedByName ?? e.raisedByStaffId}</span>
                 </span>
                 <span className="stat-mono">{formatDateTime(e.raisedAt)}</span>
                 <span>·</span>
                 <span>
-                  With <span className="text-ink-300">{staffName(e.assignedToStaffId)}</span>
+                  With <span className="text-ink-300">{e.assignedToName ?? e.assignedToStaffId}</span>
                 </span>
               </div>
 
               {e.answer ? (
                 <div className="mt-3 rounded-lg border border-optimal/25 bg-optimal/5 p-3">
                   <p className="label-eyebrow text-optimal">
-                    Answer from {staffName(e.answeredByStaffId ?? e.assignedToStaffId)}
+                    Answer from {e.answeredByName ?? e.assignedToName ?? e.answeredByStaffId ?? e.assignedToStaffId}
                   </p>
                   <p className="mt-1.5 text-detail leading-relaxed text-ink-200">{e.answer}</p>
                   {e.answeredAt && (
@@ -158,7 +156,6 @@ export function CoachWaitingOn({ coachId }: { coachId: string }) {
 
         <ul className="mt-3 space-y-2">
           {[...answered, ...open].slice(0, 4).map((e) => {
-            const client = getClient(e.clientId);
             return (
               <li key={e.id}>
                 <Link
@@ -168,7 +165,7 @@ export function CoachWaitingOn({ coachId }: { coachId: string }) {
                   <StateBadge e={e} now={now} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-body text-ink-100">
-                      {client ? clientName(client) : e.clientId}
+                      {e.clientName ?? e.clientId}
                     </span>
                     <span className="block truncate text-micro text-ink-500">{e.question}</span>
                   </span>

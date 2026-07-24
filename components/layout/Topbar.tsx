@@ -2,14 +2,21 @@
 
 import { Menu, Search, ShieldCheck, Phone, HeartPulse } from "lucide-react";
 import Link from "next/link";
-import { LocationFilter } from "@/components/LocationFilter";
-import { NotificationBell } from "@/components/NotificationBell";
+import dynamic from "next/dynamic";
 import { usePortal } from "@/lib/portalStore";
 import { PersonaSwitcher } from "@/components/layout/PersonaSwitcher";
 import { MotionToggle } from "@/components/layout/MotionToggle";
-import { me } from "@/components/portal/PortalHeader";
 import { BRAND } from "@/lib/brand";
 import { IS_DEMO_UI } from "@/lib/publicConfig";
+
+const DemoLocationFilter = dynamic(
+  () => import("@/components/LocationFilter").then((module) => module.LocationFilter),
+  { ssr: false },
+);
+const DemoNotificationBell = dynamic(
+  () => import("@/components/NotificationBell").then((module) => module.NotificationBell),
+  { ssr: false },
+);
 
 /**
  * One header, three genuinely different products.
@@ -30,7 +37,6 @@ import { IS_DEMO_UI } from "@/lib/publicConfig";
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const { portal } = usePortal();
   const isMember = portal.id === "patient";
-  const member = isMember ? me() : null;
 
   const openCommand = () => {
     window.dispatchEvent(
@@ -55,7 +61,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             <span className="flex items-center gap-1.5 text-body text-ink-300">
               <HeartPulse className="h-4 w-4 text-optimal" />
               <span className="truncate font-medium text-ink-100">
-                {member ? member.firstName : "Your"} · Alpha Health
+                Your care · Alpha Health
               </span>
             </span>
             <a
@@ -74,7 +80,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
               className="relative hidden h-9 max-w-sm flex-1 items-center rounded-lg border border-ink-800 bg-ink-900/70 pl-9 pr-2 text-left text-body text-ink-500 transition-colors hover:border-ink-700 sm:flex"
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" />
-              {portal.id === "clinic" ? "Find a patient, lab or protocol…" : "Find a member, order or task…"}
+              Find a page or patient…
               <kbd className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-micro text-ink-500">
                 ⌘K
               </kbd>
@@ -99,8 +105,13 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         */}
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
           <MotionToggle />
-          {!isMember && <LocationFilter />}
-          {!isMember && <NotificationBell />}
+          {/*
+            These legacy controls still summarize browser-side fixtures and do
+            not constrain authoritative queries. Keep them out of shared Apex
+            until they have scoped database read models.
+          */}
+          {!isMember && IS_DEMO_UI && <DemoLocationFilter />}
+          {!isMember && IS_DEMO_UI && <DemoNotificationBell />}
           {/*
           AUDIT 1.1: this was the one sibling without a guard. LocationFilter and
           NotificationBell were both gated on !isMember and PersonaSwitcher was

@@ -7,8 +7,8 @@ import type { PortalId } from "@/lib/portals";
  * ---------------
  * Two commitments made on the 2026-07-21 project sync land on this file:
  *
- *   1. "From the owner console you'll be able to turn features on and off at
- *      will for coaches and clients. You don't have to do anything in Azure."
+ *   1. "From the owner console you'll be able to turn operational features on
+ *      and off for coaches and clients. You don't have to do anything in Azure."
  *   2. Ship Apex under a V1 skin so nobody has to relearn what they learned in
  *      the last two weeks — "I'd rather subtract than add."
  *
@@ -48,9 +48,10 @@ import type { PortalId } from "@/lib/portals";
  *
  * `clinic-v1` is the original parity posture: Apex underneath, the surface area
  * the coaches already know, and everything Apex added dark. `clinic-v2` is the
- * intended launch posture: the highest-value Apex additions are available while
- * the three surfaces with unresolved workflow or disclosure risk stay dark.
- * `full` is the whole product, which is what development and internal review run.
+ * intended launch posture: the highest-value authoritative Apex additions are
+ * available while any fixture-backed or operationally unapproved surface stays
+ * dark. `full` enables every shared-environment-ready feature; local demo mode
+ * separately exposes fixture previews.
  *
  * A preset supplies DEFAULTS ONLY. A stored flag row always wins — the preset
  * is where a key starts, not where it is pinned.
@@ -66,11 +67,12 @@ export const PRESETS: Record<PresetId, { label: string; description: string }> =
   "clinic-v2": {
     label: "Clinic (V2 launch)",
     description:
-      "Most Apex features on. Direct provider messaging, emergency cards and self-booking stay off until their operating controls are ready.",
+      "Authoritative Apex features on. Fixture-backed and operationally unapproved surfaces remain withheld.",
   },
   full: {
     label: "Full product",
-    description: "Every surface Apex has built. Internal and demo use.",
+    description:
+      "Every operational shared-environment feature. Fixture previews remain local-demo-only.",
   },
 };
 
@@ -79,6 +81,10 @@ export const DEFAULT_PRESET: PresetId = "clinic-v1";
 
 export interface FeatureDef {
   key: FeatureKey;
+  /** False when the implementation still depends on fixtures or an absent transport. */
+  availableInShared?: boolean;
+  /** Operational reason an unavailable feature cannot be enabled yet. */
+  unavailableReason?: string;
   /** What an owner reading the toggle list would call it. */
   label: string;
   /** One line. Why it exists and what turning it off costs. */
@@ -134,6 +140,8 @@ const DEFS = [
   },
   {
     key: "member-education",
+    availableInShared: false,
+    unavailableReason: "The current education and peptide pages still read the synthetic member corpus.",
     label: "Learn & peptide library",
     description: "Member-facing education articles and the peptide reference library.",
     portals: ["patient"],
@@ -142,6 +150,8 @@ const DEFS = [
   },
   {
     key: "member-explore",
+    availableInShared: false,
+    unavailableReason: "The merchandising page still reads synthetic memberships and recommendations.",
     label: "What's available",
     description: "Merchandising surface showing services the member is not yet on.",
     portals: ["patient"],
@@ -150,6 +160,8 @@ const DEFS = [
   },
   {
     key: "member-nutrition",
+    availableInShared: false,
+    unavailableReason: "Food and training plans are still browser-only and are not part of the patient record.",
     label: "Food & training plans",
     description: "Member meal guidance and training programming.",
     portals: ["patient"],
@@ -158,6 +170,8 @@ const DEFS = [
   },
   {
     key: "member-referrals",
+    availableInShared: false,
+    unavailableReason: "Referral attribution and rewards do not yet have a durable workflow.",
     label: "Refer a friend",
     description: "Member referral flow and reward tracking.",
     portals: ["patient"],
@@ -166,6 +180,8 @@ const DEFS = [
   },
   {
     key: "gamification",
+    availableInShared: false,
+    unavailableReason: "Streaks, levels, and quests still use browser storage instead of patient-scoped records.",
     label: "Streaks, levels & quests",
     description:
       "The engagement layer over the member's own pages. Not a page of its own.",
@@ -200,6 +216,8 @@ const DEFS = [
   // ── Coach & clinic extras ──────────────────────────────────────────────
   {
     key: "coach-winback",
+    availableInShared: false,
+    unavailableReason: "Win-back ranking still derives from seeded contacts and memberships.",
     label: "Lapsed member win-back",
     description: "Ranked list of lapsed members with outreach prompts.",
     portals: ["coach"],
@@ -208,6 +226,8 @@ const DEFS = [
   },
   {
     key: "population-insights",
+    availableInShared: false,
+    unavailableReason: "Population patterns and trajectories are still illustrative rather than calculated from Apex records.",
     label: "What we're seeing",
     description: "Cross-member pattern detection and cohort trajectories.",
     portals: ["coach", "clinic"],
@@ -216,6 +236,8 @@ const DEFS = [
   },
   {
     key: "ai-recommendations",
+    availableInShared: false,
+    unavailableReason: "No approved model, provenance record, or database-backed recommendation review queue is configured.",
     label: "AI recommendations",
     description:
       "Generated protocol suggestions queued for provider sign-off.",
@@ -227,6 +249,8 @@ const DEFS = [
   },
   {
     key: "ai-assistant",
+    availableInShared: false,
+    unavailableReason: "Ask Apex is scripted until an approved record retrieval and model path is configured.",
     label: "Ask Apex",
     description: "Conversational assistant over the record.",
     portals: ["coach", "clinic", "desk", "exec"],
@@ -235,6 +259,8 @@ const DEFS = [
   },
   {
     key: "background-agents",
+    availableInShared: false,
+    unavailableReason: "The worker fleet, transport, run history, and retry controls are not deployed.",
     label: "Background agents",
     description: "Long-running automation workers and their run history.",
     portals: ["coach", "exec"],
@@ -243,6 +269,8 @@ const DEFS = [
   },
   {
     key: "automations",
+    availableInShared: false,
+    unavailableReason: "Automation rules still simulate delivery and have no production worker or communication transport.",
     label: "Automations",
     description: "Rule-driven member outreach and lifecycle triggers.",
     portals: ["coach", "exec"],
@@ -253,6 +281,8 @@ const DEFS = [
   // ── Operations ─────────────────────────────────────────────────────────
   {
     key: "emergency-card",
+    availableInShared: false,
+    unavailableReason: "The emergency card still reads fixtures and has not passed live grant, expiry, and revocation testing.",
     label: "Emergency card",
     description:
       "Scannable card exposing medications, allergies and care team to a first responder.",
@@ -264,10 +294,12 @@ const DEFS = [
   },
   {
     key: "self-booking",
+    availableInShared: false,
+    unavailableReason: "Patient self-booking is withheld until production hours, credentials, resources, and calendar sync are accepted.",
     label: "Member self-booking",
     description: "Members book their own visits against real availability.",
     portals: ["patient"],
-    routes: ["/portal/book-visit", "/book"],
+    routes: ["/portal/book-visit"],
     defaults: { "clinic-v1": false, "clinic-v2": false, full: true },
     caution:
       "A New Client Visit needs a coach, a lab draw and a provider on the same day. Do not enable member self-booking until the NCV resolver is live, or members will book visits the clinic cannot staff.",
@@ -277,6 +309,8 @@ const DEFS = [
 /** Shape check for the `as const satisfies` above — not exported. */
 interface RawFeatureDef {
   key: string;
+  availableInShared?: boolean;
+  unavailableReason?: string;
   label: string;
   description: string;
   portals: readonly PortalId[];
@@ -336,6 +370,8 @@ export function featureForPath(pathname: string): FeatureDef | null {
 /** Defaults for a preset, as a plain map. The base every resolution starts from. */
 export function presetDefaults(preset: PresetId): Record<FeatureKey, boolean> {
   const out = {} as Record<FeatureKey, boolean>;
-  for (const f of FEATURES) out[f.key] = f.defaults[preset];
+  for (const f of FEATURES) {
+    out[f.key] = f.availableInShared === false ? false : f.defaults[preset];
+  }
   return out;
 }

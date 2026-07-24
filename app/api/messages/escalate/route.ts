@@ -5,10 +5,8 @@ import { fail, unavailable } from "@/lib/api/respond";
 import { guard } from "@/lib/auth/guard";
 import { raiseEscalationWithLedger, readClientCareScope } from "@/lib/db/repo";
 import { nowIso } from "@/lib/clock";
-import { isConfigured } from "@/lib/db/client";
 import { SLA_HOURS } from "@/lib/escalations/queue";
 import type { EscalationKind, EscalationPriority } from "@/lib/escalations/types";
-import { getClient } from "@/lib/mock/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -81,18 +79,7 @@ export async function POST(req: Request) {
 
   let client;
   try {
-    if (isConfigured) {
-      client = await readClientCareScope(body.clientId);
-    } else {
-      const seeded = getClient(body.clientId);
-      client = seeded ? {
-        id: seeded.id,
-        assignedCoachId: seeded.coachId,
-        assignedProviderId: seeded.providerId,
-        locationId: seeded.locationId,
-        status: "active",
-      } : null;
-    }
+    client = await readClientCareScope(body.clientId);
   } catch (error) {
     return unavailable("escalation.scope", error, "The patient assignment could not be verified.");
   }

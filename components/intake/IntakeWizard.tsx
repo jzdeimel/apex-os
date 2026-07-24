@@ -26,11 +26,8 @@ import {
   GOAL_OPTIONS,
   SYMPTOM_OPTIONS,
   consentTextHash,
-  makeConsentRecord,
-  NOW,
-} from "@/lib/mock/intake";
+} from "@/lib/intake/content";
 import { JOURNEY, BRAND } from "@/lib/brand";
-import { locationMap } from "@/lib/mock/locations";
 import { shortHash } from "@/lib/trace/hash";
 import { Button, Input, Textarea, Badge, Progress } from "@/components/ui/primitives";
 import { SwitchView, FadeIn } from "@/components/motion";
@@ -71,6 +68,16 @@ const STEPS: { id: IntakeStepId; label: string; short: string; icon: React.Eleme
 ];
 
 const REQUIRED_CONSENTS = CONSENT_DEFINITIONS.filter((c) => c.required).map((c) => c.kind);
+
+type ConsentReceipt = { kind: ConsentKind; granted: boolean };
+
+function locationLabel(id: string) {
+  return id
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 function emptyAnswers(invite: IntakeInvite): IntakeAnswers {
   return {
@@ -373,19 +380,19 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const location = locationMap[answers.locationId];
+  const selectedLocationLabel = locationLabel(answers.locationId);
 
   // -------------------------------------------------------------------------
   // Finished
   // -------------------------------------------------------------------------
   if (submitted) {
-    const records = CONSENT_DEFINITIONS.map((d) =>
-      makeConsentRecord(d.kind, consentState[d.kind], NOW),
-    );
+    const records: ConsentReceipt[] = CONSENT_DEFINITIONS.map((definition) => ({
+      kind: definition.kind,
+      granted: consentState[definition.kind],
+    }));
     return (
       <SubmittedPanel
         answers={answers}
-        invite={invite}
         consentRecords={records}
         receipt={receipt}
       />
@@ -895,7 +902,7 @@ export function IntakeWizard({ invite }: { invite: IntakeInvite }) {
                     </p>
                     <p className="mt-1 text-detail text-ink-500">
                       {answers.sex === "female" ? "Women's health" : "Men's health"} ·{" "}
-                      {location?.name ?? answers.locationId}
+                      {selectedLocationLabel}
                     </p>
                   </ReviewBlock>
 
@@ -1087,26 +1094,16 @@ function TagList({ items, empty }: { items: string[]; empty: string }) {
 // ---------------------------------------------------------------------------
 
 /**
- * The finish screen does double duty.
- *
- * For the member it is the "what happens next" they actually need — the clinic's
- * own four-step journey, in the clinic's own words, so the language on this page
- * matches the language on the phone call they get tomorrow.
- *
- * For anyone evaluating Apex it is the receipt: the records that would be
- * created and the exact ledger row that would be appended. Showing the write
- * rather than performing it keeps the demo deterministic and keeps this page
- * honest about being a demo.
+ * The finish screen reports only facts returned by the durable submission. It
+ * does not preview client rows, tasks, or audit data that were not committed.
  */
 function SubmittedPanel({
   answers,
-  invite,
   consentRecords,
   receipt,
 }: {
   answers: IntakeAnswers;
-  invite: IntakeInvite;
-  consentRecords: ReturnType<typeof makeConsentRecord>[];
+  consentRecords: ConsentReceipt[];
   /** Server-issued proof of what was actually written. Null only pre-submit. */
   receipt: { submissionId: string; ledgerId: string } | null;
 }) {
@@ -1115,28 +1112,6 @@ function SubmittedPanel({
   // The server's receipt. When present these are FACTS about rows that exist in
   // Postgres — not a preview of a write we chose not to perform.
   const durable = receipt !== null;
-
-  // The draft that would go to appendLedger() in lib/trace/ledger.ts. Built, not
-  // committed — a demo page that mutates the audit chain on render is a demo
-  // page that produces a different chain on every reload.
-  const ledgerDraft = {
-    actorId: "public-intake",
-    actorName: `${answers.firstName} ${answers.lastName}`,
-    actorRole: "Client",
-    action: "sign" as const,
-    entity: "consent" as const,
-    entityId: `int-${invite.id}`,
-    subjectName: `${answers.firstName} ${answers.lastName}`,
-    locationId: answers.locationId,
-    reason: "Public intake submitted via tokenised link",
-    after: {
-      consentsGranted: granted,
-      consentsTotal: consentRecords.length,
-      marketing: consentRecords.find((c) => c.kind === "marketing")?.granted ?? false,
-      goals: answers.goals.length,
-      symptoms: answers.symptoms.length,
-    },
-  };
 
   return (
     <FadeIn>
@@ -1198,7 +1173,7 @@ function SubmittedPanel({
         {/* The receipt. Real ids when the server accepted the submission. */}
         {durable && (
           <div className="mt-5 rounded-xl border border-optimal/40 bg-optimal/10 p-4">
-            <p className="text-body font-medium text-optimal">Recorded to your chart</p>
+            <p className="text-body font-medium text-optimal">Intake recorded securely</p>
             <p className="stat-mono mt-1 text-detail text-ink-300">
               Submission {receipt!.submissionId}
               {receipt!.ledgerId ? ` · ledger ${receipt!.ledgerId}` : ""}
@@ -1210,7 +1185,7 @@ function SubmittedPanel({
           </div>
         )}
 
-        <div className="mt-7 rounded-xl border border-dashed border-ink-700 bg-ink-900/40 p-4">
+        <div className="mt-7 rounded-xl border border-ink-700 bg-ink-900/40 p-4">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gold-300" />
             <p className="text-body font-medium text-ink-100">
@@ -1220,36 +1195,20 @@ function SubmittedPanel({
 
           <ul className="mt-3 space-y-1.5 text-body text-ink-300">
             <li>
-              · One <span className="text-ink-100">Client</span> record at status{" "}
-              <span className="text-ink-100">Consult Booked</span>, with{" "}
+              · Your intake submission includes{" "}
               {answers.goals.length} goal{answers.goals.length === 1 ? "" : "s"} and{" "}
-              {answers.symptoms.length} symptom{answers.symptoms.length === 1 ? "" : "s"}{" "}
-              already populated — no re-keying.
+              {answers.symptoms.length} symptom{answers.symptoms.length === 1 ? "" : "s"}.
             </li>
             <li>
               · {consentRecords.length} separate{" "}
-              <span className="text-ink-100">ConsentRecord</span> rows ({granted} granted),
+              <span className="text-ink-100">consent decisions</span> ({granted} granted),
               each pinned to its own text version and hash.
             </li>
             <li>
-              · One <span className="text-ink-100">Task</span> for the location's coach:
-              call to schedule the free consultation.
-            </li>
-            <li>
-              · Intake link <span className="stat-mono text-ink-100">{invite.shortCode}</span>{" "}
-              marked used. Single-use — the link is now dead.
+              · The lead moved to <span className="text-ink-100">intake submitted</span>,
+              and this single-use link is now spent.
             </li>
           </ul>
-
-          <p className="label-eyebrow mt-4 mb-2">Ledger row appended</p>
-          <pre className="stat-mono overflow-x-auto rounded-lg border border-ink-700/70 bg-ink-950/70 p-3 text-micro leading-relaxed text-ink-300">
-{JSON.stringify(ledgerDraft, null, 2)}
-          </pre>
-          <p className="mt-2 text-detail leading-relaxed text-ink-500">
-            Note the action is <span className="text-ink-300">sign</span> and the entity is{" "}
-            <span className="text-ink-300">consent</span>. A signature that leaves no
-            hash-chained trace is a signature you cannot defend two years later.
-          </p>
         </div>
       </div>
     </FadeIn>

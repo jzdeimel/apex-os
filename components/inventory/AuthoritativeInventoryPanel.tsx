@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, Boxes, ClipboardCheck, PackagePlus, RotateCcw, ShieldAlert } from "lucide-react";
 
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState } from "@/components/ui/primitives";
-import { locations } from "@/lib/mock/locations";
 
 type Movement = { id: string; kind: string; quantityDelta: number; at: string; reason: string | null; ledgerId: string | null };
 type Lot = {
@@ -15,6 +14,7 @@ type Lot = {
 type Recall = { id: string; sku: string; lotNumber: string; noticeRef: string; reason: string; status: string; initiatedAt: string; affectedDispenses: number; ledgerId: string };
 type Permissions = { canWrite: boolean; canDispense: boolean; canRecall: boolean };
 type Recipient = { dispenseId: string; clientId: string; firstName: string; lastName: string; preferredName: string | null; email: string | null; phone: string | null; locationId: string | null; quantity: number; method: string; dispensedAt: string };
+type LocationReference = { id: string; name: string; timezone: string };
 
 function requestId() { return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function day(value: string | null) { return value ? new Date(value.length === 10 ? `${value}T00:00:00Z` : value).toLocaleDateString("en-US", { timeZone: "UTC" }) : "—"; }
@@ -23,18 +23,19 @@ export function AuthoritativeInventoryPanel({ locationId }: { locationId?: strin
   const [lots, setLots] = useState<Lot[]>([]);
   const [recalls, setRecalls] = useState<Recall[]>([]);
   const [permissions, setPermissions] = useState<Permissions>({ canWrite: false, canDispense: false, canRecall: false });
+  const [locations, setLocations] = useState<LocationReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [receive, setReceive] = useState({ locationId: locationId ?? "raleigh", sku: "", lotNumber: "", unitLabel: "vials", expiryOn: "", quantity: "", sourceDocumentRef: "", vendorRef: "", unitCost: "", requiresPrescription: false, controlledSchedule: "" });
+  const [receive, setReceive] = useState({ locationId: locationId ?? "", sku: "", lotNumber: "", unitLabel: "vials", expiryOn: "", quantity: "", sourceDocumentRef: "", vendorRef: "", unitCost: "", requiresPrescription: false, controlledSchedule: "" });
   const [receiveRequest, setReceiveRequest] = useState(requestId);
   const [selectedLotId, setSelectedLotId] = useState("");
   const [actionKind, setActionKind] = useState<"waste" | "count-adjust" | "transfer">("count-adjust");
   const [actionQuantity, setActionQuantity] = useState("");
   const [actionReason, setActionReason] = useState("");
-  const [targetLocationId, setTargetLocationId] = useState("southern-pines");
+  const [targetLocationId, setTargetLocationId] = useState("");
   const [actionRequest, setActionRequest] = useState(requestId);
 
   const [dispenseClientId, setDispenseClientId] = useState("");
@@ -59,8 +60,23 @@ export function AuthoritativeInventoryPanel({ locationId }: { locationId?: strin
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Inventory is unavailable.");
       setLots(body.inventory.lots ?? []);
       setRecalls(body.inventory.recalls ?? []);
+      setLocations(body.locations ?? []);
       setPermissions(body.permissions);
       setSelectedLotId((current) => current || body.inventory.lots?.[0]?.id || "");
+      setReceive((current) => ({
+        ...current,
+        locationId: locationId
+          ?? ((body.locations ?? []).some(
+            (row: LocationReference) => row.id === current.locationId,
+          )
+            ? current.locationId
+            : body.locations?.[0]?.id || ""),
+      }));
+      setTargetLocationId((current) =>
+        (body.locations ?? []).some((row: LocationReference) => row.id === current)
+          ? current
+          : body.locations?.[0]?.id || "",
+      );
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Inventory is unavailable.");
@@ -73,9 +89,9 @@ export function AuthoritativeInventoryPanel({ locationId }: { locationId?: strin
   const selectedLot = lots.find((lot) => lot.id === selectedLotId) ?? null;
   useEffect(() => {
     if (!selectedLot || targetLocationId !== selectedLot.locationId) return;
-    const alternative = locations.find((row) => row.type === "clinic" && row.id !== selectedLot.locationId);
+    const alternative = locations.find((row) => row.id !== selectedLot.locationId);
     if (alternative) setTargetLocationId(alternative.id);
-  }, [selectedLot, targetLocationId]);
+  }, [locations, selectedLot, targetLocationId]);
   const activeOnHand = useMemo(() => lots.filter((lot) => lot.status === "active").reduce((sum, lot) => sum + lot.onHand, 0), [lots]);
   const expiring = useMemo(() => lots.filter((lot) => lot.expiryOn && lot.expiryOn <= new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10) && lot.onHand > 0), [lots]);
 
@@ -161,7 +177,7 @@ export function AuthoritativeInventoryPanel({ locationId }: { locationId?: strin
 
       {permissions.canWrite && (
         <Card><CardHeader><CardTitle className="flex items-center gap-2"><PackagePlus className="h-4 w-4 text-gold-400" /> Receive verified lot</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          <SelectInput label="Clinic" value={receive.locationId} onChange={(value) => setReceive({ ...receive, locationId: value })} options={locations.filter((row) => row.type === "clinic").map((row) => [row.id, row.short])} disabled={Boolean(locationId)} />
+          <SelectInput label="Clinic" value={receive.locationId} onChange={(value) => setReceive({ ...receive, locationId: value })} options={locations.map((row) => [row.id, row.name])} disabled={Boolean(locationId)} />
           <Input label="SKU" value={receive.sku} onChange={(value) => setReceive({ ...receive, sku: value })} /><Input label="Lot number" value={receive.lotNumber} onChange={(value) => setReceive({ ...receive, lotNumber: value })} /><Input label="Unit" value={receive.unitLabel} onChange={(value) => setReceive({ ...receive, unitLabel: value })} />
           <Input label="Quantity" value={receive.quantity} onChange={(value) => setReceive({ ...receive, quantity: value })} inputMode="numeric" /><Input label="Expiry" value={receive.expiryOn} onChange={(value) => setReceive({ ...receive, expiryOn: value })} type="date" /><Input label="Unit cost ($)" value={receive.unitCost} onChange={(value) => setReceive({ ...receive, unitCost: value })} inputMode="decimal" /><Input label="Vendor reference" value={receive.vendorRef} onChange={(value) => setReceive({ ...receive, vendorRef: value })} />
           <Input label="PO / packing slip" value={receive.sourceDocumentRef} onChange={(value) => setReceive({ ...receive, sourceDocumentRef: value })} />
@@ -175,7 +191,7 @@ export function AuthoritativeInventoryPanel({ locationId }: { locationId?: strin
         <Card><CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-gold-400" /> Manage {selectedLot.sku} · {selectedLot.lotNumber}</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-4">
           <SelectInput label="Action" value={actionKind} onChange={(value) => setActionKind(value as typeof actionKind)} options={[["count-adjust", "Cycle count"], ["waste", "Waste"], ["transfer", "Transfer"]]} />
           <Input label={actionKind === "count-adjust" ? "Counted quantity" : "Quantity"} value={actionQuantity} onChange={setActionQuantity} inputMode="numeric" />
-          {actionKind === "transfer" && <SelectInput label="Destination" value={targetLocationId} onChange={setTargetLocationId} options={locations.filter((row) => row.type === "clinic" && row.id !== selectedLot.locationId).map((row) => [row.id, row.short])} />}
+          {actionKind === "transfer" && <SelectInput label="Destination" value={targetLocationId} onChange={setTargetLocationId} options={locations.filter((row) => row.id !== selectedLot.locationId).map((row) => [row.id, row.name])} />}
           <Input label="Required reason" value={actionReason} onChange={setActionReason} />
           <div className="sm:col-span-4"><Button variant="primary" disabled={working} onClick={() => void submitStockAction()}>{actionKind === "transfer" && <ArrowLeftRight className="h-4 w-4" />} Commit {actionKind}</Button></div>
         </CardContent></Card>
