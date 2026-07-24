@@ -365,7 +365,14 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
         // Public Next.js pages are unusable when EasyAuth protects their
         // immutable CSS/JS chunks. These paths expose build assets only; staff
         // pages and application APIs remain authenticated below.
-        '/_next/static/*'
+        '/_next/static/css/*'
+        '/_next/static/media/*'
+        '/_next/static/chunks/*'
+        '/_next/static/chunks/app/*'
+        '/_next/static/chunks/app/*/*'
+        '/_next/static/chunks/app/*/*/*'
+        '/_next/static/chunks/app/*/*/*/*'
+        '/_next/static/chunks/app/*/*/*/*/*'
         '/_next/image/*'
         '/icon.svg'
         '/book'
