@@ -21,20 +21,25 @@ export default function PatientAccessPage() {
   const [selected, setSelected] = useState<Patient | null>(null);
   const [issued, setIssued] = useState<{ signInUrl: string; expiresAt: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function search(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
+    setSearched(false);
     setError(null);
     setIssued(null);
+    setSelected(null);
     try {
       const params = new URLSearchParams({ q: query.trim(), page: "0" });
       const response = await fetch(`/api/clients?${params}`, { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Patients could not be searched.");
       setPatients(payload.patients ?? []);
+      setSearched(true);
     } catch (cause) {
+      setPatients([]);
       setError(cause instanceof Error ? cause.message : "Patients could not be searched.");
     } finally {
       setBusy(false);
@@ -78,6 +83,11 @@ export default function PatientAccessPage() {
         <Button type="submit" disabled={busy || !query.trim()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Search</Button>
       </form>
       {error && <p className="rounded-control border border-high/30 bg-high/5 p-4 text-detail text-high" role="alert">{error}</p>}
+      {searched && patients.length === 0 && !error && (
+        <p className="rounded-control border border-ink-700 bg-ink-900/40 p-4 text-detail text-ink-400">
+          No patients matched that name, MRN, or email.
+        </p>
+      )}
 
       {patients.length > 0 && (
         <section className="overflow-hidden rounded-panel border border-ink-700 bg-ink-900/30">

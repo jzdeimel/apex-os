@@ -92,9 +92,12 @@ export async function readAlphaMigrationPreview(input: {
   const query = (input.query ?? "").trim().slice(0, 80);
   const pageSize = boundedPage(input.pageSize ?? 25, 25, 50) || 25;
   const page = boundedPage(input.page ?? 0, 0, 100_000);
-  const match = query
-    ? `%${query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`
-    : null;
+  const matches = query
+    ? query.split(/\s+/).map(
+        (term) =>
+          `%${term.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`,
+      )
+    : [];
   const scopedConditions = input.access && !input.access.allClients
     ? [
         eq(client.assignedCoachId, input.access.staffId),
@@ -110,14 +113,18 @@ export async function readAlphaMigrationPreview(input: {
   const patientWhere = and(
     eq(client.sourceSystem, ALPHA_SOURCE),
     accessWhere,
-    match
-      ? or(
-          ilike(client.firstName, match),
-          ilike(client.lastName, match),
-          ilike(client.preferredName, match),
-          ilike(client.mrn, match),
-          ilike(client.email, match),
-          ilike(client.phone, match),
+    matches.length
+      ? and(
+          ...matches.map((match) =>
+            or(
+              ilike(client.firstName, match),
+              ilike(client.lastName, match),
+              ilike(client.preferredName, match),
+              ilike(client.mrn, match),
+              ilike(client.email, match),
+              ilike(client.phone, match),
+            ),
+          ),
         )
       : undefined,
   );

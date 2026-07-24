@@ -31,16 +31,52 @@ export type RecordAnswer = {
   scopeNote: string;
 };
 
+export type RecordQueryIntent =
+  | { kind: "tasks" }
+  | { kind: "schedule"; tomorrow: boolean }
+  | { kind: "patient-count" }
+  | { kind: "patient-search"; term: string }
+  | { kind: "help" };
+
+export function parseRecordQueryIntent(query: string): RecordQueryIntent {
+  const normalized = query.trim().toLowerCase();
+  if (/\b(task|to[- ]?do|work queue)\b/.test(normalized)) {
+    return { kind: "tasks" };
+  }
+  if (/\b(schedule|appointment|visit).*(today|tomorrow)?\b/.test(normalized)) {
+    return { kind: "schedule", tomorrow: /\btomorrow\b/.test(normalized) };
+  }
+  if (
+    /\b(?:how many|count)\b.*\b(?:patients?|clients?|members?)\b/.test(
+      normalized,
+    )
+  ) {
+    return { kind: "patient-count" };
+  }
+  const patientMatch =
+    normalized.match(
+      /\b(?:find|search)(?:\s+for)?(?:\s+(?:patient|client|member))?\s+(.{2,80})$/,
+    ) ??
+    normalized.match(/\b(?:patient|client|member)\s+(.{2,80})$/);
+  if (patientMatch) {
+    return {
+      kind: "patient-search",
+      term: patientMatch[1].replace(/[?.,]+$/g, "").trim(),
+    };
+  }
+  return { kind: "help" };
+}
+
 export async function answerRecordQuestion(
   query: string,
   actor: Actor,
   now = new Date(),
 ): Promise<RecordAnswer> {
   const db = requireDb();
-  const normalized = query.trim().toLowerCase();
+  const intent = parseRecordQueryIntent(query);
   const scope = patientScope(actor);
 
-  if (/\b(task|to[- ]?do|work queue)\b/.test(normalized)) {
+  if (intent.kind === "tasks") {
     const tasks = await db
       .select({
         id: workTask.id,
@@ -72,8 +108,8 @@ export async function answerRecordQuestion(
     };
   }
 
-  if (/\b(schedule|appointment|visit).*(today|tomorrow)?\b/.test(normalized)) {
-    const tomorrow = /\btomorrow\b/.test(normalized);
+  if (intent.kind === "schedule") {
+    const tomorrow = intent.tomorrow;
     const day = new Date(now);
     day.setUTCDate(day.getUTCDate() + (tomorrow ? 1 : 0));
     day.setUTCHours(0, 0, 0, 0);
@@ -113,7 +149,7 @@ export async function answerRecordQuestion(
     };
   }
 
-  if (/\b(how many|count).*(patient|client|member)\b/.test(normalized)) {
+  if (intent.kind === "patient-count") {
     const rows = await db
       .select({ id: client.id })
       .from(client)
@@ -131,11 +167,8 @@ export async function answerRecordQuestion(
     };
   }
 
-  const patientMatch = normalized.match(
-    /(?:find|search|patient|client|member)\s+(?:for\s+)?(.{2,80})/,
-  );
-  if (patientMatch) {
-    const term = patientMatch[1].replace(/[?.,]+$/g, "").trim();
+  if (intent.kind === "patient-search") {
+    const term = intent.term;
     const pattern = `%${term.replace(/[%_]/g, "")}%`;
     const rows = await db
       .select({

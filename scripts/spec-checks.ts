@@ -176,6 +176,7 @@ import {
   normalizeUsPhoneNumber,
 } from "@/lib/communications/calling";
 import { callContactId } from "@/lib/communications/calling.server";
+import { parseRecordQueryIntent } from "@/lib/db/recordAssistantRepo";
 
 let failures = 0;
 let checks = 0;
@@ -331,6 +332,29 @@ eq(
 );
 
 /* ══ Credentials ═════════════════════════════════════════════════════════════ */
+section("Ask Apex record queries");
+
+eq(
+  "the displayed active-patient question resolves to a count",
+  parseRecordQueryIntent("How many active patients are in my scope?"),
+  { kind: "patient-count" },
+);
+eq(
+  "plural client counts resolve",
+  parseRecordQueryIntent("Count active clients"),
+  { kind: "patient-count" },
+);
+eq(
+  "the displayed patient-search example removes its noun",
+  parseRecordQueryIntent("Find patient Jordan."),
+  { kind: "patient-search", term: "jordan" },
+);
+eq(
+  "search-for phrasing produces a clean directory term",
+  parseRecordQueryIntent("Search for member Jordan Smith"),
+  { kind: "patient-search", term: "jordan smith" },
+);
+
 section("Credentials");
 
 eq("bare 'Nurse' is unresolved, never guessed", parseCredential("Nurse"), null);

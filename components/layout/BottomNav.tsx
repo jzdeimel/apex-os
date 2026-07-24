@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, TrendingUp, FlaskConical, MessageSquare, UsersRound } from "lucide-react";
+import { Heart, TrendingUp, FlaskConical, FileText, UsersRound } from "lucide-react";
 import { LayoutDashboard, Users, ListChecks, Bot } from "lucide-react";
 import { DoorOpen, PhoneCall, CalendarDays } from "lucide-react";
 import { Gauge, Activity, Workflow } from "lucide-react";
@@ -40,15 +40,15 @@ interface Item {
 
 const BY_PORTAL: Record<PortalId, Item[]> = {
   patient: [
-    { href: "/portal", label: "Today", icon: Heart },
-    { href: "/portal/progress", label: "Progress", icon: TrendingUp },
-    { href: "/portal/labs", label: "Labs", icon: FlaskConical },
-    { href: "/portal/community", label: "Community", icon: UsersRound },
-    { href: "/portal/messages", label: "Messages", icon: MessageSquare },
+    { href: "/patient", label: "Today", icon: Heart },
+    { href: "/patient/progress", label: "Progress", icon: TrendingUp },
+    { href: "/patient/plans", label: "Plans", icon: FlaskConical },
+    { href: "/patient/community", label: "Community", icon: UsersRound },
+    { href: "/patient/records", label: "Records", icon: FileText },
   ],
   coach: [
     { href: "/coach", label: "Today", icon: LayoutDashboard },
-    { href: "/coach/roster", label: "Members", icon: Users },
+    { href: "/clients", label: "Members", icon: Users },
     { href: "/tasks", label: "Tasks", icon: ListChecks },
     { href: "/coach/community", label: "Community", icon: UsersRound },
     { href: "/agent", label: "Ask Apex", icon: Bot },
@@ -85,7 +85,7 @@ const BY_PORTAL: Record<PortalId, Item[]> = {
    */
   exec: [
     { href: "/exec", label: "Morning", icon: Gauge },
-    { href: "/exec/capacity", label: "Capacity", icon: Activity },
+    { href: "/schedule", label: "Capacity", icon: Activity },
     { href: "/exec/pipeline", label: "Pipeline", icon: Workflow },
     { href: "/exec/community", label: "Community", icon: UsersRound },
     { href: "/clients", label: "Members", icon: Users },

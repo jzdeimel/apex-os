@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
-import {
-  AutomationOperations,
-  serializeAutomationState,
-} from "@/components/automation/AutomationOperations";
+import { AutomationOperations } from "@/components/automation/AutomationOperations";
 import { actorFromPrincipal } from "@/lib/auth/actor";
 import { currentPrincipal } from "@/lib/auth/principal";
+import { serializeAutomationState } from "@/lib/automationState";
 import { readAutomationState } from "@/lib/db/automationRepo";
 
 export const dynamic = "force-dynamic";
