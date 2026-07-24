@@ -267,6 +267,13 @@
       "when": 1784917200000,
       "tag": "0037_durable-automations",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1784920800000,
+      "tag": "0038_authoritative-lead-conversion",
+      "breakpoints": true
     }
   ]
 }

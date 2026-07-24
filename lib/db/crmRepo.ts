@@ -1,15 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql as raw } from "drizzle-orm";
 
 import { requireDb } from "@/lib/db/client";
 import {
+  client,
+  clinicLocation,
+  consent,
+  intakeSubmission,
   lead,
   leadNote,
   leadOwnerEvent,
+  leadStageEvent,
   leadTask,
   staff,
 } from "@/lib/db/schema";
 import { appendLedgerInTx } from "@/lib/db/repo";
+import { leadConversionAllowed } from "@/lib/crm/pipeline";
+import { sha256 } from "@/lib/trace/hash";
 
 const CRM_PROFILES = ["marketing", "operations", "owner"] as const;
 type DbTx = Parameters<Parameters<ReturnType<typeof requireDb>["transaction"]>[0]>[0];
@@ -32,7 +39,7 @@ export async function readLeadWorkQueue(limit = 500) {
   const leads = await db.select().from(lead).orderBy(desc(lead.createdAt)).limit(limit);
   const ids = leads.map((row) => row.id);
   const ownerIds = [...new Set(leads.map((row) => row.ownerStaffId).filter((id): id is string => Boolean(id)))];
-  const [notes, tasks, owners, candidates] = await Promise.all([
+  const [notes, tasks, owners, candidates, coaches] = await Promise.all([
     ids.length
       ? db.select().from(leadNote).where(inArray(leadNote.leadId, ids)).orderBy(desc(leadNote.createdAt))
       : Promise.resolve([]),
@@ -50,6 +57,11 @@ export async function readLeadWorkQueue(limit = 500) {
       .from(staff)
       .where(and(eq(staff.active, true), inArray(staff.accessProfile, [...CRM_PROFILES])))
       .orderBy(asc(staff.name)),
+    db
+      .select({ id: staff.id, name: staff.name, locationIds: staff.locationIds })
+      .from(staff)
+      .where(and(eq(staff.active, true), eq(staff.accessProfile, "coach")))
+      .orderBy(asc(staff.name)),
   ]);
   const notesByLead = new Map<string, typeof notes>();
   const tasksByLead = new Map<string, typeof tasks>();
@@ -64,6 +76,12 @@ export async function readLeadWorkQueue(limit = 500) {
       tasks: tasksByLead.get(row.id) ?? [],
     })),
     candidates,
+    coaches: coaches.map((coach) => ({
+      ...coach,
+      locationIds: Array.isArray(coach.locationIds)
+        ? coach.locationIds.filter((value): value is string => typeof value === "string")
+        : [],
+    })),
   };
 }
 
@@ -73,6 +91,197 @@ type ActorInput = {
   actorRole: string;
   at: string;
 };
+
+export type LeadConversionResult =
+  | { status: "ok"; client: typeof client.$inferSelect; ledgerId: string }
+  | { status: "already-converted"; clientId: string }
+  | { status: "duplicate"; matches: Array<{ id: string; mrn: string; firstName: string; lastName: string }> }
+  | {
+      status:
+        | "missing"
+        | "not-ready"
+        | "invalid-location"
+        | "invalid-coach"
+        | "conflict";
+    };
+
+/**
+ * Turn a completed-intake lead into an authoritative patient exactly once.
+ *
+ * The transaction claims the lead first, creates the Master Patient Index row,
+ * moves intake consents from the pre-client identity to the patient identity,
+ * appends the conversion event, and writes the audit witness. Existing
+ * email/phone matches are returned for human merge review; Apex never guesses
+ * that two people are the same patient.
+ */
+export async function convertLeadToClientWithLedger(
+  input: ActorInput & { leadId: string; assignedCoachId: string },
+): Promise<LeadConversionResult> {
+  const db = requireDb();
+  const at = new Date(input.at);
+  return db.transaction(async (tx) => {
+    const current = await leadForWork(tx, input.leadId);
+    if (!current) return { status: "missing" as const };
+    if (current.convertedClientId) {
+      return { status: "already-converted" as const, clientId: current.convertedClientId };
+    }
+    if (!leadConversionAllowed(current.stage)) return { status: "not-ready" as const };
+    if (!current.preferredLocationId) return { status: "invalid-location" as const };
+
+    const [location] = await tx
+      .select({ id: clinicLocation.id })
+      .from(clinicLocation)
+      .where(and(eq(clinicLocation.id, current.preferredLocationId), eq(clinicLocation.active, true)))
+      .limit(1);
+    if (!location) return { status: "invalid-location" as const };
+
+    const [coach] = await tx
+      .select({ id: staff.id, locationIds: staff.locationIds })
+      .from(staff)
+      .where(
+        and(
+          eq(staff.id, input.assignedCoachId),
+          eq(staff.active, true),
+          eq(staff.accessProfile, "coach"),
+          eq(staff.excludeFromScheduling, false),
+        ),
+      )
+      .limit(1);
+    const coachLocations = Array.isArray(coach?.locationIds)
+      ? coach.locationIds.filter((value): value is string => typeof value === "string")
+      : [];
+    if (!coach || !coachLocations.includes(current.preferredLocationId)) {
+      return { status: "invalid-coach" as const };
+    }
+
+    const normalizedEmail = current.email?.trim().toLowerCase() ?? "";
+    const normalizedPhone = current.phone?.replace(/\D/g, "") ?? "";
+    const duplicatePredicates = [
+      ...(normalizedEmail
+        ? [raw`lower(trim(coalesce(${client.email}, ''))) = ${normalizedEmail}`]
+        : []),
+      ...(normalizedPhone.length >= 10
+        ? [raw`regexp_replace(coalesce(${client.phone}, ''), '[^0-9]', '', 'g') = ${normalizedPhone}`]
+        : []),
+    ];
+    if (duplicatePredicates.length) {
+      const matches = await tx
+        .select({
+          id: client.id,
+          mrn: client.mrn,
+          firstName: client.firstName,
+          lastName: client.lastName,
+        })
+        .from(client)
+        .where(or(...duplicatePredicates))
+        .limit(10);
+      if (matches.length) return { status: "duplicate" as const, matches };
+    }
+
+    const [submittedIntake] = await tx
+      .select({
+        id: intakeSubmission.id,
+        dateOfBirth: intakeSubmission.dateOfBirth,
+        sex: intakeSubmission.sex,
+      })
+      .from(intakeSubmission)
+      .where(eq(intakeSubmission.leadId, current.id))
+      .orderBy(desc(intakeSubmission.submittedAt))
+      .limit(1);
+
+    const digest = sha256(`lead-client|${current.id}`);
+    const clientId = `cl-${digest.slice(0, 40)}`;
+    const mrn = `AH-APX-${digest.slice(0, 12).toUpperCase()}`;
+
+    const [claimed] = await tx
+      .update(lead)
+      .set({
+        stage: "converted",
+        convertedClientId: clientId,
+        convertedAt: at,
+        ownerStaffId: current.ownerStaffId ?? input.actorId,
+        updatedAt: at,
+      })
+      .where(
+        and(
+          eq(lead.id, current.id),
+          eq(lead.stage, current.stage),
+          isNull(lead.convertedClientId),
+        ),
+      )
+      .returning();
+    if (!claimed) return { status: "conflict" as const };
+
+    const [created] = await tx
+      .insert(client)
+      .values({
+        id: clientId,
+        mrn,
+        firstName: current.firstName?.trim() || "Unknown",
+        lastName: current.lastName?.trim() || "Unknown",
+        email: normalizedEmail || null,
+        phone: current.phone?.trim() || null,
+        dateOfBirth: submittedIntake?.dateOfBirth ?? null,
+        sex:
+          submittedIntake?.sex ??
+          (current.track === "female" || current.track === "women"
+            ? "female"
+            : current.track === "male" || current.track === "men"
+              ? "male"
+              : null),
+        homeLocationId: current.preferredLocationId,
+        assignedCoachId: coach.id,
+        sourceSystem: "apex-lead",
+        sourceId: current.id,
+        sourceUpdatedAt: at,
+        createdAt: at,
+        updatedAt: at,
+      })
+      .returning();
+
+    await tx
+      .update(consent)
+      .set({ clientId, leadId: null })
+      .where(eq(consent.leadId, current.id));
+    await tx
+      .update(intakeSubmission)
+      .set({ clientId })
+      .where(eq(intakeSubmission.leadId, current.id));
+    await tx.insert(leadStageEvent).values({
+      id: `lse-${current.id}-${at.getTime().toString(36)}-converted`,
+      leadId: current.id,
+      fromStage: current.stage,
+      toStage: "converted",
+      at,
+      byStaffId: input.actorId,
+      note: `Patient ${mrn} created with assigned coach ${coach.id}`,
+    });
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "chart",
+        entityId: clientId,
+        subjectId: clientId,
+        subjectName: [created.firstName, created.lastName].join(" "),
+        reason: "Completed-intake lead converted to an authoritative Apex patient",
+        after: {
+          leadId: current.id,
+          mrn,
+          homeLocationId: current.preferredLocationId,
+          assignedCoachId: coach.id,
+          consentIdentityTransferred: true,
+          intakeSubmissionLinked: Boolean(submittedIntake),
+        },
+      },
+      input.at,
+    );
+    return { status: "ok" as const, client: created, ledgerId: ledger.id };
+  });
+}
 
 async function leadForWork(tx: DbTx, leadId: string) {
   const [row] = await tx.select().from(lead).where(eq(lead.id, leadId)).limit(1);

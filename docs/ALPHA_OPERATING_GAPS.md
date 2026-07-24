@@ -57,8 +57,11 @@ sit outside the clinical cutover core, is maintained in
   measures that feed the chart instead of remaining demonstration data.
 - CRM core is now durable: ownership/reassignment, source/UTM/campaign, stage
   history, a snapshotted first-response clock, first-contact evidence, notes,
-  follow-up tasks and loss/reopen reasons. Remaining work is dedupe, accepted
-  SLA policy, referral/consult linkage, automation and forecasting.
+  follow-up tasks, loss/reopen reasons and atomic conversion from completed
+  intake/booked consult into one consent-linked patient chart. Duplicate email
+  or phone fails closed. Remaining work is merge/split and household identity,
+  accepted SLA policy, automatic referral/consult linkage, automation and
+  forecasting.
 - Owner reporting based on collected cash and dated lifecycle events rather
   than seeded snapshots or contracted-value estimates.
 - Community moderation is now authoritative for the text pilot: named primary

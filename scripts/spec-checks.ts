@@ -88,7 +88,7 @@ import {
   isFixtureOnlyPath,
 } from "@/lib/productionSurfaces";
 import { AUTOMATION_TRIGGER_TYPES } from "@/lib/db/automationRepo";
-import { leadTransitionAllowed } from "@/lib/crm/pipeline";
+import { leadConversionAllowed, leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   leadFirstResponseDueAt,
   leadNoteAcceptable,
@@ -1381,6 +1381,9 @@ eq("intake may advance to a booked consult", leadTransitionAllowed("intake-submi
 eq("a lost lead may be deliberately reopened", leadTransitionAllowed("lost", "new"), true);
 eq("a converted lead cannot be moved backward", leadTransitionAllowed("converted", "contacted"), false);
 eq("a pipeline button cannot manually manufacture conversion", leadTransitionAllowed("consult-booked", "converted"), false);
+eq("completed intake may enter the patient-creation transaction", leadConversionAllowed("intake-submitted"), true);
+eq("a booked consult may enter the patient-creation transaction", leadConversionAllowed("consult-booked"), true);
+eq("an unworked lead cannot manufacture a patient chart", leadConversionAllowed("new"), false);
 eq("unknown lead stages fail closed", leadTransitionAllowed("new", "maybe"), false);
 eq(
   "a captured lead receives the initial 15-minute response clock",

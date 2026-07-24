@@ -15,6 +15,7 @@ const staticEvidence = [
   "lib/db/migrations/0010_cutover-identity-foundation.sql",
   "lib/db/migrations/0011_immutable-signed-document-archive.sql",
   "lib/db/migrations/0014_staff-calendar-capacity.sql",
+  "lib/db/migrations/0038_authoritative-lead-conversion.sql",
   "scripts/migrate-v1.ts",
   "scripts/spec-checks.ts",
   "scripts/contrast-sweep.mjs",
@@ -42,6 +43,30 @@ const requiredApprovals = {
   CUTOVER_CONSENT_CONTENT_APPROVED: "counsel and clinical leadership approved every published intake consent version",
   CUTOVER_COMMUNITY_APPROVED: "real groups, owners, members, moderation SLA, report, and block flows passed",
   CUTOVER_EXPORTS_APPROVED: "MindBody/GHL exports and final delta rehearsed",
+  CUTOVER_GHL_CONFIGURATION_APPROVED:
+    "GHL workflows, campaigns, templates, forms, fields, tags, pipelines, calendars, phone routing, suppression, domains, and attribution were inventoried and accepted",
+  CUTOVER_MINDBODY_CONFIGURATION_APPROVED:
+    "Mindbody services, session types, staff, resources, booking rules, memberships, packages, contracts, pricing, promotions, credits, waivers, and client relationships were inventoried and accepted",
+  CUTOVER_IDENTITY_DEDUPE_APPROVED:
+    "duplicate, merge, split, household, guardian, minor, and cross-location identity rules passed",
+  CUTOVER_LEAD_CONVERSION_APPROVED:
+    "intake or booked-consult lead conversion creates one consent-linked patient chart and passed duplicate and rollback tests",
+  CUTOVER_APPOINTMENT_NOTIFICATIONS_APPROVED:
+    "confirmation, reminder, reschedule, cancellation, no-show, and waitlist notification workflows passed",
+  CUTOVER_MEMBERSHIP_ENTITLEMENTS_APPROVED:
+    "plan and package entitlements, usage, expiry, freeze, upgrade, downgrade, and proration rules passed",
+  CUTOVER_POS_APPROVED:
+    "card-present, card-not-present, split tender, cash/check, tax, discount, refund, and receipt workflows passed",
+  CUTOVER_FINANCIAL_CLOSE_APPROVED:
+    "merchant settlements, fees, deposits, location reconciliation, close, and accounting export passed",
+  CUTOVER_INBOUND_VOICE_APPROVED:
+    "inbound call routing, ownership, voicemail, missed-call handling, and audit reconciliation passed",
+  CUTOVER_FILES_APPROVED:
+    "private clinical file storage, malware scanning, retention, access, and patient-copy delivery passed",
+  CUTOVER_WEBSITE_REPOINT_APPROVED:
+    "production forms, booking widgets, domains, analytics, and campaign links were repointed and rollback tested",
+  CUTOVER_REPORTING_APPROVED:
+    "launch metrics use authoritative Apex records and every fixture-backed report is hidden",
   CUTOVER_PORTAL_READS_APPROVED: "patient routes use the authenticated database client only",
   CUTOVER_HISTORY_APPROVED: "historical clinical and financial continuity is accepted",
   CUTOVER_PILOT_APPROVED: "named pilot cohort passed acceptance",

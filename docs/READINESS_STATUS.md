@@ -44,8 +44,12 @@ contrast sweep.
   the authoritative lead row. Executive Pipeline and Acquisition share the
   same Postgres-backed console; authorized CRM staff can claim a lead and mark
   first contact with the ownership change, stage event and ledger witness in
-  one transaction. Manual conversion remains impossible outside the future
-  client-link transaction.
+  one transaction. A completed intake or booked consult can now enter one
+  authoritative lead-to-patient transaction: the transaction validates a real
+  clinic and active coach, blocks duplicate email/phone identities, creates the
+  client chart and MRN, transfers captured consent, marks the lead converted,
+  and writes the stage event and ledger witness atomically. It cannot be used
+  to manufacture a patient from an unworked lead.
 - The coach is the client's steward and single messaging contact. Coach
   consults collect the member-contact type/channel, autosave raw notes
   server-side, build a source-traceable AI summary for human review, sign

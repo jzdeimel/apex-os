@@ -25,8 +25,8 @@ Status:
 | Marketing website and landing pages | Partial | `/book` is a real public capture surface. | Decide whether Apex owns the public CMS/funnel builder or integrates the existing website; add domains, publishing approvals, SEO, accessibility, analytics, versioning and rollback. |
 | Forms, surveys and lead capture | Partial | Public booking and guided intake persist leads, invites, submissions and consent evidence. | Reusable non-clinical forms/surveys, spam protection beyond process-local rate limiting, duplicate resolution, abandonment recovery and form analytics. |
 | Source, campaign and attribution | Partial | New web leads now retain first-touch UTM source, medium and campaign. | Landing/referrer, content/term, ad click IDs, first/latest touch, offline source, spend import, conversion export and an accepted attribution model. |
-| CRM contacts and identity resolution | Partial | Durable lead and client identities exist. | Deterministic email/phone dedupe, merge/split with audit, household/guardian relationships, deceased/minor handling, do-not-contact identity matching and cross-location identity governance. |
-| Opportunities and sales pipeline | Authoritative core | Durable stages/events, claim/reassignment history, a snapshotted 15-minute first-response clock, first-contact evidence, append-only notes, owned follow-up tasks, loss/reopen reasons and audit witnesses now operate from one acquisition queue. | Leadership acceptance/configuration of the response target, consult/appointment linkage, automatic lifecycle transitions, bulk actions, dedupe and forecast rules. |
+| CRM contacts and identity resolution | Partial | Durable lead and client identities exist. A completed intake or booked consult can create one consent-linked patient chart only after real clinic/coach validation; duplicate normalized email or phone is rejected. | Audited merge/split, household/guardian relationships, deceased/minor handling, do-not-contact identity matching and cross-location identity governance. |
+| Opportunities and sales pipeline | Authoritative core | Durable stages/events, claim/reassignment history, a snapshotted 15-minute first-response clock, first-contact evidence, append-only notes, owned follow-up tasks, loss/reopen reasons, atomic patient conversion and audit witnesses now operate from one acquisition queue. | Leadership acceptance/configuration of the response target, consult/appointment linkage, automatic lifecycle transitions, bulk actions and forecast rules. |
 | Omnichannel inbox and telephony | Partial | Portal messaging is patient-to-coach and internal escalation is durable. Historical SMS/email is retained as contact history. Apex nonprod now has an isolated ACS resource, Key Vault binding, real browser Calling SDK, care-team authorization, mute/hang-up controls, and durable outbound call lifecycle records. It refuses to dial until a public caller-ID number is provisioned. | Select and purchase the public number; complete a real-device outbound acceptance call; then add inbound routing, voicemail, SMS/email transport, recordings/transcripts policy, missed-call text-back, shared inbox ownership, delivery receipts and transport reconciliation. |
 | Marketing automation and journeys | Preview | Automation and win-back surfaces exist as review experiences; consent, quiet hours, caps and suppression rules are prepared. | Durable trigger/action engine, versioned journeys, enrollment/re-entry, wait/goal state, idempotent outbox, approvals, pause/kill switch, delivery events, experiment controls and production transport. |
 | Campaign content and segmentation | Preview | Staff can review engagement concepts. | Template/version library, audience builder against authoritative data, exclusion/suppression, test sends, approvals, A/B tests, frequency caps, localization and content retention. |
@@ -114,7 +114,7 @@ Status:
 
 | Capability | Status | Apex today | Required to close |
 | --- | --- | --- | --- |
-| V1/Mindbody/GHL migration | Partial | Repeatable importer covers clients, selected notes, communications, sales and historical fulfillment with reconciliation and a private exception queue. | Remaining chart, appointments, membership, payment, consent, document, inventory and audit domains; resolve/accept exceptions; two Azure rehearsals; final delta; legacy fallback. |
+| V1/Mindbody/GHL migration | Partial | Repeatable importer covers clients, selected notes, communications, sales and historical fulfillment with reconciliation and a private exception queue. | Remaining chart, appointments, membership, payment, consent, document, inventory and audit domains; complete vendor data and configuration exports; resolve/accept exceptions; two Azure rehearsals; final delta; legacy fallback. |
 | Privacy, consent and communications compliance | Partial | Role gates, patient sessions, consent evidence, quiet hours/caps/suppression foundations exist. | Approved retention schedule, BAAs, 10DLC, TCPA/marketing consent mapping, STOP/DNC webhooks, accounting of disclosures and privacy-request operations. |
 | Security operations | Partial/external | EasyAuth, scoped authorization, Key Vault references and audit ledger exist. | Production threat model, penetration/security review, alerting, on-call, vulnerability/patch SLA, device/session policy, access review and incident exercises. |
 | Backup, restore and disaster recovery | Missing evidence | Azure services exist, but production restore evidence is external. | PITR configuration evidence, timed restore test, application verification, RPO/RTO, downtime workflow, communications plan and named incident commander. |
@@ -138,6 +138,26 @@ Services/email, Google Calendar, Clover, labs, eRx/pharmacy, MedSource/carriers,
 ad platforms and review platforms. Their events must land in an idempotent Apex
 inbox/outbox and reconcile to the Apex record. A vendor dashboard is never the
 only evidence that an Alpha obligation was completed.
+
+## Configuration is migration data
+
+Replacing Mindbody and HighLevel requires migrating operating configuration as
+carefully as patient and transaction rows. Before either vendor is retired, the
+accepted export inventory must include:
+
+- HighLevel workflows and versions, campaign/templates, forms/surveys, custom
+  fields, tags, pipelines/stages/opportunities, calendars, booking links and
+  widgets, phone numbers, IVR/voicemail, DNC and preference history, sending
+  domains, media/assets, attribution rules and active enrollment state;
+- Mindbody services/session types, durations, staff permissions and pay rules,
+  rooms/resources, appointment/class policies, memberships, packages, contracts,
+  entitlements/remaining credits, pricing/promotions, gift cards/account credits,
+  family relationships, waivers, stored-payment decision, POS/settlement history
+  and report definitions;
+- every external identifier and reconciliation key required to prove that the
+  final Apex state contains neither missing nor duplicate obligations.
+
+A contact export alone is not a replacement migration.
 
 ## Build-versus-integrate rule
 

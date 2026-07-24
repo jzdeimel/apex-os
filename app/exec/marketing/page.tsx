@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Megaphone, TrendingUp, AlertTriangle, Users, ArrowRight, CheckCircle2, Clock3, ClipboardList, Loader2 } from "lucide-react";
 import { Card, Badge, Button, Input, Select, Textarea } from "@/components/ui/primitives";
 
@@ -68,6 +69,12 @@ interface Candidate {
   name: string;
 }
 
+interface CoachCandidate {
+  id: string;
+  name: string;
+  locationIds: string[];
+}
+
 const STAGE_ORDER = [
   "new",
   "contacted",
@@ -82,12 +89,14 @@ export default function MarketingPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [busyLead, setBusyLead] = React.useState<string | null>(null);
   const [candidates, setCandidates] = React.useState<Candidate[]>([]);
+  const [coaches, setCoaches] = React.useState<CoachCandidate[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
   const [taskTitle, setTaskTitle] = React.useState("");
   const [taskAssignee, setTaskAssignee] = React.useState("");
   const [taskDue, setTaskDue] = React.useState("");
   const [newOwner, setNewOwner] = React.useState("");
+  const [assignedCoach, setAssignedCoach] = React.useState("");
   const [reassignmentReason, setReassignmentReason] = React.useState("");
 
   const load = React.useCallback(async () => {
@@ -98,6 +107,7 @@ export default function MarketingPage() {
         if (r.ok && res.ok) {
           setLeads(res.leads);
           setCandidates(res.candidates ?? []);
+          setCoaches(res.coaches ?? []);
           setSelectedId((current) => current && res.leads.some((lead: Lead) => lead.id === current) ? current : res.leads[0]?.id ?? null);
         }
         else setError(res.error || `Could not load leads (HTTP ${r.status}).`);
@@ -112,7 +122,7 @@ export default function MarketingPage() {
 
   const workLead = async (
     leadId: string,
-    action: "claim" | "release" | "advance" | "assign" | "add-note" | "create-task" | "complete-task",
+    action: "claim" | "release" | "advance" | "assign" | "add-note" | "create-task" | "complete-task" | "convert",
     toStage?: string,
     extra: Record<string, unknown> = {},
   ) => {
@@ -145,10 +155,13 @@ export default function MarketingPage() {
   React.useEffect(() => {
     if (!selected) return;
     setNewOwner(selected.ownerStaffId ?? "");
+    setAssignedCoach(
+      coaches.find((coach) => coach.locationIds.includes(selected.preferredLocationId ?? ""))?.id ?? "",
+    );
     setTaskAssignee(selected.ownerStaffId ?? candidates[0]?.id ?? "");
     setNote("");
     setReassignmentReason("");
-  }, [selected, candidates]);
+  }, [selected, candidates, coaches]);
 
   const bySource = React.useMemo(() => {
     if (!leads) return [];
@@ -320,6 +333,41 @@ export default function MarketingPage() {
                     {selected.stage !== "lost" && selected.stage !== "converted" && <Button size="sm" variant="danger" disabled={busyLead === selected.id} onClick={() => { const reason = window.prompt("Why was this opportunity lost?"); if (reason) void workLead(selected.id, "advance", "lost", { note: reason }); }}>Mark lost</Button>}
                     {selected.stage === "lost" && <Button size="sm" variant="outline" disabled={busyLead === selected.id} onClick={() => void workLead(selected.id, "advance", "new", { note: "Opportunity reopened" })}>Reopen</Button>}
                   </div>
+
+                  {(selected.stage === "intake-submitted" || selected.stage === "consult-booked") && !selected.convertedClientId && (
+                    <div className="mt-5 rounded-control border border-optimal/25 bg-optimal/[0.04] p-4">
+                      <p className="label-eyebrow text-optimal">Create authoritative patient</p>
+                      <p className="mt-1 text-detail text-ink-400">
+                        This single transaction creates the patient chart, transfers signed intake consent,
+                        assigns the coach, records conversion, and writes the audit witness. Existing
+                        email/phone matches are blocked for merge review.
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <label className="min-w-0 flex-1 text-detail text-ink-300">
+                          Assigned coach
+                          <Select className="mt-2" value={assignedCoach} onChange={(event) => setAssignedCoach(event.target.value)}>
+                            <option value="">Choose a coach</option>
+                            {coaches
+                              .filter((coach) => coach.locationIds.includes(selected.preferredLocationId ?? ""))
+                              .map((coach) => <option key={coach.id} value={coach.id}>{coach.name}</option>)}
+                          </Select>
+                        </label>
+                        <Button
+                          variant="success"
+                          disabled={busyLead === selected.id || !assignedCoach}
+                          onClick={() => void workLead(selected.id, "convert", undefined, { assignedCoachId: assignedCoach })}
+                        >
+                          Create patient chart
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selected.convertedClientId && (
+                    <p className="mt-5 rounded-control border border-optimal/25 bg-optimal/[0.04] p-3 text-detail text-optimal">
+                      Patient created. <Link className="underline underline-offset-2" href={`/clients/${selected.convertedClientId}`}>Open the authoritative chart</Link>.
+                    </p>
+                  )}
 
                   <div className="mt-6 grid gap-5 lg:grid-cols-2">
                     <section>

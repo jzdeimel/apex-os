@@ -7,6 +7,7 @@ import {
   addLeadNoteWithLedger,
   assignLeadOwnerWithLedger,
   completeLeadTaskWithLedger,
+  convertLeadToClientWithLedger,
   createLeadTaskWithLedger,
   readLeadWorkQueue,
 } from "@/lib/db/crmRepo";
@@ -144,10 +145,11 @@ export async function GET() {
 
 interface PatchBody {
   leadId?: string;
-  action?: "claim" | "release" | "advance" | "assign" | "add-note" | "create-task" | "complete-task";
+  action?: "claim" | "release" | "advance" | "assign" | "add-note" | "create-task" | "complete-task" | "convert";
   toStage?: string;
   note?: string;
   assigneeStaffId?: string | null;
+  assignedCoachId?: string;
   taskId?: string;
   title?: string;
   dueAt?: string;
@@ -180,6 +182,48 @@ export async function PATCH(req: Request) {
       at: new Date().toISOString(),
     };
     const allowAnyOwner = g.actor.accessProfile === "operations" || g.actor.accessProfile === "owner";
+    if (body.action === "convert") {
+      if (!body.assignedCoachId?.trim()) {
+        return NextResponse.json({ ok: false, error: "Choose the patient's assigned coach." }, { status: 400 });
+      }
+      const result = await convertLeadToClientWithLedger({
+        ...actor,
+        leadId: leadId!,
+        assignedCoachId: body.assignedCoachId.trim(),
+      });
+      if (result.status === "ok") {
+        return NextResponse.json({
+          ok: true,
+          durable: true,
+          client: result.client,
+          ledgerId: result.ledgerId,
+        });
+      }
+      if (result.status === "already-converted") {
+        return NextResponse.json({ ok: true, durable: true, clientId: result.clientId });
+      }
+      if (result.status === "duplicate") {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "A patient with the same email or phone already exists. Review and merge instead of creating a duplicate chart.",
+            matches: result.matches,
+          },
+          { status: 409 },
+        );
+      }
+      const messages = {
+        missing: "Lead not found.",
+        "not-ready": "Complete intake before creating the patient chart.",
+        "invalid-location": "Choose an active home clinic before creating the patient chart.",
+        "invalid-coach": "Choose an active coach who covers the patient's home clinic.",
+        conflict: "The lead changed at the same time. Refresh and try again.",
+      } as const;
+      return NextResponse.json(
+        { ok: false, error: messages[result.status] },
+        { status: result.status === "missing" ? 404 : 409 },
+      );
+    }
     if (body.action === "add-note") {
       if (!leadNoteAcceptable(body.note)) {
         return NextResponse.json({ ok: false, error: "A note between 2 and 2,000 characters is required." }, { status: 400 });

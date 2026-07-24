@@ -1100,6 +1100,12 @@ export const intakeSubmission = pgTable(
     id: text("id").primaryKey(),
     inviteId: text("invite_id").notNull().references(() => intakeInvite.id),
     leadId: text("lead_id").notNull().references(() => lead.id),
+    /**
+     * Set atomically when the lead becomes a client. Keeping leadId preserves
+     * acquisition provenance; clientId makes the submitted form part of the
+     * authoritative longitudinal chart without copying or reinterpreting it.
+     */
+    clientId: text("client_id").references(() => client.id),
     dateOfBirth: text("date_of_birth"),
     sex: text("sex"),
     goals: jsonb("goals"),
@@ -1142,6 +1148,7 @@ export const intakeSubmission = pgTable(
   },
   (t) => ({
     leadIdx: index("intake_submission_lead_idx").on(t.leadId),
+    clientIdx: index("intake_submission_client_idx").on(t.clientId, t.submittedAt),
     inviteIdx: uniqueIndex("intake_submission_invite_idx").on(t.inviteId),
   }),
 );
