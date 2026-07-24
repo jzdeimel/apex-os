@@ -45,6 +45,9 @@ jobs:
         # compiled copy that can drift.
         run: npm run spec
 
+      - name: Shared routes have no fixture runtime dependencies
+        run: npm run audit:production-surfaces
+
       - name: Migration journal consistency
         run: npm run schema:check
 
