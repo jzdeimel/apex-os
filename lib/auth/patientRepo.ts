@@ -41,6 +41,7 @@ export interface PatientPortalSummary {
     id: string;
     firstName: string;
     preferredName: string | null;
+    sex: string | null;
     homeLocation: string | null;
     timezone: string;
   };
@@ -283,6 +284,7 @@ export async function patientPortalSummary(
       id: client.id,
       firstName: client.firstName,
       preferredName: client.preferredName,
+      sex: client.sex,
       assignedCoachId: client.assignedCoachId,
       assignedProviderId: client.assignedProviderId,
       homeLocation: clinicLocation.name,
@@ -406,6 +408,7 @@ export async function patientPortalSummary(
       id: person.id,
       firstName: person.firstName,
       preferredName: person.preferredName,
+      sex: person.sex,
       homeLocation: person.homeLocation,
       timezone: person.timezone ?? "America/New_York",
     },

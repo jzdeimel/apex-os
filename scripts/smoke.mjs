@@ -3,7 +3,7 @@
  * that must never regress:
  *   - GET  /api/health returns a JSON body with a `status` field
  *   - GET  /api/me       is 401 for an unauthenticated caller (auth is enforced)
- *   - GET  /api/audit    is 410 because the fixture audit endpoint is retired
+ *   - GET  /api/audit    is 401 because the authoritative audit is admin-only
  *   - POST /api/acs/token is 401 for an unauthenticated caller
  *   - GET  /             renders (200) — the app boots
  *
@@ -64,10 +64,11 @@ try {
   console.log(`ok  GET /api/health => status:${body.status}`);
 
   await expectStatus("GET", "/api/me", 401);
-  await expectStatus("GET", "/api/audit", 410);
+  await expectStatus("GET", "/api/audit", 401);
   await expectStatus("GET", "/api/escalations", 401);
   await expectStatus("GET", "/api/coach/messages", 401);
   await expectStatus("GET", "/api/patient/messages", 401);
+  await expectStatus("GET", "/api/patient/emergency-card", 401);
   await expectStatus("GET", "/api/patient/community", 401);
   await expectStatus("GET", "/api/community/moderation", 401);
   await expectStatus("GET", "/api/community/groups", 401);
@@ -75,6 +76,12 @@ try {
   await expectStatus("GET", "/api/operations/cases", 401);
   await expectStatus("GET", "/api/admin/migration-preview", 401);
   await expectStatus("GET", "/api/patient/record-requests", 401);
+  await expectStatus("GET", "/api/patient/appointments", 401);
+  await expectStatus("GET", "/api/patient/referrals", 401);
+  await expectStatus("GET", "/api/patient-plans?clientId=smoke-client", 401);
+  await expectStatus("GET", "/api/recommendations", 401);
+  await expectStatus("GET", "/api/automations", 401);
+  await expectStatus("POST", "/api/internal/automation-tick", 401);
   await expectStatus("POST", "/api/acs/token", 401);
   await expectStatus("POST", "/api/communications/calls", 401);
 
@@ -115,16 +122,16 @@ try {
     if (r.status !== 401) fail(`POST ${path} unauthenticated => ${r.status}, expected 401`);
     console.log(`ok  POST ${path} (unauth) => 401`);
   }
-  // Retired browser/fixture contracts are gone for every caller, including an
-  // anonymous one. Middleware returns JSON 410 before their handlers execute.
+  // Compatibility contracts now use authoritative records. Every one must
+  // establish an identity before it parses or mutates a patient record.
   for (const path of ["/api/consults/sign", "/api/tasks/complete", "/api/member/log"]) {
     const r = await fetch(`${BASE}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
     });
-    if (r.status !== 410) fail(`POST ${path} retired => ${r.status}, expected 410`);
-    console.log(`ok  POST ${path} (retired) => 410`);
+    if (r.status !== 401) fail(`POST ${path} unauthenticated => ${r.status}, expected 401`);
+    console.log(`ok  POST ${path} (unauth) => 401`);
   }
 
   // The consult-draft endpoint (PHI drafts, server-side) fails closed on every
@@ -196,8 +203,8 @@ try {
       // before authorization ever runs and the test would prove nothing.
       body: JSON.stringify({ consultId: "con-001-1" }),
     });
-    if (r.status !== 410) fail(`retired consult-sign => ${r.status}, expected 410`);
-    console.log("ok  POST /api/consults/sign => 410 retired");
+    if (r.status !== 403) fail(`database-free consult-sign authority => ${r.status}, expected 403`);
+    console.log("ok  POST /api/consults/sign without DB authority => 403 refused");
   }
   {
     // Patient assignment is authoritative database state. A production-shaped

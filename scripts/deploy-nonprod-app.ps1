@@ -24,6 +24,7 @@ $appName = 'ca-apex-dev'
 $environmentName = 'cae-apex-nonprod'
 $keyVaultName = 'kv-apex-np-fcfde'
 $clientSecretName = 'web-auth-client-secret'
+$automationWorkerSecretName = 'automation-worker-token'
 $displayName = 'apex-os-nonprod-web'
 $templateFile = Join-Path $PSScriptRoot '..\infra\app.bicep'
 
@@ -156,6 +157,53 @@ $existingAppId = Invoke-AzCliOptional containerapp show `
   --query id `
   --output tsv
 
+$automationWorkerToken = $env:APEX_NONPROD_AUTOMATION_WORKER_TOKEN
+if ([string]::IsNullOrWhiteSpace($automationWorkerToken)) {
+  $automationWorkerToken = Invoke-AzCliOptional keyvault secret show `
+    --vault-name $keyVaultName `
+    --name $automationWorkerSecretName `
+    --query value `
+    --output tsv
+}
+
+if ([string]::IsNullOrWhiteSpace($automationWorkerToken)) {
+  $workerSecretRef = $null
+  if (-not [string]::IsNullOrWhiteSpace($existingAppId)) {
+    $workerSecretRef = (
+      Invoke-AzCliOptional containerapp secret list `
+        --resource-group $resourceGroupName `
+        --name $appName `
+        --query "[?name=='automation-worker-token'].keyVaultUrl | [0]" `
+        --output tsv
+    ) -join "`n"
+    $workerSecretRef = $workerSecretRef.Trim()
+  }
+  $expectedWorkerSecretUrl = "https://$keyVaultName.vault.azure.net/secrets/$automationWorkerSecretName"
+  if (
+    -not [string]::IsNullOrWhiteSpace($workerSecretRef) -and
+    $workerSecretRef.StartsWith($expectedWorkerSecretUrl, [System.StringComparison]::OrdinalIgnoreCase)
+  ) {
+    # Routine deploy: retain the versionless reference without reading or
+    # rotating the secret value.
+    $automationWorkerToken = ''
+  }
+  elseif ($Mode -ne 'Apply') {
+    throw 'The first scheduled-worker deployment requires -Mode Apply (or APEX_NONPROD_AUTOMATION_WORKER_TOKEN) to create its Key Vault secret.'
+  }
+  else {
+    $randomBytes = New-Object byte[] 48
+    $randomNumberGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+      $randomNumberGenerator.GetBytes($randomBytes)
+      $automationWorkerToken = [Convert]::ToBase64String($randomBytes)
+    }
+    finally {
+      $randomNumberGenerator.Dispose()
+      [Array]::Clear($randomBytes, 0, $randomBytes.Length)
+    }
+  }
+}
+
 if ([string]::IsNullOrWhiteSpace($AcsCallerId) -and -not [string]::IsNullOrWhiteSpace($existingAppId)) {
   $AcsCallerId = (Invoke-AzCli containerapp show `
     --resource-group $resourceGroupName `
@@ -209,6 +257,9 @@ try {
   )
   if (-not [string]::IsNullOrWhiteSpace($clientSecret)) {
     $parameters += "entraClientSecret=$clientSecret"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($automationWorkerToken)) {
+    $parameters += "automationWorkerToken=$automationWorkerToken"
   }
 
   if ($Mode -eq 'Validate') {
@@ -267,4 +318,5 @@ try {
 }
 finally {
   $clientSecret = $null
+  $automationWorkerToken = $null
 }

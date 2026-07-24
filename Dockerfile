@@ -85,6 +85,10 @@ COPY --from=builder --chown=node:node /app/public ./public
 # on the first database call, which is a long way from the cause.
 COPY --from=builder --chown=node:node /app/lib/db/migrations ./lib/db/migrations
 
+# The scheduled Container Apps job uses the same immutable image but invokes
+# this one-shot process instead of the web server.
+COPY --from=builder --chown=node:node /app/scripts/automation-worker.mjs ./scripts/automation-worker.mjs
+
 EXPOSE 3000
 
 CMD ["node", "server.js"]

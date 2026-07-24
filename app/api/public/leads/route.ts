@@ -48,6 +48,7 @@ interface Body {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  referralCode?: string;
 }
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -77,6 +78,8 @@ export async function POST(req: Request) {
   const lastName = (body.lastName ?? "").trim();
   const email = (body.email ?? "").trim().toLowerCase();
   const phone = (body.phone ?? "").trim();
+  const referralCode =
+    typeof body.referralCode === "string" ? body.referralCode.trim() : "";
 
   const problems: string[] = [];
   if (!firstName) problems.push("First name is required.");
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
   if (!phone || !isPhone(phone)) problems.push("A valid phone number is required.");
   if (body.track && !TRACKS.has(body.track)) problems.push("Unknown care track.");
   if (!body.locationId) problems.push("Choose an active clinic.");
+  if (referralCode.length > 200) problems.push("Referral code is invalid.");
   if (problems.length) {
     return NextResponse.json({ ok: false, error: problems.join(" "), problems }, { status: 400 });
   }
@@ -109,10 +113,11 @@ export async function POST(req: Request) {
       preferredLocationId: body.locationId,
       modality: body.modality,
       reason: (body.reason ?? "").trim().slice(0, 2000) || undefined,
-      source: "website",
-      utmSource: attributionValue(body.utmSource),
+      source: referralCode ? "patient-referral" : "website",
+      utmSource: referralCode ? "patient-referral" : attributionValue(body.utmSource),
       utmMedium: attributionValue(body.utmMedium),
       utmCampaign: attributionValue(body.utmCampaign),
+      referralCodeSha256: referralCode ? sha256(referralCode) : undefined,
       tokenSha256: sha256(minted.token),
       expiresAt: minted.expiresAt,
       at,

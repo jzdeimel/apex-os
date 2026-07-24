@@ -15,12 +15,14 @@ import {
 
 import { CallPatient } from "@/components/comms/CallPatient";
 import { AuthoritativeConsultNote } from "@/components/consult/AuthoritativeConsultNote";
+import { PatientPlanEditor } from "@/components/patient/PatientPlanEditor";
+import { PatientRecommendationEditor } from "@/components/patient/PatientRecommendationEditor";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
 
 interface PatientChart {
   ledgerId: string;
   canCall: boolean;
-  permissions: { clinical: boolean; contacts: boolean; financial: boolean; fulfillment: boolean; writeConsult: boolean };
+  permissions: { clinical: boolean; contacts: boolean; financial: boolean; fulfillment: boolean; writeConsult: boolean; writeNutrition: boolean; writeTraining: boolean };
   patient: {
     mrn: string;
     firstName: string;
@@ -164,6 +166,8 @@ export default function PatientChartPage() {
       )}
 
       {chart.permissions.writeConsult && <AuthoritativeConsultNote clientId={id} />}
+      <PatientPlanEditor clientId={id} canNutrition={chart.permissions.writeNutrition} canTraining={chart.permissions.writeTraining} />
+      {chart.permissions.writeConsult && <PatientRecommendationEditor clientId={id} />}
 
       <Section title="Consult and clinical notes" icon={FileText} count={chart.consults.length} allowed={chart.permissions.clinical}>
         {chart.consults.length ? chart.consults.map((row) => (

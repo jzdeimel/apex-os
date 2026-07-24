@@ -207,6 +207,7 @@ export default function BookPage() {
           utmSource: query.get("utm_source"),
           utmMedium: query.get("utm_medium"),
           utmCampaign: query.get("utm_campaign"),
+          referralCode: query.get("ref"),
         }),
       });
       const res = await r.json().catch(() => ({}));

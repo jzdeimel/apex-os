@@ -1,165 +1,80 @@
-"use client";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { HeartHandshake, PhoneCall } from "lucide-react";
+import { actorFromPrincipal } from "@/lib/auth/actor";
+import { currentPrincipal } from "@/lib/auth/principal";
+import { readWinbackCandidates } from "@/lib/db/operationalInsightsRepo";
+import { Card, CardContent } from "@/components/ui/primitives";
 
-/**
- * Coach · Win-backs.
- *
- * The list is ranked by winnability rather than by lifetime value, which is the
- * one design decision on this page worth defending. Sorting by spend puts the
- * clinic's biggest historical account at the top even when that member has been
- * dark for a year and is not coming back; the coach burns their morning on the
- * least recoverable name on the list and concludes the feature doesn't work.
- *
- * Volume is capped by attention, not by data. Ten plays is roughly a morning of
- * real calls, so ten is what we show — a list of eighty lapsed members is a
- * report, and nobody works a report.
- */
+export const dynamic = "force-dynamic";
 
-import * as React from "react";
-import { HeartHandshake } from "lucide-react";
+function money(cents: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
 
-import { Card, CardContent, EmptyState } from "@/components/ui/primitives";
-import { cn, currency } from "@/lib/utils";
-import { staffMap, staffName } from "@/lib/mock/staff";
-import { ME_COACH } from "@/components/coach/TodayQueue";
-import { lapsedMembers } from "@/lib/growth/winback";
-import { WinBackPlay } from "@/components/coach/WinBackPlay";
-
-const NOW = "2026-06-12T09:00:00";
-
-/** A morning's worth of calls. See the note at the top of the file. */
-const SHOWN = 10;
-
-const ACTOR = {
-  id: ME_COACH,
-  name: staffName(ME_COACH),
-  role: staffMap[ME_COACH]?.role ?? "Coach",
-};
-
-export default function CoachWinBackPage() {
-  const all = React.useMemo(() => lapsedMembers(ME_COACH, NOW), []);
-  const [selected, setSelected] = React.useState<string | null>(() => all[0]?.client.id ?? null);
-  const [handled, setHandled] = React.useState<string[]>([]);
-
-  const shown = all.slice(0, SHOWN);
-  const current = all.find((r) => r.client.id === selected) ?? shown[0];
-
-  const recoverable = all.reduce((s, r) => s + r.lifetimeValue, 0);
+export default async function CoachWinBackPage() {
+  const principal = await currentPrincipal();
+  const actor = principal ? actorFromPrincipal(principal) : null;
+  if (!actor) redirect("/");
+  if (!["coach", "operations", "owner"].includes(actor.accessProfile)) redirect("/");
+  const candidates = await readWinbackCandidates({
+    actorId: actor.id,
+    accessProfile: actor.accessProfile,
+    locationIds: actor.locationIds,
+  });
 
   return (
     <div className="space-y-8">
       <header>
-        <p className="label-eyebrow">COACH CONSOLE</p>
+        <p className="label-eyebrow">Authoritative retention queue</p>
         <h1 className="mt-1 font-display text-title font-semibold tracking-tight text-ink-50">
           Win-backs
         </h1>
-        <p className="mt-2 max-w-prose text-body text-ink-400">
-          Members on your book who stopped — with a play built from what each of them actually did
-          here, and the records it came from sitting next to it. Nothing on this page sends anything.
+        <p className="mt-2 max-w-3xl text-body text-ink-400">
+          Real patients with an inactive chart or terminal membership and no
+          future visit. The score is a transparent recency ordering, not an AI prediction.
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Stat label="Lapsed on your book" value={String(all.length)} />
-        <Stat label="Plays worth working today" value={String(shown.length)} tone="gold" />
-        <Stat label="Lifetime value at stake" value={currency(recoverable, true)} />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card><CardContent className="p-5"><p className="label-eyebrow">Lapsed candidates</p><p className="mt-2 stat-mono text-title text-ink-50">{candidates.length}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="label-eyebrow">Work today</p><p className="mt-2 stat-mono text-title text-gold-300">{Math.min(10, candidates.length)}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="label-eyebrow">Historical value</p><p className="mt-2 stat-mono text-title text-ink-50">{money(candidates.reduce((sum, row) => sum + row.lifetimeValueCents, 0))}</p></CardContent></Card>
       </div>
 
-      {all.length === 0 ? (
-        <EmptyState
-          icon={<HeartHandshake className="h-6 w-6" />}
-          title="Nobody on your book has lapsed"
-          hint="Members show up here when billing stops, a chart goes inactive, or nobody has spoken to them in six weeks with nothing booked."
-        />
-      ) : (
-        // Explicit base grid-cols-1: the picker stacks above the play on a
-        // phone and only becomes a rail once there is room for one.
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,20rem)_1fr]">
-          <div className="space-y-2">
-            {shown.map((r) => {
-              const active = current?.client.id === r.client.id;
-              const done = handled.includes(r.client.id);
-              return (
-                <button
-                  key={r.client.id}
-                  onClick={() => setSelected(r.client.id)}
-                  className={cn(
-                    "w-full rounded-2xl border p-3 text-left transition-colors focus-ring",
-                    active
-                      ? "border-gold-400/40 bg-gold-400/[0.07]"
-                      : "border-ink-700/70 bg-ink-850/60 hover:border-ink-600",
-                    done && "opacity-50",
-                  )}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-body font-medium text-ink-50">
-                      {r.client.firstName} {r.client.lastName}
-                    </span>
-                    <span
-                      className={cn(
-                        "stat-mono shrink-0 text-body",
-                        r.winnability >= 60
-                          ? "text-optimal"
-                          : r.winnability >= 40
-                            ? "text-watch"
-                            : "text-ink-500",
-                      )}
-                    >
-                      {r.winnability}
-                    </span>
+      {candidates.length ? (
+        <div className="space-y-3">
+          {candidates.slice(0, 50).map((row) => (
+            <Card key={row.id}>
+              <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/clients/${row.id}`} className="font-medium text-ink-100 hover:text-gold-300">
+                      {row.preferredName || row.firstName} {row.lastName}
+                    </Link>
+                    <span className="rounded-full bg-ink-800 px-2 py-1 text-micro text-ink-300">{row.trigger}</span>
                   </div>
-                  <p className="mt-0.5 truncate text-micro text-ink-500">{r.trigger}</p>
-                  <p className="stat-mono mt-1 text-micro text-ink-600">
-                    {currency(r.lifetimeValue)} · {r.tenureMonths}mo
+                  <p className="mt-2 text-detail text-ink-400">
+                    Last recorded activity {row.daysSinceActivity} days ago · {money(row.lifetimeValueCents)} historical net sales
                   </p>
-                </button>
-              );
-            })}
-
-            {all.length > SHOWN && (
-              <p className="px-1 pt-1 text-micro leading-relaxed text-ink-500">
-                <span className="stat-mono">{all.length - SHOWN}</span> more below the line. They
-                aren&rsquo;t hidden because they don&rsquo;t matter — they&rsquo;re hidden because a
-                list you can&rsquo;t finish is a list you don&rsquo;t start.
-              </p>
-            )}
-          </div>
-
-          {current && (
-            <WinBackPlay
-              key={current.client.id}
-              record={current}
-              actor={ACTOR}
-              onActed={(id) => setHandled((h) => (h.includes(id) ? h : [...h, id]))}
-            />
-          )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right"><p className="stat-mono text-title text-gold-300">{row.winnability}</p><p className="text-micro text-ink-500">recency score</p></div>
+                  <Link href={`/clients/${row.id}`} className="inline-flex items-center gap-2 rounded-control border border-ink-700 px-3 py-2 text-detail text-ink-200 hover:border-gold-400/50">
+                    <PhoneCall className="h-4 w-4" /> Open chart
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      ) : (
+        <Card><CardContent className="p-8 text-center"><HeartHandshake className="mx-auto h-7 w-7 text-teal-300" /><h2 className="mt-3 font-display text-title text-ink-50">No lapsed patients in this scope</h2><p className="mt-2 text-body text-ink-400">Active patients are never placed here merely because a message is old.</p></CardContent></Card>
       )}
     </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "gold";
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="label-eyebrow">{label}</p>
-        <p
-          className={cn(
-            "stat-mono mt-2 text-title font-semibold",
-            tone === "gold" ? "text-gold-300" : "text-ink-50",
-          )}
-        >
-          {value}
-        </p>
-      </CardContent>
-    </Card>
   );
 }

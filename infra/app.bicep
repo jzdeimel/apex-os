@@ -21,6 +21,9 @@ param location string = 'eastus2'
 param acsCallerId string = ''
 @description('Explicit one-time nonprod bootstrap from the existing Alpha dev ACS account. Routine releases keep this false.')
 param bootstrapAlphaDevCalling bool = false
+@secure()
+@description('One-time secret used by the scheduled task worker. Omit after the Key Vault secret and Container App reference exist.')
+param automationWorkerToken string = ''
 
 var appName = 'ca-apex-dev'
 var environmentName = 'cae-apex-nonprod'
@@ -29,9 +32,11 @@ var keyVaultName = 'kv-apex-np-fcfde'
 var communicationServiceName = 'acs-apex-np-fcfde'
 var communicationConnectionSecretName = 'acs-connection-string'
 var webAuthClientSecretName = 'web-auth-client-secret'
+var automationWorkerSecretName = 'automation-worker-token'
 // Azure cloud suffixes include their leading dot (for example
 // `.vault.azure.net`), so concatenate rather than inserting another separator.
 var webAuthClientSecretUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${webAuthClientSecretName}'
+var automationWorkerSecretUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${automationWorkerSecretName}'
 var runtimeIdentityName = 'id-apex-nonprod-runtime'
 var tags = {
   application: 'apex-os'
@@ -115,6 +120,17 @@ resource webAuthClientSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if
   }
 }
 
+resource automationWorkerSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(automationWorkerToken)) {
+  parent: keyVault
+  name: automationWorkerSecretName
+  properties: {
+    value: automationWorkerToken
+    attributes: {
+      enabled: true
+    }
+  }
+}
+
 resource runtimeIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: runtimeIdentityName
 }
@@ -168,6 +184,11 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: communicationConnectionSecretUrl
           identity: runtimeIdentity.id
         }
+        {
+          name: 'automation-worker-token'
+          keyVaultUrl: automationWorkerSecretUrl
+          identity: runtimeIdentity.id
+        }
       ]
     }
     template: {
@@ -212,6 +233,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ACS_CALLER_ID'
               value: acsCallerId
             }
+            {
+              name: 'APEX_AUTOMATION_WORKER_TOKEN'
+              secretRef: 'automation-worker-token'
+            }
+            {
+              name: 'APEX_BUILD_SHA'
+              value: last(split(image, ':'))
+            }
           ]
           resources: {
             cpu: json('1.0')
@@ -253,6 +282,74 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+resource automationJob 'Microsoft.App/jobs@2024-03-01' = {
+  name: 'job-apex-automation'
+  location: location
+  tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${runtimeIdentity.id}': {}
+    }
+  }
+  properties: {
+    environmentId: containerAppsEnvironment.id
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 300
+      replicaRetryLimit: 3
+      scheduleTriggerConfig: {
+        cronExpression: '*/5 * * * *'
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      registries: [
+        {
+          server: registry.properties.loginServer
+          identity: runtimeIdentity.id
+        }
+      ]
+      secrets: [
+        {
+          name: 'automation-worker-token'
+          keyVaultUrl: automationWorkerSecretUrl
+          identity: runtimeIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'automation-worker'
+          image: image
+          command: [
+            'node'
+            'scripts/automation-worker.mjs'
+          ]
+          env: [
+            {
+              name: 'APEX_AUTOMATION_TARGET'
+              value: 'https://${app.properties.configuration.ingress.fqdn}/api/internal/automation-tick'
+            }
+            {
+              name: 'APEX_AUTOMATION_WORKER_TOKEN'
+              secretRef: 'automation-worker-token'
+            }
+            {
+              name: 'APEX_AUTOMATION_WORKER_ID'
+              value: 'aca-scheduled-worker'
+            }
+          ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+        }
+      ]
+    }
+  }
+}
+
 resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
   parent: app
   name: 'current'
@@ -273,11 +370,18 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
         '/patient-sign-in'
         '/patient'
         '/patient/*'
+        '/card/*'
         '/api/patient-auth/exchange'
         '/api/patient-auth/logout'
         '/api/patient/messages'
+        '/api/patient/appointments'
+        '/api/patient/emergency-card'
+        '/api/patient/referrals'
+        '/api/patient/record-requests'
+        '/api/member/log'
         '/api/patient/community'
         '/api/patient/community/*'
+        '/api/internal/automation-tick'
       ]
     }
     identityProviders: {
@@ -316,3 +420,4 @@ output appName string = app.name
 output fqdn string = app.properties.configuration.ingress.fqdn
 output image string = image
 output communicationServiceName string = communicationService.name
+output automationJobName string = automationJob.name

@@ -246,6 +246,27 @@
       "when": 1784842071814,
       "tag": "0034_authoritative-work-tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1784910000000,
+      "tag": "0035_patient-experience",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1784913600000,
+      "tag": "0036_clinical-recommendations",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1784917200000,
+      "tag": "0037_durable-automations",
+      "breakpoints": true
     }
   ]
 }

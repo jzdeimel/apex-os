@@ -38,7 +38,11 @@ import {
   allergy as allergyTable,
   problem as problemTable,
   medication as medicationTable,
+  prescription as prescriptionTable,
   staffCredential,
+  patientPlan,
+  patientReferral,
+  clinicalRecommendation,
 } from "@/lib/db/schema";
 import type { Consult } from "@/lib/consult/types";
 import type {
@@ -342,6 +346,629 @@ export async function readMemberHistory(clientId: string, sinceDate: string) {
       .orderBy(doseLog.date),
   ]);
   return { days, doses };
+}
+
+/** Published plans are the only plans a patient may read. */
+export async function readPatientPlans(
+  clientId: string,
+  includeDrafts = false,
+) {
+  const db = requireDb();
+  return db
+    .select()
+    .from(patientPlan)
+    .where(
+      includeDrafts
+        ? eq(patientPlan.clientId, clientId)
+        : and(
+            eq(patientPlan.clientId, clientId),
+            eq(patientPlan.status, "active"),
+          ),
+    )
+    .orderBy(desc(patientPlan.createdAt));
+}
+
+/**
+ * Create an immutable plan version and witness the authorship in one
+ * transaction. The request id is the row id, so a retry returns the same plan.
+ */
+export async function createPatientPlanDraft(input: {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  category: "nutrition" | "training";
+  title: string;
+  summary?: string;
+  content: Array<{ heading: string; body: string }>;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(patientPlan)
+      .where(eq(patientPlan.id, input.id))
+      .limit(1);
+    if (existing) {
+      if (
+        existing.clientId !== input.clientId ||
+        existing.category !== input.category
+      ) {
+        throw new Error("Plan request id was already used for another subject.");
+      }
+      return { plan: existing, ledger: null, duplicate: true };
+    }
+
+    // The ledger lock also serialises version allocation for this human-paced
+    // workflow. A failed insert rolls the witness back with the plan.
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "document",
+        entityId: input.id,
+        subjectId: input.clientId,
+        subjectName: input.clientName,
+        reason: `Created ${input.category} plan draft`,
+        after: {
+          category: input.category,
+          title: input.title,
+          status: "draft",
+        },
+      },
+      input.at,
+    );
+
+    const [latest] = await tx
+      .select({ version: patientPlan.version })
+      .from(patientPlan)
+      .where(
+        and(
+          eq(patientPlan.clientId, input.clientId),
+          eq(patientPlan.category, input.category),
+        ),
+      )
+      .orderBy(desc(patientPlan.version))
+      .limit(1);
+    const version = (latest?.version ?? 0) + 1;
+
+    const [plan] = await tx
+      .insert(patientPlan)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        category: input.category,
+        title: input.title,
+        summary: input.summary ?? null,
+        content: input.content,
+        version,
+        authoredByStaffId: input.actorId,
+        createdAt: new Date(input.at),
+        ledgerId: ledger.id,
+      })
+      .returning();
+    return { plan, ledger, duplicate: false };
+  });
+}
+
+/** Publish a draft, replacing the previous active version atomically. */
+export async function publishPatientPlan(input: {
+  id: string;
+  clientName?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  effectiveOn: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [draft] = await tx
+      .select()
+      .from(patientPlan)
+      .where(eq(patientPlan.id, input.id))
+      .limit(1);
+    if (!draft) return { status: "missing" as const };
+    if (draft.status === "active") {
+      return { status: "ok" as const, plan: draft, ledger: null, duplicate: true };
+    }
+    if (draft.status !== "draft") {
+      return {
+        status: "conflict" as const,
+        reason: "Only a draft plan may be published.",
+      };
+    }
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "approve",
+        entity: "document",
+        entityId: draft.id,
+        subjectId: draft.clientId,
+        subjectName: input.clientName,
+        reason: `Published ${draft.category} plan version ${draft.version}`,
+        before: { status: "draft" },
+        after: {
+          status: "active",
+          effectiveOn: input.effectiveOn,
+          version: draft.version,
+        },
+      },
+      input.at,
+    );
+
+    await tx
+      .update(patientPlan)
+      .set({ status: "replaced", replacedById: draft.id })
+      .where(
+        and(
+          eq(patientPlan.clientId, draft.clientId),
+          eq(patientPlan.category, draft.category),
+          eq(patientPlan.status, "active"),
+          ne(patientPlan.id, draft.id),
+        ),
+      );
+
+    const [plan] = await tx
+      .update(patientPlan)
+      .set({
+        status: "active",
+        approvedByStaffId: input.actorId,
+        effectiveOn: input.effectiveOn,
+        publishedAt: new Date(input.at),
+        ledgerId: ledger.id,
+      })
+      .where(and(eq(patientPlan.id, draft.id), eq(patientPlan.status, "draft")))
+      .returning();
+    if (!plan) {
+      return {
+        status: "conflict" as const,
+        reason: "The plan changed before it could be published.",
+      };
+    }
+    return { status: "ok" as const, plan, ledger, duplicate: false };
+  });
+}
+
+export async function readClinicalRecommendations(input: {
+  clientId?: string;
+  creatorId?: string;
+  assignedProviderId?: string;
+  status?: string;
+}) {
+  const db = requireDb();
+  const filters = [
+    input.clientId
+      ? eq(clinicalRecommendation.clientId, input.clientId)
+      : undefined,
+    input.creatorId
+      ? eq(clinicalRecommendation.createdByStaffId, input.creatorId)
+      : undefined,
+    input.assignedProviderId
+      ? eq(clientTable.assignedProviderId, input.assignedProviderId)
+      : undefined,
+    input.status
+      ? eq(clinicalRecommendation.status, input.status)
+      : undefined,
+  ];
+  return db
+    .select({
+      id: clinicalRecommendation.id,
+      clientId: clinicalRecommendation.clientId,
+      patientFirstName: clientTable.firstName,
+      patientLastName: clientTable.lastName,
+      patientPreferredName: clientTable.preferredName,
+      assignedCoachId: clientTable.assignedCoachId,
+      assignedProviderId: clientTable.assignedProviderId,
+      locationId: clientTable.homeLocationId,
+      category: clinicalRecommendation.category,
+      title: clinicalRecommendation.title,
+      rationale: clinicalRecommendation.rationale,
+      proposedDiscussion: clinicalRecommendation.proposedDiscussion,
+      evidence: clinicalRecommendation.evidence,
+      status: clinicalRecommendation.status,
+      createdByStaffId: clinicalRecommendation.createdByStaffId,
+      createdAt: clinicalRecommendation.createdAt,
+      submittedAt: clinicalRecommendation.submittedAt,
+      reviewedByStaffId: clinicalRecommendation.reviewedByStaffId,
+      reviewedAt: clinicalRecommendation.reviewedAt,
+      decisionReason: clinicalRecommendation.decisionReason,
+      attestation: clinicalRecommendation.attestation,
+      provenance: clinicalRecommendation.provenance,
+      ledgerId: clinicalRecommendation.ledgerId,
+    })
+    .from(clinicalRecommendation)
+    .innerJoin(
+      clientTable,
+      eq(clinicalRecommendation.clientId, clientTable.id),
+    )
+    .where(and(...filters))
+    .orderBy(desc(clinicalRecommendation.createdAt));
+}
+
+export async function createClinicalRecommendationDraft(input: {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  category: string;
+  title: string;
+  rationale: string;
+  proposedDiscussion: string;
+  evidence: Array<{ kind: string; id: string; label: string }>;
+  provenance: {
+    method: "human-authored";
+    inputHash: string;
+    generatedAt: string;
+  };
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(clinicalRecommendation)
+      .where(eq(clinicalRecommendation.id, input.id))
+      .limit(1);
+    if (existing) {
+      if (existing.clientId !== input.clientId) {
+        throw new Error(
+          "Recommendation request id was already used for another subject.",
+        );
+      }
+      return { recommendation: existing, ledger: null, duplicate: true };
+    }
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "create",
+        entity: "recommendation",
+        entityId: input.id,
+        subjectId: input.clientId,
+        subjectName: input.clientName,
+        reason: "Human-authored care recommendation draft created",
+        after: {
+          category: input.category,
+          status: "draft",
+          evidenceCount: input.evidence.length,
+          method: "human-authored",
+        },
+      },
+      input.at,
+    );
+    const [recommendation] = await tx
+      .insert(clinicalRecommendation)
+      .values({
+        id: input.id,
+        clientId: input.clientId,
+        category: input.category,
+        title: input.title,
+        rationale: input.rationale,
+        proposedDiscussion: input.proposedDiscussion,
+        evidence: input.evidence,
+        status: "draft",
+        createdByStaffId: input.actorId,
+        createdAt: new Date(input.at),
+        provenance: input.provenance,
+        ledgerId: ledger.id,
+      })
+      .returning();
+    return { recommendation, ledger, duplicate: false };
+  });
+}
+
+export async function transitionClinicalRecommendation(input: {
+  id: string;
+  action: "submit" | "approve" | "decline" | "withdraw";
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  reason?: string;
+  attestation?: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select()
+      .from(clinicalRecommendation)
+      .where(eq(clinicalRecommendation.id, input.id))
+      .limit(1);
+    if (!before) return { status: "missing" as const };
+    const next =
+      input.action === "submit"
+        ? "pending"
+        : input.action === "approve"
+          ? "approved"
+          : input.action === "decline"
+            ? "declined"
+            : "withdrawn";
+    const allowed =
+      (input.action === "submit" && before.status === "draft") ||
+      ((input.action === "approve" || input.action === "decline") &&
+        before.status === "pending") ||
+      (input.action === "withdraw" &&
+        (before.status === "draft" || before.status === "pending"));
+    if (!allowed) {
+      return {
+        status: "conflict" as const,
+        reason: `A ${before.status} recommendation cannot transition through ${input.action}.`,
+      };
+    }
+    if (
+      (input.action === "approve" || input.action === "decline") &&
+      (!input.attestation?.trim() || !input.reason?.trim())
+    ) {
+      return {
+        status: "conflict" as const,
+        reason: "A decision reason and signer attestation are required.",
+      };
+    }
+    const at = new Date(input.at);
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action:
+          input.action === "approve"
+            ? "approve"
+            : input.action === "decline"
+              ? "decline"
+              : "update",
+        entity: "recommendation",
+        entityId: before.id,
+        subjectId: before.clientId,
+        reason:
+          input.reason?.trim() ??
+          `Recommendation moved from ${before.status} to ${next}`,
+        before: { status: before.status },
+        after: { status: next, method: "human-authored" },
+      },
+      input.at,
+    );
+    const [recommendation] = await tx
+      .update(clinicalRecommendation)
+      .set({
+        status: next,
+        submittedAt: next === "pending" ? at : before.submittedAt,
+        reviewedByStaffId:
+          next === "approved" || next === "declined"
+            ? input.actorId
+            : before.reviewedByStaffId,
+        reviewedAt:
+          next === "approved" || next === "declined"
+            ? at
+            : before.reviewedAt,
+        decisionReason:
+          next === "approved" || next === "declined"
+            ? input.reason!.trim()
+            : before.decisionReason,
+        attestation:
+          next === "approved" || next === "declined"
+            ? input.attestation!.trim()
+            : before.attestation,
+        ledgerId: ledger.id,
+      })
+      .where(
+        and(
+          eq(clinicalRecommendation.id, before.id),
+          eq(clinicalRecommendation.status, before.status),
+        ),
+      )
+      .returning();
+    if (!recommendation) {
+      return {
+        status: "conflict" as const,
+        reason: "The recommendation changed before this action was applied.",
+      };
+    }
+    return { status: "ok" as const, recommendation, ledger };
+  });
+}
+
+export async function readPatientReferrals(clientId: string) {
+  const db = requireDb();
+  return db
+    .select({
+      id: patientReferral.id,
+      status: patientReferral.status,
+      issuedAt: patientReferral.issuedAt,
+      expiresAt: patientReferral.expiresAt,
+      attributedAt: patientReferral.attributedAt,
+      qualifiedAt: patientReferral.qualifiedAt,
+      rewardedAt: patientReferral.rewardedAt,
+      rewardDescription: patientReferral.rewardDescription,
+    })
+    .from(patientReferral)
+    .where(eq(patientReferral.referringClientId, clientId))
+    .orderBy(desc(patientReferral.issuedAt))
+    .limit(50);
+}
+
+/** Issue one hash-only referral code; the raw code never enters Postgres. */
+export async function issuePatientReferral(input: {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  codeSha256: string;
+  expiresAt: string;
+  actorName: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(patientReferral)
+      .where(eq(patientReferral.id, input.id))
+      .limit(1);
+    if (existing) return { referral: existing, ledger: null, duplicate: true };
+
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.clientId,
+        actorName: input.actorName,
+        actorRole: "Patient",
+        action: "create",
+        entity: "lead",
+        entityId: input.id,
+        subjectId: input.clientId,
+        subjectName: input.clientName,
+        reason: "Patient issued a referral share link",
+        after: { status: "issued", expiresAt: input.expiresAt },
+      },
+      input.at,
+    );
+    const [referral] = await tx
+      .insert(patientReferral)
+      .values({
+        id: input.id,
+        referringClientId: input.clientId,
+        codeSha256: input.codeSha256,
+        status: "issued",
+        issuedAt: new Date(input.at),
+        expiresAt: new Date(input.expiresAt),
+        ledgerId: ledger.id,
+      })
+      .returning();
+    return { referral, ledger, duplicate: false };
+  });
+}
+
+export async function readReferralQueue(status?: string) {
+  const db = requireDb();
+  return db
+    .select({
+      id: patientReferral.id,
+      referringClientId: patientReferral.referringClientId,
+      referrerFirstName: clientTable.firstName,
+      referrerLastName: clientTable.lastName,
+      status: patientReferral.status,
+      attributedLeadId: patientReferral.attributedLeadId,
+      issuedAt: patientReferral.issuedAt,
+      expiresAt: patientReferral.expiresAt,
+      attributedAt: patientReferral.attributedAt,
+      qualifiedAt: patientReferral.qualifiedAt,
+      rewardedAt: patientReferral.rewardedAt,
+      rewardDescription: patientReferral.rewardDescription,
+    })
+    .from(patientReferral)
+    .innerJoin(
+      clientTable,
+      eq(patientReferral.referringClientId, clientTable.id),
+    )
+    .where(status ? eq(patientReferral.status, status) : undefined)
+    .orderBy(desc(patientReferral.issuedAt))
+    .limit(500);
+}
+
+/** Staff-controlled referral qualification/reward lifecycle. */
+export async function transitionPatientReferral(input: {
+  id: string;
+  action: "qualify" | "reward" | "revoke";
+  rewardDescription?: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  at: string;
+}) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select()
+      .from(patientReferral)
+      .where(eq(patientReferral.id, input.id))
+      .limit(1);
+    if (!before) return { status: "missing" as const };
+    const allowed =
+      (input.action === "qualify" && before.status === "attributed") ||
+      (input.action === "reward" && before.status === "qualified") ||
+      (input.action === "revoke" &&
+        !["rewarded", "revoked", "expired"].includes(before.status));
+    if (!allowed) {
+      return {
+        status: "conflict" as const,
+        reason: `Referral ${before.status} cannot transition through ${input.action}.`,
+      };
+    }
+    if (input.action === "reward" && !input.rewardDescription?.trim()) {
+      return {
+        status: "conflict" as const,
+        reason: "A reward description is required.",
+      };
+    }
+    const next =
+      input.action === "qualify"
+        ? "qualified"
+        : input.action === "reward"
+          ? "rewarded"
+          : "revoked";
+    const at = new Date(input.at);
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.actorId,
+        actorName: input.actorName,
+        actorRole: input.actorRole,
+        action: "update",
+        entity: "lead",
+        entityId: before.id,
+        subjectId: before.referringClientId,
+        reason: `Referral moved from ${before.status} to ${next}`,
+        before: { status: before.status },
+        after: {
+          status: next,
+          rewardDescription: input.rewardDescription?.trim() ?? null,
+        },
+      },
+      input.at,
+    );
+    const [referral] = await tx
+      .update(patientReferral)
+      .set({
+        status: next,
+        qualifiedAt: next === "qualified" ? at : before.qualifiedAt,
+        rewardedAt: next === "rewarded" ? at : before.rewardedAt,
+        rewardDescription:
+          next === "rewarded"
+            ? input.rewardDescription!.trim()
+            : before.rewardDescription,
+        revokedAt: next === "revoked" ? at : before.revokedAt,
+        ledgerId: ledger.id,
+      })
+      .where(
+        and(
+          eq(patientReferral.id, before.id),
+          eq(patientReferral.status, before.status),
+        ),
+      )
+      .returning();
+    if (!referral) {
+      return {
+        status: "conflict" as const,
+        reason: "The referral changed before this action was applied.",
+      };
+    }
+    return { status: "ok" as const, referral, ledger };
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -957,6 +1584,209 @@ export async function readSchedulingReference() {
       .orderBy(clinicLocationTable.name),
   ]);
   return { clients, staff: staffRows, locations };
+}
+
+function addCalendarDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+/**
+ * Convert a clinic wall-clock value to an instant without assuming the
+ * container's timezone. The second pass resolves DST offsets; the final
+ * localSlot check rejects nonexistent spring-forward times.
+ */
+function wallTimeToInstant(
+  date: string,
+  minute: number,
+  timezone: string,
+): Date | null {
+  const [year, month, day] = date.split("-").map(Number);
+  const hour = Math.floor(minute / 60);
+  const minutes = minute % 60;
+  const desired = Date.UTC(year, month - 1, day, hour, minutes);
+  let guess = desired;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const local = localSlot(new Date(guess), timezone);
+    const [localYear, localMonth, localDay] = local.date.split("-").map(Number);
+    const actual = Date.UTC(
+      localYear,
+      localMonth - 1,
+      localDay,
+      Math.floor(local.minute / 60),
+      local.minute % 60,
+    );
+    guess += desired - actual;
+  }
+  const instant = new Date(guess);
+  const verified = localSlot(instant, timezone);
+  return verified.date === date && verified.minute === minute ? instant : null;
+}
+
+/**
+ * Patient self-booking is deliberately narrow: a 30-minute virtual follow-up
+ * with the assigned coach, at the owning clinic, and only when that coach has
+ * approved hours plus a connected calendar. Missing configuration produces no
+ * slots; it never falls back to generated availability.
+ */
+export async function readPatientSelfBookingSlots(
+  clientId: string,
+  now = new Date(),
+  horizonDays = 14,
+) {
+  const db = requireDb();
+  const [assignment] = await db
+    .select({
+      clientId: clientTable.id,
+      clientStatus: clientTable.status,
+      coachId: clientTable.assignedCoachId,
+      coachName: staffTable.name,
+      coachProfile: staffTable.accessProfile,
+      coachActive: staffTable.active,
+      coachExcluded: staffTable.excludeFromScheduling,
+      coachLocations: staffTable.locationIds,
+      locationId: clinicLocationTable.id,
+      locationName: clinicLocationTable.name,
+      timezone: clinicLocationTable.timezone,
+      locationActive: clinicLocationTable.active,
+    })
+    .from(clientTable)
+    .leftJoin(staffTable, eq(clientTable.assignedCoachId, staffTable.id))
+    .leftJoin(
+      clinicLocationTable,
+      eq(clientTable.homeLocationId, clinicLocationTable.id),
+    )
+    .where(eq(clientTable.id, clientId))
+    .limit(1);
+  if (
+    !assignment ||
+    assignment.clientStatus !== "active" ||
+    !assignment.coachId ||
+    !assignment.coachName ||
+    assignment.coachProfile !== "coach" ||
+    !assignment.coachActive ||
+    assignment.coachExcluded ||
+    !assignment.locationId ||
+    !assignment.locationActive ||
+    !assignment.timezone ||
+    !Array.isArray(assignment.coachLocations) ||
+    !(assignment.coachLocations as string[]).includes(assignment.locationId)
+  ) {
+    return { ready: false as const, reason: "Assigned coach scheduling is not fully configured.", slots: [] };
+  }
+
+  const [calendar] = await db
+    .select({ id: externalCalendar.id })
+    .from(externalCalendar)
+    .where(
+      and(
+        eq(externalCalendar.staffId, assignment.coachId),
+        eq(externalCalendar.status, "connected"),
+      ),
+    )
+    .limit(1);
+  if (!calendar) {
+    return { ready: false as const, reason: "The assigned coach calendar is not connected.", slots: [] };
+  }
+
+  const startDate = localSlot(now, assignment.timezone).date;
+  const endDate = addCalendarDays(startDate, Math.max(1, Math.min(31, horizonDays)));
+  const endInstant =
+    wallTimeToInstant(endDate, 23 * 60 + 59, assignment.timezone) ??
+    new Date(now.getTime() + 32 * 86_400_000);
+  const [rules, appointments, busy] = await Promise.all([
+    db
+      .select()
+      .from(staffAvailabilityRule)
+      .where(
+        and(
+          eq(staffAvailabilityRule.staffId, assignment.coachId),
+          eq(staffAvailabilityRule.locationId, assignment.locationId),
+          eq(staffAvailabilityRule.active, true),
+        ),
+      ),
+    db
+      .select({
+        startAt: appointmentTable.startAt,
+        endAt: appointmentTable.endAt,
+        status: appointmentTable.status,
+      })
+      .from(appointmentTable)
+      .where(
+        and(
+          eq(appointmentTable.staffId, assignment.coachId),
+          gte(appointmentTable.startAt, now),
+          lt(appointmentTable.startAt, endInstant),
+        ),
+      ),
+    db
+      .select({
+        startAt: calendarBusyBlock.startAt,
+        endAt: calendarBusyBlock.endAt,
+        status: calendarBusyBlock.status,
+      })
+      .from(calendarBusyBlock)
+      .where(
+        and(
+          eq(calendarBusyBlock.calendarId, calendar.id),
+          gte(calendarBusyBlock.endAt, now),
+          lt(calendarBusyBlock.startAt, endInstant),
+          ne(calendarBusyBlock.status, "cancelled"),
+        ),
+      ),
+  ]);
+  if (!rules.length) {
+    return { ready: false as const, reason: "The assigned coach has no approved working hours.", slots: [] };
+  }
+
+  const activeAppointments = appointments.filter(
+    (row) => !["cancelled", "canceled", "no show"].includes(row.status.toLowerCase()),
+  );
+  const minimumStart = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const slots: Array<{
+    staffId: string;
+    staffName: string;
+    locationId: string;
+    locationName: string;
+    timezone: string;
+    startAt: string;
+    endAt: string;
+    visitType: "Follow-Up";
+    modality: "virtual";
+  }> = [];
+  for (let offset = 0; offset < horizonDays && slots.length < 80; offset += 1) {
+    const date = addCalendarDays(startDate, offset);
+    const noon = new Date(`${date}T12:00:00Z`);
+    const weekday = noon.getUTCDay();
+    for (const rule of rules) {
+      if (
+        rule.weekday !== weekday ||
+        rule.effectiveFrom > date ||
+        (rule.effectiveUntil && rule.effectiveUntil < date)
+      ) continue;
+      for (let minute = rule.startMinute; minute + 30 <= rule.endMinute; minute += 15) {
+        const startAt = wallTimeToInstant(date, minute, assignment.timezone);
+        const endAt = wallTimeToInstant(date, minute + 30, assignment.timezone);
+        if (!startAt || !endAt || startAt < minimumStart) continue;
+        const overlap = (row: { startAt: Date; endAt: Date }) =>
+          row.startAt < endAt && row.endAt > startAt;
+        if (activeAppointments.some(overlap) || busy.some(overlap)) continue;
+        slots.push({
+          staffId: assignment.coachId,
+          staffName: assignment.coachName,
+          locationId: assignment.locationId,
+          locationName: assignment.locationName ?? "Home clinic",
+          timezone: assignment.timezone,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          visitType: "Follow-Up",
+          modality: "virtual",
+        });
+      }
+    }
+  }
+  return { ready: true as const, reason: null, slots };
 }
 
 /**
@@ -2644,6 +3474,123 @@ export async function signConsultDraft(input: {
 }
 
 /**
+ * Load the server-owned scope and authored content for provider co-sign.
+ *
+ * The legacy endpoint loaded a seeded consult and a seeded patient. A caller
+ * must now name a row that already exists in Postgres; the patient and care
+ * team used for authorization are derived from that row.
+ */
+export async function readConsultForCoSign(consultId: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      id: consultTable.id,
+      clientId: consultTable.clientId,
+      authorId: consultTable.authorId,
+      status: consultTable.status,
+      rawNotes: consultTable.rawNotes,
+      subjective: consultTable.subjective,
+      objective: consultTable.objective,
+      assessment: consultTable.assessment,
+      plan: consultTable.plan,
+      assignedCoachId: clientTable.assignedCoachId,
+      assignedProviderId: clientTable.assignedProviderId,
+      locationId: clientTable.homeLocationId,
+      firstName: clientTable.firstName,
+      preferredName: clientTable.preferredName,
+      lastName: clientTable.lastName,
+    })
+    .from(consultTable)
+    .innerJoin(clientTable, eq(consultTable.clientId, clientTable.id))
+    .where(eq(consultTable.id, consultId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Provider co-sign of an existing authoritative consult.
+ *
+ * The status transition and hash-chain witness are one transaction. The
+ * conditional update makes a repeated click or racing signer a conflict
+ * instead of a second signature.
+ */
+export async function coSignConsult(input: {
+  consultId: string;
+  signedBy: string;
+  signerName: string;
+  actorRole: string;
+  signerCredential?: string;
+  attestation: string;
+  at: string;
+}): Promise<{ consultId: string; ledger: LedgerRow } | null> {
+  const db = requireDb();
+  const at = new Date(input.at);
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: consultTable.id,
+        clientId: consultTable.clientId,
+        status: consultTable.status,
+        locationId: clientTable.homeLocationId,
+        firstName: clientTable.firstName,
+        preferredName: clientTable.preferredName,
+        lastName: clientTable.lastName,
+      })
+      .from(consultTable)
+      .innerJoin(clientTable, eq(consultTable.clientId, clientTable.id))
+      .where(eq(consultTable.id, input.consultId))
+      .limit(1);
+    if (!existing || existing.status === "Signed") return null;
+
+    const [updated] = await tx
+      .update(consultTable)
+      .set({
+        status: "Signed",
+        signedAt: at,
+        signedBy: input.signedBy,
+        attestation: input.attestation,
+        signerCredential: input.signerCredential ?? null,
+        visibleToClient: true,
+        updatedAt: at,
+      })
+      .where(
+        and(
+          eq(consultTable.id, input.consultId),
+          ne(consultTable.status, "Signed"),
+        ),
+      )
+      .returning({ id: consultTable.id });
+    if (!updated) return null;
+
+    const subjectName = `${existing.preferredName || existing.firstName} ${existing.lastName}`.trim();
+    const witness = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.signedBy,
+        actorName: input.signerName,
+        actorRole: input.actorRole,
+        action: "sign",
+        entity: "note",
+        entityId: existing.id,
+        subjectId: existing.clientId,
+        subjectName,
+        locationId: (existing.locationId ?? "unresolved") as LedgerDraft["locationId"],
+        reason: "Authoritative consult co-signed by provider",
+        before: { status: existing.status },
+        after: { status: "Signed", immutable: true, consultId: existing.id },
+      },
+      input.at,
+    );
+    await tx
+      .update(consultTable)
+      .set({ ledgerId: witness.id })
+      .where(eq(consultTable.id, existing.id));
+    return { consultId: existing.id, ledger: witness };
+  });
+}
+
+/**
  * Provider co-sign of a consult that is still served from the seeded read model.
  *
  * The queue has not migrated to Postgres yet, but the signature itself must be a
@@ -2771,6 +3718,7 @@ export async function createLeadWithInvite(input: {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  referralCodeSha256?: string;
   mode?: "self-serve" | "coach-guided";
   capturedBy?: string;
   tokenSha256: string;
@@ -2829,6 +3777,51 @@ export async function createLeadWithInvite(input: {
         locationId: input.preferredLocationId ?? null,
       } as never,
     });
+
+    if (input.referralCodeSha256) {
+      const [referral] = await tx
+        .update(patientReferral)
+        .set({
+          status: "attributed",
+          attributedLeadId: leadId,
+          attributedAt: at,
+        })
+        .where(
+          and(
+            eq(patientReferral.codeSha256, input.referralCodeSha256),
+            eq(patientReferral.status, "issued"),
+            gt(patientReferral.expiresAt, at),
+            isNull(patientReferral.revokedAt),
+          ),
+        )
+        .returning({
+          id: patientReferral.id,
+          referringClientId: patientReferral.referringClientId,
+        });
+
+      if (referral) {
+        const referralLedger = await appendLedgerInTx(
+          tx,
+          {
+            actorId: leadId,
+            actorName: "Prospective patient",
+            actorRole: "Lead",
+            action: "update",
+            entity: "lead",
+            entityId: referral.id,
+            subjectId: referral.referringClientId,
+            reason: "Referral link attributed to a new lead",
+            before: { status: "issued" },
+            after: { status: "attributed", leadId },
+          },
+          input.at,
+        );
+        await tx
+          .update(patientReferral)
+          .set({ ledgerId: referralLedger.id })
+          .where(eq(patientReferral.id, referral.id));
+      }
+    }
 
     return { leadId, inviteId };
   });
@@ -3197,8 +4190,10 @@ export async function issueEmergencyCard(input: {
   tokenSha256: string;
   expiresAt: string;
   issuedBy: string;
+  issuerName?: string;
+  issuerRole?: string;
   at: string;
-}): Promise<{ cardId: string }> {
+}): Promise<{ cardId: string; ledger: LedgerRow }> {
   const db = requireDb();
   const at = new Date(input.at);
   const cardId = `ec-${at.getTime().toString(36)}-${input.tokenSha256.slice(0, 8)}`;
@@ -3217,7 +4212,114 @@ export async function issueEmergencyCard(input: {
       expiresAt: new Date(input.expiresAt),
       issuedBy: input.issuedBy,
     });
-    return { cardId };
+    const [person] = await tx
+      .select({
+        firstName: clientTable.firstName,
+        preferredName: clientTable.preferredName,
+        lastName: clientTable.lastName,
+        locationId: clientTable.homeLocationId,
+      })
+      .from(clientTable)
+      .where(eq(clientTable.id, input.clientId))
+      .limit(1);
+    if (!person) throw new Error("Emergency card patient does not exist.");
+    const ledger = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.issuedBy,
+        actorName: input.issuerName ?? input.issuedBy,
+        actorRole: input.issuerRole ?? "Patient",
+        action: "create",
+        entity: "document",
+        entityId: cardId,
+        subjectId: input.clientId,
+        subjectName: `${person.preferredName || person.firstName} ${person.lastName}`,
+        locationId: (person.locationId ?? "unresolved") as LedgerDraft["locationId"],
+        reason: "Issued an expiring emergency card",
+        after: { expiresAt: input.expiresAt, tokenStoredAsHash: true },
+      },
+      input.at,
+    );
+    return { cardId, ledger };
+  });
+}
+
+export async function activeEmergencyCardForClient(
+  clientId: string,
+  at = new Date(),
+) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      id: emergencyCard.id,
+      createdAt: emergencyCard.createdAt,
+      expiresAt: emergencyCard.expiresAt,
+    })
+    .from(emergencyCard)
+    .where(
+      and(
+        eq(emergencyCard.clientId, clientId),
+        isNull(emergencyCard.revokedAt),
+        gt(emergencyCard.expiresAt, at),
+      ),
+    )
+    .orderBy(desc(emergencyCard.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function revokeEmergencyCards(input: {
+  clientId: string;
+  revokedBy: string;
+  actorName?: string;
+  actorRole?: string;
+  at: string;
+}) {
+  const db = requireDb();
+  const at = new Date(input.at);
+  return db.transaction(async (tx) => {
+    const revoked = await tx
+      .update(emergencyCard)
+      .set({ revokedAt: at, revokedBy: input.revokedBy })
+      .where(
+        and(
+          eq(emergencyCard.clientId, input.clientId),
+          isNull(emergencyCard.revokedAt),
+        ),
+      )
+      .returning({ id: emergencyCard.id });
+    if (revoked.length === 0) return { revoked: 0, ledger: null };
+    const [person] = await tx
+      .select({
+        firstName: clientTable.firstName,
+        preferredName: clientTable.preferredName,
+        lastName: clientTable.lastName,
+        locationId: clientTable.homeLocationId,
+      })
+      .from(clientTable)
+      .where(eq(clientTable.id, input.clientId))
+      .limit(1);
+    const witness = await appendLedgerInTx(
+      tx,
+      {
+        actorId: input.revokedBy,
+        actorName: input.actorName ?? input.revokedBy,
+        actorRole: input.actorRole ?? "Patient",
+        action: "update",
+        entity: "document",
+        entityId: revoked[0].id,
+        subjectId: input.clientId,
+        subjectName: person
+          ? `${person.preferredName || person.firstName} ${person.lastName}`
+          : undefined,
+        locationId: (person?.locationId ?? "unresolved") as LedgerDraft["locationId"],
+        reason: "Revoked emergency-card access",
+        before: { activeCards: revoked.length },
+        after: { activeCards: 0 },
+      },
+      input.at,
+    );
+    return { revoked: revoked.length, ledger: witness };
   });
 }
 
@@ -3236,7 +4338,12 @@ export async function readEmergencyCard(
   tokenSha256: string,
   at: string,
   context: { ip?: string; userAgent?: string },
-): Promise<{ clientId: string; cardId: string } | null> {
+): Promise<{
+  clientId: string;
+  cardId: string;
+  createdAt: Date;
+  expiresAt: Date;
+} | null> {
   const db = requireDb();
   const now = new Date(at);
 
@@ -3265,8 +4372,145 @@ export async function readEmergencyCard(
       at,
     );
 
-    return { clientId: row.clientId, cardId: row.id };
+    return {
+      clientId: row.clientId,
+      cardId: row.id,
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    };
   });
+}
+
+/** Minimal, current clinical snapshot disclosed by a valid emergency card. */
+export async function emergencyCardSnapshot(clientId: string) {
+  const db = requireDb();
+  const [person, allergyRows, medicationRows, prescriptionRows, problemRows] =
+    await Promise.all([
+      db
+        .select()
+        .from(clientTable)
+        .where(eq(clientTable.id, clientId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      db
+        .select()
+        .from(allergyTable)
+        .where(and(eq(allergyTable.clientId, clientId), isNull(allergyTable.endedAt))),
+      db
+        .select()
+        .from(medicationTable)
+        .where(
+          and(
+            eq(medicationTable.clientId, clientId),
+            isNull(medicationTable.stoppedOn),
+          ),
+        ),
+      db
+        .select({
+          id: prescriptionTable.id,
+          sku: prescriptionTable.sku,
+          prescribedAt: prescriptionTable.prescribedAt,
+        })
+        .from(prescriptionTable)
+        .where(
+          and(
+            eq(prescriptionTable.clientId, clientId),
+            eq(prescriptionTable.status, "active"),
+          ),
+        ),
+      db
+        .select()
+        .from(problemTable)
+        .where(
+          and(
+            eq(problemTable.clientId, clientId),
+            eq(problemTable.status, "active"),
+          ),
+        ),
+    ]);
+  if (!person || person.status !== "active") return null;
+
+  const careIds = [
+    person.assignedCoachId,
+    person.assignedProviderId,
+  ].filter((id): id is string => Boolean(id));
+  const [careRows, location] = await Promise.all([
+    careIds.length
+      ? db
+          .select({
+            id: staffTable.id,
+            name: staffTable.name,
+            credentials: staffTable.credentials,
+            title: staffTable.title,
+          })
+          .from(staffTable)
+          .where(inArray(staffTable.id, careIds))
+      : Promise.resolve([]),
+    person.homeLocationId
+      ? db
+          .select()
+          .from(clinicLocationTable)
+          .where(eq(clinicLocationTable.id, person.homeLocationId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+  ]);
+
+  const sourceDates = [
+    person.updatedAt,
+    ...allergyRows.map((row) => row.recordedAt),
+    ...medicationRows.map((row) => row.recordedAt),
+    ...prescriptionRows.map((row) => row.prescribedAt),
+    ...problemRows.map((row) => row.recordedAt),
+  ];
+  const sourcedAt = sourceDates.reduce(
+    (latest, value) => (value > latest ? value : latest),
+    person.updatedAt,
+  );
+
+  return {
+    patient: {
+      id: person.id,
+      mrn: person.mrn,
+      firstName: person.firstName,
+      preferredName: person.preferredName,
+      lastName: person.lastName,
+      dateOfBirth: person.dateOfBirth,
+      sex: person.sex,
+    },
+    allergies: allergyRows.map((row) => ({
+      substance: row.substance,
+      reaction: row.reaction,
+      severity: row.severity,
+      noKnownAllergies: row.noKnownAllergies,
+    })),
+    medications: medicationRows.map((row) => ({
+      name: row.name,
+      external: row.external,
+    })),
+    prescriptions: prescriptionRows.map((row) => ({
+      id: row.id,
+      sku: row.sku,
+    })),
+    problems: problemRows.map((row) => ({
+      label: row.label,
+      icd10: row.icd10,
+    })),
+    coach:
+      careRows.find((row) => row.id === person.assignedCoachId) ?? null,
+    provider:
+      careRows.find((row) => row.id === person.assignedProviderId) ?? null,
+    location: location
+      ? {
+          name: location.name,
+          address1: location.address1,
+          city: location.city,
+          state: location.state,
+          zip: location.zip,
+        }
+      : null,
+    sourcedAt,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

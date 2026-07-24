@@ -25,9 +25,6 @@
  */
 
 import type { Goal, Symptom } from "@/lib/types";
-import { getClient } from "@/lib/mock/clients";
-import { getLabsForClient } from "@/lib/mock/labs";
-import { journeyStepFor } from "@/lib/brand";
 import { seededRandom } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -95,6 +92,28 @@ export interface Article {
   format: "article" | "video";
   /** Video entries only — what the clinic published and where. Never an embed. */
   videoNote?: string;
+}
+
+/**
+ * The minimum authoritative patient context the ranking engine needs.
+ *
+ * The education library deliberately accepts data rather than looking it up.
+ * That keeps this module usable from the authenticated patient application
+ * without importing the retired fixture corpus. Callers may omit clinical
+ * signals that have not been captured or released; the shelf then falls back
+ * to track-appropriate foundation content without inventing personalization.
+ */
+export interface EducationProfile {
+  stableId: string;
+  sex?: "male" | "female" | null;
+  journeyStep?: number | null;
+  goals?: readonly Goal[];
+  symptoms?: readonly Symptom[];
+  markers?: ReadonlyArray<{
+    key: string;
+    name: string;
+    status: string;
+  }>;
 }
 
 /** The clinic's channel. Referenced, never embedded. */
@@ -647,24 +666,26 @@ const W = {
  * Deterministic throughout: ties break on a seeded jitter keyed to the member
  * and article id, never on Math.random, so SSR and client agree forever.
  */
-export function recommendedFor(clientId: string, limit = 6): ArticleRecommendation[] {
-  const client = getClient(clientId);
-  if (!client) return [];
-
-  const labs = getLabsForClient(clientId);
-  const step = journeyStepFor(client.status).step;
+export function recommendedFor(
+  profile: EducationProfile,
+  limit = 6,
+): ArticleRecommendation[] {
+  const step = profile.journeyStep ?? 0;
 
   // Marker key → the member-facing sentence fragment for its current state.
   // Only non-optimal markers are indexed; an in-range marker is not a reason
   // to read anything.
   const flagged = new Map<string, { name: string; status: string }>();
-  for (const b of labs?.biomarkers ?? []) {
+  for (const b of profile.markers ?? []) {
     if (b.status !== "optimal") flagged.set(b.key, { name: b.name, status: b.status });
   }
 
-  const goals = new Set<string>(client.goals);
-  const symptoms = new Set<string>(client.symptoms);
-  const pool = articlesForSex(client.sex);
+  const goals = new Set<string>(profile.goals ?? []);
+  const symptoms = new Set<string>(profile.symptoms ?? []);
+  const pool =
+    profile.sex === "male" || profile.sex === "female"
+      ? articlesForSex(profile.sex)
+      : ARTICLES;
 
   const scored = pool.map((a) => {
     let score = 0;
@@ -697,19 +718,21 @@ export function recommendedFor(clientId: string, limit = 6): ArticleRecommendati
       }
     }
 
-    if (a.journeySteps?.includes(step)) score += W.journey;
+    if (step > 0 && a.journeySteps?.includes(step)) score += W.journey;
     if (a.track !== "all") score += W.ownTrack;
 
     // Deterministic tiebreak — keeps the shelf stable per member without
     // making two equally-relevant articles fight over insertion order.
-    const jitter = seededRandom(`${clientId}:${a.id}`)() * 0.5;
+    const jitter = seededRandom(`${profile.stableId}:${a.id}`)() * 0.5;
 
     const reason =
       markerReason ??
       symptomReason ??
       goalReason ??
       journeyReason(step, a) ??
-      "A foundation piece everyone on a plan gets value from.";
+      (a.track !== "all"
+        ? "General education selected for your care track."
+        : "A foundation article from Alpha Health's education library.");
 
     return { article: a, reason, score: score + jitter };
   });

@@ -62,6 +62,8 @@ export async function GET(
     const fulfillment = hasCapability(actor.accessProfile, "read:orders");
     const canCall = can(actor, "call:patient", subject).allowed;
     const writeConsult = can(actor, "write:consult", subject).allowed;
+    const writeNutrition = can(actor, "write:nutrition", subject).allowed;
+    const writeTraining = can(actor, "write:training", subject).allowed;
     const ledger = await appendLedgerRow(
       {
         actorId: actor.id,
@@ -89,7 +91,7 @@ export async function GET(
         durableAudit: true,
         ledgerId: ledger.id,
         canCall,
-        permissions: { clinical, contacts, financial, fulfillment, writeConsult },
+        permissions: { clinical, contacts, financial, fulfillment, writeConsult, writeNutrition, writeTraining },
         patient: record.patient,
         consults: clinical ? record.consults : [],
         contacts: contacts ? record.contacts : [],

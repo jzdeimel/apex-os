@@ -22,6 +22,12 @@ type QueueNote = {
   locationId: string | null;
 };
 
+type RecommendationQueue = {
+  enabled: boolean;
+  count: number;
+  path: string;
+};
+
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
@@ -30,6 +36,7 @@ export default function ClinicSignPage() {
   const [queue, setQueue] = useState<QueueNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<RecommendationQueue | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +46,7 @@ export default function ClinicSignPage() {
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "The sign queue could not be loaded.");
       setQueue(payload.queue ?? []);
+      setRecommendations(payload.recommendationQueue ?? null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The sign queue could not be loaded.");
     } finally {
@@ -88,7 +96,14 @@ export default function ClinicSignPage() {
 
       <div className="rounded-control border border-ink-800 bg-ink-900/30 p-4 text-detail text-ink-400">
         <ShieldCheck className="mr-2 inline h-4 w-4 text-optimal" />
-        The old seeded recommendation approval queue is disabled. It will not return until recommendations have a durable schema, evidence provenance, decline state, and transactional signature witness.
+        The seeded queue is gone.{" "}
+        {recommendations?.enabled ? (
+          <Link href={recommendations.path} className="text-gold-300 hover:text-gold-200">
+            Review {recommendations.count} authoritative care recommendation{recommendations.count === 1 ? "" : "s"}.
+          </Link>
+        ) : (
+          "No authoritative recommendation queue is available."
+        )}
       </div>
     </div>
   );

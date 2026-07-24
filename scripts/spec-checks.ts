@@ -87,6 +87,7 @@ import {
   isFixtureOnlyApiPath,
   isFixtureOnlyPath,
 } from "@/lib/productionSurfaces";
+import { AUTOMATION_TRIGGER_TYPES } from "@/lib/db/automationRepo";
 import { leadTransitionAllowed } from "@/lib/crm/pipeline";
 import {
   leadFirstResponseDueAt,
@@ -213,18 +214,27 @@ eq(
 
 const V2 = evaluateFeatures([], {}, "clinic-v2");
 eq("community ships on in the V2 launch", V2.community, true);
-eq("fixture-backed member education stays withheld in the V2 launch", V2["member-education"], false);
-eq("browser-only nutrition stays withheld in the V2 launch", V2["member-nutrition"], false);
-eq("unapproved AI recommendations stay withheld in the V2 launch", V2["ai-recommendations"], false);
-eq("simulated automations stay withheld in the V2 launch", V2.automations, false);
+eq("record-backed member education ships in the V2 launch", V2["member-education"], true);
+eq("durable nutrition and training plans ship in the V2 launch", V2["member-nutrition"], true);
+eq("human-reviewed care recommendations ship in the V2 launch", V2["ai-recommendations"], true);
+eq("task-only automations ship in the V2 launch", V2.automations, true);
 eq(
-  "an override cannot expose a withheld AI feature",
+  "an administrator may disable the reviewed recommendation queue",
   evaluateFeatures(
-    [{ key: "ai-recommendations", scope: "global", targetId: null, enabled: true }],
+    [{ key: "ai-recommendations", scope: "global", targetId: null, enabled: false }],
     {},
     "full",
   )["ai-recommendations"],
   false,
+);
+eq(
+  "automation triggers remain a closed operational vocabulary",
+  [...AUTOMATION_TRIGGER_TYPES],
+  [
+    "unread-coach-message",
+    "critical-lab-review",
+    "inactive-patient-review",
+  ],
 );
 eq(
   "direct provider messaging stays off in the V2 launch",
@@ -1543,16 +1553,13 @@ eq(
 
 section("Shared-environment production surfaces");
 eq("/book is lead capture rather than gated self-booking", featureForPath("/book"), null);
-for (const path of ["/book", "/intake", "/clients", "/clients/patient-1", "/coach", "/clinic", "/clinic/sign", "/schedule", "/tasks", "/supply-chain", "/community", "/exec"]) {
+for (const path of ["/book", "/intake", "/card/token", "/clients", "/clients/patient-1", "/coach", "/coach/roster", "/clinic", "/clinic/sign", "/clinic/ledger", "/clinic/community", "/desk/community", "/schedule", "/settings", "/analytics", "/admin/daily-report", "/admin/effectiveness", "/tasks", "/supply-chain", "/community", "/exec", "/automations", "/swarm", "/recommendations", "/agent"]) {
   eq(`${path} remains an authoritative shared route`, isFixtureOnlyPath(path), false);
 }
-for (const path of ["/portal", "/portal/messages", "/card/token", "/intake/legacy-token", "/admin/daily-report", "/admin/effectiveness", "/analytics", "/automations", "/recommendations", "/agent", "/coach/roster", "/clinic/ledger"]) {
+for (const path of ["/portal", "/portal/messages", "/intake/legacy-token", "/demo"]) {
   eq(`${path} is blocked while it still depends on fixtures`, isFixtureOnlyPath(path), true);
 }
-for (const path of ["/api/audit", "/api/consults/sign", "/api/member/log", "/api/tasks/complete"]) {
-  eq(`${path} is retired outside demo mode`, isFixtureOnlyApiPath(path), true);
-}
-for (const path of ["/api/clients", "/api/consults/draft", "/api/patient/messages", "/api/tasks"]) {
+for (const path of ["/api/audit", "/api/consults/sign", "/api/member/log", "/api/tasks/complete", "/api/clients", "/api/consults/draft", "/api/patient/messages", "/api/tasks", "/api/automations", "/api/automations/run", "/api/recommendations", "/api/patient/appointments", "/api/patient/referrals"]) {
   eq(`${path} remains an authoritative shared API`, isFixtureOnlyApiPath(path), false);
 }
 

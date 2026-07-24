@@ -1904,6 +1904,81 @@ export const workTask = pgTable(
   }),
 );
 
+/** Closed, reviewed automation vocabulary. Rules can only create staff tasks. */
+export const automationRule = pgTable(
+  "automation_rule",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    triggerType: text("trigger_type").notNull(),
+    config: jsonb("config").notNull(),
+    actionType: text("action_type").notNull().default("create-task"),
+    enabled: boolean("enabled").notNull().default(false),
+    cadenceMinutes: integer("cadence_minutes").notNull().default(15),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    ownerStaffId: text("owner_staff_id").notNull().references(() => staff.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+    updatedByStaffId: text("updated_by_staff_id").notNull().references(() => staff.id),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    dueIdx: index("automation_rule_due_idx").on(t.enabled, t.nextRunAt),
+  }),
+);
+
+/** One durable attempt to evaluate one rule. */
+export const automationRun = pgTable(
+  "automation_run",
+  {
+    id: text("id").primaryKey(),
+    ruleId: text("rule_id").notNull().references(() => automationRule.id),
+    workerId: text("worker_id").notNull(),
+    trigger: text("trigger").notNull(), // scheduled | manual
+    status: text("status").notNull(), // running | succeeded | failed
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    evaluatedCount: integer("evaluated_count").notNull().default(0),
+    actionCount: integer("action_count").notNull().default(0),
+    errorCode: text("error_code"),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    ruleIdx: index("automation_run_rule_idx").on(t.ruleId, t.startedAt),
+    workerIdx: index("automation_run_worker_idx").on(t.workerId, t.startedAt),
+  }),
+);
+
+/** Idempotency record for each action produced by a run. */
+export const automationAction = pgTable(
+  "automation_action",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id").notNull().references(() => automationRun.id),
+    ruleId: text("rule_id").notNull().references(() => automationRule.id),
+    dedupKey: text("dedup_key").notNull(),
+    clientId: text("client_id").references(() => client.id),
+    taskId: text("task_id").notNull().references(() => workTask.id),
+    status: text("status").notNull().default("created"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    dedupIdx: uniqueIndex("automation_action_dedup_idx").on(t.dedupKey),
+    runIdx: index("automation_action_run_idx").on(t.runId),
+  }),
+);
+
+/** Heartbeat from the scheduled Container Apps worker or a manual run. */
+export const automationWorker = pgTable("automation_worker", {
+  id: text("id").primaryKey(),
+  status: text("status").notNull(),
+  version: text("version").notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+  lastCompletedAt: timestamp("last_completed_at", { withTimezone: true }),
+  lastRunId: text("last_run_id"),
+  lastErrorCode: text("last_error_code"),
+});
+
 /** Immutable ownership history, including release and management reassignment. */
 export const leadOwnerEvent = pgTable(
   "lead_owner_event",
@@ -2638,6 +2713,112 @@ export const memberPrefs = pgTable("member_prefs", {
   quietHoursEnd: integer("quiet_hours_end").default(8),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * Versioned nutrition and training plans.
+ *
+ * Published plan content is immutable. A correction is a new version that
+ * replaces the previous row, so the patient and care team can establish
+ * exactly what guidance was active on any date. Drafts are never patient
+ * visible and publishing requires a named staff actor plus a ledger witness.
+ */
+export const patientPlan = pgTable(
+  "patient_plan",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    category: text("category").notNull(), // nutrition | training
+    title: text("title").notNull(),
+    summary: text("summary"),
+    content: jsonb("content").notNull(),
+    status: text("status").notNull().default("draft"), // draft | active | replaced | withdrawn
+    version: integer("version").notNull(),
+    authoredByStaffId: text("authored_by_staff_id").notNull().references(() => staff.id),
+    approvedByStaffId: text("approved_by_staff_id").references(() => staff.id),
+    effectiveOn: text("effective_on"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    replacedById: text("replaced_by_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    clientIdx: index("patient_plan_client_idx").on(t.clientId, t.category, t.status),
+    versionIdx: uniqueIndex("patient_plan_version_idx").on(
+      t.clientId,
+      t.category,
+      t.version,
+    ),
+  }),
+);
+
+/**
+ * Patient-issued referral attribution.
+ *
+ * Only the SHA-256 of the share code is stored. The raw code is returned once
+ * to the patient and can later be presented by lead capture. Rewards are an
+ * explicit lifecycle state, never inferred from a browser click.
+ */
+export const patientReferral = pgTable(
+  "patient_referral",
+  {
+    id: text("id").primaryKey(),
+    referringClientId: text("referring_client_id").notNull().references(() => client.id),
+    codeSha256: text("code_sha256").notNull(),
+    status: text("status").notNull().default("issued"), // issued | attributed | qualified | rewarded | expired | revoked
+    attributedLeadId: text("attributed_lead_id").references(() => lead.id),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attributedAt: timestamp("attributed_at", { withTimezone: true }),
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    rewardedAt: timestamp("rewarded_at", { withTimezone: true }),
+    rewardDescription: text("reward_description"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    codeIdx: uniqueIndex("patient_referral_code_idx").on(t.codeSha256),
+    clientIdx: index("patient_referral_client_idx").on(t.referringClientId, t.status, t.issuedAt),
+    leadIdx: uniqueIndex("patient_referral_lead_idx")
+      .on(t.attributedLeadId)
+      .where(sql`attributed_lead_id IS NOT NULL`),
+  }),
+);
+
+/**
+ * Human-authored, provider-reviewed care recommendation.
+ *
+ * The experimental model-generated queue was removed from shared Apex. This
+ * record keeps the high-value workflow (coach draft -> licensed review ->
+ * durable decision) without allowing an unapproved model to manufacture a
+ * clinical suggestion. Evidence is a list of record references, never copied
+ * fixture prose.
+ */
+export const clinicalRecommendation = pgTable(
+  "clinical_recommendation",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => client.id),
+    category: text("category").notNull(),
+    title: text("title").notNull(),
+    rationale: text("rationale").notNull(),
+    proposedDiscussion: text("proposed_discussion").notNull(),
+    evidence: jsonb("evidence").notNull(),
+    status: text("status").notNull().default("draft"), // draft | pending | approved | declined | withdrawn
+    createdByStaffId: text("created_by_staff_id").notNull().references(() => staff.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedByStaffId: text("reviewed_by_staff_id").references(() => staff.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    decisionReason: text("decision_reason"),
+    attestation: text("attestation"),
+    provenance: jsonb("provenance").notNull(),
+    ledgerId: text("ledger_id").references(() => ledger.id),
+  },
+  (t) => ({
+    clientIdx: index("clinical_recommendation_client_idx").on(t.clientId, t.status, t.createdAt),
+    queueIdx: index("clinical_recommendation_queue_idx").on(t.status, t.createdAt),
+  }),
+);
 
 /* ========================================================================== */
 /* Authoritative community and moderation                                     */

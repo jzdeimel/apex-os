@@ -33,9 +33,9 @@ import {
   recommendedFor,
   searchArticles,
   type Article,
+  type EducationProfile,
   type Topic,
 } from "@/lib/education/library";
-import { getClient } from "@/lib/mock/clients";
 import { Card, CardContent, Badge, Button, Input, EmptyState } from "@/components/ui/primitives";
 import { Stagger, StaggerItem, SwitchView, FadeIn } from "@/components/portal/still";
 import { cn } from "@/lib/utils";
@@ -176,8 +176,7 @@ function Reader({ a, onBack }: { a: Article; onBack: () => void }) {
 // Centre
 // ---------------------------------------------------------------------------
 
-export function EducationCentre({ clientId }: { clientId: string }) {
-  const client = getClient(clientId);
+export function EducationCentre({ profile }: { profile: EducationProfile }) {
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState<Topic | "all">("all");
   const [reading, setReading] = useState<Article | null>(null);
@@ -186,11 +185,14 @@ export function EducationCentre({ clientId }: { clientId: string }) {
   // if the id somehow does not resolve — an empty education page would be a
   // worse failure than showing one extra track.
   const pool = useMemo(
-    () => (client ? articlesForSex(client.sex) : ARTICLES),
-    [client],
+    () =>
+      profile.sex === "male" || profile.sex === "female"
+        ? articlesForSex(profile.sex)
+        : ARTICLES,
+    [profile.sex],
   );
 
-  const recommended = useMemo(() => recommendedFor(clientId), [clientId]);
+  const recommended = useMemo(() => recommendedFor(profile), [profile]);
 
   // Ids on the shelf, so "everything" does not repeat them immediately below.
   const shelfIds = useMemo(

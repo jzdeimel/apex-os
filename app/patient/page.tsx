@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Beaker, CalendarDays, FileCheck2, FileClock, ShieldCheck, Stethoscope, UsersRound } from "lucide-react";
+import { Activity, Beaker, BookOpen, CalendarDays, Dumbbell, FileCheck2, FileClock, Gift, GraduationCap, ShieldCheck, Sparkles, Stethoscope, UsersRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/primitives";
 import { PatientSignOut } from "@/components/patient/PatientSignOut";
 import { PatientCoachMessages } from "@/components/patient/PatientCoachMessages";
+import { PatientEmergencyCard } from "@/components/patient/PatientEmergencyCard";
 import { patientPortalSummary, patientSubjectForToken } from "@/lib/auth/patientRepo";
 import { PATIENT_SESSION_COOKIE } from "@/lib/auth/patientTokens";
 import { isFeatureEnabledFor } from "@/lib/features/server";
@@ -30,6 +31,13 @@ export default async function PatientPilotPage() {
   const summary = await patientPortalSummary(subject.clientId);
   if (!summary) redirect("/patient-sign-in");
   const communityEnabled = await isFeatureEnabledFor("community", { clientId: subject.clientId });
+  const emergencyCardEnabled = await isFeatureEnabledFor("emergency-card", { clientId: subject.clientId });
+  const educationEnabled = await isFeatureEnabledFor("member-education", { clientId: subject.clientId });
+  const servicesEnabled = await isFeatureEnabledFor("member-explore", { clientId: subject.clientId });
+  const progressEnabled = await isFeatureEnabledFor("gamification", { clientId: subject.clientId });
+  const plansEnabled = await isFeatureEnabledFor("member-nutrition", { clientId: subject.clientId });
+  const referralsEnabled = await isFeatureEnabledFor("member-referrals", { clientId: subject.clientId });
+  const selfBookingEnabled = await isFeatureEnabledFor("self-booking", { clientId: subject.clientId });
 
   const displayName = summary.patient.preferredName || summary.patient.firstName;
   const coach = summary.careTeam.find((member) => member.relationship === "coach");
@@ -50,6 +58,11 @@ export default async function PatientPilotPage() {
       </header>
 
       <section className="mt-8 grid gap-5 lg:grid-cols-2" aria-label="Patient record summary">
+        {emergencyCardEnabled && (
+          <div className="lg:col-span-2">
+            <PatientEmergencyCard />
+          </div>
+        )}
         <Link
           href="/patient/records"
           className="rounded-panel border border-teal-400/30 bg-teal-400/[0.05] p-6 transition hover:border-teal-400/55 lg:col-span-2"
@@ -85,6 +98,83 @@ export default async function PatientPilotPage() {
                 <p className="mt-3 text-detail font-medium text-gold-300">Open community →</p>
               </div>
             </div>
+          </Link>
+        )}
+        {educationEnabled && (
+          <>
+            <Link
+              href="/patient/learn"
+              className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50"
+            >
+              <div className="flex items-start gap-4">
+                <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+                  <GraduationCap className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-title text-ink-50">Learn</h2>
+                  <p className="mt-2 text-body leading-relaxed text-ink-400">
+                    Reviewed education for your care track, with no invented personalization.
+                  </p>
+                </div>
+              </div>
+            </Link>
+            <Link
+              href="/patient/library"
+              className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-gold-400/50"
+            >
+              <div className="flex items-start gap-4">
+                <span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300">
+                  <BookOpen className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-title text-ink-50">Compound library</h2>
+                  <p className="mt-2 text-body leading-relaxed text-ink-400">
+                    Evidence-aware reference material without doses or treatment claims.
+                  </p>
+                </div>
+              </div>
+            </Link>
+          </>
+        )}
+        {servicesEnabled && (
+          <Link
+            href="/patient/services"
+            className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-purple-400/50"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-purple-400/12 p-2.5 text-purple-300">
+                <Sparkles className="h-5 w-5" aria-hidden />
+              </span>
+              <div><h2 className="font-display text-title text-ink-50">What’s available</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Your current membership and Alpha Health’s factual service overview.</p></div>
+            </div>
+          </Link>
+        )}
+        {progressEnabled && (
+          <Link
+            href="/patient/progress"
+            className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50"
+          >
+            <div className="flex items-start gap-4">
+              <span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300">
+                <Activity className="h-5 w-5" aria-hidden />
+              </span>
+              <div><h2 className="font-display text-title text-ink-50">Progress</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Durable check-ins, streaks, levels, and quests derived from your record.</p></div>
+            </div>
+          </Link>
+        )}
+        {plansEnabled && (
+          <Link href="/patient/plans" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-gold-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-gold-400/12 p-2.5 text-gold-300"><Dumbbell className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Food and training plans</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Current versions published by your care team.</p></div></div>
+          </Link>
+        )}
+        {referralsEnabled && (
+          <Link href="/patient/refer" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-purple-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-purple-400/12 p-2.5 text-purple-300"><Gift className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Refer a friend</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Tracked intake link with visible attribution status.</p></div></div>
+          </Link>
+        )}
+        {selfBookingEnabled && (
+          <Link href="/patient/book" className="rounded-panel border border-ink-700 bg-ink-900/40 p-6 transition hover:border-teal-400/50">
+            <div className="flex items-start gap-4"><span className="rounded-control bg-teal-400/12 p-2.5 text-teal-300"><CalendarDays className="h-5 w-5" aria-hidden /></span><div><h2 className="font-display text-title text-ink-50">Book a coach follow-up</h2><p className="mt-2 text-body leading-relaxed text-ink-400">Verified openings from approved hours and your coach’s connected calendar.</p></div></div>
           </Link>
         )}
 
@@ -140,7 +230,7 @@ export default async function PatientPilotPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card id="coach-messages" className="lg:col-span-2">
           <CardContent className="p-6">
             <PatientCoachMessages
               coachName={coach?.name ?? null}

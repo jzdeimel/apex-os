@@ -12,44 +12,10 @@
  * non-authoritative dependency.
  */
 const FIXTURE_ONLY_EXACT_PATHS = new Set([
-  "/admin/daily-report",
-  "/admin/effectiveness",
-  "/analytics",
-  "/automations",
   "/demo",
-  "/desk/community",
-  "/exec/capacity",
-  "/insights",
-  "/clinic/community",
-  "/clinic/coverage",
-  "/coach/handoff",
-  "/coach/order",
-  "/recommendations",
-  "/settings",
-  "/swarm",
 ]);
 
 const FIXTURE_ONLY_PREFIXES = [
-  "/agent",
-  "/card",
-  "/admin/broadcast",
-  "/admin/capacity",
-  "/admin/incidents",
-  "/admin/quality",
-  "/admin/roster",
-  "/clinic/controlled",
-  "/clinic/lab-draws",
-  "/clinic/ledger",
-  "/clinic/population",
-  "/coach/consults",
-  "/coach/gaps",
-  "/coach/orders",
-  "/coach/roster",
-  "/desk/walk-in",
-  "/coach/documents",
-  "/coach/subscriptions",
-  "/coach/training",
-  "/coach/winback",
   "/portal",
 ] as const;
 
@@ -63,12 +29,7 @@ const FIXTURE_ONLY_DESCENDANTS = ["/intake"] as const;
  * separate makes the boundary explicit and lets middleware return JSON instead
  * of redirecting a fetch to an HTML page.
  */
-const FIXTURE_ONLY_API_EXACT_PATHS = new Set([
-  "/api/audit",
-  "/api/consults/sign",
-  "/api/member/log",
-  "/api/tasks/complete",
-]);
+const FIXTURE_ONLY_API_EXACT_PATHS = new Set<string>();
 
 function normalizedPath(pathname: string): string {
   if (!pathname || pathname === "/") return "/";
