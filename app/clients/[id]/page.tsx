@@ -14,7 +14,10 @@ import {
 } from "lucide-react";
 
 import { CallPatient } from "@/components/comms/CallPatient";
+import { ChartFundamentals } from "@/components/clinical/ChartFundamentals";
+import { ClinicalSafetyPanel } from "@/components/clinical/ClinicalSafetyPanel";
 import { AuthoritativeConsultNote } from "@/components/consult/AuthoritativeConsultNote";
+import { AuthoritativeLabsPanel } from "@/components/labs/AuthoritativeLabsPanel";
 import { PatientPlanEditor } from "@/components/patient/PatientPlanEditor";
 import { PatientRecommendationEditor } from "@/components/patient/PatientRecommendationEditor";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
@@ -163,6 +166,25 @@ export default function PatientChartPage() {
 
       {chart.canCall && (
         <CallPatient clientId={id} clientName={`${p.preferredName || p.firstName} ${p.lastName}`} phone={p.phone} />
+      )}
+
+      {chart.permissions.clinical && (
+        <section className="space-y-5" aria-labelledby="clinical-record-heading">
+          <header className="rounded-panel border border-teal-400/25 bg-teal-400/5 p-5">
+            <p className="label-eyebrow">SHARED CLINICAL RECORD</p>
+            <h2 id="clinical-record-heading" className="mt-1 font-display text-title text-ink-50">
+              Reconciliation, labs, and safety
+            </h2>
+            <p className="mt-2 max-w-3xl text-detail leading-relaxed text-ink-300">
+              Review active allergies, problems, outside medications, lab status, and safety events before documenting today&apos;s visit.
+            </p>
+          </header>
+          <ChartFundamentals clientId={id} />
+          <AuthoritativeLabsPanel clientId={id} locationId={p.homeLocationId} />
+          <div className="rounded-panel border border-ink-700 bg-ink-900/30 p-5">
+            <ClinicalSafetyPanel clientId={id} />
+          </div>
+        </section>
       )}
 
       {chart.permissions.writeConsult && <AuthoritativeConsultNote clientId={id} />}

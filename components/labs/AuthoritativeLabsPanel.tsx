@@ -14,7 +14,7 @@ type ResultRow = {
   release: { releasedAt: string } | null;
 };
 
-export function AuthoritativeLabsPanel({ clientId, locationId }: { clientId: string; locationId: string }) {
+export function AuthoritativeLabsPanel({ clientId, locationId }: { clientId: string; locationId: string | null }) {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [mayOrder, setMayOrder] = useState<Decision | null>(null);
@@ -59,6 +59,10 @@ export function AuthoritativeLabsPanel({ clientId, locationId }: { clientId: str
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+    if (!locationId) {
+      setError("Assign this patient to a home clinic before placing a lab order.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -94,9 +98,10 @@ export function AuthoritativeLabsPanel({ clientId, locationId }: { clientId: str
   return (
     <section className="card mb-5 border-gold-400/20 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><p className="label-eyebrow">POSTGRES LAB RECORD</p><h2 className="mt-1 font-display text-heading text-ink-50">Order-to-review chain</h2><p className="mt-1 text-detail text-ink-400">This section is authoritative. The biomarker visualization below remains fixture-backed until V1 lab history is migrated.</p></div>
-        {mayOrder?.allowed && <Button size="sm" onClick={() => setOpen((value) => !value)}><Plus className="h-4 w-4" /> New provider order</Button>}
+        <div><p className="label-eyebrow">CLINICAL LAB RECORD</p><h2 className="mt-1 font-display text-heading text-ink-50">Orders, results, and review</h2><p className="mt-1 text-detail text-ink-400">Provider orders, received results, signed reviews, and patient release status come from the Apex clinical record.</p></div>
+        {mayOrder?.allowed && locationId && <Button size="sm" onClick={() => setOpen((value) => !value)}><Plus className="h-4 w-4" /> New provider order</Button>}
       </div>
+      {mayOrder?.allowed && !locationId && <p className="mt-4 rounded-control border border-watch/30 bg-watch/5 p-3 text-detail text-watch">Assign this patient to a home clinic before placing a lab order.</p>}
       {loading && <p className="mt-4 flex items-center gap-2 text-detail text-ink-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading authoritative labs…</p>}
       {error && <p className="mt-4 rounded-control border border-high/30 bg-high/5 p-3 text-detail text-high">{error}</p>}
       {!loading && !error && !orders.length && !results.length && <p className="mt-4 flex items-center gap-2 rounded-control border border-ink-700 p-4 text-detail text-ink-400"><Database className="h-4 w-4" /> No authoritative lab records for this patient.</p>}

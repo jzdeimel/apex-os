@@ -24,7 +24,7 @@ function formatDateTime(value: Date, timezone: string) {
   }).format(value);
 }
 
-export default async function PatientPilotPage() {
+export default async function PatientPortalPage() {
   const cookieStore = await cookies();
   const subject = await patientSubjectForToken(cookieStore.get(PATIENT_SESSION_COOKIE)?.value);
   if (!subject) redirect("/patient-sign-in");
@@ -47,11 +47,11 @@ export default async function PatientPilotPage() {
         <div>
           <div className="flex items-center gap-2 text-detail text-teal-300">
             <ShieldCheck className="h-4 w-4" aria-hidden />
-            Secure patient pilot
+            Secure Alpha Health portal
           </div>
           <h1 className="mt-3 font-display text-display text-ink-50">Welcome, {displayName}.</h1>
           <p className="mt-3 max-w-2xl text-body leading-relaxed text-ink-400">
-            This view comes only from your authenticated Apex patient record. It does not use the demonstration data shown in staff previews.
+            Appointments, messages, results, documents, and care-team details come from your authenticated Alpha Health record.
           </p>
         </div>
         <PatientSignOut />
@@ -301,7 +301,7 @@ export default async function PatientPilotPage() {
       </section>
 
       <aside className="mt-8 rounded-panel border border-gold-400/30 bg-gold-400/5 p-5 text-detail leading-relaxed text-ink-300">
-        This patient pilot supports authoritative coach messaging and tracked record requests. Appointments, documents, and the rest of the chart remain read-only while those workflows complete validation.
+        Your coach is your primary Alpha Health contact. Messages go to your coach, who can escalate clinical questions to Medical. Appointments, reviewed labs, signed documents, and record requests are shown from your Apex record.
       </aside>
     </main>
   );

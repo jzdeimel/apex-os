@@ -27,14 +27,14 @@ const principal = (email, name, oid) => Buffer.from(
   }),
 ).toString("base64");
 
-const chartResponse = ({ canCall = false, writeConsult = false } = {}) => ({
+const chartResponse = ({ canCall = false, clinical = false, writeConsult = false } = {}) => ({
   ok: true,
   authoritative: true,
   durableAudit: true,
   ledgerId: "led-ui-chart",
   canCall,
   permissions: {
-    clinical: false,
+    clinical,
     contacts: false,
     financial: false,
     fulfillment: false,
@@ -735,7 +735,7 @@ try {
       darkClass: document.documentElement.classList.contains("dark"),
     }));
     if (
-      !portalPosture.text.includes("Secure patient pilot") ||
+      !portalPosture.text.includes("Secure Alpha Health portal") ||
       !portalPosture.text.includes("Your moderated community")
     ) {
       done(1, "SMOKE-UI FAIL: authenticated patient portal did not render its authoritative record");
@@ -927,7 +927,49 @@ try {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(chartResponse({ writeConsult: true })),
+        body: JSON.stringify(chartResponse({ clinical: true, writeConsult: true })),
+      }),
+    );
+    await p.route("**/api/chart/fundamentals*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          canEdit: true,
+          fundamentals: { allergies: [], problems: [], medications: [] },
+        }),
+      }),
+    );
+    await p.route("**/api/labs/orders*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, orders: [] }),
+      }),
+    );
+    await p.route("**/api/labs/results*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, results: [] }),
+      }),
+    );
+    await p.route("**/api/clinical-safety/adverse-events*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, events: [], canReport: true, canReview: true }),
+      }),
+    );
+    await p.route("**/api/me", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          may: { orderLabs: { allowed: true, reason: "Medical provider" } },
+        }),
       }),
     );
     await p.route("**/api/consults/draft*", async (route) => {
@@ -984,9 +1026,12 @@ try {
       !text.includes("drafts save in apex postgresql") ||
       !text.includes("subjective") ||
       !text.includes("assessment") ||
-      !text.includes("channel")
+      !text.includes("channel") ||
+      !text.includes("medication and history reconciliation") ||
+      !text.includes("orders, results, and review") ||
+      !text.includes("suspected adverse events")
     ) {
-      done(1, "SMOKE-UI FAIL: authoritative Medical visit note did not render");
+      done(1, "SMOKE-UI FAIL: authoritative Medical chart and visit note did not render");
     }
     const channelOptions = await p.getByLabel("Channel").locator("option").allTextContents();
     if (channelOptions.includes("Messaging")) {
@@ -1002,7 +1047,7 @@ try {
     await p.getByRole("button", { name: "Sign note" }).click();
     await p.getByRole("heading", { name: "Visit note signed" }).waitFor({ timeout: 5000 });
     if (errors.length) done(1, `SMOKE-UI FAIL: Medical note errors: ${errors.slice(0, 3).join(" | ")}`);
-    console.log("ok  Medical visit: authored SOAP, durable draft, no direct Messaging and immutable sign rendered");
+    console.log("ok  Medical visit: chart reconciliation, labs, safety, authored SOAP, durable draft, no direct Messaging and immutable sign rendered");
     await p.close();
   }
 
